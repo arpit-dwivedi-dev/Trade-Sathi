@@ -1,0 +1,125 @@
+import { Injectable, inject } from '@angular/core';
+
+import { SupabaseClientService } from '../../core/supabase-client';
+import type { AnalysisRow } from '../analyze/analysis.types';
+
+/**
+ * The subset of `analyses` a list view needs. Deliberately not the whole row:
+ * support_levels/summary/etc. are only useful once a detail view exists.
+ */
+export type HistoryRow = Pick<
+  AnalysisRow,
+  | 'id'
+  | 'created_at'
+  | 'symbol_raw'
+  | 'asset_class'
+  | 'trend'
+  | 'call_direction'
+  | 'status'
+  | 'source_type'
+>;
+
+const HISTORY_COLUMNS =
+  'id, created_at, symbol_raw, asset_class, trend, call_direction, status, source_type';
+
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 50;
+
+export interface HistoryPage {
+  rows: HistoryRow[];
+  nextCursor: string | null;
+}
+
+/** The (created_at, id) pair a cursor encodes — the last row of a page. */
+interface CursorPayload {
+  createdAt: string;
+  id: string;
+}
+
+function encodeCursor(row: HistoryRow): string {
+  const payload: CursorPayload = { createdAt: row.created_at, id: row.id };
+  return btoa(JSON.stringify(payload));
+}
+
+function decodeCursor(cursor: string): CursorPayload | null {
+  try {
+    const parsed: unknown = JSON.parse(atob(cursor));
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      typeof (parsed as CursorPayload).createdAt === 'string' &&
+      typeof (parsed as CursorPayload).id === 'string'
+    ) {
+      return parsed as CursorPayload;
+    }
+  } catch {
+    // Falls through: an unreadable cursor is treated as "no cursor" below.
+  }
+  return null;
+}
+
+/**
+ * Clamp to a sane page size. A caller-supplied limit must never reach the
+ * query unbounded — an accidental (or abusive) limit=1000 would pull the
+ * user's entire history in one round trip.
+ */
+function normalizeLimit(limit: number): number {
+  if (!Number.isInteger(limit) || limit <= 0) return DEFAULT_LIMIT;
+  return Math.min(limit, MAX_LIMIT);
+}
+
+@Injectable({ providedIn: 'root' })
+export class HistoryService {
+  private readonly supabase = inject(SupabaseClientService);
+
+  /**
+   * Reads the signed-in user's analyses straight from Supabase — RLS already
+   * scopes `analyses` to the owner, so this needs no backend endpoint. Same
+   * client-read pattern the analyze poller uses.
+   *
+   * `cursor` is opaque to callers; only this service encodes/decodes it.
+   */
+  async fetchHistory(cursor?: string, limit: number = DEFAULT_LIMIT): Promise<HistoryPage> {
+    const client = this.supabase.client;
+    // SSR has no Supabase client (and no session); the browser refetches.
+    if (!client) return { rows: [], nextCursor: null };
+
+    const pageSize = normalizeLimit(limit);
+
+    let query = client
+      .from('analyses')
+      .select(HISTORY_COLUMNS)
+      // created_at alone is not unique — two rows can share a timestamp, which
+      // would make page boundaries skip or duplicate rows. id breaks the tie.
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      // One extra row: its presence is what tells us another page exists.
+      // rows.length === pageSize cannot answer that when the total happens to
+      // be an exact multiple of the page size.
+      .limit(pageSize + 1);
+
+    const decoded = cursor ? decodeCursor(cursor) : null;
+    if (decoded) {
+      // Tuple comparison (created_at, id) < (cursor.createdAt, cursor.id).
+      // supabase-js has no native tuple operator, so it is spelled out; a plain
+      // .lt('created_at', …) would drop the tie-breaker and reintroduce the
+      // skip/duplicate bug the compound sort exists to prevent.
+      query = query.or(
+        `created_at.lt.${decoded.createdAt},and(created_at.eq.${decoded.createdAt},id.lt.${decoded.id})`,
+      );
+    }
+
+    const { data, error } = await query.returns<HistoryRow[]>();
+    if (error) throw error;
+
+    const fetched = data ?? [];
+    const hasMore = fetched.length > pageSize;
+    const rows = hasMore ? fetched.slice(0, pageSize) : fetched;
+
+    return {
+      rows,
+      // Encode the last row of the *trimmed* page, not the probe row.
+      nextCursor: hasMore && rows.length > 0 ? encodeCursor(rows[rows.length - 1]) : null,
+    };
+  }
+}

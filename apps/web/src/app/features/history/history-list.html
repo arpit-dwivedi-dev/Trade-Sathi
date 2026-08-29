@@ -1,0 +1,43 @@
+<section class="history">
+  <h2>History</h2>
+
+  @if (loading()) {
+    <p>Loading your past analyses…</p>
+  } @else if (error() && rows().length === 0) {
+    <p>{{ error() }}</p>
+  } @else if (rows().length === 0) {
+    <p>No analyses yet. Upload a chart to see it here.</p>
+  } @else {
+    <ul class="rows">
+      @for (row of rows(); track row.id) {
+        <li class="row">
+          <span class="date">{{ relativeDate(row.created_at) }}</span>
+          <span class="symbol">{{ row.symbol_raw ?? '—' }}</span>
+
+          <span class="badges">
+            @if (row.trend) {
+              <span class="badge">{{ row.trend }}</span>
+            }
+            @if (row.call_direction) {
+              <span class="badge">{{ row.call_direction }}</span>
+            }
+          </span>
+
+          <!-- queued/processing here is not a bug: an analysis submitted from
+               another tab or session can still be in flight. -->
+          <span class="status status-{{ row.status }}">{{ row.status }}</span>
+        </li>
+      }
+    </ul>
+
+    @if (error()) {
+      <p class="error">{{ error() }}</p>
+    }
+
+    @if (nextCursor()) {
+      <button type="button" (click)="loadMore()" [disabled]="loadingMore()">
+        {{ loadingMore() ? 'Loading…' : 'Load more' }}
+      </button>
+    }
+  }
+</section>

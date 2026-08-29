@@ -1,0 +1,70 @@
+/* Placeholder styling only — this gets a real visual pass later. */
+.history {
+  font-family: sans-serif;
+  line-height: 1.5;
+}
+
+.rows {
+  list-style: none;
+  margin: 0.5rem 0 1rem;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.date {
+  color: #777;
+  font-size: 0.875rem;
+  min-width: 5rem;
+}
+
+.symbol {
+  font-weight: 600;
+}
+
+.badges {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.badge {
+  border: 1px solid #ddd;
+  border-radius: 0.75rem;
+  padding: 0 0.5rem;
+  font-size: 0.75rem;
+  color: #555;
+}
+
+.status {
+  margin-left: auto;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.status-queued,
+.status-processing {
+  color: #a06000;
+}
+
+.status-complete {
+  color: #1a7f37;
+}
+
+.status-failed {
+  color: #b42318;
+}
+
+.error {
+  color: #b42318;
+}
+
+button {
+  padding: 0.5rem;
+}

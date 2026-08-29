@@ -5,7 +5,24 @@
     <p>Signed in as {{ currentUser.email }}</p>
     <button type="button" (click)="signOut()" style="padding: 0.5rem">Sign out</button>
 
-    <app-analyze-page />
+    <nav style="display: flex; gap: 0.5rem; margin: 1rem 0">
+      <button type="button" (click)="select('analyze')" [disabled]="tab() === 'analyze'"
+              style="padding: 0.5rem">Analyze</button>
+      <button type="button" (click)="select('history')" [disabled]="tab() === 'history'"
+              style="padding: 0.5rem">History</button>
+    </nav>
+
+    <!-- Analyze stays mounted while hidden: an in-flight upload/poll must not
+         be torn down just because the user glanced at their history. History,
+         by contrast, is created on each activation, which is exactly the
+         refetch that picks up analyses finished on the other tab. -->
+    <div [hidden]="tab() !== 'analyze'">
+      <app-analyze-page />
+    </div>
+
+    @if (tab() === 'history') {
+      <app-history-list />
+    }
   } @else {
     <!-- Rendered during SSR and before client-side session restoration completes. -->
     <p>Loading…</p>
