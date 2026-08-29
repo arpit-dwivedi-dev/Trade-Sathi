@@ -1,0 +1,35 @@
+<main style="max-width: 24rem; margin: 4rem auto; padding: 0 1rem; font-family: sans-serif">
+  <h1>{{ mode() === 'signup' ? 'Create an account' : 'Sign in' }}</h1>
+
+  <form (ngSubmit)="submit()" style="display: flex; flex-direction: column; gap: 0.75rem">
+    <label>
+      Email
+      <input type="email" name="email" required autocomplete="email"
+             [ngModel]="email()" (ngModelChange)="email.set($event)"
+             style="display: block; width: 100%; padding: 0.5rem" />
+    </label>
+
+    <label>
+      Password
+      <input type="password" name="password" required
+             [autocomplete]="mode() === 'signup' ? 'new-password' : 'current-password'"
+             [ngModel]="password()" (ngModelChange)="password.set($event)"
+             style="display: block; width: 100%; padding: 0.5rem" />
+    </label>
+
+    <button type="submit" [disabled]="busy()" style="padding: 0.5rem">
+      {{ busy() ? 'Working…' : mode() === 'signup' ? 'Sign up' : 'Sign in' }}
+    </button>
+  </form>
+
+  @if (error(); as message) {
+    <p style="color: #b91c1c">{{ message }}</p>
+  }
+  @if (notice(); as message) {
+    <p style="color: #15803d">{{ message }}</p>
+  }
+
+  <button type="button" (click)="toggleMode()" style="margin-top: 1rem">
+    {{ mode() === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
+  </button>
+</main>

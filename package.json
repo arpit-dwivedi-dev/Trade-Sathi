@@ -2,6 +2,7 @@
   "name": "chartanalyzer",
   "private": true,
   "version": "0.0.1",
+  "type": "module",
   "engines": {
     "node": ">=22"
   },
@@ -12,6 +13,8 @@
     "build": "pnpm -r build"
   },
   "devDependencies": {
-    "concurrently": "^9.0.1"
+    "@supabase/supabase-js": "^2.112.4",
+    "concurrently": "^9.0.1",
+    "tsx": "^4.23.12"
   }
 }

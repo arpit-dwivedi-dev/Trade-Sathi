@@ -1,3 +1,11 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# @types/multer declares a wildcard dependency on @types/express, which resolves
+# to the v5 types. Mixing those with the v4 types apps/api actually uses makes
+# Request from one tree structurally incompatible with the other, so multer's
+# middleware cannot be passed an Express 4 Request. Pin the whole workspace to
+# the v4 line, matching the express@^4 runtime.
+overrides:
+  "@types/express": "^4.17.21"

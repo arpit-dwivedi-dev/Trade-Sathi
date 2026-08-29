@@ -1,0 +1,11 @@
+<main style="max-width: 32rem; margin: 4rem auto; padding: 0 1rem; font-family: sans-serif">
+  <h1>ChartAnalyzer</h1>
+
+  @if (user(); as currentUser) {
+    <p>Signed in as {{ currentUser.email }}</p>
+    <button type="button" (click)="signOut()" style="padding: 0.5rem">Sign out</button>
+  } @else {
+    <!-- Rendered during SSR and before client-side session restoration completes. -->
+    <p>Loading…</p>
+  }
+</main>

@@ -53,7 +53,9 @@ app.use((req, res, next) => {
  */
 if (isMainModule(import.meta.url) || process.env['pm_id']) {
   const port = process.env['PORT'] || 4000;
-  app.listen(port, (error) => {
+  // The workspace pins @types/express to the v4 line, whose listen() callback
+  // takes no arguments; the optional parameter keeps this assignable there.
+  app.listen(port, (error?: unknown) => {
     if (error) {
       throw error;
     }
