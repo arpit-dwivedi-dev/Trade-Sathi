@@ -2,9 +2,11 @@ import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../core/auth.service';
+import { AnalyzePage } from '../analyze/analyze-page';
 
 @Component({
   selector: 'app-app-page',
+  imports: [AnalyzePage],
   templateUrl: './app-page.html',
 })
 export class AppPage {

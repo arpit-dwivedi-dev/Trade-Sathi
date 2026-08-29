@@ -1,0 +1,36 @@
+<section style="font-family: sans-serif">
+  <app-chart-drop [disabled]="state() !== 'idle'" (fileSelected)="onFileSelected($event)" />
+
+  @switch (state()) {
+    @case ('uploading') {
+      <p>Uploading your chart…</p>
+    }
+    @case ('processing') {
+      <p>Analyzing your chart… this usually takes under a minute.</p>
+    }
+    @case ('complete') {
+      @if (row(); as completed) {
+        <app-analysis-result [row]="completed" [patterns]="patterns()" />
+      }
+    }
+    @case ('failed') {
+      @if (error(); as message) {
+        <p>{{ message }}</p>
+      } @else if (row(); as failedRow) {
+        <app-analysis-result [row]="failedRow" [patterns]="patterns()" />
+      }
+    }
+    @case ('timed_out') {
+      <p>This is taking longer than usual. Your analysis may still finish — check back shortly.</p>
+    }
+    @case ('poll_error') {
+      <p>Couldn't check the status — try refreshing the page.</p>
+    }
+  }
+
+  @if (state() !== 'idle' && state() !== 'uploading' && state() !== 'processing') {
+    <button type="button" (click)="reset()" style="padding: 0.5rem; margin-top: 1rem">
+      Analyze another
+    </button>
+  }
+</section>

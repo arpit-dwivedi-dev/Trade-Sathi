@@ -1,0 +1,31 @@
+/* Placeholder styling only — this gets a real visual pass later. */
+.drop-zone {
+  border: 2px dashed #bbb;
+  border-radius: 0.5rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  font-family: sans-serif;
+}
+
+.drop-zone.dragging {
+  border-color: #444;
+  background: #f4f4f4;
+}
+
+.drop-zone.disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.primary {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.secondary {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #777;
+}

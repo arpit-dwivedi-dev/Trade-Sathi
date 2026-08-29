@@ -1,0 +1,23 @@
+<div
+  class="drop-zone"
+  [class.dragging]="dragging()"
+  [class.disabled]="disabled()"
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave()"
+  (drop)="onDrop($event)"
+  (click)="browse()"
+>
+  <p class="primary">Paste a chart screenshot — Ctrl+V</p>
+  <p class="secondary">or drop an image, or click to browse</p>
+</div>
+
+<!-- Outside the drop-zone on purpose: browse() calls input.click(), and a click
+     event on a child would bubble back to the zone's own (click) handler. -->
+<input
+  #fileInput
+  type="file"
+  hidden
+  [accept]="acceptedTypes"
+  [disabled]="disabled()"
+  (change)="onPick($event)"
+/>

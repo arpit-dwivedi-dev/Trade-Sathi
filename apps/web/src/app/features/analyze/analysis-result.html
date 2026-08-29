@@ -1,0 +1,76 @@
+@if (failed()) {
+  <section class="result">
+    <h2>Analysis failed</h2>
+    <p>{{ row().error_message ?? 'The analysis could not be completed.' }}</p>
+  </section>
+} @else {
+  <section class="result">
+    <h2>{{ row().symbol ?? row().symbol_raw ?? 'Unknown symbol' }}</h2>
+    <p class="meta">{{ row().asset_class ?? '—' }} · {{ row().timeframe ?? '—' }}</p>
+
+    <dl>
+      <dt>Trend</dt>
+      <dd>{{ row().trend ?? '—' }}</dd>
+      <dt>Volatility</dt>
+      <dd>{{ row().volatility ?? '—' }}</dd>
+      <dt>Volume</dt>
+      <dd>{{ row().volume_reading ?? '—' }}</dd>
+      <dt>Sentiment</dt>
+      <dd>{{ row().sentiment ?? '—' }}</dd>
+    </dl>
+
+    <h3>Levels</h3>
+    <p>Support: {{ supports().length ? supports().join(', ') : '—' }}</p>
+    <p>Resistance: {{ resistances().length ? resistances().join(', ') : '—' }}</p>
+
+    <h3>The call</h3>
+    <dl>
+      <dt>Direction</dt>
+      <dd>{{ row().call_direction ?? '—' }}</dd>
+      <dt>Confidence</dt>
+      <dd>
+        @if (row().call_confidence !== null) {
+          {{ row().call_confidence! * 100 | number: '1.0-0' }}%
+        } @else {
+          —
+        }
+      </dd>
+      <dt>Entry</dt>
+      <dd>{{ row().call_entry ?? '—' }}</dd>
+      <dt>Invalidation</dt>
+      <dd>{{ row().call_invalidation ?? '—' }}</dd>
+      <dt>Target</dt>
+      <dd>{{ row().call_target ?? '—' }}</dd>
+      <dt>Horizon</dt>
+      <dd>
+        @if (row().horizon_candles !== null) {
+          {{ row().horizon_candles }} candles
+        } @else {
+          —
+        }
+      </dd>
+    </dl>
+
+    <h3>Summary</h3>
+    <p>{{ row().summary ?? 'No summary was produced.' }}</p>
+
+    <h3>Patterns</h3>
+    @if (patterns().length) {
+      <ul>
+        @for (pattern of patterns(); track pattern.id) {
+          <li>
+            <strong>{{ pattern.pattern_key }}</strong>
+            @if (pattern.confidence !== null) {
+              <span class="meta"> · {{ pattern.confidence * 100 | number: '1.0-0' }}%</span>
+            }
+            @if (pattern.pattern_note) {
+              <p class="meta">{{ pattern.pattern_note }}</p>
+            }
+          </li>
+        }
+      </ul>
+    } @else {
+      <p>No patterns detected.</p>
+    }
+  </section>
+}

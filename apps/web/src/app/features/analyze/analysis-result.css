@@ -1,0 +1,26 @@
+/* Placeholder styling only — this gets a real visual pass later. */
+.result {
+  font-family: sans-serif;
+  line-height: 1.5;
+}
+
+.meta {
+  color: #777;
+  font-size: 0.875rem;
+  margin: 0.25rem 0;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0.5rem 0 1rem;
+}
+
+dt {
+  color: #777;
+}
+
+dd {
+  margin: 0;
+}
