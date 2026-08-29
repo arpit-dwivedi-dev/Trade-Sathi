@@ -114,7 +114,7 @@ export class AnalyzeService {
         return {
           ok: false,
           reason: 'quota_exceeded',
-          message: "You've used all your free analyses this month.",
+          message: "You've used all your analyses this month.",
         };
       }
       if (status === 400) {
