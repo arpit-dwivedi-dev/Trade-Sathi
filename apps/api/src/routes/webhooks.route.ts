@@ -21,6 +21,15 @@ interface RazorpaySubscriptionEntity {
 }
 
 /**
+ * The subset of payload.payment.entity this route reads. Same treatment as the
+ * subscription entity: provider-controlled data that may be absent.
+ */
+interface RazorpayPaymentEntity {
+  id?: unknown;
+  order_id?: unknown;
+}
+
+/**
  * Converts a Razorpay Unix-seconds timestamp to an ISO-8601 string for a
  * timestamptz parameter.
  *
@@ -114,10 +123,14 @@ webhooksRouter.post(
       return;
     }
 
-    // Acknowledge and ignore event categories outside this project's current
-    // scope (payment.*, order.*, …). This project has no payments or orders
-    // tables yet; erroring on them would only make Razorpay retry deliveries
-    // that can never be processed.
+    if (eventType === "payment.captured") {
+      await handlePaymentCaptured(body, eventType, eventId, res);
+      return;
+    }
+
+    // Acknowledge and ignore every other event category outside this project's
+    // current scope (payment.failed, order.*, …). Erroring on them would only
+    // make Razorpay retry deliveries that can never be processed.
     if (!eventType.startsWith("subscription.")) {
       logger.info("razorpay webhook ignored: unhandled event type", {
         eventType,
@@ -201,3 +214,108 @@ webhooksRouter.post(
     }
   },
 );
+
+/**
+ * Applies a verified payment.captured event, if and only if it belongs to a
+ * credit-pack purchase.
+ *
+ * payment.captured fires for BOTH a one-time credit-pack Order AND every
+ * recurring subscription charge. The two must not be confused: a subscription
+ * charge is already applied via subscription.charged, and treating it as a
+ * credit purchase would grant credits nobody bought. The discriminator is our
+ * own payments table — a row exists only because createCreditOrder wrote one,
+ * so its presence, not anything in the provider's payload, decides.
+ *
+ * Called only after signature verification. Always responds; never throws to
+ * the caller.
+ */
+async function handlePaymentCaptured(
+  body: Record<string, unknown>,
+  eventType: string,
+  eventId: string,
+  res: Response,
+): Promise<void> {
+  const payload = body["payload"] as
+    | { payment?: { entity?: RazorpayPaymentEntity } }
+    | undefined;
+  const entity = payload?.payment?.entity;
+  const providerOrderId = asStringOrNull(entity?.order_id);
+  const providerPaymentId = asStringOrNull(entity?.id);
+
+  // Shouldn't happen per Razorpay's documented payload shape, but this is data
+  // the provider controls — acknowledge rather than crash or retry.
+  if (!entity || !providerOrderId || !providerPaymentId) {
+    logger.warn("razorpay payment webhook missing payment entity", {
+      eventType,
+      eventId,
+    });
+    res.status(200).json({ received: true });
+    return;
+  }
+
+  try {
+    // The lookup that decides whether this is ours at all. A miss is the
+    // expected, common case: it means the payment is the side-effect of a
+    // subscription charge, already handled through subscription.charged.
+    const { data: payment, error: lookupError } = await supabaseAdmin
+      .from("payments")
+      .select("id")
+      .eq("provider_order_id", providerOrderId)
+      .maybeSingle();
+
+    if (lookupError) {
+      throw new Error(lookupError.message);
+    }
+
+    if (!payment) {
+      logger.info("razorpay webhook ignored: payment is not a credit purchase", {
+        eventType,
+        eventId,
+        providerOrderId,
+      });
+      res.status(200).json({ received: true });
+      return;
+    }
+
+    const { data, error } = await supabaseAdmin.rpc("apply_credit_purchase", {
+      p_provider_order_id: providerOrderId,
+      p_provider_payment_id: providerPaymentId,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    // All outcomes are 200, same policy as the subscription webhook: none of
+    // them is improved by a Razorpay retry. 'duplicate' is a correctly-handled
+    // non-action, and 'order_not_found' would mean the row vanished between
+    // the lookup above and the call, which redelivery will not fix.
+    if (data === "order_not_found") {
+      logger.warn("razorpay webhook: credit payment row disappeared", {
+        eventType,
+        eventId,
+        providerOrderId,
+      });
+    } else {
+      logger.info("razorpay credit purchase webhook processed", {
+        eventType,
+        eventId,
+        providerOrderId,
+        outcome: data,
+      });
+    }
+
+    // The outcome is deliberately not revealed in the response body; Razorpay
+    // only needs the acknowledgement.
+    res.status(200).json({ received: true });
+  } catch (cause) {
+    // The one case where a retry is genuinely useful: an unexpected
+    // infrastructure failure that a later attempt might get past.
+    logger.error("razorpay credit purchase webhook failed to apply", {
+      eventType,
+      eventId,
+      cause: String(cause),
+    });
+    res.status(500).json({ error: "Failed to process webhook" });
+  }
+}
