@@ -36,6 +36,12 @@ This file governs how Claude Code should work in this repo.
 - Money is always stored and passed as integer minor units (paise),
   never as a float.
 
+## Migrations
+- Before naming a new migration file, run `npx supabase migration
+  list` and give the new file a timestamp later than the newest entry
+  shown. Do not trust this machine's `date -u` output — it has been
+  found out of sync with the migration sequence.
+
 ## TypeScript
 - `strict: true` everywhere. No `any` without a comment explaining
   why it's unavoidable.
