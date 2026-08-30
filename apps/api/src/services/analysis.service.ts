@@ -14,6 +14,10 @@ export type CreateAnalysisResult =
   | { ok: true; id: string; status: "queued" }
   | { ok: false; reason: "quota_exceeded" };
 
+/** Which entitlement check_and_consume_entitlement actually spent, so the
+ *  compensation path can give back the same one. */
+type EntitlementSource = "quota" | "credit";
+
 /** The current UTC year-month, in the same 'YYYY-MM' shape that
  *  check_and_increment_usage computes internally via
  *  to_char(now() at time zone 'UTC', 'YYYY-MM'). */
@@ -39,6 +43,42 @@ async function decrementUsage(profileId: string, period: string): Promise<void> 
 }
 
 /**
+ * Reverses one previously consumed credit.
+ *
+ * The credit-side mirror of decrementUsage: a single UPDATE plus its
+ * credit_ledger row. Credits are not period-scoped, so unlike the quota path
+ * there is no captured period to pass.
+ */
+async function refundCredit(profileId: string): Promise<void> {
+  const { error } = await supabaseAdmin.rpc("refund_credit", {
+    p_profile_id: profileId,
+  });
+  if (error) {
+    throw error;
+  }
+}
+
+/**
+ * Gives back whichever entitlement was consumed for this request.
+ *
+ * The branch MUST match what check_and_consume_entitlement actually spent.
+ * Getting it wrong silently converts a purchased credit into a quota refund
+ * (the user loses money) or a quota unit into a minted credit (the user gains
+ * one) — neither errors, both corrupt the entitlement balance.
+ */
+async function releaseEntitlement(
+  profileId: string,
+  source: EntitlementSource,
+  period: string,
+): Promise<void> {
+  if (source === "quota") {
+    await decrementUsage(profileId, period);
+  } else {
+    await refundCredit(profileId);
+  }
+}
+
+/**
  * Creates a queued analysis: consumes quota, stores the image, writes the row.
  *
  * createAnalysis() trusts that its caller (the route) has already validated
@@ -59,17 +99,20 @@ export async function createAnalysis(
   // decrement below — see the trade-off notes at the upload failure branch.
   const periodForCompensation = currentUtcPeriod();
 
-  // (a) Atomic quota gate. Everything after this point has consumed one unit.
-  const { data: withinQuota, error: quotaError } = await supabaseAdmin.rpc(
-    "check_and_increment_usage",
+  // (a) Atomic entitlement gate: monthly quota first, then a one-off credit.
+  // Everything after this point has consumed exactly one of the two.
+  const { data: entitlement, error: entitlementError } = await supabaseAdmin.rpc(
+    "check_and_consume_entitlement",
     { p_profile_id: profileId },
   );
-  if (quotaError) {
-    throw quotaError;
+  if (entitlementError) {
+    throw entitlementError;
   }
-  if (withinQuota !== true) {
+  if (entitlement === "denied") {
     return { ok: false, reason: "quota_exceeded" };
   }
+  const entitlementSource: EntitlementSource =
+    entitlement === "credit" ? "credit" : "quota";
 
   // (b) For future dedupe/caching. Nothing reads it yet.
   const imageHash = createHash("sha256").update(file.buffer).digest("hex");
@@ -85,8 +128,10 @@ export async function createAnalysis(
     .upload(imageKey, file.buffer, { contentType: file.mimetype });
 
   if (uploadError) {
-    // Quota was already consumed by the RPC, but no analysis exists — give the
-    // unit back rather than charging the user for a failed upload.
+    // The entitlement was already consumed by the RPC, but no analysis exists —
+    // give it back rather than charging the user for a failed upload. The
+    // branch inside releaseEntitlement must match whichever resource was
+    // actually spent; see its doc comment.
     //
     // Known, accepted MVP trade-offs of compensating rather than doing this in
     // one transaction:
@@ -112,7 +157,7 @@ export async function createAnalysis(
     //     check_and_increment_usage's return contract to report back the exact
     //     period it operated on, which is a migration change out of scope here;
     //     accepted as a known MVP limitation.
-    await decrementUsage(profileId, periodForCompensation);
+    await releaseEntitlement(profileId, entitlementSource, periodForCompensation);
     throw uploadError;
   }
 
@@ -148,8 +193,8 @@ export async function createAnalysis(
         cause: String(removeError),
       });
     }
-    // Same compensating decrement, same captured period, same trade-offs as (d).
-    await decrementUsage(profileId, periodForCompensation);
+    // Same compensating release, same captured period, same trade-offs as (d).
+    await releaseEntitlement(profileId, entitlementSource, periodForCompensation);
     throw insertError ?? new Error("Analysis insert returned no row");
   }
 
