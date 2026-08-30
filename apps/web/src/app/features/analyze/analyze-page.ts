@@ -1,22 +1,30 @@
-import { Component, OnDestroy, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 
 import { AnalysisResult } from './analysis-result';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
-import { AnalyzeService, type PollHandle } from './analyze.service';
+import { AnalyzeService, type PollHandle, type QuotaStatus } from './analyze.service';
 import { ChartDrop, type ChartFileSelection } from './chart-drop';
+import { UpgradeButton } from '../billing/upgrade-button';
 
 type AnalyzeState =
-  'idle' | 'uploading' | 'processing' | 'complete' | 'failed' | 'timed_out' | 'poll_error';
+  | 'idle'
+  | 'uploading'
+  | 'processing'
+  | 'complete'
+  | 'failed'
+  | 'quota_exceeded'
+  | 'timed_out'
+  | 'poll_error';
 
 /**
  * Owns the upload → poll → result state machine and wires the pieces together.
  */
 @Component({
   selector: 'app-analyze-page',
-  imports: [ChartDrop, AnalysisResult],
+  imports: [ChartDrop, AnalysisResult, UpgradeButton],
   templateUrl: './analyze-page.html',
 })
-export class AnalyzePage implements OnDestroy {
+export class AnalyzePage implements OnInit, OnDestroy {
   private readonly analyze = inject(AnalyzeService);
 
   protected readonly state = signal<AnalyzeState>('idle');
@@ -24,8 +32,28 @@ export class AnalyzePage implements OnDestroy {
   protected readonly patterns = signal<AnalysisPattern[]>([]);
   /** Set only for a failed submission; otherwise the state carries the copy. */
   protected readonly error = signal<string | null>(null);
+  /**
+   * This month's quota, read on load. null means "not known" (SSR, no session,
+   * read error) — the upload path stays open in that case and the backend's 402
+   * remains the authority.
+   */
+  protected readonly quota = signal<QuotaStatus | null>(null);
 
   private poll: PollHandle | null = null;
+
+  ngOnInit(): void {
+    void this.refreshQuota();
+  }
+
+  /** True only when the quota is known *and* used up. */
+  protected quotaExhausted(): boolean {
+    const quota = this.quota();
+    return quota !== null && quota.remaining <= 0;
+  }
+
+  private async refreshQuota(): Promise<void> {
+    this.quota.set(await this.analyze.fetchQuota());
+  }
 
   protected async onFileSelected(selection: ChartFileSelection): Promise<void> {
     // Belt and braces: chart-drop is already given disabled=true off-idle.
@@ -48,12 +76,20 @@ export class AnalyzePage implements OnDestroy {
     const submitted = await this.analyze.submitAnalysis(blob, selection.sourceType);
     if (!submitted.ok) {
       // quota_exceeded is an expected, common outcome rather than a bug state,
-      // so it keeps its own friendly copy from the service.
+      // so it keeps its own friendly copy from the service and its own state —
+      // that state is what offers the upgrade path instead of just an error.
       this.error.set(submitted.message);
-      this.state.set('failed');
+      if (submitted.reason === 'quota_exceeded') {
+        // The cached quota disagreed with the backend, which is authoritative.
+        void this.refreshQuota();
+        this.state.set('quota_exceeded');
+      } else {
+        this.state.set('failed');
+      }
       return;
     }
 
+    void this.refreshQuota();
     this.state.set('processing');
     this.startPolling(submitted.id);
   }
@@ -83,6 +119,17 @@ export class AnalyzePage implements OnDestroy {
           break;
       }
     });
+  }
+
+  /**
+   * The user upgraded from the quota block: drop straight back to idle so the
+   * analysis their quota refused can be retried immediately.
+   */
+  protected onUpgraded(): void {
+    // Re-read the quota before resetting: the plan changed, so the pre-upgrade
+    // "no analyses left" state must not survive into idle.
+    void this.refreshQuota();
+    this.reset();
   }
 
   protected reset(): void {

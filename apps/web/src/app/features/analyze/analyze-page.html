@@ -1,5 +1,15 @@
 <section style="font-family: sans-serif">
-  <app-chart-drop [disabled]="state() !== 'idle'" (fileSelected)="onFileSelected($event)" />
+  <app-chart-drop
+    [disabled]="state() !== 'idle' || quotaExhausted()"
+    (fileSelected)="onFileSelected($event)"
+  />
+
+  <!-- Shown before any upload: a user who is already out of analyses gets the
+       upgrade path on arrival rather than after a doomed upload. -->
+  @if (state() === 'idle' && quotaExhausted()) {
+    <p>You've used all your analyses this month.</p>
+    <app-upgrade-button (upgraded)="onUpgraded()" />
+  }
 
   @switch (state()) {
     @case ('uploading') {
@@ -19,6 +29,10 @@
       } @else if (row(); as failedRow) {
         <app-analysis-result [row]="failedRow" [patterns]="patterns()" />
       }
+    }
+    @case ('quota_exceeded') {
+      <p>{{ error() }}</p>
+      <app-upgrade-button (upgraded)="onUpgraded()" />
     }
     @case ('timed_out') {
       <p>This is taking longer than usual. Your analysis may still finish — check back shortly.</p>

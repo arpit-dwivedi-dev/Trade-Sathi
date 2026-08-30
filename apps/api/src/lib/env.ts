@@ -42,6 +42,10 @@ export const env = {
   openaiApiKey: requireEnv("OPENAI_API_KEY"),
   razorpayKeyId: requireEnv("RAZORPAY_KEY_ID"),
   razorpayKeySecret: requireEnv("RAZORPAY_KEY_SECRET"),
+  // A DIFFERENT secret from RAZORPAY_KEY_SECRET: this one is generated when
+  // the webhook is configured in the Razorpay dashboard, and is used only to
+  // verify inbound webhook signatures.
+  razorpayWebhookSecret: requireEnv("RAZORPAY_WEBHOOK_SECRET"),
 
   // AI provider config. The configured provider is expected to support the
   // OpenAI-compatible Chat Completions shape used here; provider-specific
