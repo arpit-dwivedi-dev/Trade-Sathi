@@ -1,0 +1,79 @@
+/* A normal stacking context, NOT the browser top layer. A <dialog> opened with
+   showModal() paints above every z-index on the page, which put Razorpay
+   Checkout behind this panel and made paying impossible. Checkout sets a very
+   high z-index of its own, so staying well below it is what lets Checkout open
+   above the overlay. */
+.plans-scrim {
+  align-items: center;
+  backdrop-filter: blur(2px);
+  background: rgb(0 0 0 / 55%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  overflow: auto;
+  padding: var(--s6);
+  position: fixed;
+  z-index: 50;
+}
+
+.plans-panel {
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-hi);
+  color: var(--tx);
+  display: flex;
+  flex-direction: column;
+  max-height: 90dvh;
+  max-width: min(720px, 100%);
+  overflow: auto;
+  width: 100%;
+}
+
+/* Reuses the shell's .bar so the overlay reads as part of the same app rather
+   than a generic modal: same height, same border, same brand treatment. */
+.plans-bar {
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  padding: 0 var(--s6);
+}
+
+.plans-bar-end {
+  align-items: center;
+  display: flex;
+  gap: var(--s3);
+}
+
+.plans-close {
+  margin-left: var(--s2);
+}
+
+.plans-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  padding: var(--s6);
+}
+
+.plans-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.plans-note {
+  color: var(--tx-3);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+/* Visually hidden but kept for aria-labelledby — the visible title is the
+   .brand mark in the bar, which reads as a logo, not as a heading. */
+.sr-only {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

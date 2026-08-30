@@ -10,11 +10,16 @@
     "dev:web": "pnpm --filter @chartanalyzer/web start",
     "dev:api": "pnpm --filter @chartanalyzer/api dev",
     "dev": "concurrently -n web,api \"pnpm:dev:web\" \"pnpm:dev:api\"",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "test": "pnpm -r --if-present test",
+    "lint": "eslint ."
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.112.4",
     "concurrently": "^9.0.1",
-    "tsx": "^4.23.12"
+    "eslint": "^10.9.1",
+    "tsx": "^4.23.12",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.68.0"
   }
 }

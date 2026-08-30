@@ -12,6 +12,9 @@
 
       <div class="bar-end">
         <span class="bar-email trunc">{{ currentUser.email }}</span>
+        <button type="button" class="btn btn-p btn-sm" (click)="openPlans()">
+          {{ billingLabel() }}
+        </button>
         <button type="button" class="btn btn-g btn-sm" (click)="toggleTheme()"
                 [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
           {{ theme() === 'dark' ? 'Light' : 'Dark' }}
@@ -33,11 +36,21 @@
          by contrast, is created on each activation, which is exactly the
          refetch that picks up analyses finished on the other tab. -->
     <div [hidden]="tab() !== 'analyze'">
-      <app-analyze-page />
+      <app-analyze-page (plansRequested)="openPlans()" />
     </div>
 
     @if (tab() === 'history') {
       <app-history-list />
+    }
+
+    <!-- Mounted only while open, so closing tears the purchase buttons down
+         through their own ngOnDestroy and a reopen starts from a clean state. -->
+    @if (plansOpen()) {
+      <app-plans-overlay
+        (closed)="closePlans()"
+        (upgraded)="onUpgraded()"
+        (creditsAdded)="onCreditsAdded()"
+      />
     }
   } @else {
     <!-- Rendered during SSR and before client-side session restoration completes. -->

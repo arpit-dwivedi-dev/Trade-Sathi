@@ -1,11 +1,9 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, output, signal } from '@angular/core';
 
 import { AnalysisResult } from './analysis-result';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
 import { AnalyzeService, type PollHandle, type QuotaStatus } from './analyze.service';
 import { ChartDrop, type ChartFileSelection } from './chart-drop';
-import { BuyCreditsButton } from '../billing/buy-credits-button';
-import { UpgradeButton } from '../billing/upgrade-button';
 
 type AnalyzeState =
   | 'idle'
@@ -22,12 +20,19 @@ type AnalyzeState =
  */
 @Component({
   selector: 'app-analyze-page',
-  imports: [ChartDrop, AnalysisResult, UpgradeButton, BuyCreditsButton],
+  imports: [ChartDrop, AnalysisResult],
   styleUrl: './analyze-page.css',
   templateUrl: './analyze-page.html',
 })
 export class AnalyzePage implements OnInit, OnDestroy {
   private readonly analyze = inject(AnalyzeService);
+
+  /**
+   * Asks the shell to open the plans overlay. The overlay is mounted once at
+   * the shell rather than here so both entry points — the nav control and this
+   * page's quota block — drive the same instance.
+   */
+  readonly plansRequested = output<void>();
 
   protected readonly state = signal<AnalyzeState>('idle');
   protected readonly row = signal<AnalysisRow | null>(null);
@@ -124,23 +129,24 @@ export class AnalyzePage implements OnInit, OnDestroy {
   }
 
   /**
-   * The user upgraded from the quota block: drop straight back to idle so the
-   * analysis their quota refused can be retried immediately.
+   * The user upgraded: drop straight back to idle so the analysis their quota
+   * refused can be retried immediately. Called by the shell when the overlay
+   * reports a successful upgrade, from either entry point.
    */
   /**
-   * The user bought a credit pack from the quota block: same reset as
-   * onUpgraded. The monthly quota is still exhausted — the next analysis draws
+   * The user bought a credit pack: same reset as onUpgraded. Called by the
+   * shell when the overlay reports a purchase, from either entry point. The monthly quota is still exhausted — the next analysis draws
    * on a credit instead, which check_and_consume_entitlement decides
    * server-side — so this only clears the blocked UI state.
    */
-  protected onCreditsAdded(): void {
+  onCreditsAdded(): void {
     // Re-read the quota for the same reason as onUpgraded: the quota block's
     // copy is stale once the user has paid, and must not survive into idle.
     void this.refreshQuota();
     this.reset();
   }
 
-  protected onUpgraded(): void {
+  onUpgraded(): void {
     // Re-read the quota before resetting: the plan changed, so the pre-upgrade
     // "no analyses left" state must not survive into idle.
     void this.refreshQuota();

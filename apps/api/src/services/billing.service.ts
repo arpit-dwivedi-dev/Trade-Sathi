@@ -39,14 +39,19 @@ export type CreateSubscriptionResult =
     };
 
 /**
- * Creates a Razorpay Subscription object for the pro_monthly plan and records
- * it locally, returning the identifiers Razorpay Checkout needs on the client.
+ * Creates a Razorpay Subscription object for the given plan and records it
+ * locally, returning the identifiers Razorpay Checkout needs on the client.
+ *
+ * `planKey` is a plans.key value ('starter_monthly', 'pro_monthly', …). The
+ * caller is responsible for restricting it to keys that are actually
+ * purchasable; an unknown or unpriced key resolves to 'plan_unavailable' here.
  *
  * Expected outcomes are returned as a discriminated result; only genuinely
  * unexpected failures (DB errors) throw, and the route maps those to 500.
  */
 export async function createSubscription(
   profileId: string,
+  planKey: string,
 ): Promise<CreateSubscriptionResult> {
   // (a) Reject if this profile already has a non-terminal subscription.
   //
@@ -73,17 +78,58 @@ export async function createSubscription(
     };
   }
 
-  // (a2) Reuse a subscription left at 'created' by an abandoned checkout.
+  // (a2) Resolve the internal plan and its Razorpay counterpart.
+  //
+  // Price and razorpay_plan_id come from plan_prices, not from
+  // plans.price_inr_paise / plans.razorpay_plan_id: plan_prices is the
+  // region-aware table and is the single source of truth for purchase-time
+  // pricing. Those two plans columns are now effectively superseded for
+  // purchase flows; they are left in place rather than removed here, since
+  // dropping columns needs a broader sweep for other references — future
+  // cleanup, not part of this task.
+  //
+  // region is hardcoded to 'IN': region detection is not built yet. This is a
+  // known, temporary simplification, not a bug to fix in this task.
+  const { data: price, error: priceError } = await supabaseAdmin
+    .from("plan_prices")
+    .select("amount_minor, razorpay_plan_id, plans!inner(id, key)")
+    .eq("plans.key", planKey)
+    .eq("region", "IN")
+    .eq("is_active", true)
+    .maybeSingle<{
+      amount_minor: number;
+      razorpay_plan_id: string | null;
+      plans: { id: string; key: string };
+    }>();
+  if (priceError) {
+    throw priceError;
+  }
+  // An unknown planKey, an inactive price row, or a plan with no Razorpay plan
+  // object for this region (the free plan, for one) all land here.
+  if (!price?.razorpay_plan_id) {
+    return {
+      ok: false,
+      reason: "plan_unavailable",
+      message: "That plan is not available for purchase",
+    };
+  }
+
+  // (b) Reuse a subscription left at 'created' by an abandoned checkout.
   //
   // Razorpay sends no event when a user closes the checkout widget, so the row
   // stays 'created' indefinitely. The Razorpay subscription object is still
   // valid and can be handed back to Checkout, so return it rather than creating
   // a second object (which would leak orphaned subscriptions on every retry).
+  //
+  // Scoped to the plan being purchased: a subscription object is bound to one
+  // Razorpay plan, so reusing an abandoned Pro checkout for a Starter purchase
+  // would charge the wrong price. A different plan gets its own object.
   const { data: pendingCheckout, error: pendingError } = await supabaseAdmin
     .from("subscriptions")
     .select("provider_subscription_id")
     .eq("profile_id", profileId)
     .eq("status", "created")
+    .eq("plan_id", price.plans.id)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -98,26 +144,6 @@ export async function createSubscription(
     };
   }
 
-  // (b) Resolve the internal plan and its Razorpay counterpart.
-  const { data: plan, error: planError } = await supabaseAdmin
-    .from("plans")
-    .select("id, razorpay_plan_id, price_inr_paise")
-    .eq("key", "pro_monthly")
-    .maybeSingle();
-  if (planError) {
-    throw planError;
-  }
-  // razorpay_plan_id was set by an earlier migration and should never be null
-  // here — but a misconfigured environment is a configuration problem to report,
-  // not something to assume away.
-  if (!plan?.razorpay_plan_id) {
-    return {
-      ok: false,
-      reason: "plan_unavailable",
-      message: "The pro_monthly plan is not available for purchase",
-    };
-  }
-
   // (c) Create the Razorpay Subscription object.
   //
   // quantity is omitted deliberately (defaults to 1 — one license per user).
@@ -126,7 +152,7 @@ export async function createSubscription(
   let subscription;
   try {
     subscription = await razorpay.subscriptions.create({
-      plan_id: plan.razorpay_plan_id,
+      plan_id: price.razorpay_plan_id,
       total_count: TOTAL_BILLING_CYCLES,
       customer_notify: 1,
       notes: { profile_id: profileId },
@@ -151,11 +177,11 @@ export async function createSubscription(
     .from("subscriptions")
     .insert({
       profile_id: profileId,
-      plan_id: plan.id,
+      plan_id: price.plans.id,
       provider: "razorpay",
       provider_subscription_id: subscription.id,
       status: subscription.status,
-      amount_minor: plan.price_inr_paise,
+      amount_minor: price.amount_minor,
       currency: "INR",
     });
   if (insertError) {

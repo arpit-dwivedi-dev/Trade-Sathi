@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from '../../core/auth.service';
@@ -51,7 +51,7 @@ declare global {
 
 export type SubscribeResult =
   | { ok: true; subscriptionId: string; keyId: string }
-  | { ok: false; reason: 'already_subscribed' | 'error'; message: string };
+  | { ok: false; reason: 'already_subscribed' | 'invalid_plan' | 'error'; message: string };
 
 export type CheckoutOutcome = { outcome: 'submitted' } | { outcome: 'dismissed' };
 
@@ -79,6 +79,8 @@ export interface CreditPollHandle {
  * normal case, not an error.
  */
 export interface PlanSummary {
+  /** plans.key — 'free', 'starter_monthly', 'pro_monthly'. */
+  key: string;
   name: string;
   priceInrPaise: number;
   analysesPerMonth: number;
@@ -94,8 +96,58 @@ export class BillingService {
   /** Cached so concurrent callers share one script injection. */
   private checkoutScript: Promise<void> | null = null;
 
-  /** Asks the backend to create a Razorpay Subscription for this profile. */
-  async subscribe(): Promise<SubscribeResult> {
+  /**
+   * The current plan, shared by every consumer that needs to know which tier
+   * the user is on — the nav's Upgrade/Buy Credits label, the plans overlay,
+   * and the plan picker's "Current plan" marker.
+   *
+   * Held here rather than fetched per component so those three read one
+   * query's result instead of issuing the same query three times. It is the
+   * cache in front of fetchPlanSummary(), not a second way to read the plan.
+   */
+  private readonly planSummary = signal<PlanSummary | null>(null);
+
+  /** null until the first load resolves, and for users whose plan can't be read. */
+  readonly currentPlanKey = computed(() => this.planSummary()?.key ?? null);
+  readonly currentPlan = this.planSummary.asReadonly();
+
+  /** Dedupes concurrent first-loads onto one in-flight request. */
+  private planSummaryRequest: Promise<PlanSummary | null> | null = null;
+
+  /**
+   * Loads the plan summary once and caches it. Repeat callers get the cached
+   * value; concurrent callers share the one in-flight request.
+   */
+  async ensurePlanSummary(): Promise<PlanSummary | null> {
+    const cached = this.planSummary();
+    if (cached) return cached;
+    this.planSummaryRequest ??= this.fetchPlanSummary().then((summary) => {
+      this.planSummary.set(summary);
+      // Cleared either way: a failed read must not be cached as "no plan"
+      // forever, so the next caller retries.
+      this.planSummaryRequest = null;
+      return summary;
+    });
+    return this.planSummaryRequest;
+  }
+
+  /**
+   * Re-reads the plan, bypassing the cache. Called after a successful upgrade,
+   * when the cached tier is exactly what has just gone stale.
+   */
+  async refreshPlanSummary(): Promise<PlanSummary | null> {
+    this.planSummaryRequest = null;
+    const summary = await this.fetchPlanSummary();
+    this.planSummary.set(summary);
+    return summary;
+  }
+
+  /**
+   * Asks the backend to create a Razorpay Subscription for this profile on the
+   * given plan. `planKey` is a plans.key value; the backend re-validates it
+   * against its own whitelist and 400s on anything else.
+   */
+  async subscribe(planKey: string): Promise<SubscribeResult> {
     const token = await this.auth.getAccessToken();
     if (!token) {
       return { ok: false, reason: 'error', message: 'You are not signed in.' };
@@ -105,7 +157,7 @@ export class BillingService {
       const response = await firstValueFrom(
         this.http.post<{ subscriptionId: string; keyId: string }>(
           '/api/billing/subscribe',
-          {},
+          { planKey },
           { headers: { Authorization: `Bearer ${token}` } },
         ),
       );
@@ -118,6 +170,18 @@ export class BillingService {
           ok: false,
           reason: 'already_subscribed',
           message: 'You already have a subscription in progress.',
+        };
+      }
+      if (status === 400) {
+        // The picker only offers keys the backend accepts, so this means the UI
+        // and the backend whitelist have drifted apart. Nothing the user can
+        // fix — but surfaced rather than folded into the generic message, so it
+        // is recognisable as a bug when it shows up.
+        console.warn('backend rejected the plan key', cause);
+        return {
+          ok: false,
+          reason: 'invalid_plan',
+          message: "That plan isn't available. Please pick another one.",
         };
       }
       // 500 (our own misconfiguration) and 502 (the provider failed) are both
@@ -498,10 +562,15 @@ export class BillingService {
       const [profile, subscription] = await Promise.all([
         client
           .from('profiles')
-          .select('plans(name, price_inr_paise, analyses_per_month)')
+          .select('plans(key, name, price_inr_paise, analyses_per_month)')
           .eq('id', profileId)
           .single<{
-            plans: { name: string; price_inr_paise: number; analyses_per_month: number } | null;
+            plans: {
+              key: string;
+              name: string;
+              price_inr_paise: number;
+              analyses_per_month: number;
+            } | null;
           }>(),
         client
           .from('subscriptions')
@@ -521,6 +590,7 @@ export class BillingService {
       if (!plan) return null;
 
       return {
+        key: plan.key,
         name: plan.name,
         priceInrPaise: plan.price_inr_paise,
         analysesPerMonth: plan.analyses_per_month,

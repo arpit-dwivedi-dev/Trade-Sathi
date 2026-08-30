@@ -2,6 +2,11 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# vitest pulls in @parcel/watcher, whose native postinstall build is only used
+# by watch mode. `vitest run` (what `pnpm test` runs) does not need it.
+allowBuilds:
+  '@parcel/watcher': false
+
 # @types/multer declares a wildcard dependency on @types/express, which resolves
 # to the v5 types. Mixing those with the v4 types apps/api actually uses makes
 # Request from one tree structurally incompatible with the other, so multer's

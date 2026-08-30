@@ -1,0 +1,43 @@
+<!-- A plain fixed layer, not <dialog>.showModal(): the top layer would paint
+     above Razorpay Checkout and make paying impossible. -->
+<div class="plans-scrim" (click)="onBackdropClick($event)">
+  <div class="plans-panel" role="dialog" aria-modal="true" aria-labelledby="plans-title">
+    <header class="bar plans-bar">
+      <span class="brand">
+        <b>Plans</b><span>&amp; Credits</span>
+      </span>
+      <div class="plans-bar-end">
+        @if (loading()) {
+          <span class="spin" aria-hidden="true"></span>
+        } @else {
+          <span class="lbl">Current plan</span>
+          <span class="lbl-h">{{ planLabel() }}</span>
+        }
+        <button type="button" class="btn btn-g btn-sm plans-close" (click)="close()">Close</button>
+      </div>
+    </header>
+
+    <h2 id="plans-title" class="sr-only">Plans and credits</h2>
+
+    @if (!loading()) {
+      <div class="plans-body">
+        <!-- Only free-plan users are offered an upgrade; paid users get credits
+             only, since changing between paid tiers is not built. -->
+        @if (canUpgrade()) {
+          <section class="plans-section">
+            <span class="lbl">Monthly plans</span>
+            <app-upgrade-button (upgraded)="onUpgraded()" />
+          </section>
+        }
+
+        <section class="plans-section">
+          <span class="lbl">One-off top up</span>
+          <p class="plans-note">
+            Credits never expire and stack on top of your monthly allowance.
+          </p>
+          <app-buy-credits-button (creditsAdded)="onCreditsAdded()" />
+        </section>
+      </div>
+    }
+  </div>
+</div>

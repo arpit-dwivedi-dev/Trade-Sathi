@@ -1,6 +1,9 @@
 @switch (state()) {
   @case ('idle') {
-    <button type="button" class="btn btn-p" (click)="onUpgradeClick()">Upgrade to Pro</button>
+    <app-plan-picker
+      [currentPlanKey]="currentPlanKey()"
+      (planSelected)="onPlanSelected($event)"
+    />
   }
   @case ('subscribing') {
     <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Starting your upgrade…</p>
@@ -15,7 +18,7 @@
     <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Confirming your payment…</p>
   }
   @case ('success') {
-    <p class="billing-msg billing-ok">You're on Pro. Your analyses are unlocked.</p>
+    <p class="billing-msg billing-ok">You're subscribed. Your analyses are unlocked.</p>
   }
   @case ('already_subscribed') {
     <p class="billing-msg">You already have a subscription in progress.</p>
@@ -27,5 +30,8 @@
   }
   @case ('error') {
     <p class="err" role="alert">{{ error() }}</p>
+    <button type="button" class="btn btn-s btn-sm billing-retry" (click)="onRetry()">
+      Try again
+    </button>
   }
 }

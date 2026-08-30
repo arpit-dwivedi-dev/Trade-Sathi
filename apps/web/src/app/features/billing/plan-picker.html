@@ -1,0 +1,37 @@
+@if (error()) {
+  <p class="err" role="alert">{{ error() }}</p>
+} @else if (plans() === null) {
+  <p class="plan-loading"><span class="spin" aria-hidden="true"></span> <span class="lbl">Loading plans</span></p>
+} @else {
+  <ul class="plan-list">
+    @for (plan of plans(); track plan.key) {
+      <li class="card plan-card" [class.plan-card-current]="isCurrent(plan)">
+        <div class="hd plan-hd">
+          <span class="lbl-h">{{ plan.name }}</span>
+          @if (isCurrent(plan)) {
+            <span class="st st-complete">Current</span>
+          }
+        </div>
+
+        <div class="pad plan-body">
+          <p class="plan-price">
+            <span class="num plan-amount">{{ priceLabel(plan.amountMinor) }}</span>
+            @if (plan.amountMinor > 0) {
+              <span class="lbl plan-per">/ month</span>
+            }
+          </p>
+          <p class="plan-quota">
+            <span class="num">{{ plan.analysesPerMonth }}</span>
+            <span class="lbl">analyses / month</span>
+          </p>
+
+          @if (isChoosable(plan)) {
+            <button type="button" class="btn btn-p plan-choose" (click)="onChoose(plan)">
+              Choose {{ plan.name }}
+            </button>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+}

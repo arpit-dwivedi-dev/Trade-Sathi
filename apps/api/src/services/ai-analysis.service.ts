@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { buildChartAnalysisPrompt } from "../prompts/chart-analysis.js";
 import { aiClient } from "../lib/ai-client.js";
 import { env } from "../lib/env.js";
 import { logger } from "../lib/logger.js";
@@ -6,9 +7,10 @@ import { supabaseAdmin } from "../lib/supabase.js";
 
 const BUCKET = "chart-images";
 
-/** Bump this manually whenever the prompt template below changes, so every
- *  stored analysis stays attributable to the prompt that produced it. */
-const PROMPT_VERSION = "v1";
+/** Bump this manually whenever the prompt in ../prompts/chart-analysis.ts
+ *  changes, so every stored analysis stays attributable to the prompt that
+ *  produced it. */
+const PROMPT_VERSION = "v2";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   jpg: "image/jpeg",
@@ -68,46 +70,6 @@ const AnalysisSchema = z.strictObject({
   call: CallSchema,
   summary: z.string(),
 });
-
-// The literal word "json" must appear in the prompt: DeepSeek rejects
-// json_object requests whose messages don't mention it, and it is harmless for
-// other providers.
-const SYSTEM_PROMPT = `You are a technical analyst. You are given a screenshot of a trading chart.
-Read the chart and reply with a single json object and nothing else — no prose, no markdown fences.
-
-Use exactly this json shape, with exactly these keys:
-
-{
-  "symbol": "BTCUSDT",
-  "asset_class": "crypto",
-  "timeframe": "h1",
-  "trend": "bullish",
-  "volatility": "medium",
-  "volume": "high",
-  "sentiment": "bullish",
-  "support_levels": [61250.5, 60100],
-  "resistance_levels": [64000, 65500.25],
-  "patterns": [
-    { "name": "ascending_triangle", "confidence": 0.72, "note": "Flat resistance with rising lows since the 12:00 candle." }
-  ],
-  "call": {
-    "direction": "long",
-    "confidence": 0.64,
-    "entry": 62400,
-    "invalidation": 60050,
-    "target": 65500,
-    "horizon_candles": 12
-  },
-  "summary": "Price is coiling under resistance with rising lows and expanding volume."
-}
-
-Rules:
-- "symbol" may be null if the ticker is not legible. "asset_class" may be null, otherwise one of: crypto, stock, forex, commodity, index. "timeframe" may be null, otherwise one of: m1, m5, m15, h1, h4, d1, w1.
-- "trend" and "sentiment" are one of: bullish, bearish, neutral. "volatility" and "volume" are one of: low, medium, high.
-- All confidence values are numbers between 0 and 1. "horizon_candles" is a positive whole number.
-- "entry", "invalidation" and "target" are numbers, or null if you cannot justify a level.
-- Support and resistance levels are plain numbers in the chart's price units; use empty arrays if none are readable.
-- Include no keys beyond those shown above.`;
 
 function mimeTypeForKey(imageKey: string): string {
   // The extension was set deterministically at upload time, so trusting it here
@@ -171,6 +133,7 @@ export async function processAnalysis(analysisId: string): Promise<void> {
     // a provider swap free of extra code branches. It only guarantees
     // syntactically valid JSON, never a particular shape, so the result is
     // validated below rather than trusted.
+    const prompt = buildChartAnalysisPrompt();
     const request = {
       model: env.aiModel,
       response_format: { type: "json_object" as const },
@@ -194,13 +157,13 @@ export async function processAnalysis(analysisId: string): Promise<void> {
       // is exactly why it is configuration and not a hardcoded constant.
       max_tokens: env.aiMaxTokens,
       messages: [
-        { role: "system" as const, content: SYSTEM_PROMPT },
+        { role: "system" as const, content: prompt.system },
         {
           role: "user" as const,
           content: [
             {
               type: "text" as const,
-              text: "Analyze this chart and reply with the json object described above.",
+              text: prompt.user,
             },
             { type: "image_url" as const, image_url: { url: dataUrl } },
           ],

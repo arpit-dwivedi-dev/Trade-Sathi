@@ -2,6 +2,7 @@ import { Component, OnDestroy, inject, output, signal } from '@angular/core';
 
 import { AuthService } from '../../core/auth.service';
 import { BillingService, type SubscriptionPollHandle } from './billing.service';
+import { PlanPicker } from './plan-picker';
 
 type UpgradeState =
   | 'idle'
@@ -20,12 +21,17 @@ type UpgradeState =
 /**
  * Drives the subscribe → Checkout → confirm-by-polling flow.
  *
+ * The plan cards are rendered directly in the idle state rather than behind a
+ * "choose a plan" button of their own: that button added a click and a second
+ * modal layer without adding a decision, since picking a card is the decision.
+ *
  * Entitlement is never inferred from Razorpay's client-side handler callback;
  * 'success' is only reached once the subscriptions row — written by the webhook
  * handler using the service role — actually reads 'active'.
  */
 @Component({
   selector: 'app-upgrade-button',
+  imports: [PlanPicker],
   styleUrl: './upgrade-button.css',
   templateUrl: './upgrade-button.html',
 })
@@ -36,12 +42,19 @@ export class UpgradeButton implements OnDestroy {
   /** Lets the parent clear whatever state the quota block put it in. */
   readonly upgraded = output<void>();
 
+  /**
+   * Passed straight through to the picker so it can mark the user's current
+   * tier. Read from the shared BillingService cache rather than fetched here —
+   * the nav and the overlay need the same value and must not each query for it.
+   */
+  protected readonly currentPlanKey = this.billing.currentPlanKey;
+
   protected readonly state = signal<UpgradeState>('idle');
   protected readonly error = signal<string | null>(null);
 
   private poll: SubscriptionPollHandle | null = null;
 
-  protected async onUpgradeClick(): Promise<void> {
+  protected async onPlanSelected(planKey: string): Promise<void> {
     // Same disabled-during-flight rule chart-drop uses: a click in any other
     // state is ignored outright rather than restarting the flow.
     if (this.state() !== 'idle') return;
@@ -49,7 +62,7 @@ export class UpgradeButton implements OnDestroy {
     this.error.set(null);
     this.state.set('subscribing');
 
-    const subscribed = await this.billing.subscribe();
+    const subscribed = await this.billing.subscribe(planKey);
     if (!subscribed.ok) {
       if (subscribed.reason === 'already_subscribed') {
         // Known MVP limitation: the 409 does not carry the existing
@@ -99,6 +112,15 @@ export class UpgradeButton implements OnDestroy {
 
     this.state.set('confirming');
     this.startPolling(subscribed.subscriptionId);
+  }
+
+  /**
+   * Back to the cards. Needed because the cards *are* the idle state now — with
+   * no entry button to click again, an error would otherwise be a dead end.
+   */
+  protected onRetry(): void {
+    this.error.set(null);
+    this.state.set('idle');
   }
 
   private startPolling(subscriptionId: string): void {

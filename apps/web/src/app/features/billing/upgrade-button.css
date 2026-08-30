@@ -9,3 +9,7 @@
 .billing-ok {
   color: var(--up);
 }
+
+.billing-retry {
+  margin-top: var(--s3);
+}
