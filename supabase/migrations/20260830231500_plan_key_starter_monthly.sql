@@ -1,0 +1,11 @@
+-- ---------------------------------------------------------------------------
+-- Add 'starter_monthly' to the plan_key enum.
+--
+-- Split into its own migration on purpose. Postgres will not let a value added
+-- by ALTER TYPE ... ADD VALUE be *used* later in the same transaction, and
+-- each migration file runs in one transaction — so the INSERT that writes
+-- key = 'starter_monthly' has to live in a separate, later file
+-- (20260830231600). Merging the two would fail at apply time with
+-- "unsafe use of new value of enum type".
+-- ---------------------------------------------------------------------------
+alter type plan_key add value if not exists 'starter_monthly';
