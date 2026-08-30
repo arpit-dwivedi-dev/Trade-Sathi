@@ -51,6 +51,18 @@ export interface SubscriptionPollHandle {
   cancel: () => void;
 }
 
+/**
+ * What the account screen shows about the current plan. `currentPeriodEnd` is
+ * null for free-plan users, who have no subscriptions row at all — that is the
+ * normal case, not an error.
+ */
+export interface PlanSummary {
+  name: string;
+  priceInrPaise: number;
+  analysesPerMonth: number;
+  currentPeriodEnd: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class BillingService {
   private readonly http = inject(HttpClient);
@@ -260,5 +272,60 @@ export class BillingService {
         }
       },
     };
+  }
+
+  /**
+   * The user's plan and, if they have one, their subscription's period end.
+   *
+   * Read straight from Supabase like fetchQuota(): plans has a public SELECT
+   * policy for active rows and subscriptions is RLS-scoped to profile_id =
+   * auth.uid(), so no backend endpoint is needed.
+   *
+   * Returns null when it can't be determined (SSR, no session, read error) —
+   * the caller renders nothing rather than guessing a plan.
+   */
+  async fetchPlanSummary(): Promise<PlanSummary | null> {
+    const client = this.supabase.client;
+    if (!client) return null;
+
+    const profileId = this.auth.user()?.id;
+    if (!profileId) return null;
+
+    try {
+      const [profile, subscription] = await Promise.all([
+        client
+          .from('profiles')
+          .select('plans(name, price_inr_paise, analyses_per_month)')
+          .eq('id', profileId)
+          .single<{
+            plans: { name: string; price_inr_paise: number; analyses_per_month: number } | null;
+          }>(),
+        client
+          .from('subscriptions')
+          .select('current_period_end')
+          // A profile can accumulate rows over time (a resubscribe writes a new
+          // one); the newest is the one whose period is current.
+          .eq('profile_id', profileId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle<{ current_period_end: string | null }>(),
+      ]);
+
+      if (profile.error) throw profile.error;
+      if (subscription.error) throw subscription.error;
+
+      const plan = profile.data?.plans;
+      if (!plan) return null;
+
+      return {
+        name: plan.name,
+        priceInrPaise: plan.price_inr_paise,
+        analysesPerMonth: plan.analyses_per_month,
+        currentPeriodEnd: subscription.data?.current_period_end ?? null,
+      };
+    } catch (cause) {
+      console.warn('plan summary lookup failed', cause);
+      return null;
+    }
   }
 }

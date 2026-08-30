@@ -17,10 +17,11 @@ export type HistoryRow = Pick<
   | 'call_direction'
   | 'status'
   | 'source_type'
+  | 'timeframe'
 >;
 
 const HISTORY_COLUMNS =
-  'id, created_at, symbol_raw, asset_class, trend, call_direction, status, source_type';
+  'id, created_at, symbol_raw, asset_class, trend, call_direction, status, source_type, timeframe';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;

@@ -138,3 +138,26 @@
     grid-template-columns: 1fr;
   }
 }
+
+.account-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.account-plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.account-plan-name {
+  font-family: var(--fh);
+  font-size: 24px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.account-plan-row {
+  font-size: 13px;
+}

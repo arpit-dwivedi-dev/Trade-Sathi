@@ -9,7 +9,7 @@
   @if (loading()) {
     <div class="tbl" aria-busy="true">
       <div class="tr tr-h">
-        <span>Analyzed</span><span>Symbol</span><span>Asset</span><span>Source</span>
+        <span>Analyzed</span><span>Symbol</span><span>Asset</span><span>TF</span>
         <span>Trend</span><span>Direction</span><span>Status</span><span></span>
       </div>
       @for (placeholder of [1, 2, 3, 4]; track placeholder) {
@@ -41,7 +41,7 @@
   } @else {
     <div class="tbl">
       <div class="tr tr-h">
-        <span>Analyzed</span><span>Symbol</span><span>Asset</span><span>Source</span>
+        <span>Analyzed</span><span>Symbol</span><span>Asset</span><span>TF</span>
         <span>Trend</span><span>Direction</span><span>Status</span><span></span>
       </div>
 
@@ -60,7 +60,7 @@
               {{ row.symbol_raw ?? 'Not detected' }}
             </span>
             <span class="history-cell">{{ row.asset_class ?? '—' }}</span>
-            <span class="num history-tf">{{ row.source_type }}</span>
+            <span class="num history-tf">{{ row.timeframe ?? '—' }}</span>
             <span class="history-cell">{{ row.trend ?? '—' }}</span>
             <span class="history-cell">{{ row.call_direction ?? '—' }}</span>
             <!-- queued/processing here is not a bug: an analysis submitted from

@@ -2,7 +2,7 @@
   <section class="card pad result-failed" role="alert">
     <span class="st st-failed">Failed</span>
     <h2 class="result-failed-title">Analysis failed</h2>
-    <p class="result-msg">{{ row().error_message ?? 'The analysis could not be completed.' }}</p>
+    <p class="result-msg">{{ failureMessage() }}</p>
   </section>
 } @else {
   <section class="result">

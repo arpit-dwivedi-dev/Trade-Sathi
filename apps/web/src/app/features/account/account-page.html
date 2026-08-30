@@ -59,19 +59,42 @@
         }
       </div>
 
-      <div class="card">
-        <div class="hd"><span class="lbl-h">Account</span></div>
-        <div class="pad account-details">
-          <div class="lvl">
-            <span class="account-key">Email</span>
-            <span class="num trunc account-val">{{ user()?.email ?? '—' }}</span>
-          </div>
-          @if (quota(); as q) {
-            <div class="lvl">
-              <span class="account-key">Monthly allowance</span>
-              <span class="num account-val">{{ q.limit }} analyses</span>
+      <div class="account-side">
+        @if (plan(); as p) {
+          <div class="card">
+            <div class="hd"><span class="lbl-h">Current plan</span></div>
+            <div class="pad account-plan">
+              <span class="account-plan-name">{{ p.name }}</span>
+              <div class="lvl account-plan-row">
+                <span class="account-key">Price</span>
+                <span class="num account-val">{{ priceLabel(p.priceInrPaise) }} / month</span>
+              </div>
+              <div class="lvl account-plan-row">
+                <span class="account-key">Included</span>
+                <span class="num account-val">{{ p.analysesPerMonth }} analyses / month</span>
+              </div>
+              <!-- Free-plan users have no subscriptions row, so no renewal date
+                   exists to show — the plan simply has no billing cycle. -->
+              @if (p.currentPeriodEnd; as ends) {
+                <div class="lvl account-plan-row">
+                  <span class="account-key">Renews</span>
+                  <time class="num account-val" [attr.datetime]="ends">
+                    {{ ends | date: 'd MMM yyyy' }}
+                  </time>
+                </div>
+              }
             </div>
-          }
+          </div>
+        }
+
+        <div class="card">
+          <div class="hd"><span class="lbl-h">Account</span></div>
+          <div class="pad account-details">
+            <div class="lvl">
+              <span class="account-key">Email</span>
+              <span class="num trunc account-val">{{ user()?.email ?? '—' }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
