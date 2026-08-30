@@ -1,0 +1,140 @@
+.shell {
+  background: var(--ground);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.account-bar-end {
+  align-items: center;
+  display: flex;
+  gap: var(--s3);
+}
+
+.tabs a.tab,
+.tabs span.tab {
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+}
+
+.tabs span.tab[aria-current='page'] {
+  border-bottom-color: var(--acc);
+  color: var(--acc-tx);
+}
+
+.account-title {
+  font-size: 26px;
+  text-transform: uppercase;
+}
+
+.account-grid {
+  align-items: start;
+  display: grid;
+  gap: var(--s6);
+  grid-template-columns: minmax(0, 1fr) 380px;
+}
+
+.account-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s8);
+}
+
+.account-loading {
+  align-items: center;
+  display: flex;
+  font-size: 13.5px;
+  gap: var(--s2);
+  line-height: 1.55;
+}
+
+.account-usage-head {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  justify-content: space-between;
+}
+
+.account-usage-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.account-usage-figure {
+  align-items: baseline;
+  display: flex;
+  gap: var(--s2);
+}
+
+.account-used {
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.account-limit {
+  font-size: 20px;
+}
+
+.account-usage-rem {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.account-rem {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.account-meter {
+  color: #9cc4e4;
+  height: 6px;
+}
+
+.account-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  font-size: 13px;
+}
+
+.account-key {
+  color: var(--tx-2);
+}
+
+.account-val {
+  max-width: 220px;
+}
+
+.account-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.account-block app-upgrade-button {
+  align-self: flex-start;
+}
+
+.account-h {
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.account-msg {
+  color: var(--tx-2);
+  font-size: 13.5px;
+  max-width: 60ch;
+}
+
+@media (max-width: 860px) {
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+}

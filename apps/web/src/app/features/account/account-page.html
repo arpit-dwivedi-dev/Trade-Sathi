@@ -1,0 +1,92 @@
+<main class="shell">
+  <header class="bar">
+    <a class="brand account-brand" routerLink="/app">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--acc)"
+           stroke-width="1.5" aria-hidden="true">
+        <path d="M12 2v20M2 12h20" />
+        <circle cx="12" cy="12" r="6.5" />
+      </svg>
+      <b>Chart</b><span>Analyzer</span>
+    </a>
+    <div class="account-bar-end">
+      <button type="button" class="btn btn-g btn-sm" (click)="toggleTheme()"
+              [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
+        {{ theme() === 'dark' ? 'Light' : 'Dark' }}
+      </button>
+      <button type="button" class="btn btn-s btn-sm" (click)="signOut()">Sign out</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <a class="tab" routerLink="/app">Analyze</a>
+    <a class="tab" routerLink="/app">History</a>
+    <span class="tab" aria-current="page">Account</span>
+  </nav>
+
+  <div class="body">
+    <h1 class="account-title">Plan &amp; usage</h1>
+
+    <div class="account-grid">
+      <div class="panel account-panel">
+        <i class="c c-tl"></i><i class="c c-tr"></i><i class="c c-bl"></i><i class="c c-br"></i>
+
+        @if (loading()) {
+          <p class="dim account-loading">
+            <span class="spin" aria-hidden="true"></span> Reading your usage…
+          </p>
+        } @else if (quota(); as q) {
+          <div class="account-usage-head">
+            <div class="account-usage-main">
+              <span class="lbl dim">This period</span>
+              <span class="account-usage-figure">
+                <span class="num account-used">{{ q.used }}</span>
+                <span class="num dim account-limit">/ {{ q.limit }}</span>
+              </span>
+              <span class="lbl dim">analyses used</span>
+            </div>
+            <div class="account-usage-rem">
+              <span class="num account-rem">{{ q.remaining }}</span>
+              <span class="lbl dim">remaining</span>
+            </div>
+          </div>
+          <div class="meter account-meter"><i [style.width.%]="usedPercent()"></i></div>
+          <span class="lbl dim">Resets at the start of next month</span>
+        } @else {
+          <p class="dim account-loading">
+            Usage isn't available right now. Your analyses still run — the backend enforces the
+            limit.
+          </p>
+        }
+      </div>
+
+      <div class="card">
+        <div class="hd"><span class="lbl-h">Account</span></div>
+        <div class="pad account-details">
+          <div class="lvl">
+            <span class="account-key">Email</span>
+            <span class="num trunc account-val">{{ user()?.email ?? '—' }}</span>
+          </div>
+          @if (quota(); as q) {
+            <div class="lvl">
+              <span class="account-key">Monthly allowance</span>
+              <span class="num account-val">{{ q.limit }} analyses</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="account-block">
+      <h2 class="account-h">Need more analyses?</h2>
+      <p class="account-msg">
+        Upgrading raises your monthly allowance. Payment is handled by Razorpay.
+      </p>
+      <app-upgrade-button />
+    </div>
+
+    <p class="disc">
+      ChartAnalyzer produces AI-generated chart analysis. It is not investment advice and not a
+      recommendation to buy or sell any instrument.
+    </p>
+  </div>
+</main>

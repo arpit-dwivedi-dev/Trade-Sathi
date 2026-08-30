@@ -22,6 +22,7 @@ type AnalyzeState =
 @Component({
   selector: 'app-analyze-page',
   imports: [ChartDrop, AnalysisResult, UpgradeButton],
+  styleUrl: './analyze-page.css',
   templateUrl: './analyze-page.html',
 })
 export class AnalyzePage implements OnInit, OnDestroy {

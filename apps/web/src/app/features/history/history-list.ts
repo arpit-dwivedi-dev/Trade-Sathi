@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 
-import { HistoryService, type HistoryRow } from './history.service';
+import { AnalysisResult } from '../analyze/analysis-result';
+import { HistoryService, type HistoryDetail, type HistoryRow } from './history.service';
 
 /**
  * The signed-in user's past analyses, newest first.
@@ -11,6 +12,7 @@ import { HistoryService, type HistoryRow } from './history.service';
  */
 @Component({
   selector: 'app-history-list',
+  imports: [AnalysisResult],
   templateUrl: './history-list.html',
   styleUrl: './history-list.css',
 })
@@ -23,6 +25,12 @@ export class HistoryList implements OnInit {
   protected readonly loading = signal(true);
   protected readonly loadingMore = signal(false);
   protected readonly error = signal<string | null>(null);
+
+  /** id of the row whose detail is expanded, or null when all are collapsed. */
+  protected readonly expandedId = signal<string | null>(null);
+  protected readonly detail = signal<HistoryDetail | null>(null);
+  protected readonly detailLoading = signal(false);
+  protected readonly detailError = signal<string | null>(null);
 
   ngOnInit(): void {
     void this.loadFirstPage();
@@ -58,6 +66,38 @@ export class HistoryList implements OnInit {
       this.error.set("Couldn't load more. Try again.");
     } finally {
       this.loadingMore.set(false);
+    }
+  }
+
+  /**
+   * Expands a row into its full analysis, collapsing it again if it was already
+   * open. Only one row is expanded at a time, so a single detail slot is enough.
+   */
+  protected async toggle(row: HistoryRow): Promise<void> {
+    if (this.expandedId() === row.id) {
+      this.expandedId.set(null);
+      this.detail.set(null);
+      this.detailError.set(null);
+      this.detailLoading.set(false);
+      return;
+    }
+
+    this.expandedId.set(row.id);
+    this.detail.set(null);
+    this.detailError.set(null);
+    this.detailLoading.set(true);
+    try {
+      const detail = await this.history.fetchDetail(row.id);
+      // A slower fetch for a row the user has since collapsed (or swapped away
+      // from) must not paint into the newly expanded one.
+      if (this.expandedId() !== row.id) return;
+      this.detail.set(detail);
+    } catch (cause) {
+      console.warn('analysis detail fetch failed', cause);
+      if (this.expandedId() !== row.id) return;
+      this.detailError.set("Couldn't load this analysis. Try again.");
+    } finally {
+      if (this.expandedId() === row.id) this.detailLoading.set(false);
     }
   }
 

@@ -1,70 +1,131 @@
-/* Placeholder styling only — this gets a real visual pass later. */
-.history {
-  font-family: sans-serif;
-  line-height: 1.5;
-}
-
-.rows {
-  list-style: none;
-  margin: 0.5rem 0 1rem;
-  padding: 0;
-}
-
-.row {
+.history-head {
+  align-items: baseline;
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #eee;
+  gap: var(--s4);
+  justify-content: space-between;
 }
 
-.date {
-  color: #777;
-  font-size: 0.875rem;
-  min-width: 5rem;
-}
-
-.symbol {
-  font-weight: 600;
-}
-
-.badges {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.badge {
-  border: 1px solid #ddd;
-  border-radius: 0.75rem;
-  padding: 0 0.5rem;
-  font-size: 0.75rem;
-  color: #555;
-}
-
-.status {
-  margin-left: auto;
-  font-size: 0.75rem;
+.history-title {
+  font-size: 26px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
-.status-queued,
-.status-processing {
-  color: #a06000;
+.history-count {
+  color: var(--tx);
 }
 
-.status-complete {
-  color: #1a7f37;
+.history-row {
+  border-bottom: 1px solid var(--line-soft);
 }
 
-.status-failed {
-  color: #b42318;
+.history-row:last-child {
+  border-bottom: 0;
 }
 
-.error {
-  color: #b42318;
+/* the row button carries .tr, so it must not add a second border */
+.history-row .trow {
+  background: none;
+  border: 0;
+  border-bottom: 0;
+  color: inherit;
+  font: inherit;
 }
 
-button {
-  padding: 0.5rem;
+.history-when {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.history-age {
+  font-size: 12.5px;
+}
+
+.history-cell {
+  color: var(--tx-2);
+  font-size: 13px;
+}
+
+.history-tf {
+  font-size: 12.5px;
+}
+
+.history-unknown {
+  color: var(--tx-3);
+}
+
+.history-chevron {
+  color: var(--tx-3);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.history-detail {
+  background: var(--surf-2);
+  border-top: 1px solid var(--line-soft);
+  padding: var(--s6);
+}
+
+.history-msg {
+  align-items: center;
+  color: var(--tx-2);
+  display: flex;
+  font-size: 13.5px;
+  gap: var(--s2);
+}
+
+.history-empty {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s16) var(--s8);
+  text-align: center;
+}
+
+.history-empty-first .history-msg {
+  max-width: 44ch;
+}
+
+.history-empty-title {
+  font-size: 28px;
+  text-transform: uppercase;
+}
+
+.history-skel {
+  height: 14px;
+}
+
+.history-more {
+  align-self: flex-start;
+}
+
+@media (max-width: 860px) {
+  /* seven columns become one card per analysis — no sideways scrolling */
+  .tr {
+    grid-template-columns: 1fr auto;
+    row-gap: var(--s2);
+  }
+
+  .tr-h {
+    display: none;
+  }
+
+  .history-row .trow .sym {
+    order: -2;
+  }
+
+  .history-row .trow > span:nth-child(7) {
+    order: -1;
+    justify-self: end;
+  }
+
+  .history-chevron {
+    display: none;
+  }
+
+  .history-detail {
+    padding: var(--s4);
+  }
 }

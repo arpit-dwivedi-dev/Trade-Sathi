@@ -1,15 +1,31 @@
-<main style="max-width: 32rem; margin: 4rem auto; padding: 0 1rem; font-family: sans-serif">
-  <h1>ChartAnalyzer</h1>
-
+<main class="shell">
   @if (user(); as currentUser) {
-    <p>Signed in as {{ currentUser.email }}</p>
-    <button type="button" (click)="signOut()" style="padding: 0.5rem">Sign out</button>
+    <header class="bar">
+      <span class="brand">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--acc)"
+             stroke-width="1.5" aria-hidden="true">
+          <path d="M12 2v20M2 12h20" />
+          <circle cx="12" cy="12" r="6.5" />
+        </svg>
+        <b>Chart</b><span>Analyzer</span>
+      </span>
 
-    <nav style="display: flex; gap: 0.5rem; margin: 1rem 0">
-      <button type="button" (click)="select('analyze')" [disabled]="tab() === 'analyze'"
-              style="padding: 0.5rem">Analyze</button>
-      <button type="button" (click)="select('history')" [disabled]="tab() === 'history'"
-              style="padding: 0.5rem">History</button>
+      <div class="bar-end">
+        <span class="bar-email trunc">{{ currentUser.email }}</span>
+        <button type="button" class="btn btn-g btn-sm" (click)="toggleTheme()"
+                [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
+          {{ theme() === 'dark' ? 'Light' : 'Dark' }}
+        </button>
+        <button type="button" class="btn btn-s btn-sm" (click)="signOut()">Sign out</button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button type="button" class="tab" (click)="select('analyze')"
+              [attr.aria-current]="tab() === 'analyze' ? 'page' : null">Analyze</button>
+      <button type="button" class="tab" (click)="select('history')"
+              [attr.aria-current]="tab() === 'history' ? 'page' : null">History</button>
+      <a class="tab" routerLink="/account">Account</a>
     </nav>
 
     <!-- Analyze stays mounted while hidden: an in-flight upload/poll must not
@@ -25,6 +41,9 @@
     }
   } @else {
     <!-- Rendered during SSR and before client-side session restoration completes. -->
-    <p>Loading…</p>
+    <div class="shell-loading">
+      <span class="spin" aria-hidden="true"></span>
+      <p class="lbl">Loading…</p>
+    </div>
   }
 </main>

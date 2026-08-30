@@ -1,4 +1,4 @@
-import { DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, computed, input } from '@angular/core';
 
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
@@ -8,7 +8,7 @@ import type { AnalysisPattern, AnalysisRow } from './analysis.types';
  */
 @Component({
   selector: 'app-analysis-result',
-  imports: [DecimalPipe],
+  imports: [DatePipe, DecimalPipe],
   templateUrl: './analysis-result.html',
   styleUrl: './analysis-result.css',
 })

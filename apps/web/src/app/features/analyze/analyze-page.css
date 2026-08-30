@@ -1,0 +1,45 @@
+.analyze {
+  padding-top: var(--s6);
+}
+
+.note-icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.state-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.state-card .st {
+  align-self: flex-start;
+}
+
+.state-title {
+  font-size: 18px;
+}
+
+.state-msg {
+  align-items: center;
+  color: var(--tx-2);
+  display: flex;
+  font-size: 14px;
+  gap: var(--s2);
+}
+
+.state-ref {
+  color: var(--tx-2);
+}
+
+.state-skel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding-top: var(--s2);
+}
+
+.analyze-again {
+  align-self: flex-start;
+}

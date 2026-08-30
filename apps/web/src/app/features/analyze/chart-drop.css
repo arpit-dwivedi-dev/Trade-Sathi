@@ -1,31 +1,87 @@
-/* Placeholder styling only — this gets a real visual pass later. */
 .drop-zone {
-  border: 2px dashed #bbb;
-  border-radius: 0.5rem;
-  padding: 2.5rem 1rem;
-  text-align: center;
+  align-items: center;
   cursor: pointer;
-  font-family: sans-serif;
-}
-
-.drop-zone.dragging {
-  border-color: #444;
-  background: #f4f4f4;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  padding: var(--s16) var(--s8);
+  transition:
+    border-color var(--dur-subtle) var(--ease-move),
+    background-color var(--dur-subtle) var(--ease-move);
 }
 
 .drop-zone.disabled {
+  cursor: not-allowed;
   opacity: 0.5;
-  cursor: default;
 }
 
-.primary {
-  margin: 0 0 0.5rem;
-  font-size: 1.125rem;
-  font-weight: 600;
+.drop-corner-l {
+  color: var(--acc);
+  left: var(--s6);
+  position: absolute;
+  top: var(--s4);
 }
 
-.secondary {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: #777;
+.drop-corner-r {
+  position: absolute;
+  right: var(--s6);
+  top: var(--s4);
+}
+
+.drop-keys {
+  align-items: center;
+  display: flex;
+  gap: var(--s3);
+}
+
+.drop-plus {
+  color: var(--tx-3);
+  font-family: var(--fh);
+  font-size: 24px;
+}
+
+.drop-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  text-align: center;
+}
+
+.drop-copy h2 {
+  font-size: 38px;
+  text-transform: uppercase;
+}
+
+.drop-sub {
+  color: var(--tx-2);
+  font-size: 14px;
+}
+
+.drop-browse {
+  min-height: 44px;
+}
+
+.drop-hint {
+  max-width: 64ch;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .drop-zone {
+    gap: var(--s3);
+    padding: var(--s8) var(--s4);
+  }
+
+  .drop-keys {
+    display: none;
+  }
+
+  .drop-copy h2 {
+    font-size: 24px;
+  }
+
+  .drop-corner-l,
+  .drop-corner-r {
+    display: none;
+  }
 }

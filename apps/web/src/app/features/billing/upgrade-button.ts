@@ -26,6 +26,7 @@ type UpgradeState =
  */
 @Component({
   selector: 'app-upgrade-button',
+  styleUrl: './upgrade-button.css',
   templateUrl: './upgrade-button.html',
 })
 export class UpgradeButton implements OnDestroy {

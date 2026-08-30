@@ -1,31 +1,31 @@
 @switch (state()) {
   @case ('idle') {
-    <button type="button" (click)="onUpgradeClick()" style="padding: 0.5rem">
-      Upgrade to Pro
-    </button>
+    <button type="button" class="btn btn-p" (click)="onUpgradeClick()">Upgrade to Pro</button>
   }
   @case ('subscribing') {
-    <p>Starting your upgrade…</p>
+    <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Starting your upgrade…</p>
   }
   @case ('loading_checkout') {
-    <p>Opening the payment window…</p>
+    <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Opening the payment window…</p>
   }
   @case ('checkout_open') {
-    <p>Complete your payment in the Razorpay window.</p>
+    <p class="billing-msg">Complete your payment in the Razorpay window.</p>
   }
   @case ('confirming') {
-    <p>Confirming your payment…</p>
+    <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Confirming your payment…</p>
   }
   @case ('success') {
-    <p>You're on Pro. Your analyses are unlocked.</p>
+    <p class="billing-msg billing-ok">You're on Pro. Your analyses are unlocked.</p>
   }
   @case ('already_subscribed') {
-    <p>You already have a subscription in progress.</p>
+    <p class="billing-msg">You already have a subscription in progress.</p>
   }
   @case ('confirming_slow') {
-    <p>Still confirming your payment — this can take a minute, check back shortly.</p>
+    <p class="billing-msg">
+      Still confirming your payment — this can take a minute, check back shortly.
+    </p>
   }
   @case ('error') {
-    <p>{{ error() }}</p>
+    <p class="err" role="alert">{{ error() }}</p>
   }
 }

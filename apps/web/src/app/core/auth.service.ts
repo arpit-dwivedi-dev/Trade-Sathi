@@ -89,6 +89,30 @@ export class AuthService {
     return error ? { ok: false, message: error.message } : { ok: true };
   }
 
+  /**
+   * Sends a password-recovery email. The link in it returns to
+   * `/reset-password`, where supabase-js exchanges the token in the URL for a
+   * short-lived session that authorizes `updatePassword`.
+   */
+  async requestPasswordReset(email: string): Promise<AuthResult> {
+    const client = this.supabase.client;
+    if (!client) return { ok: false, message: 'Not available on the server.' };
+
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    return error ? { ok: false, message: error.message } : { ok: true };
+  }
+
+  /** Sets a new password for the session established by a recovery link. */
+  async updatePassword(password: string): Promise<AuthResult> {
+    const client = this.supabase.client;
+    if (!client) return { ok: false, message: 'Not available on the server.' };
+
+    const { error } = await client.auth.updateUser({ password });
+    return error ? { ok: false, message: error.message } : { ok: true };
+  }
+
   async signOut(): Promise<AuthResult> {
     const client = this.supabase.client;
     if (!client) return { ok: false, message: 'Not available on the server.' };

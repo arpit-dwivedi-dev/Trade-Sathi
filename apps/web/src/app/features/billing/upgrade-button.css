@@ -1,0 +1,11 @@
+.billing-msg {
+  align-items: center;
+  color: var(--tx-2);
+  display: flex;
+  font-size: 13.5px;
+  gap: var(--s2);
+}
+
+.billing-ok {
+  color: var(--up);
+}

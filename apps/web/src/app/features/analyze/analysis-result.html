@@ -1,76 +1,173 @@
 @if (failed()) {
-  <section class="result">
-    <h2>Analysis failed</h2>
-    <p>{{ row().error_message ?? 'The analysis could not be completed.' }}</p>
+  <section class="card pad result-failed" role="alert">
+    <span class="st st-failed">Failed</span>
+    <h2 class="result-failed-title">Analysis failed</h2>
+    <p class="result-msg">{{ row().error_message ?? 'The analysis could not be completed.' }}</p>
   </section>
 } @else {
   <section class="result">
-    <h2>{{ row().symbol ?? row().symbol_raw ?? 'Unknown symbol' }}</h2>
-    <p class="meta">{{ row().asset_class ?? '—' }} · {{ row().timeframe ?? '—' }}</p>
-
-    <dl>
-      <dt>Trend</dt>
-      <dd>{{ row().trend ?? '—' }}</dd>
-      <dt>Volatility</dt>
-      <dd>{{ row().volatility ?? '—' }}</dd>
-      <dt>Volume</dt>
-      <dd>{{ row().volume_reading ?? '—' }}</dd>
-      <dt>Sentiment</dt>
-      <dd>{{ row().sentiment ?? '—' }}</dd>
-    </dl>
-
-    <h3>Levels</h3>
-    <p>Support: {{ supports().length ? supports().join(', ') : '—' }}</p>
-    <p>Resistance: {{ resistances().length ? resistances().join(', ') : '—' }}</p>
-
-    <h3>The call</h3>
-    <dl>
-      <dt>Direction</dt>
-      <dd>{{ row().call_direction ?? '—' }}</dd>
-      <dt>Confidence</dt>
-      <dd>
-        @if (row().call_confidence !== null) {
-          {{ row().call_confidence! * 100 | number: '1.0-0' }}%
-        } @else {
-          —
-        }
-      </dd>
-      <dt>Entry</dt>
-      <dd>{{ row().call_entry ?? '—' }}</dd>
-      <dt>Invalidation</dt>
-      <dd>{{ row().call_invalidation ?? '—' }}</dd>
-      <dt>Target</dt>
-      <dd>{{ row().call_target ?? '—' }}</dd>
-      <dt>Horizon</dt>
-      <dd>
-        @if (row().horizon_candles !== null) {
-          {{ row().horizon_candles }} candles
-        } @else {
-          —
-        }
-      </dd>
-    </dl>
-
-    <h3>Summary</h3>
-    <p>{{ row().summary ?? 'No summary was produced.' }}</p>
-
-    <h3>Patterns</h3>
-    @if (patterns().length) {
-      <ul>
-        @for (pattern of patterns(); track pattern.id) {
-          <li>
-            <strong>{{ pattern.pattern_key }}</strong>
-            @if (pattern.confidence !== null) {
-              <span class="meta"> · {{ pattern.confidence * 100 | number: '1.0-0' }}%</span>
+    <!-- metadata header — symbol · asset_class · timeframe · source_type -->
+    <header class="result-head">
+      <div class="result-ident">
+        <span class="st st-complete">Complete</span>
+        <div class="result-title-row">
+          <h2 class="trunc" translate="no">
+            {{ row().symbol ?? row().symbol_raw ?? 'Unknown symbol' }}
+          </h2>
+          <span class="result-chips">
+            @if (row().asset_class; as asset) {
+              <span class="chip" translate="no">{{ asset }}</span>
             }
-            @if (pattern.pattern_note) {
-              <p class="meta">{{ pattern.pattern_note }}</p>
+            @if (row().timeframe; as tf) {
+              <span class="chip" translate="no">{{ tf }}</span>
             }
-          </li>
+            <span class="chip">{{ row().source_type }}</span>
+          </span>
+        </div>
+        @if (row().symbol_raw; as raw) {
+          <span class="lbl">Detected from image as <span class="num result-raw">"{{ raw }}"</span></span>
         }
-      </ul>
-    } @else {
-      <p>No patterns detected.</p>
+      </div>
+      <time class="lbl" [attr.datetime]="row().created_at">
+        Analyzed {{ row().created_at | date: 'd MMM, HH:mm' }}
+      </time>
+    </header>
+
+    <!-- observed readings -->
+    <div class="result-block">
+      <h3 class="result-h">What the model observed</h3>
+      <div class="tiles">
+        <div class="tile"><span class="lbl">Trend</span><b>{{ row().trend ?? '—' }}</b></div>
+        <div class="tile"><span class="lbl">Volatility</span><b>{{ row().volatility ?? '—' }}</b></div>
+        <div class="tile"><span class="lbl">Volume</span><b>{{ row().volume_reading ?? '—' }}</b></div>
+        <div class="tile"><span class="lbl">Sentiment</span><b>{{ row().sentiment ?? '—' }}</b></div>
+      </div>
+    </div>
+
+    <!-- levels -->
+    <div class="result-block">
+      <h3 class="result-h">Support &amp; resistance</h3>
+      <div class="card">
+        <div class="hd"><span class="lbl-h">From the image</span><span class="lbl">Model reading</span></div>
+        <div class="pad result-levels">
+          <span class="lbl result-lbl-down">Resistance</span>
+          @if (resistances().length) {
+            @for (level of resistances(); track $index) {
+              <div class="lvl"><span class="num result-level">{{ level | number: '1.2-2' }}</span></div>
+            }
+          } @else {
+            <p class="result-msg">None identified.</p>
+          }
+
+          <div class="result-rule"></div>
+
+          <span class="lbl result-lbl-up">Support</span>
+          @if (supports().length) {
+            @for (level of supports(); track $index) {
+              <div class="lvl"><span class="num result-level">{{ level | number: '1.2-2' }}</span></div>
+            }
+          } @else {
+            <p class="result-msg">None identified.</p>
+          }
+        </div>
+      </div>
+      <p class="disc">
+        Levels are the model's reading of the image, not exchange data.
+      </p>
+    </div>
+
+    <!-- summary -->
+    <div class="result-block">
+      <h3 class="result-h">Summary</h3>
+      <p class="result-summary">{{ row().summary ?? 'No summary was produced.' }}</p>
+    </div>
+
+    <!-- AI scenario — call_* fields, clearly separated and labelled -->
+    @if (row().call_direction; as direction) {
+      <div class="result-block">
+        <div class="result-block-head">
+          <h3 class="result-h">AI scenario</h3>
+          <span class="lbl">Model-generated · not a recommendation</span>
+        </div>
+        <div class="panel result-panel">
+          <i class="c c-tl"></i><i class="c c-tr"></i><i class="c c-bl"></i><i class="c c-br"></i>
+
+          <div class="result-panel-dir">
+            <span class="lbl dim">Direction</span>
+            <span class="dir d-{{ direction }} result-dir">{{ direction }}</span>
+            @if (row().call_confidence !== null) {
+              <div class="result-conf">
+                <span class="lbl dim">Confidence</span>
+                <span class="num">{{ row().call_confidence! * 100 | number: '1.0-0' }}%</span>
+              </div>
+              <div class="meter d-{{ direction }}">
+                <i [style.width.%]="row().call_confidence! * 100"></i>
+              </div>
+            }
+          </div>
+
+          <div class="cells">
+            <div class="cell">
+              <span class="lbl dim">Reference level</span>
+              <span class="num">{{ row().call_entry !== null ? (row().call_entry | number: '1.2-2') : '—' }}</span>
+            </div>
+            <div class="cell">
+              <span class="lbl dim">Invalidation</span>
+              <span class="num">{{ row().call_invalidation !== null ? (row().call_invalidation | number: '1.2-2') : '—' }}</span>
+            </div>
+            <div class="cell">
+              <span class="lbl dim">Target</span>
+              <span class="num">{{ row().call_target !== null ? (row().call_target | number: '1.2-2') : '—' }}</span>
+            </div>
+            <div class="cell result-cell-wide">
+              <div class="result-horizon">
+                <span class="result-horizon-val">
+                  <span class="lbl dim">Horizon</span>
+                  <span class="num">
+                    {{ row().horizon_candles !== null ? row().horizon_candles + ' candles' : '—' }}
+                  </span>
+                </span>
+                <p class="dim result-scenario-note">
+                  This is one scenario the model considered, with the levels it would be measured
+                  against. It is not advice and carries no claim about what price will do.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     }
+
+    <!-- patterns -->
+    <div class="result-block">
+      <h3 class="result-h">Patterns</h3>
+      @if (patterns().length) {
+        <div class="result-patterns">
+          @for (pattern of patterns(); track pattern.id) {
+            <div class="card pad result-pattern">
+              <div class="lvl">
+                <b class="result-pattern-key">{{ pattern.pattern_key }}</b>
+                @if (pattern.confidence !== null) {
+                  <span class="num result-pattern-conf">
+                    {{ pattern.confidence * 100 | number: '1.0-0' }}%
+                  </span>
+                }
+              </div>
+              @if (pattern.pattern_note) {
+                <p class="result-msg">{{ pattern.pattern_note }}</p>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="result-msg">No patterns detected.</p>
+      }
+    </div>
+
+    <p class="disc">
+      Every reading and level on this page is generated by the model from the image alone.
+      ChartAnalyzer does not connect to a broker, hold positions, or track what happens after an
+      analysis.
+    </p>
   </section>
 }

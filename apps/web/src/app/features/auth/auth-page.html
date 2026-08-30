@@ -1,35 +1,71 @@
-<main style="max-width: 24rem; margin: 4rem auto; padding: 0 1rem; font-family: sans-serif">
-  <h1>{{ mode() === 'signup' ? 'Create an account' : 'Sign in' }}</h1>
+<main class="auth">
+  <a class="brand auth-brand" routerLink="/">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--acc-tx)"
+         stroke-width="1.5" aria-hidden="true">
+      <path d="M12 2v20M2 12h20" />
+      <circle cx="12" cy="12" r="6.5" />
+    </svg>
+    <b>Chart</b><span>Analyzer</span>
+  </a>
 
-  <form (ngSubmit)="submit()" style="display: flex; flex-direction: column; gap: 0.75rem">
-    <label>
-      Email
-      <input type="email" name="email" required autocomplete="email"
-             [ngModel]="email()" (ngModelChange)="email.set($event)"
-             style="display: block; width: 100%; padding: 0.5rem" />
-    </label>
+  <div class="card auth-card">
+    <div class="auth-head">
+      <h1>{{ mode() === 'signup' ? 'Create an account' : 'Sign in' }}</h1>
+      @if (mode() === 'signup') {
+        <p class="disc">Starts on the free plan.</p>
+      }
+    </div>
 
-    <label>
-      Password
-      <input type="password" name="password" required
-             [autocomplete]="mode() === 'signup' ? 'new-password' : 'current-password'"
-             [ngModel]="password()" (ngModelChange)="password.set($event)"
-             style="display: block; width: 100%; padding: 0.5rem" />
-    </label>
+    <form (ngSubmit)="submit()" class="auth-form">
+      <div class="field">
+        <label for="auth-email">Email</label>
+        <input class="input" id="auth-email" type="email" name="email" required
+               autocomplete="email" inputmode="email" spellcheck="false"
+               placeholder="you@example.com"
+               [attr.aria-invalid]="error() ? 'true' : null"
+               [ngModel]="email()" (ngModelChange)="email.set($event)" />
+      </div>
 
-    <button type="submit" [disabled]="busy()" style="padding: 0.5rem">
-      {{ busy() ? 'Working…' : mode() === 'signup' ? 'Sign up' : 'Sign in' }}
-    </button>
-  </form>
+      <div class="field">
+        <label for="auth-password">Password</label>
+        <input class="input" id="auth-password" type="password" name="password" required
+               [autocomplete]="mode() === 'signup' ? 'new-password' : 'current-password'"
+               [attr.aria-invalid]="error() ? 'true' : null"
+               [attr.aria-describedby]="error() ? 'auth-error' : null"
+               [ngModel]="password()" (ngModelChange)="password.set($event)" />
+      </div>
 
-  @if (error(); as message) {
-    <p style="color: #b91c1c">{{ message }}</p>
-  }
-  @if (notice(); as message) {
-    <p style="color: #15803d">{{ message }}</p>
-  }
+      @if (error(); as message) {
+        <p class="err" id="auth-error" role="alert">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.5" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v5M12 16h.01" />
+          </svg>
+          {{ message }}
+        </p>
+      }
+      @if (notice(); as message) {
+        <p class="auth-notice" role="status">{{ message }}</p>
+      }
 
-  <button type="button" (click)="toggleMode()" style="margin-top: 1rem">
-    {{ mode() === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
-  </button>
+      <button type="submit" class="btn btn-p btn-lg auth-submit" [disabled]="busy()">
+        @if (busy()) {
+          <span class="spin" aria-hidden="true"></span>
+        }
+        {{ busy() ? 'Working…' : mode() === 'signup' ? 'Create account' : 'Sign in' }}
+      </button>
+    </form>
+
+    <div class="auth-foot">
+      @if (mode() === 'signin') {
+        <a routerLink="/forgot-password">Forgot password?</a>
+      } @else {
+        <span></span>
+      }
+      <button type="button" class="btn btn-g btn-sm" (click)="toggleMode()">
+        {{ mode() === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
+      </button>
+    </div>
+  </div>
 </main>

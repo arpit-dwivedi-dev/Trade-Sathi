@@ -1,0 +1,86 @@
+/* Design tokens — values lifted verbatim from the Claude Design export
+   (design/reference/chartanalyzer-mvp.html). Theme is selected by a
+   data-theme attribute on <html> so it can later fall back to
+   prefers-color-scheme without a class-toggle rewrite. */
+
+:root {
+  /* spacing scale */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s6: 24px;
+  --s8: 32px;
+  --s12: 48px;
+  --s16: 64px;
+
+  /* radii */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+
+  /* type */
+  --fh: 'Barlow Condensed', system-ui, sans-serif;
+  --fb: 'Barlow', system-ui, sans-serif;
+  --fm: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* motion */
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(1, 0, 0.8, 1);
+  --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-instant: 100ms;
+  --dur-subtle: 140ms;
+  --dur-standard: 200ms;
+  --dur-screen: 300ms;
+
+  /* light palette — the default */
+  color-scheme: light;
+  --ground: #f9fafb;
+  --surf: #ffffff;
+  --surf-2: #f9fafb;
+  --surf-3: #f3f4f6;
+  --line: #e5e7eb;
+  --line-soft: #f3f4f6;
+  --line-strong: #d1d5db;
+  --tx: #111827;
+  --tx-2: #4b5563;
+  --tx-3: #6b7280;
+  --acc: #4a76a0;
+  --acc-tx: #365d80;
+  --acc-soft: #eff5fb;
+  --acc-deep: #0f1a26;
+  --acc-line: #b7d2e8;
+  --up: #047857;
+  --down: #b91c1c;
+  --flat: #6b7280;
+  --warn: #b45309;
+  --focus: #365d80;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 6px -1px rgba(16, 24, 40, 0.05);
+  --shadow-hi: 0 4px 12px -2px rgba(16, 24, 40, 0.09), 0 18px 36px -14px rgba(16, 24, 40, 0.1);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --ground: #0b0e13;
+  --surf: #141a22;
+  --surf-2: #1b2330;
+  --surf-3: #101720;
+  --line: rgba(232, 235, 239, 0.13);
+  --line-soft: rgba(232, 235, 239, 0.07);
+  --line-strong: rgba(232, 235, 239, 0.24);
+  --tx: #f0f3f6;
+  --tx-2: #a7b1bd;
+  --tx-3: #828d9a;
+  --acc: #7fa8cf;
+  --acc-tx: #aecae5;
+  --acc-soft: rgba(127, 168, 207, 0.14);
+  --acc-deep: #151d27;
+  --acc-line: #3e5c79;
+  --up: #34d399;
+  --down: #f87171;
+  --flat: #a7b1bd;
+  --warn: #f0b44a;
+  --focus: #aecae5;
+  --shadow: none;
+  --shadow-hi: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
+}

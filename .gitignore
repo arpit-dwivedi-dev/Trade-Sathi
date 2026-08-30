@@ -8,3 +8,12 @@ dist/
 
 supabase/.temp/
 supabase/.branches/
+
+# Playwright visual-verification artifacts
+apps/web/e2e/__screenshots__/
+apps/web/test-results/
+apps/web/playwright-report/
+
+# temporary design extraction artifacts
+design/reference/*-extracted.html
+design/reference/extracted.html

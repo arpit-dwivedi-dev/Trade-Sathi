@@ -1,0 +1,41 @@
+.shell {
+  background: var(--ground);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.bar-end {
+  align-items: center;
+  display: flex;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.bar-email {
+  color: var(--tx-2);
+  font-size: 13px;
+  max-width: 220px;
+}
+
+.tabs a.tab {
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+}
+
+.shell-loading {
+  align-items: center;
+  color: var(--tx-3);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s3);
+  justify-content: center;
+  padding: var(--s16);
+}
+
+@media (max-width: 640px) {
+  .bar-email {
+    display: none;
+  }
+}

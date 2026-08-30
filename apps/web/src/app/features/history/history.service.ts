@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 
 import { SupabaseClientService } from '../../core/supabase-client';
-import type { AnalysisRow } from '../analyze/analysis.types';
+import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
 
 /**
  * The subset of `analyses` a list view needs. Deliberately not the whole row:
@@ -24,6 +24,11 @@ const HISTORY_COLUMNS =
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
+
+export interface HistoryDetail {
+  row: AnalysisRow;
+  patterns: AnalysisPattern[];
+}
 
 export interface HistoryPage {
   rows: HistoryRow[];
@@ -121,5 +126,32 @@ export class HistoryService {
       // Encode the last row of the *trimmed* page, not the probe row.
       nextCursor: hasMore && rows.length > 0 ? encodeCursor(rows[rows.length - 1]) : null,
     };
+  }
+
+  /**
+   * The full row plus its patterns, for the expanded view of one list entry.
+   * Same client-read path as fetchHistory — RLS scopes both tables to the
+   * owner, so no backend endpoint is needed.
+   */
+  async fetchDetail(id: string): Promise<HistoryDetail> {
+    const client = this.supabase.client;
+    if (!client) throw new Error('Supabase client is unavailable');
+
+    const { data: row, error } = await client
+      .from('analyses')
+      .select('*')
+      .eq('id', id)
+      .single<AnalysisRow>();
+    if (error || !row) throw error ?? new Error('Analysis row not found');
+
+    // Patterns only exist once the pipeline has finished writing them.
+    const { data: patterns, error: patternsError } = await client
+      .from('analysis_patterns')
+      .select('*')
+      .eq('analysis_id', id)
+      .returns<AnalysisPattern[]>();
+    if (patternsError) throw patternsError;
+
+    return { row, patterns: patterns ?? [] };
   }
 }

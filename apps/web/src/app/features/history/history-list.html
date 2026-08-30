@@ -1,41 +1,107 @@
-<section class="history">
-  <h2>History</h2>
+<section class="body history">
+  <div class="history-head">
+    <h1 class="history-title">Your analyses</h1>
+    @if (!loading() && rows().length) {
+      <span class="lbl">Showing <span class="num history-count">{{ rows().length }}</span></span>
+    }
+  </div>
 
   @if (loading()) {
-    <p>Loading your past analyses…</p>
-  } @else if (error() && rows().length === 0) {
-    <p>{{ error() }}</p>
-  } @else if (rows().length === 0) {
-    <p>No analyses yet. Upload a chart to see it here.</p>
-  } @else {
-    <ul class="rows">
-      @for (row of rows(); track row.id) {
-        <li class="row">
-          <span class="date">{{ relativeDate(row.created_at) }}</span>
-          <span class="symbol">{{ row.symbol_raw ?? '—' }}</span>
-
-          <span class="badges">
-            @if (row.trend) {
-              <span class="badge">{{ row.trend }}</span>
-            }
-            @if (row.call_direction) {
-              <span class="badge">{{ row.call_direction }}</span>
-            }
-          </span>
-
-          <!-- queued/processing here is not a bug: an analysis submitted from
-               another tab or session can still be in flight. -->
-          <span class="status status-{{ row.status }}">{{ row.status }}</span>
-        </li>
+    <div class="tbl" aria-busy="true">
+      <div class="tr tr-h">
+        <span>Analyzed</span><span>Symbol</span><span>Asset</span><span>Source</span>
+        <span>Trend</span><span>Direction</span><span>Status</span><span></span>
+      </div>
+      @for (placeholder of [1, 2, 3, 4]; track placeholder) {
+        <div class="tr">
+          <span class="skel history-skel"></span>
+          <span class="skel history-skel"></span>
+          <span class="skel history-skel"></span>
+          <span class="skel history-skel"></span>
+          <span class="skel history-skel"></span>
+          <span class="skel history-skel"></span>
+          <span class="skel history-skel"></span>
+          <span></span>
+        </div>
       }
-    </ul>
+    </div>
+  } @else if (error() && rows().length === 0) {
+    <div class="card pad history-empty" role="alert">
+      <span class="st st-failed">Couldn't load</span>
+      <p class="history-msg">{{ error() }}</p>
+    </div>
+  } @else if (rows().length === 0) {
+    <div class="card history-empty history-empty-first">
+      <span class="lbl">No analyses yet</span>
+      <h2 class="history-empty-title">Upload your first chart to get started</h2>
+      <p class="history-msg">
+        Analyses you run are saved here with their symbol, timeframe and readings.
+      </p>
+    </div>
+  } @else {
+    <div class="tbl">
+      <div class="tr tr-h">
+        <span>Analyzed</span><span>Symbol</span><span>Asset</span><span>Source</span>
+        <span>Trend</span><span>Direction</span><span>Status</span><span></span>
+      </div>
+
+      @for (row of rows(); track row.id) {
+        <div class="history-row">
+          <button
+            type="button"
+            class="tr trow"
+            [attr.aria-expanded]="expandedId() === row.id"
+            (click)="toggle(row)"
+          >
+            <span class="history-when">
+              <span class="num history-age">{{ relativeDate(row.created_at) }}</span>
+            </span>
+            <span class="sym trunc" translate="no" [class.history-unknown]="!row.symbol_raw">
+              {{ row.symbol_raw ?? 'Not detected' }}
+            </span>
+            <span class="history-cell">{{ row.asset_class ?? '—' }}</span>
+            <span class="num history-tf">{{ row.source_type }}</span>
+            <span class="history-cell">{{ row.trend ?? '—' }}</span>
+            <span class="history-cell">{{ row.call_direction ?? '—' }}</span>
+            <!-- queued/processing here is not a bug: an analysis submitted from
+                 another tab or session can still be in flight. -->
+            <span><span class="st st-{{ row.status }}">{{ row.status }}</span></span>
+            <span class="history-chevron" aria-hidden="true">
+              {{ expandedId() === row.id ? '▾' : '▸' }}
+            </span>
+          </button>
+
+          @if (expandedId() === row.id) {
+            <div class="history-detail">
+              @if (detailLoading()) {
+                <p class="history-msg"><span class="spin" aria-hidden="true"></span> Loading…</p>
+              } @else if (detailError()) {
+                <p class="err" role="alert">{{ detailError() }}</p>
+              } @else if (detail(); as loaded) {
+                @if (loaded.row.status === 'queued' || loaded.row.status === 'processing') {
+                  <p class="history-msg">
+                    This analysis is still {{ loaded.row.status }}. Check back shortly.
+                  </p>
+                } @else {
+                  <app-analysis-result [row]="loaded.row" [patterns]="loaded.patterns" />
+                }
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
 
     @if (error()) {
-      <p class="error">{{ error() }}</p>
+      <p class="err" role="alert">{{ error() }}</p>
     }
 
     @if (nextCursor()) {
-      <button type="button" (click)="loadMore()" [disabled]="loadingMore()">
+      <button type="button" class="btn btn-s history-more" (click)="loadMore()"
+              [disabled]="loadingMore()">
+        @if (loadingMore()) {
+          <span class="spin" aria-hidden="true"></span>
+        }
         {{ loadingMore() ? 'Loading…' : 'Load more' }}
       </button>
     }

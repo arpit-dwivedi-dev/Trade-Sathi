@@ -1,4 +1,4 @@
-<section style="font-family: sans-serif">
+<section class="body analyze">
   <app-chart-drop
     [disabled]="state() !== 'idle' || quotaExhausted()"
     (fileSelected)="onFileSelected($event)"
@@ -7,44 +7,101 @@
   <!-- Shown before any upload: a user who is already out of analyses gets the
        upgrade path on arrival rather than after a doomed upload. -->
   @if (state() === 'idle' && quotaExhausted()) {
-    <p>You've used all your analyses this month.</p>
+    <div class="note" style="--tone: var(--warn)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--warn)"
+           stroke-width="1.5" aria-hidden="true" class="note-icon">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v5M12 16h.01" />
+      </svg>
+      <span>
+        <b>You've used all your analyses this month.</b>
+        Upgrade to keep going, or wait for the quota to reset.
+      </span>
+    </div>
     <app-upgrade-button (upgraded)="onUpgraded()" />
   }
 
   @switch (state()) {
     @case ('uploading') {
-      <p>Uploading your chart…</p>
+      <div class="card pad state-card" aria-live="polite">
+        <span class="st st-queued">Uploading</span>
+        <p class="state-msg"><span class="spin" aria-hidden="true"></span> Uploading your chart…</p>
+        <div class="prog"><i style="width: 20%"></i></div>
+      </div>
     }
+
     @case ('processing') {
-      <p>Analyzing your chart… this usually takes under a minute.</p>
+      <div class="card pad state-card" aria-live="polite">
+        <span class="st st-processing">Processing</span>
+        <p class="state-msg">
+          <span class="spin" aria-hidden="true"></span>
+          Analyzing your chart… this usually takes under a minute.
+        </p>
+        <div class="prog"><i style="width: 34%"></i></div>
+        <div class="state-skel">
+          <div class="skel" style="height: 22px; width: 52%"></div>
+          <div class="skel" style="height: 14px; width: 86%"></div>
+          <div class="skel" style="height: 14px; width: 72%"></div>
+        </div>
+      </div>
     }
+
     @case ('complete') {
       @if (row(); as completed) {
         <app-analysis-result [row]="completed" [patterns]="patterns()" />
       }
     }
+
     @case ('failed') {
       @if (error(); as message) {
-        <p>{{ message }}</p>
+        <div class="card pad state-card" role="alert">
+          <span class="st st-failed">Failed</span>
+          <h3 class="state-title">We couldn't analyze that chart</h3>
+          <p class="state-msg">{{ message }}</p>
+        </div>
       } @else if (row(); as failedRow) {
-        <app-analysis-result [row]="failedRow" [patterns]="patterns()" />
+        <div class="card pad state-card" role="alert">
+          <span class="st st-failed">Failed</span>
+          <h3 class="state-title">The analysis didn't finish</h3>
+          <p class="state-msg">
+            Take the screenshot at full size, including the price axis and the timeframe label,
+            then try again.
+          </p>
+          @if (failedRow.error_code; as code) {
+            <span class="lbl">Ref <span class="num state-ref">{{ code }}</span></span>
+          }
+        </div>
       }
     }
+
     @case ('quota_exceeded') {
-      <p>{{ error() }}</p>
+      <div class="card pad state-card" role="alert">
+        <span class="st st-failed">Quota reached</span>
+        <p class="state-msg">{{ error() }}</p>
+      </div>
       <app-upgrade-button (upgraded)="onUpgraded()" />
     }
+
     @case ('timed_out') {
-      <p>This is taking longer than usual. Your analysis may still finish — check back shortly.</p>
+      <div class="card pad state-card" role="alert">
+        <span class="st st-processing">Timed out</span>
+        <h3 class="state-title">The analysis didn't finish</h3>
+        <p class="state-msg">
+          This is taking longer than usual. Your analysis may still finish — check back shortly.
+        </p>
+      </div>
     }
+
     @case ('poll_error') {
-      <p>Couldn't check the status — try refreshing the page.</p>
+      <div class="card pad state-card" role="alert">
+        <span class="st st-failed">Connection lost</span>
+        <h3 class="state-title">Couldn't check the status</h3>
+        <p class="state-msg">Try refreshing the page — the analysis may still have completed.</p>
+      </div>
     }
   }
 
   @if (state() !== 'idle' && state() !== 'uploading' && state() !== 'processing') {
-    <button type="button" (click)="reset()" style="padding: 0.5rem; margin-top: 1rem">
-      Analyze another
-    </button>
+    <button type="button" class="btn btn-p analyze-again" (click)="reset()">Analyze another</button>
   }
 </section>

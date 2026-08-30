@@ -1,26 +1,248 @@
-/* Placeholder styling only — this gets a real visual pass later. */
 .result {
-  font-family: sans-serif;
-  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s8);
 }
 
-.meta {
-  color: #777;
-  font-size: 0.875rem;
-  margin: 0.25rem 0;
+.result-failed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
 }
 
-dl {
+.result-failed .st {
+  align-self: flex-start;
+}
+
+.result-failed-title {
+  font-size: 20px;
+}
+
+.result-msg {
+  color: var(--tx-2);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+/* header */
+.result-head {
+  align-items: flex-end;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: var(--s6);
+  justify-content: space-between;
+  padding-bottom: var(--s4);
+}
+
+.result-ident {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.result-ident .st {
+  align-self: flex-start;
+}
+
+.result-title-row {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+}
+
+.result-title-row h2 {
+  font-size: 44px;
+  letter-spacing: 0.03em;
+  max-width: 520px;
+  text-transform: uppercase;
+}
+
+.result-chips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.result-raw {
+  color: var(--tx-2);
+}
+
+/* blocks */
+.result-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.result-block-head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  justify-content: space-between;
+}
+
+.result-h {
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* levels */
+.result-levels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.result-level {
+  font-size: 15px;
+}
+
+.result-lbl-down {
+  color: var(--down);
+}
+
+.result-lbl-up {
+  color: var(--up);
+}
+
+.result-rule {
+  background: var(--line);
+  height: 1px;
+  margin: var(--s1) 0;
+}
+
+.result-summary {
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 86ch;
+}
+
+/* AI scenario panel */
+.result-panel {
   display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.25rem 1rem;
-  margin: 0.5rem 0 1rem;
+  grid-template-columns: 290px minmax(0, 1fr);
 }
 
-dt {
-  color: #777;
+.result-panel-dir {
+  border-right: 1px solid rgba(237, 241, 245, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s6);
 }
 
-dd {
-  margin: 0;
+.result-dir {
+  font-size: 44px;
+  line-height: 0.9;
+}
+
+.result-conf {
+  align-items: baseline;
+  display: flex;
+  gap: var(--s2);
+}
+
+.result-conf .num {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.result-cell-wide {
+  border-left: 0;
+  border-top: 1px solid rgba(237, 241, 245, 0.16);
+  grid-column: 1 / -1;
+  padding: var(--s4);
+}
+
+.result-horizon {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s6);
+}
+
+.result-horizon-val {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.result-horizon-val .num {
+  font-size: 16px;
+}
+
+.result-scenario-note {
+  font-size: 13px;
+  line-height: 1.55;
+  margin-left: auto;
+  max-width: 58ch;
+}
+
+/* patterns */
+.result-patterns {
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.result-pattern {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.result-pattern-key {
+  font-family: var(--fh);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.result-pattern-conf {
+  color: var(--tx-2);
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .result {
+    gap: var(--s6);
+  }
+
+  .result-title-row h2 {
+    font-size: 28px;
+  }
+
+  .result-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--s2);
+  }
+
+  .result-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .result-panel-dir {
+    border-bottom: 1px solid rgba(237, 241, 245, 0.2);
+    border-right: 0;
+    padding: var(--s4);
+  }
+
+  .result-dir {
+    font-size: 32px;
+  }
+
+  .cells {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .result-scenario-note {
+    margin-left: 0;
+  }
 }
