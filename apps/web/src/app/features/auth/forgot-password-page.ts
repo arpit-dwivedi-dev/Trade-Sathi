@@ -7,6 +7,7 @@ import { AuthService } from '../../core/auth.service';
 @Component({
   selector: 'app-forgot-password-page',
   imports: [FormsModule, RouterLink],
+  styleUrl: './auth-page.css',
   templateUrl: './forgot-password-page.html',
 })
 export class ForgotPasswordPage {

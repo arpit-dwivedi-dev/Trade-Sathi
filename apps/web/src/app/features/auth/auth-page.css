@@ -60,3 +60,9 @@
   justify-content: space-between;
   padding-top: var(--s4);
 }
+
+.auth-checking {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+}

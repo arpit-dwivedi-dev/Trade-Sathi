@@ -8,6 +8,7 @@ import { SupabaseClientService } from '../../core/supabase-client';
 @Component({
   selector: 'app-reset-password-page',
   imports: [FormsModule, RouterLink],
+  styleUrl: './auth-page.css',
   templateUrl: './reset-password-page.html',
 })
 export class ResetPasswordPage implements OnInit {
