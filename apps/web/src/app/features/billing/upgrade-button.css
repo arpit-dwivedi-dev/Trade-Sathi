@@ -1,15 +1,53 @@
+/* A status callout box, not a plain line of text: background tint + border
+   carry the state at a glance, before the copy is even read. */
 .billing-msg {
   align-items: center;
+  animation: billing-msg-in 180ms ease-out;
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
   color: var(--tx-2);
   display: flex;
   font-size: 13.5px;
-  gap: var(--s2);
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+}
+
+.billing-msg .ico {
+  flex-shrink: 0;
+  height: 18px;
+  width: 18px;
 }
 
 .billing-ok {
+  background: color-mix(in srgb, var(--up) 10%, var(--surf));
+  border-color: color-mix(in srgb, var(--up) 35%, var(--line));
   color: var(--up);
+}
+
+.billing-warn {
+  background: color-mix(in srgb, var(--warn) 10%, var(--surf));
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
+  color: var(--warn);
+}
+
+.billing-error {
+  background: color-mix(in srgb, var(--down) 10%, var(--surf));
+  border-color: color-mix(in srgb, var(--down) 35%, var(--line));
+  color: var(--down);
 }
 
 .billing-retry {
   margin-top: var(--s3);
+}
+
+@keyframes billing-msg-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .billing-msg {
+    animation: none;
+  }
 }

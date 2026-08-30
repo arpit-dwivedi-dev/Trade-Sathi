@@ -5,6 +5,7 @@
    above the overlay. */
 .plans-scrim {
   align-items: center;
+  animation: plans-scrim-in 220ms ease-out;
   backdrop-filter: blur(2px);
   background: rgb(0 0 0 / 55%);
   display: flex;
@@ -17,6 +18,7 @@
 }
 
 .plans-panel {
+  animation: plans-panel-in 240ms ease-out;
   background: var(--ground);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
@@ -28,6 +30,25 @@
   max-width: min(720px, 100%);
   overflow: auto;
   width: 100%;
+}
+
+@keyframes plans-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Starts slightly smaller and below rest position so the panel feels like it
+   settles into place rather than just appearing. */
+@keyframes plans-panel-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plans-scrim,
+  .plans-panel {
+    animation: none;
+  }
 }
 
 /* Reuses the shell's .bar so the overlay reads as part of the same app rather
