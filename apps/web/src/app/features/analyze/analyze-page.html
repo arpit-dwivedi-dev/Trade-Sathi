@@ -18,7 +18,10 @@
         Upgrade to keep going, or wait for the quota to reset.
       </span>
     </div>
-    <app-upgrade-button (upgraded)="onUpgraded()" />
+    <div class="billing-actions">
+      <app-upgrade-button (upgraded)="onUpgraded()" />
+      <app-buy-credits-button (creditsAdded)="onCreditsAdded()" />
+    </div>
   }
 
   @switch (state()) {
@@ -79,7 +82,10 @@
         <span class="st st-failed">Quota reached</span>
         <p class="state-msg">{{ error() }}</p>
       </div>
-      <app-upgrade-button (upgraded)="onUpgraded()" />
+      <div class="billing-actions">
+        <app-upgrade-button (upgraded)="onUpgraded()" />
+        <app-buy-credits-button (creditsAdded)="onCreditsAdded()" />
+      </div>
     }
 
     @case ('timed_out') {

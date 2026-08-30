@@ -18,15 +18,26 @@ const POLL_TIMEOUT_MS = 60_000;
 const MAX_CONSECUTIVE_POLL_FAILURES = 3;
 
 /** Minimal surface of Razorpay Checkout that this feature actually uses. */
-interface RazorpayCheckoutOptions {
+interface RazorpayCheckoutBase {
   key: string;
-  subscription_id: string;
   name: string;
   description: string;
   prefill?: { email: string };
   handler: () => void;
   modal: { ondismiss: () => void };
 }
+
+/**
+ * The two Checkout modes are mutually exclusive, and the union enforces that.
+ * A subscription is opened with `subscription_id` and no amount (the plan
+ * fixes it); a one-time Order is opened with `order_id`, `amount` and
+ * `currency`. Passing both, or mixing fields across modes, is a Checkout
+ * error — so they are kept as separate variants rather than one shape with
+ * everything optional.
+ */
+type RazorpayCheckoutOptions =
+  | (RazorpayCheckoutBase & { subscription_id: string })
+  | (RazorpayCheckoutBase & { order_id: string; amount: number; currency: string });
 
 interface RazorpayCheckoutInstance {
   open: () => void;
@@ -48,6 +59,17 @@ export type SubscriptionPollOutcome = 'active' | 'timed_out' | 'poll_error';
 
 export interface SubscriptionPollHandle {
   result: Promise<SubscriptionPollOutcome>;
+  cancel: () => void;
+}
+
+export type BuyCreditsResult =
+  | { ok: true; orderId: string; keyId: string; amountMinor: number }
+  | { ok: false; reason: 'error'; message: string };
+
+export type CreditPollOutcome = 'captured' | 'timed_out' | 'poll_error';
+
+export interface CreditPollHandle {
+  result: Promise<CreditPollOutcome>;
   cancel: () => void;
 }
 
@@ -104,6 +126,45 @@ export class BillingService {
         ok: false,
         reason: 'error',
         message: "Couldn't start the upgrade. Please try again.",
+      };
+    }
+  }
+
+  /**
+   * Asks the backend to create a Razorpay Order for one credit pack.
+   *
+   * Unlike subscribe() there is no 409-equivalent: credit packs are one-time
+   * purchases with no "already has one" state, so every non-201 collapses to a
+   * single 'error' reason.
+   */
+  async buyCredits(): Promise<BuyCreditsResult> {
+    const token = await this.auth.getAccessToken();
+    if (!token) {
+      return { ok: false, reason: 'error', message: 'You are not signed in.' };
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<{ orderId: string; keyId: string; amountMinor: number }>(
+          '/api/billing/buy-credits',
+          {},
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      );
+      return {
+        ok: true,
+        orderId: response.orderId,
+        keyId: response.keyId,
+        amountMinor: response.amountMinor,
+      };
+    } catch (cause) {
+      // 500 (our own misconfiguration) and 502 (the provider failed) are both
+      // nothing the user can act on differently, so they share one reason.
+      console.warn('credit order request failed', cause);
+      return {
+        ok: false,
+        reason: 'error',
+        message: "Couldn't start the purchase. Please try again.",
       };
     }
   }
@@ -178,6 +239,148 @@ export class BillingService {
       });
       checkout.open();
     });
+  }
+
+  /**
+   * Opens Razorpay Checkout for an already-created credit-pack Order.
+   *
+   * IMPORTANT: exactly as in openCheckout, the `handler` callback fires when
+   * the user completes the Checkout form — it is NOT proof that the payment
+   * was captured or that any credits exist. Credits are granted only by
+   * apply_credit_purchase, driven by the signature-verified webhook. So this
+   * resolves 'submitted' and grants nothing; confirming the purchase is
+   * pollCreditPurchase's job.
+   *
+   * The script is the same one the subscribe flow loads, so loadCheckoutScript
+   * is reused as-is and is already cached after the first load.
+   */
+  openCreditCheckout(
+    orderId: string,
+    keyId: string,
+    amountMinor: number,
+    prefillEmail: string | null,
+  ): Promise<CheckoutOutcome> {
+    if (!this.supabase.isBrowser) {
+      return Promise.reject(
+        new Error('openCreditCheckout is browser-only and cannot run during SSR'),
+      );
+    }
+
+    const Razorpay = window.Razorpay;
+    if (!Razorpay) {
+      return Promise.reject(new Error('Razorpay Checkout is not loaded'));
+    }
+
+    return new Promise<CheckoutOutcome>((resolve) => {
+      const checkout = new Razorpay({
+        key: keyId,
+        order_id: orderId,
+        // Passed through from the backend rather than hardcoded here: the
+        // server owns the price, and a client-side constant could drift from
+        // it silently. Razorpay validates it against the Order regardless.
+        amount: amountMinor,
+        currency: 'INR',
+        name: 'ChartAnalyzer',
+        description: '10 analysis credits',
+        prefill: prefillEmail ? { email: prefillEmail } : undefined,
+        handler: () => resolve({ outcome: 'submitted' }),
+        modal: { ondismiss: () => resolve({ outcome: 'dismissed' }) },
+      });
+      checkout.open();
+    });
+  }
+
+  /**
+   * Polls the payments row until the webhook flips it to 'captured'.
+   *
+   * Reads through the browser Supabase client — the existing
+   * `profile_id = auth.uid()` select policy on payments already permits this,
+   * so no backend endpoint is needed. Same shape and cancellation contract as
+   * pollSubscriptionStatus.
+   */
+  pollCreditPurchase(orderId: string): CreditPollHandle {
+    const client = this.supabase.client;
+
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let settled = false;
+    let consecutiveFailures = 0;
+    const startedAt = Date.now();
+
+    const result = new Promise<CreditPollOutcome>((resolve) => {
+      const stop = (): void => {
+        if (timer !== null) {
+          clearInterval(timer);
+          timer = null;
+        }
+      };
+
+      // Every exit path clears the interval first: an interval still firing
+      // after resolution is a bug.
+      const finish = (outcome: CreditPollOutcome): void => {
+        if (settled) return;
+        settled = true;
+        stop();
+        resolve(outcome);
+      };
+
+      if (!client) {
+        // SSR has no Supabase client; nothing can be polled.
+        finish('poll_error');
+        return;
+      }
+
+      const tick = async (): Promise<void> => {
+        if (settled) return;
+
+        if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
+          // Not a failure: the payment has most likely succeeded and the
+          // webhook is simply still in flight. We just stop waiting here.
+          finish('timed_out');
+          return;
+        }
+
+        try {
+          const { data, error } = await client
+            .from('payments')
+            .select('status')
+            .eq('provider_order_id', orderId)
+            .single<{ status: string }>();
+
+          if (error || !data) throw error ?? new Error('Payment row not found');
+
+          consecutiveFailures = 0;
+          if (settled) return;
+
+          if (data.status === 'captured') finish('captured');
+        } catch (cause) {
+          // A read error here is a *frontend* problem (network, client config),
+          // not the payment failing. One blip just waits for the next scheduled
+          // poll, which doubles as the retry; only sustained failure gives up.
+          consecutiveFailures += 1;
+          console.warn('credit purchase poll attempt failed', cause);
+
+          if (consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+            finish('poll_error');
+          }
+        }
+      };
+
+      timer = setInterval(() => void tick(), POLL_INTERVAL_MS);
+      void tick();
+    });
+
+    return {
+      result,
+      cancel: () => {
+        // Called from ngOnDestroy: the caller has already stopped caring, so the
+        // promise is simply left unresolved rather than given a special outcome.
+        settled = true;
+        if (timer !== null) {
+          clearInterval(timer);
+          timer = null;
+        }
+      },
+    };
   }
 
   /**

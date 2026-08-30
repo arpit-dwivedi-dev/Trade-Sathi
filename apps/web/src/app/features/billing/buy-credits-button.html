@@ -1,0 +1,31 @@
+@switch (state()) {
+  @case ('idle') {
+    <button type="button" class="btn" (click)="onBuyClick()">Buy 10 more analyses — ₹79</button>
+  }
+  @case ('ordering') {
+    <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Starting your purchase…</p>
+  }
+  @case ('loading_checkout') {
+    <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Opening the payment window…</p>
+  }
+  @case ('checkout_open') {
+    <p class="billing-msg">Complete your payment in the Razorpay window.</p>
+  }
+  @case ('confirming') {
+    <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Confirming your payment…</p>
+  }
+  @case ('success') {
+    <p class="billing-msg billing-ok">10 analyses added. You're good to go.</p>
+  }
+  @case ('confirming_slow') {
+    <p class="billing-msg">
+      Still confirming your payment — this can take a minute, check back shortly.
+    </p>
+  }
+  @case ('poll_error') {
+    <p class="err" role="alert">{{ error() }}</p>
+  }
+  @case ('error') {
+    <p class="err" role="alert">{{ error() }}</p>
+  }
+}

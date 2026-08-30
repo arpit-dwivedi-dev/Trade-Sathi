@@ -4,6 +4,7 @@ import { AnalysisResult } from './analysis-result';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
 import { AnalyzeService, type PollHandle, type QuotaStatus } from './analyze.service';
 import { ChartDrop, type ChartFileSelection } from './chart-drop';
+import { BuyCreditsButton } from '../billing/buy-credits-button';
 import { UpgradeButton } from '../billing/upgrade-button';
 
 type AnalyzeState =
@@ -21,7 +22,7 @@ type AnalyzeState =
  */
 @Component({
   selector: 'app-analyze-page',
-  imports: [ChartDrop, AnalysisResult, UpgradeButton],
+  imports: [ChartDrop, AnalysisResult, UpgradeButton, BuyCreditsButton],
   styleUrl: './analyze-page.css',
   templateUrl: './analyze-page.html',
 })
@@ -126,6 +127,19 @@ export class AnalyzePage implements OnInit, OnDestroy {
    * The user upgraded from the quota block: drop straight back to idle so the
    * analysis their quota refused can be retried immediately.
    */
+  /**
+   * The user bought a credit pack from the quota block: same reset as
+   * onUpgraded. The monthly quota is still exhausted — the next analysis draws
+   * on a credit instead, which check_and_consume_entitlement decides
+   * server-side — so this only clears the blocked UI state.
+   */
+  protected onCreditsAdded(): void {
+    // Re-read the quota for the same reason as onUpgraded: the quota block's
+    // copy is stale once the user has paid, and must not survive into idle.
+    void this.refreshQuota();
+    this.reset();
+  }
+
   protected onUpgraded(): void {
     // Re-read the quota before resetting: the plan changed, so the pre-upgrade
     // "no analyses left" state must not survive into idle.

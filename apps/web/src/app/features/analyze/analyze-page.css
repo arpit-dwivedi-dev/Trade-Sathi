@@ -43,3 +43,13 @@
 .analyze-again {
   align-self: flex-start;
 }
+
+/* The two quota-block actions sit side by side, wrapping on narrow screens.
+   Each child renders either a button or a status line, so aligning on the
+   start keeps a spinner line from stretching next to a button. */
+.billing-actions {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
