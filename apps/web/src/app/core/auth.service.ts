@@ -78,10 +78,13 @@ export class AuthService {
     const client = this.supabase.client;
     if (!client) return { ok: false, message: 'Not available on the server.' };
 
+    // Fast path only. The `before_user_created` auth hook is the real
+    // boundary and rejects the full disposable-domain list server-side.
     if (isDisposableEmail(email)) {
       return {
         ok: false,
-        message: 'Please sign up with a permanent email address — temporary/disposable emails are not allowed.',
+        message:
+          'Please sign up with a permanent email address — temporary and disposable email providers are not accepted.',
       };
     }
 

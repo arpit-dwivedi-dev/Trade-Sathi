@@ -12,11 +12,13 @@
     "dev": "concurrently -n web,api \"pnpm:dev:web\" \"pnpm:dev:api\"",
     "build": "pnpm -r build",
     "test": "pnpm -r --if-present test",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "gen:disposable-domains": "node scripts/generate-disposable-domains-migration.mjs"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.112.4",
     "concurrently": "^9.0.1",
+    "disposable-email-domains": "^1.0.62",
     "eslint": "^10.9.1",
     "tsx": "^4.23.12",
     "typescript": "^6.0.3",
