@@ -14,12 +14,16 @@ export class AuthPage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  protected readonly mode = signal<'signin' | 'signup'>('signin');
+  protected readonly mode = signal<'signin' | 'signup' | 'otp'>('signin');
   protected readonly email = signal('');
   protected readonly password = signal('');
+  protected readonly otp = signal('');
   protected readonly error = signal<string | null>(null);
   protected readonly notice = signal<string | null>(null);
   protected readonly busy = signal(false);
+
+  /** Email the OTP step is verifying; distinct from `email()` so it survives the field being cleared. */
+  private pendingEmail = '';
 
   protected toggleMode(): void {
     this.mode.update((m) => (m === 'signin' ? 'signup' : 'signin'));
@@ -28,6 +32,11 @@ export class AuthPage {
   }
 
   protected async submit(): Promise<void> {
+    if (this.mode() === 'otp') {
+      await this.submitOtp();
+      return;
+    }
+
     this.busy.set(true);
     this.error.set(null);
     this.notice.set(null);
@@ -46,14 +55,57 @@ export class AuthPage {
       return;
     }
 
-    if (!this.auth.session()) {
-      // Sign-up succeeded but the project requires email confirmation, so
-      // there is no session to send to /app yet.
-      this.notice.set('Check your email to confirm your account, then sign in.');
-      this.mode.set('signin');
+    if (this.mode() === 'signup') {
+      // Signup never signs the user in directly — a code must be confirmed
+      // first, so the account can't be used with just an email/password.
+      this.pendingEmail = email;
+      this.otp.set('');
+      this.notice.set(`Enter the 6-digit code we sent to ${email}.`);
+      this.mode.set('otp');
       return;
     }
 
     await this.router.navigateByUrl('/app');
+  }
+
+  private async submitOtp(): Promise<void> {
+    if (!this.pendingEmail) {
+      this.useDifferentEmail();
+      return;
+    }
+
+    this.busy.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+
+    const result = await this.auth.verifySignupOtp(this.pendingEmail, this.otp());
+    this.busy.set(false);
+
+    if (!result.ok) {
+      this.error.set(result.message);
+      return;
+    }
+
+    await this.router.navigateByUrl('/app');
+  }
+
+  /** Lets the user correct a mistyped email instead of resending to it forever. */
+  protected useDifferentEmail(): void {
+    this.mode.set('signup');
+    this.otp.set('');
+    this.error.set(null);
+    this.notice.set(null);
+  }
+
+  protected async resendOtp(): Promise<void> {
+    this.busy.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+
+    const result = await this.auth.resendSignupOtp(this.pendingEmail);
+
+    this.busy.set(false);
+    this.notice.set(result.ok ? 'Sent a new code.' : null);
+    if (!result.ok) this.error.set(result.message);
   }
 }

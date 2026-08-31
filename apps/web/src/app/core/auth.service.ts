@@ -7,6 +7,8 @@ import { SupabaseClientService } from './supabase-client';
 /** Methods report failure as a value so components never need try/catch. */
 export type AuthResult = { ok: true } | { ok: false; message: string };
 
+const NOT_AVAILABLE: AuthResult = { ok: false, message: 'Not available on the server.' };
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly supabase = inject(SupabaseClientService);
@@ -76,7 +78,7 @@ export class AuthService {
 
   async signUp(email: string, password: string): Promise<AuthResult> {
     const client = this.supabase.client;
-    if (!client) return { ok: false, message: 'Not available on the server.' };
+    if (!client) return NOT_AVAILABLE;
 
     // Fast path only. The `before_user_created` auth hook is the real
     // boundary and rejects the full disposable-domain list server-side.
@@ -92,9 +94,30 @@ export class AuthService {
     return error ? { ok: false, message: error.message } : { ok: true };
   }
 
+  /**
+   * Confirms the 6-digit code from the signup email, establishing a session.
+   * This is the second step required before a new account can sign in.
+   */
+  async verifySignupOtp(email: string, token: string): Promise<AuthResult> {
+    const client = this.supabase.client;
+    if (!client) return NOT_AVAILABLE;
+
+    const { error } = await client.auth.verifyOtp({ email, token, type: 'signup' });
+    return error ? { ok: false, message: error.message } : { ok: true };
+  }
+
+  /** Re-sends the signup verification code. */
+  async resendSignupOtp(email: string): Promise<AuthResult> {
+    const client = this.supabase.client;
+    if (!client) return NOT_AVAILABLE;
+
+    const { error } = await client.auth.resend({ type: 'signup', email });
+    return error ? { ok: false, message: error.message } : { ok: true };
+  }
+
   async signIn(email: string, password: string): Promise<AuthResult> {
     const client = this.supabase.client;
-    if (!client) return { ok: false, message: 'Not available on the server.' };
+    if (!client) return NOT_AVAILABLE;
 
     const { error } = await client.auth.signInWithPassword({ email, password });
     return error ? { ok: false, message: error.message } : { ok: true };
@@ -107,7 +130,7 @@ export class AuthService {
    */
   async requestPasswordReset(email: string): Promise<AuthResult> {
     const client = this.supabase.client;
-    if (!client) return { ok: false, message: 'Not available on the server.' };
+    if (!client) return NOT_AVAILABLE;
 
     const { error } = await client.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
@@ -118,7 +141,7 @@ export class AuthService {
   /** Sets a new password for the session established by a recovery link. */
   async updatePassword(password: string): Promise<AuthResult> {
     const client = this.supabase.client;
-    if (!client) return { ok: false, message: 'Not available on the server.' };
+    if (!client) return NOT_AVAILABLE;
 
     const { error } = await client.auth.updateUser({ password });
     return error ? { ok: false, message: error.message } : { ok: true };
@@ -126,7 +149,7 @@ export class AuthService {
 
   async signOut(): Promise<AuthResult> {
     const client = this.supabase.client;
-    if (!client) return { ok: false, message: 'Not available on the server.' };
+    if (!client) return NOT_AVAILABLE;
 
     const { error } = await client.auth.signOut();
     return error ? { ok: false, message: error.message } : { ok: true };

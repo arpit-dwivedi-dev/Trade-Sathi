@@ -10,30 +10,42 @@
 
   <div class="card auth-card">
     <div class="auth-head">
-      <h1>{{ mode() === 'signup' ? 'Create an account' : 'Sign in' }}</h1>
+      <h1>{{ mode() === 'signup' ? 'Create an account' : mode() === 'otp' ? 'Verify your email' : 'Sign in' }}</h1>
       @if (mode() === 'signup') {
         <p class="disc">Starts on the free plan.</p>
       }
     </div>
 
     <form (ngSubmit)="submit()" class="auth-form">
-      <div class="field">
-        <label for="auth-email">Email</label>
-        <input class="input" id="auth-email" type="email" name="email" required
-               autocomplete="email" inputmode="email" spellcheck="false"
-               placeholder="you@example.com"
-               [attr.aria-invalid]="error() ? 'true' : null"
-               [ngModel]="email()" (ngModelChange)="email.set($event)" />
-      </div>
+      @if (mode() === 'otp') {
+        <div class="field">
+          <label for="auth-otp">6-digit code</label>
+          <input class="input" id="auth-otp" type="text" name="otp" required
+                 inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code"
+                 placeholder="000000"
+                 [attr.aria-invalid]="error() ? 'true' : null"
+                 [attr.aria-describedby]="error() ? 'auth-error' : null"
+                 [ngModel]="otp()" (ngModelChange)="otp.set($event)" />
+        </div>
+      } @else {
+        <div class="field">
+          <label for="auth-email">Email</label>
+          <input class="input" id="auth-email" type="email" name="email" required
+                 autocomplete="email" inputmode="email" spellcheck="false"
+                 placeholder="you@example.com"
+                 [attr.aria-invalid]="error() ? 'true' : null"
+                 [ngModel]="email()" (ngModelChange)="email.set($event)" />
+        </div>
 
-      <div class="field">
-        <label for="auth-password">Password</label>
-        <input class="input" id="auth-password" type="password" name="password" required
-               [autocomplete]="mode() === 'signup' ? 'new-password' : 'current-password'"
-               [attr.aria-invalid]="error() ? 'true' : null"
-               [attr.aria-describedby]="error() ? 'auth-error' : null"
-               [ngModel]="password()" (ngModelChange)="password.set($event)" />
-      </div>
+        <div class="field">
+          <label for="auth-password">Password</label>
+          <input class="input" id="auth-password" type="password" name="password" required
+                 [autocomplete]="mode() === 'signup' ? 'new-password' : 'current-password'"
+                 [attr.aria-invalid]="error() ? 'true' : null"
+                 [attr.aria-describedby]="error() ? 'auth-error' : null"
+                 [ngModel]="password()" (ngModelChange)="password.set($event)" />
+        </div>
+      }
 
       @if (error(); as message) {
         <p class="err" id="auth-error" role="alert">
@@ -53,19 +65,29 @@
         @if (busy()) {
           <span class="spin" aria-hidden="true"></span>
         }
-        {{ busy() ? 'Working…' : mode() === 'signup' ? 'Create account' : 'Sign in' }}
+        {{ busy() ? 'Working…' : mode() === 'signup' ? 'Create account' : mode() === 'otp' ? 'Verify' : 'Sign in' }}
       </button>
     </form>
 
     <div class="auth-foot">
-      @if (mode() === 'signin') {
+      @if (mode() === 'otp') {
+        <button type="button" class="btn btn-g btn-sm" [disabled]="busy()" (click)="resendOtp()">
+          Resend code
+        </button>
+      } @else if (mode() === 'signin') {
         <a routerLink="/forgot-password">Forgot password?</a>
       } @else {
         <span></span>
       }
-      <button type="button" class="btn btn-g btn-sm" (click)="toggleMode()">
-        {{ mode() === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
-      </button>
+      @if (mode() === 'otp') {
+        <button type="button" class="btn btn-g btn-sm" (click)="useDifferentEmail()">
+          Use a different email
+        </button>
+      } @else {
+        <button type="button" class="btn btn-g btn-sm" (click)="toggleMode()">
+          {{ mode() === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
+        </button>
+      }
     </div>
   </div>
 </main>
