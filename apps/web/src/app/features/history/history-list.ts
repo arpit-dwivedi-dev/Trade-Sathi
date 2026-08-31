@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 
+import { ChartImage } from '../../shared/chart-image';
 import { AnalysisResult } from '../analyze/analysis-result';
 import { HistoryService, type HistoryDetail, type HistoryRow } from './history.service';
 
@@ -12,7 +13,7 @@ import { HistoryService, type HistoryDetail, type HistoryRow } from './history.s
  */
 @Component({
   selector: 'app-history-list',
-  imports: [AnalysisResult],
+  imports: [AnalysisResult, ChartImage],
   templateUrl: './history-list.html',
   styleUrl: './history-list.css',
 })

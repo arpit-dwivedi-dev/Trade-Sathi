@@ -21,6 +21,8 @@ import { supabaseAdmin } from "../lib/supabase.js";
 const CANDLE_LOOKBACK_DAYS = 90;
 const CANDLES_FOR_CHART = 60;
 
+const BUCKET = "chart-images";
+
 const marketDataProvider: MarketDataProvider = new YahooFinanceMarketDataProvider();
 
 function currentUtcPeriod(): string {
@@ -35,6 +37,39 @@ function subtractDays(isoDate: string, days: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - days);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Stores a generated watchlist chart so the user can see the exact image the
+ * analysis was read from, the same way they can for an uploaded screenshot.
+ *
+ * The leading path segment MUST be the profile id: the chart-images bucket's
+ * SELECT policy authorises a read by matching `(storage.foldername(name))[1]`
+ * against auth.uid(). A key that starts with anything else uploads fine (the
+ * service role bypasses RLS on write) and is then unreadable by the only
+ * person meant to see it.
+ *
+ * A failure is logged and swallowed, deliberately: the AI result is already
+ * complete and useful, and discarding it — along with the quota unit and the
+ * provider spend behind it — over a missing picture would be a worse outcome.
+ * The row keeps the key either way, so a failed store surfaces as an image
+ * that will not load rather than as a silently different kind of analysis.
+ */
+async function storeWatchlistChart(imageKey: string, imageBuffer: Buffer): Promise<void> {
+  // upsert: the scheduled job and an Analyze Now run on the same instrument
+  // and the same market-data date derive the identical key. Without this the
+  // second one fails on a duplicate object for what is genuinely the same
+  // chart.
+  const { error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .upload(imageKey, imageBuffer, { contentType: "image/png", upsert: true });
+
+  if (error) {
+    logger.error("watchlist chart image upload failed", {
+      imageKey,
+      cause: String(error),
+    });
+  }
 }
 
 type EntitlementOutcome = "consumed" | "no_subscription" | "quota_exhausted";
@@ -158,6 +193,8 @@ export async function processWatchlistItem(
   }
 
   const marketDataDate = lastCandle.timestamp.slice(0, 10);
+  const imageKey = `${profileId}/watchlist-daily/${item.instrumentId}/${marketDataDate}.png`;
+  await storeWatchlistChart(imageKey, imageBuffer);
 
   const { data: insertedRow, error: insertError } = await supabaseAdmin
     .from("analyses")
@@ -167,7 +204,7 @@ export async function processWatchlistItem(
     source: "watchlist_daily",
     instrument_id: item.instrumentId,
     market_data_date: marketDataDate,
-    image_key: `watchlist-daily/${profileId}/${item.instrumentId}/${marketDataDate}.png`,
+    image_key: imageKey,
     symbol_raw: visual.result.symbol,
     symbol: item.symbol,
     asset_class: visual.result.asset_class,
@@ -205,16 +242,12 @@ export async function processWatchlistItem(
     return null;
   }
 
-  // Note on image_key/source_type above: the analyses table's image_key and
-  // source_type columns are NOT NULL, written by the manual-upload path
-  // against a real Supabase Storage object. The watchlist path has no
-  // uploaded file to point at (the chart image is generated in-memory and
-  // discarded, exactly like the spec asks — no new storage/design system for
-  // this path), so image_key is a synthetic, uniquely-derived path used only
-  // as a human-readable identifier, and source_type is a placeholder required
-  // by the column's NOT NULL constraint. source = 'watchlist_daily' is the
-  // real, authoritative provenance signal — see the analyses-source-column
-  // migration.
+  // Note on image_key/source_type above: image_key points at a real stored
+  // object, exactly as it does for the manual-upload path — the generated
+  // chart is uploaded above so the user can see the image their analysis was
+  // read from. source_type stays a placeholder required by that column's NOT
+  // NULL constraint; source = 'watchlist_daily' is the real, authoritative
+  // provenance signal — see the analyses-source-column migration.
   return {
     item,
     analysisId: insertedRow.id,

@@ -1,6 +1,7 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, computed, effect, input } from '@angular/core';
 
+import { ChartImage } from '../../shared/chart-image';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
 
 const GENERIC_FAILURE = "This analysis couldn't be completed. Try again.";
@@ -17,11 +18,12 @@ const FAILURE_COPY: Record<string, string> = {
 };
 
 /**
- * Renders a finished analysis. Pure presentation — no API calls, no polling.
+ * Renders a finished analysis. Presentation only — the one exception is the
+ * embedded chart image, which signs its own URL inside <app-chart-image>.
  */
 @Component({
   selector: 'app-analysis-result',
-  imports: [DatePipe, DecimalPipe],
+  imports: [ChartImage, DatePipe, DecimalPipe],
   templateUrl: './analysis-result.html',
   styleUrl: './analysis-result.css',
 })

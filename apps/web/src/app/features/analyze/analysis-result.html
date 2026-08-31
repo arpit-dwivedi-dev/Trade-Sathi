@@ -3,6 +3,9 @@
     <span class="st st-failed">Failed</span>
     <h2 class="result-failed-title">Analysis failed</h2>
     <p class="result-msg">{{ failureMessage() }}</p>
+    <!-- Still worth showing: it lets the user see what they actually sent
+         before deciding whether to retake the screenshot and retry. -->
+    <app-chart-image [imageKey]="row().image_key" [label]="row().symbol_raw" />
   </section>
 } @else {
   <section class="result">
@@ -35,6 +38,12 @@
 
     <div class="result-body">
       <div class="result-main">
+        <!-- the chart the reading came from -->
+        <div class="result-block">
+          <h3 class="result-h">Your chart</h3>
+          <app-chart-image [imageKey]="row().image_key" [label]="row().symbol_raw" />
+        </div>
+
         <!-- observed readings -->
         <div class="result-block">
           <h3 class="result-h">What the model observed</h3>
