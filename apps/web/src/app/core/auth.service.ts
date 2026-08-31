@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import type { Session, User } from '@supabase/supabase-js';
+import { isDisposableEmail } from '@chartanalyzer/shared';
 
 import { SupabaseClientService } from './supabase-client';
 
@@ -76,6 +77,13 @@ export class AuthService {
   async signUp(email: string, password: string): Promise<AuthResult> {
     const client = this.supabase.client;
     if (!client) return { ok: false, message: 'Not available on the server.' };
+
+    if (isDisposableEmail(email)) {
+      return {
+        ok: false,
+        message: 'Please sign up with a permanent email address — temporary/disposable emails are not allowed.',
+      };
+    }
 
     const { error } = await client.auth.signUp({ email, password });
     return error ? { ok: false, message: error.message } : { ok: true };

@@ -11,3 +11,7 @@ port = 54322
 [studio]
 enabled = true
 port = 54323
+
+[auth.hook.before_user_created]
+enabled = true
+uri = "pg-functions://postgres/public/reject_disposable_email_signup"
