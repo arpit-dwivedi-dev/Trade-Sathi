@@ -1,15 +1,54 @@
-# ChartAnalyzer
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What this is
 A web app that analyzes trading chart screenshots using AI and returns
 pattern detection, support/resistance levels, and a directional call.
-This file governs how Claude Code should work in this repo.
+
+## Commands
+This is a pnpm workspace monorepo (Node >=22, pnpm). Run from the repo root
+unless noted.
+- `pnpm install` — install all workspace deps.
+- `pnpm dev` — run web + api together (concurrently).
+- `pnpm dev:web` — Angular dev server only (`apps/web`, `ng serve`).
+- `pnpm dev:api` — API only, with reload (`apps/api`, `tsx watch`).
+- `pnpm build` — build all packages (`pnpm -r build`).
+- `pnpm lint` — eslint across the whole repo (flat config, type-aware
+  where a tsconfig covers the file).
+- `pnpm test` — run tests in every package that defines one.
+  - `apps/api`: `pnpm --filter @chartanalyzer/api test` runs vitest
+    (`vitest run`). Run a single file with
+    `pnpm --filter @chartanalyzer/api exec vitest run <path>`.
+  - `apps/web`: `pnpm --filter @chartanalyzer/web test` runs `ng test`
+    (vitest under the hood). Playwright e2e specs live in
+    `apps/web/e2e`, config in `apps/web/playwright.config.ts`.
+- `npx supabase migration list` — check applied/pending migrations
+  before naming a new one (see Migrations below).
+- `pnpm gen:disposable-domains` — regenerates the disposable-email-domain
+  seed migration from the `disposable-email-domains` package
+  (`scripts/generate-disposable-domains-migration.mjs`).
 
 ## Structure
 - `apps/web` — Angular 22 (standalone, SSR). User-facing app.
+  - `src/app/core` — cross-cutting singletons: `auth.service.ts`,
+    `auth.guard.ts`, `supabase-client.ts` (browser Supabase client,
+    anon key only), `theme.service.ts`.
+  - `src/app/features/*` — one folder per feature area (`landing`,
+    `auth`, `app`, `analyze`, `account`, `billing`, `history`),
+    each routed via `app.routes.ts`.
+  - `src/app/shared` — reusable presentational pieces used across
+    features.
+  - `src/styles/tokens.css` — design tokens; `src/styles/components.css`
+    — shared component styles.
+  - SSR entry points: `src/main.server.ts`, `src/server.ts`
+    (Express server that serves the SSR bundle, distinct from
+    `apps/api`).
 - `apps/api` — Node.js + TypeScript + Express. All secrets and
   third-party calls (Supabase service role, OpenAI, Razorpay) live
-  here, never in `apps/web`.
+  here, never in `apps/web`. See Backend conventions below for the
+  `src/` layout (`routes`, `services`, `jobs`, `lib`, `middleware`,
+  `prompts`).
 - `packages/shared` — reusable TypeScript types only. No logic, no
   framework-specific code. Both apps depend on it via
   `workspace:*`.
@@ -30,6 +69,8 @@ This file governs how Claude Code should work in this repo.
 - Scheduled/background work lives in `src/jobs`.
 - Shared low-level helpers (env loading, logging, clients) live in
   `src/lib`.
+- Express middleware (e.g. auth) lives in `src/middleware`; AI prompt
+  templates live in `src/prompts`.
 - Webhook handlers must verify signatures over the raw request body
   — mount raw body parsing before any JSON body parser on those
   routes specifically.
