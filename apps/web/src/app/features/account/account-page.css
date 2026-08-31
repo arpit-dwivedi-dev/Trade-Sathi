@@ -147,6 +147,7 @@
   }
 }
 
+.account-main,
 .account-side {
   display: flex;
   flex-direction: column;

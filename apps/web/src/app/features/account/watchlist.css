@@ -1,0 +1,127 @@
+/* Two separate <div class="card"> sections in the template (add-search vs.
+   existing items) so the search dropdown's overlay never covers the
+   existing watchlist — it can only ever sit over its own card. `contents`
+   lets both become direct flex children of .account-main, picking up its
+   gap, instead of being nested inside one extra host wrapper. */
+:host {
+  display: contents;
+}
+
+.watchlist-card {
+  flex: 1;
+}
+
+.watchlist-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.watchlist-add {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--s3);
+}
+
+.watchlist-search {
+  flex: 1;
+  position: relative;
+}
+
+.watchlist-search .input {
+  width: 100%;
+}
+
+.watchlist-hint {
+  margin: var(--s2) 0 0;
+}
+
+.watchlist-suggestions {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-hi);
+  list-style: none;
+  margin: var(--s2) 0 0;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: var(--s1);
+  position: absolute;
+  width: 100%;
+  z-index: 10;
+}
+
+.watchlist-suggestions button {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  display: flex;
+  gap: var(--s2);
+  padding: var(--s2);
+  text-align: left;
+  width: 100%;
+}
+
+.watchlist-suggestions button:hover {
+  background: var(--surf-2);
+}
+
+.watchlist-exchange {
+  color: var(--tx-2);
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.watchlist-item-name {
+  font-size: 12px;
+}
+
+.watchlist-error {
+  color: var(--down);
+  font-size: 0.85rem;
+}
+
+.watchlist-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.watchlist-item {
+  align-items: center;
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  display: flex;
+  gap: var(--s2);
+  padding: var(--s2) var(--s2) var(--s2) var(--s4);
+}
+
+.watchlist-symbol {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.watchlist-remove {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-pill);
+  color: var(--tx-2);
+  cursor: pointer;
+  display: flex;
+  height: 22px;
+  justify-content: center;
+  padding: 0;
+  width: 22px;
+}
+
+.watchlist-remove:hover {
+  background: var(--surf-3);
+  color: var(--tx);
+}

@@ -47,36 +47,40 @@
     <h1 class="account-title">Plan &amp; usage</h1>
 
     <div class="account-grid">
-      <div class="panel account-panel">
-        <i class="c c-tl"></i><i class="c c-tr"></i><i class="c c-bl"></i><i class="c c-br"></i>
+      <div class="account-main">
+        <div class="panel account-panel">
+          <i class="c c-tl"></i><i class="c c-tr"></i><i class="c c-bl"></i><i class="c c-br"></i>
 
-        @if (loading()) {
-          <p class="dim account-loading">
-            <span class="spin" aria-hidden="true"></span> Reading your usage…
-          </p>
-        } @else if (quota(); as q) {
-          <div class="account-usage-head">
-            <div class="account-usage-main">
-              <span class="lbl dim">This period</span>
-              <span class="account-usage-figure">
-                <span class="num account-used">{{ q.used }}</span>
-                <span class="num dim account-limit">/ {{ q.limit }}</span>
-              </span>
-              <span class="lbl dim">analyses used</span>
+          @if (loading()) {
+            <p class="dim account-loading">
+              <span class="spin" aria-hidden="true"></span> Reading your usage…
+            </p>
+          } @else if (quota(); as q) {
+            <div class="account-usage-head">
+              <div class="account-usage-main">
+                <span class="lbl dim">This period</span>
+                <span class="account-usage-figure">
+                  <span class="num account-used">{{ q.used }}</span>
+                  <span class="num dim account-limit">/ {{ q.limit }}</span>
+                </span>
+                <span class="lbl dim">analyses used</span>
+              </div>
+              <div class="account-usage-rem">
+                <span class="num account-rem">{{ q.remaining }}</span>
+                <span class="lbl dim">remaining</span>
+              </div>
             </div>
-            <div class="account-usage-rem">
-              <span class="num account-rem">{{ q.remaining }}</span>
-              <span class="lbl dim">remaining</span>
-            </div>
-          </div>
-          <div class="meter account-meter"><i [style.width.%]="usedPercent()"></i></div>
-          <span class="lbl dim">Resets at the start of next month</span>
-        } @else {
-          <p class="dim account-loading">
-            Usage isn't available right now. Your analyses still run — the backend enforces the
-            limit.
-          </p>
-        }
+            <div class="meter account-meter"><i [style.width.%]="usedPercent()"></i></div>
+            <span class="lbl dim">Resets at the start of next month</span>
+          } @else {
+            <p class="dim account-loading">
+              Usage isn't available right now. Your analyses still run — the backend enforces the
+              limit.
+            </p>
+          }
+        </div>
+
+        <app-watchlist />
       </div>
 
       <div class="account-side">

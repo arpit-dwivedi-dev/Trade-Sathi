@@ -1,5 +1,14 @@
 export const SHARED_PLACEHOLDER = true;
 
+/** A row from public.instruments — the canonical NSE/BSE symbol identity used by the watchlist. */
+export interface Instrument {
+  id: string;
+  exchange: string;
+  symbol: string;
+  name: string;
+  instrumentType: string;
+}
+
 /**
  * Fast-path list of the disposable/temp-email providers people reach for most
  * often, used only to fail the signup form instantly without a round trip.

@@ -4,6 +4,7 @@ import { logger } from "./lib/logger.js";
 import { analysesRouter } from "./routes/analyses.route.js";
 import { billingRouter } from "./routes/billing.route.js";
 import { healthRouter } from "./routes/health.route.js";
+import { instrumentsRouter } from "./routes/instruments.route.js";
 import { meRouter } from "./routes/me.route.js";
 import { webhooksRouter } from "./routes/webhooks.route.js";
 
@@ -20,6 +21,7 @@ app.use(healthRouter);
 app.use(meRouter);
 app.use(analysesRouter);
 app.use(billingRouter);
+app.use(instrumentsRouter);
 
 app.listen(env.port, () => {
   logger.info(`api listening on port ${env.port}`);

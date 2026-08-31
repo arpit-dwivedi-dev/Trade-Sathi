@@ -1,0 +1,78 @@
+<div class="card watchlist-card">
+  <div class="hd"><span class="lbl-h">Add to watchlist</span></div>
+  <div class="pad watchlist-body">
+    <form class="watchlist-add" (ngSubmit)="add()">
+      <div class="watchlist-search">
+        <input
+          class="input"
+          type="text"
+          placeholder="Search symbol or company, e.g. RELIANCE"
+          [ngModel]="queryInput()"
+          (ngModelChange)="onQueryChange($event)"
+          name="query"
+          autocomplete="off"
+          [disabled]="saving()"
+        />
+
+        @if (searching()) {
+          <p class="dim watchlist-hint">Searching…</p>
+        } @else if (results().length > 0) {
+          <ul class="watchlist-suggestions">
+            @for (result of results(); track result.id) {
+              <li>
+                <button type="button" (click)="selectInstrument(result)">
+                  <span class="num">{{ result.symbol }}</span>
+                  <span class="dim">{{ result.name }}</span>
+                  <span class="watchlist-exchange">{{ result.exchange }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        } @else if (searched()) {
+          <p class="dim watchlist-hint">No instruments found.</p>
+        }
+      </div>
+
+      <button type="submit" class="btn btn-p btn-sm" [disabled]="saving() || !selected()">
+        Add
+      </button>
+    </form>
+
+    @if (error(); as err) {
+      <p class="watchlist-error">{{ err }}</p>
+    }
+  </div>
+</div>
+
+<div class="card watchlist-card">
+  <div class="hd"><span class="lbl-h">Your watchlist</span></div>
+  <div class="pad watchlist-body">
+    @if (loading()) {
+      <p class="dim">Loading your watchlist…</p>
+    } @else if (items().length === 0) {
+      <p class="dim">No symbols yet. Search above to start tracking one.</p>
+    } @else {
+      <ul class="watchlist-list">
+        @for (item of items(); track item.id) {
+          <li class="watchlist-item">
+            <span class="num watchlist-symbol">{{ displaySymbol(item) }}</span>
+            @if (displayName(item); as name) {
+              <span class="dim watchlist-item-name">{{ name }}</span>
+            }
+            <button
+              type="button"
+              class="watchlist-remove"
+              (click)="remove(item.id)"
+              [attr.aria-label]="'Remove ' + displaySymbol(item)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" width="13" height="13" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

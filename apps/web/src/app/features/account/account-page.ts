@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AnalyzeService, type QuotaStatus } from '../analyze/analyze.service';
 import { BillingService, type PlanSummary } from '../billing/billing.service';
 import { UpgradeButton } from '../billing/upgrade-button';
+import { Watchlist } from './watchlist';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 
@@ -17,7 +18,7 @@ import { ThemeService } from '../../core/theme.service';
  */
 @Component({
   selector: 'app-account-page',
-  imports: [UpgradeButton, RouterLink, DatePipe],
+  imports: [UpgradeButton, RouterLink, DatePipe, Watchlist],
   styleUrl: './account-page.css',
   templateUrl: './account-page.html',
 })
