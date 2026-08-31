@@ -47,6 +47,8 @@
                 [attr.aria-current]="tab() === 'analyze' ? 'page' : null">Analyze</button>
         <button type="button" class="tab" (click)="select('history')"
                 [attr.aria-current]="tab() === 'history' ? 'page' : null">History</button>
+        <button type="button" class="tab" (click)="select('watchlist')"
+                [attr.aria-current]="tab() === 'watchlist' ? 'page' : null">Watchlist</button>
         <a class="tab" routerLink="/account">Account</a>
       </div>
     </nav>
@@ -61,6 +63,12 @@
 
     @if (tab() === 'history') {
       <app-history-list />
+    }
+
+    <!-- Created on activation, like History: a fresh mount is the refetch that
+         picks up items added or toggled elsewhere. -->
+    @if (tab() === 'watchlist') {
+      <app-watchlist />
     }
 
     <!-- Mounted only while open, so closing tears the purchase buttons down

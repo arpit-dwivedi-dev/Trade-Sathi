@@ -37,8 +37,9 @@
 
   <nav class="tabs">
     <div class="content-max tabs-inner">
-      <a class="tab" routerLink="/app">Analyze</a>
-      <a class="tab" routerLink="/app">History</a>
+      <a class="tab" routerLink="/app" [queryParams]="{ tab: 'analyze' }">Analyze</a>
+      <a class="tab" routerLink="/app" [queryParams]="{ tab: 'history' }">History</a>
+      <a class="tab" routerLink="/app" [queryParams]="{ tab: 'watchlist' }">Watchlist</a>
       <span class="tab" aria-current="page">Account</span>
     </div>
   </nav>
@@ -79,8 +80,6 @@
             </p>
           }
         </div>
-
-        <app-watchlist />
       </div>
 
       <div class="account-side">

@@ -1,14 +1,22 @@
 /* Two separate <div class="card"> sections in the template (add-search vs.
    existing items) so the search dropdown's overlay never covers the
-   existing watchlist — it can only ever sit over its own card. `contents`
-   lets both become direct flex children of .account-main, picking up its
-   gap, instead of being nested inside one extra host wrapper. */
-:host {
-  display: contents;
+   existing list — it can only ever sit over its own card. */
+.watchlist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
 }
 
-.watchlist-card {
-  flex: 1;
+.watchlist-head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--s4);
+  justify-content: space-between;
+}
+
+.watchlist-title {
+  font-size: 26px;
+  text-transform: uppercase;
 }
 
 .watchlist-body {

@@ -1,18 +1,26 @@
-import { Component, OnInit, inject, signal, viewChild } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Component, DestroyRef, OnInit, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingService } from '../billing/billing.service';
 import { PlansOverlay } from '../billing/plans-overlay';
 import { HistoryList } from '../history/history-list';
+import { Watchlist } from '../watchlist/watchlist';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 
-type Tab = 'analyze' | 'history';
+type Tab = 'analyze' | 'history' | 'watchlist';
+
+const TABS: readonly Tab[] = ['analyze', 'history', 'watchlist'];
+
+function parseTab(value: string | null): Tab {
+  return TABS.includes(value as Tab) ? (value as Tab) : 'analyze';
+}
 
 @Component({
   selector: 'app-app-page',
-  imports: [AnalyzePage, HistoryList, PlansOverlay, RouterLink],
+  imports: [AnalyzePage, HistoryList, PlansOverlay, RouterLink, Watchlist],
   styleUrl: './app-page.css',
   templateUrl: './app-page.html',
 })
@@ -21,6 +29,8 @@ export class AppPage implements OnInit {
   private readonly billing = inject(BillingService);
   private readonly router = inject(Router);
   private readonly themeService = inject(ThemeService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly user = this.auth.user;
   protected readonly tab = signal<Tab>('analyze');
@@ -39,6 +49,14 @@ export class AppPage implements OnInit {
   private readonly analyzePage = viewChild(AnalyzePage);
 
   ngOnInit(): void {
+    // The tab lives in the URL so links from outside the shell — the Account
+    // page's nav, a bookmark — can land on a specific tab. Subscribed rather
+    // than read once: navigating to /app?tab=… while already here reuses this
+    // component instance, so only the param stream reports the change.
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      this.tab.set(parseTab(params.get('tab')));
+    });
+
     // The one plan read for the whole shell. Everything downstream — this
     // control's label, the overlay, the plan picker's "Current plan" marker —
     // reads the cache it fills rather than querying again.
@@ -74,8 +92,17 @@ export class AppPage implements OnInit {
     this.themeService.toggle();
   }
 
+  /**
+   * Writes the tab to the URL; the queryParamMap subscription above is what
+   * actually flips the signal, so in-shell clicks and external links take the
+   * identical path. replaceUrl keeps tab switching out of the back stack.
+   */
   protected select(tab: Tab): void {
-    this.tab.set(tab);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab },
+      replaceUrl: true,
+    });
   }
 
   protected async signOut(): Promise<void> {
