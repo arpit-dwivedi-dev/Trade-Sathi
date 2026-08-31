@@ -60,15 +60,14 @@ export class PlansOverlay implements OnInit {
   }
 
   /**
-   * Whether to offer an upgrade at all. Only free-plan users see it: moving
-   * between paid tiers is not built, so a paid user is shown credits only.
-   *
-   * An unknown plan (null — the read failed) is treated as not-free and gets
-   * credits only, the conservative choice: it cannot mistakenly offer a paid
-   * user a second subscription.
+   * Whether to show the monthly-plans section at all. Shown for every user,
+   * not just free-plan ones: it now also carries independent add-ons (e.g.
+   * 'daily_briefing_monthly') that are purchasable regardless of manual tier.
+   * PlanPicker.isChoosable() is what actually prevents switching between
+   * manual tiers — that restriction lives there, not here.
    */
   protected canUpgrade(): boolean {
-    return this.plan()?.key === 'free';
+    return true;
   }
 
   protected planLabel(): string {

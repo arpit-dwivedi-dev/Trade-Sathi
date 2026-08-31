@@ -59,6 +59,26 @@
             @if (displayName(item); as name) {
               <span class="dim watchlist-item-name">{{ name }}</span>
             }
+            <label class="watchlist-daily-toggle">
+              <input
+                type="checkbox"
+                [checked]="item.enabled_for_daily_analysis"
+                (change)="toggleDailyAnalysis(item)"
+              />
+              <span class="dim">Daily briefing</span>
+            </label>
+            <button
+              type="button"
+              class="btn btn-g btn-sm"
+              [disabled]="analyzingId() === item.id"
+              (click)="analyzeNow(item)"
+            >
+              @if (analyzingId() === item.id) {
+                <span class="spin" aria-hidden="true"></span> Analyzing…
+              } @else {
+                Analyze Now
+              }
+            </button>
             <button
               type="button"
               class="watchlist-remove"
@@ -71,6 +91,9 @@
               </svg>
             </button>
           </li>
+          @if (analyzeResult()[item.id]; as message) {
+            <li class="dim watchlist-analyze-result">{{ message }}</li>
+          }
         }
       </ul>
     }

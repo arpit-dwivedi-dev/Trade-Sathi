@@ -13,7 +13,11 @@ export const billingRouter = Router();
  * dynamic (reading plans/plan_prices) is not warranted yet. 'free' is
  * deliberately absent — it is assigned, never bought.
  */
-const PURCHASABLE_PLAN_KEYS = ["starter_monthly", "pro_monthly"] as const;
+const PURCHASABLE_PLAN_KEYS = [
+  "starter_monthly",
+  "pro_monthly",
+  "daily_briefing_monthly",
+] as const;
 
 type PurchasablePlanKey = (typeof PURCHASABLE_PLAN_KEYS)[number];
 

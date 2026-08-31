@@ -53,32 +53,9 @@ export async function createSubscription(
   profileId: string,
   planKey: string,
 ): Promise<CreateSubscriptionResult> {
-  // (a) Reject if this profile already has a non-terminal subscription.
-  //
-  // This check-then-create flow has a narrow race if the same user submits
-  // subscribe concurrently. Two Razorpay subscription objects could be created
-  // before either local INSERT lands. This is an accepted MVP limitation; the
-  // duplicate objects must be cleaned up if they occur. Do not assume the
-  // duplicate can never be authorized or charged.
-  const { data: existing, error: existingError } = await supabaseAdmin
-    .from("subscriptions")
-    .select("id")
-    .eq("profile_id", profileId)
-    .in("status", LIVE_SUBSCRIPTION_STATUSES)
-    .limit(1)
-    .maybeSingle();
-  if (existingError) {
-    throw existingError;
-  }
-  if (existing) {
-    return {
-      ok: false,
-      reason: "already_subscribed",
-      message: "This account already has an active or pending subscription",
-    };
-  }
-
-  // (a2) Resolve the internal plan and its Razorpay counterpart.
+  // (a2) Resolve the internal plan and its Razorpay counterpart. Deliberately
+  // resolved BEFORE the "already subscribed" check below, so that check can be
+  // scoped to this specific plan.
   //
   // Price and razorpay_plan_id come from plan_prices, not from
   // plans.price_inr_paise / plans.razorpay_plan_id: plan_prices is the
@@ -111,6 +88,38 @@ export async function createSubscription(
       ok: false,
       reason: "plan_unavailable",
       message: "That plan is not available for purchase",
+    };
+  }
+
+  // (a) Reject if this profile already has a non-terminal subscription for
+  // THIS plan. Scoped to price.plans.id, not "any plan for this profile" —
+  // the Daily Briefing add-on ('daily_briefing_monthly') is a separate SKU a
+  // user may hold alongside their manual-analysis plan, so an active
+  // pro_monthly subscription must not block subscribing to Daily Briefing,
+  // and vice versa. A user may still only hold one non-terminal subscription
+  // per individual plan.
+  //
+  // This check-then-create flow has a narrow race if the same user submits
+  // subscribe concurrently. Two Razorpay subscription objects could be created
+  // before either local INSERT lands. This is an accepted MVP limitation; the
+  // duplicate objects must be cleaned up if they occur. Do not assume the
+  // duplicate can never be authorized or charged.
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from("subscriptions")
+    .select("id")
+    .eq("profile_id", profileId)
+    .eq("plan_id", price.plans.id)
+    .in("status", LIVE_SUBSCRIPTION_STATUSES)
+    .limit(1)
+    .maybeSingle();
+  if (existingError) {
+    throw existingError;
+  }
+  if (existing) {
+    return {
+      ok: false,
+      reason: "already_subscribed",
+      message: "This account already has an active or pending subscription",
     };
   }
 

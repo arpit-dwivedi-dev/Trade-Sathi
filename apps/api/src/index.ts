@@ -1,11 +1,14 @@
 import express from "express";
 import { env } from "./lib/env.js";
 import { logger } from "./lib/logger.js";
+import { startDailyBriefingScheduler } from "./jobs/daily-briefing.job.js";
 import { analysesRouter } from "./routes/analyses.route.js";
 import { billingRouter } from "./routes/billing.route.js";
 import { healthRouter } from "./routes/health.route.js";
 import { instrumentsRouter } from "./routes/instruments.route.js";
+import { internalRouter } from "./routes/internal.route.js";
 import { meRouter } from "./routes/me.route.js";
+import { watchlistRouter } from "./routes/watchlist.route.js";
 import { webhooksRouter } from "./routes/webhooks.route.js";
 
 const app = express();
@@ -22,7 +25,13 @@ app.use(meRouter);
 app.use(analysesRouter);
 app.use(billingRouter);
 app.use(instrumentsRouter);
+app.use(internalRouter);
+app.use(watchlistRouter);
 
 app.listen(env.port, () => {
   logger.info(`api listening on port ${env.port}`);
 });
+
+// Requires the API process to stay running continuously — see the top-of-file
+// comment in jobs/daily-briefing.job.ts for the documented limitation.
+startDailyBriefingScheduler();

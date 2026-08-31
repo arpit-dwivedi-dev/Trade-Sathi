@@ -8,6 +8,15 @@ import { SupabaseClientService } from '../../core/supabase-client';
  */
 const FREE_PLAN_KEY = 'free';
 
+/**
+ * Manual-analysis tiers, where a user holds exactly one at a time and moving
+ * between them is not built — see isChoosable(). Anything not in this set
+ * (e.g. 'daily_briefing_monthly') is an independent add-on: purchasable
+ * regardless of which manual tier the user is on, since it doesn't occupy
+ * the same profiles.plan_id slot.
+ */
+const MANUAL_PLAN_KEYS = new Set(['free', 'starter_monthly', 'pro_monthly', 'pro_annual']);
+
 /** One plan, as rendered on a card. */
 export interface PurchasablePlan {
   key: string;
@@ -23,6 +32,20 @@ export interface PurchasablePlan {
 interface PlanPriceRow {
   amount_minor: number;
   plans: { key: string; name: string; analyses_per_month: number } | null;
+}
+
+/**
+ * plans.analyses_per_month is intentionally 0 for add-on plans like
+ * 'daily_briefing_monthly' — that column belongs to the manual-analysis
+ * entitlement contract, and the add-on's real monthly allowance lives in
+ * daily_briefing_entitlements instead (see
+ * 20260831160200_daily_briefing_plan_seed.sql). Reading 0 straight through
+ * would show a misleading "0 analyses / month" on its card, so this table
+ * substitutes the real per-plan-key quota for display only.
+ */
+interface DailyBriefingEntitlementRow {
+  plan_key: string;
+  monthly_auto_analyses: number;
 }
 
 /**
@@ -67,10 +90,15 @@ export class PlanPicker implements OnInit {
   /**
    * Free is shown for orientation only — there is no downgrade-to-free purchase
    * flow, so its card is never actionable regardless of which plan the user is
-   * on. Everything else is offered unless it is already the current plan.
+   * on. An add-on (e.g. 'daily_briefing_monthly') is always offered, since it
+   * doesn't occupy the manual-plan slot and isn't a "switch tiers" action.
+   * Switching between manual tiers is not built, so a manual-tier card is
+   * offered only from 'free' — matching the previous behavior for those keys.
    */
   protected isChoosable(plan: PurchasablePlan): boolean {
-    return plan.key !== FREE_PLAN_KEY && plan.key !== this.currentPlanKey();
+    if (plan.key === FREE_PLAN_KEY || plan.key === this.currentPlanKey()) return false;
+    if (!MANUAL_PLAN_KEYS.has(plan.key)) return true;
+    return this.currentPlanKey() === FREE_PLAN_KEY;
   }
 
   protected isCurrent(plan: PurchasablePlan): boolean {
@@ -98,16 +126,26 @@ export class PlanPicker implements OnInit {
     if (!client) return;
 
     try {
-      const { data, error } = await client
-        .from('plan_prices')
-        .select('amount_minor, plans!inner(key, name, analyses_per_month)')
-        .eq('region', 'IN')
-        .eq('is_active', true)
-        // Cheapest first, so free reads before Starter before Pro.
-        .order('amount_minor', { ascending: true })
-        .returns<PlanPriceRow[]>();
+      const [{ data, error }, entitlements] = await Promise.all([
+        client
+          .from('plan_prices')
+          .select('amount_minor, plans!inner(key, name, analyses_per_month)')
+          .eq('region', 'IN')
+          .eq('is_active', true)
+          // Cheapest first, so free reads before Starter before Pro.
+          .order('amount_minor', { ascending: true })
+          .returns<PlanPriceRow[]>(),
+        client
+          .from('daily_briefing_entitlements')
+          .select('plan_key, monthly_auto_analyses')
+          .returns<DailyBriefingEntitlementRow[]>(),
+      ]);
 
       if (error) throw error;
+
+      const addonQuota = new Map(
+        (entitlements.data ?? []).map((row) => [row.plan_key, row.monthly_auto_analyses]),
+      );
 
       this.plans.set(
         (data ?? [])
@@ -117,7 +155,7 @@ export class PlanPicker implements OnInit {
           .map((row) => ({
             key: row.plans.key,
             name: row.plans.name,
-            analysesPerMonth: row.plans.analyses_per_month,
+            analysesPerMonth: addonQuota.get(row.plans.key) ?? row.plans.analyses_per_month,
             amountMinor: row.amount_minor,
           })),
       );

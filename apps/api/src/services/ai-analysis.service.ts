@@ -22,8 +22,9 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 type ErrorCode = "api_error" | "invalid_json" | "schema_validation";
 
 /** Thrown internally to carry a machine-readable code out to the single
- *  failure handler at the bottom of processAnalysis(). */
-class AnalysisFailure extends Error {
+ *  failure handler at the bottom of processAnalysis(), and out to
+ *  runVisualAnalysis()'s own callers (e.g. the watchlist daily-briefing path). */
+export class AnalysisFailure extends Error {
   constructor(
     readonly code: ErrorCode,
     message: string,
@@ -78,6 +79,118 @@ function mimeTypeForKey(imageKey: string): string {
   return MIME_BY_EXTENSION[ext] ?? "image/png";
 }
 
+export type AnalysisAiResult = z.infer<typeof AnalysisSchema>;
+
+export interface VisualAnalysisOutcome {
+  result: AnalysisAiResult;
+  inputTokens: number;
+  outputTokens: number;
+  latencyMs: number;
+}
+
+/**
+ * Runs one chart image through the AI provider using the exact same prompt,
+ * client, JSON-mode request shape, retry policy and response schema as the
+ * manual upload flow — and only that. This is the literal reuse point the
+ * product requires between the manual and automated (watchlist daily) flows:
+ * the only difference between them is where imageBuffer/mimeType come from
+ * (a user's uploaded screenshot vs. a backend-rendered chart image); nothing
+ * about the model call itself differs.
+ *
+ * Throws AnalysisFailure on any failure (provider error, empty/invalid JSON
+ * after one retry, or schema validation failure) — never returns a partial or
+ * coerced result. Callers decide what "failure" means for their own flow
+ * (processAnalysis marks the analyses row failed; the watchlist path also
+ * releases the automation-quota unit it consumed).
+ */
+export async function runVisualAnalysis(
+  imageBuffer: Buffer,
+  mimeType: string,
+): Promise<VisualAnalysisOutcome> {
+  const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
+
+  // Deliberately generous, and env-driven (AI_MAX_TOKENS) rather than a
+  // constant — see the extended reasoning originally documented at this
+  // request's construction site (now here, its sole remaining call site).
+  const prompt = buildChartAnalysisPrompt();
+  const request = {
+    model: env.aiModel,
+    response_format: { type: "json_object" as const },
+    max_tokens: env.aiMaxTokens,
+    messages: [
+      { role: "system" as const, content: prompt.system },
+      {
+        role: "user" as const,
+        content: [
+          { type: "text" as const, text: prompt.user },
+          { type: "image_url" as const, image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+  };
+
+  // DeepSeek's JSON mode can occasionally return empty content, so an empty
+  // or unparseable response is retried exactly once — one retry, not a loop.
+  let parsed: unknown;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let latencyMs = 0;
+  let lastFailure: AnalysisFailure | undefined;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const startedAt = Date.now();
+    let content: string | null | undefined;
+    try {
+      const completion = await aiClient.chat.completions.create(request);
+      latencyMs = Date.now() - startedAt;
+      content = completion.choices[0]?.message?.content;
+      inputTokens = completion.usage?.prompt_tokens ?? 0;
+      outputTokens = completion.usage?.completion_tokens ?? 0;
+    } catch (cause) {
+      latencyMs = Date.now() - startedAt;
+      logger.error("ai request failed", { attempt, cause: String(cause) });
+      lastFailure = new AnalysisFailure("api_error", "The AI provider request failed");
+      continue;
+    }
+
+    if (!content) {
+      lastFailure = new AnalysisFailure(
+        "invalid_json",
+        "The AI provider returned an empty response",
+      );
+      continue;
+    }
+
+    try {
+      parsed = JSON.parse(content);
+      lastFailure = undefined;
+      break;
+    } catch {
+      lastFailure = new AnalysisFailure(
+        "invalid_json",
+        "The AI provider returned a response that was not valid JSON",
+      );
+    }
+  }
+
+  if (lastFailure) {
+    throw lastFailure;
+  }
+
+  const validation = AnalysisSchema.safeParse(parsed);
+  if (!validation.success) {
+    logger.error("ai response failed schema validation", {
+      issues: validation.error.issues.map((i) => i.path.join(".")).join(", "),
+    });
+    throw new AnalysisFailure(
+      "schema_validation",
+      "The AI response did not match the expected analysis shape",
+    );
+  }
+
+  return { result: validation.data, inputTokens, outputTokens, latencyMs };
+}
+
 /**
  * Runs the AI analysis for a queued analyses row and writes the result back.
  *
@@ -125,123 +238,14 @@ export async function processAnalysis(analysisId: string): Promise<void> {
     }
 
     const buffer = Buffer.from(await blob.arrayBuffer());
-    const dataUrl = `data:${mimeTypeForKey(row.image_key)};base64,${buffer.toString("base64")}`;
 
-    // (c) Build the request. response_format json_object — not a stricter
-    // schema-enforcing mode — because it is the one JSON mode supported by both
-    // the current provider (DeepSeek) and likely future ones (OpenAI), keeping
-    // a provider swap free of extra code branches. It only guarantees
-    // syntactically valid JSON, never a particular shape, so the result is
-    // validated below rather than trusted.
-    const prompt = buildChartAnalysisPrompt();
-    const request = {
-      model: env.aiModel,
-      response_format: { type: "json_object" as const },
-      // Deliberately generous, and env-driven (AI_MAX_TOKENS) rather than a
-      // constant. The currently configured model is a reasoning model: it
-      // spends hidden reasoning tokens out of this same completion budget
-      // before emitting a single visible character, and how much reasoning a
-      // given chart provokes is not fully predictable — testing saw ~3600
-      // reasoning tokens on one image and far less on others. Too small a cap
-      // means reasoning eats the whole budget, content comes back empty or
-      // truncated mid-object, and the analysis fails as invalid_json (retry
-      // included, since the retry hits the same cap).
-      //
-      // 6000 is a practical safety margin over observed behaviour, NOT a
-      // proven upper bound. An unusually complex image could still exhaust it;
-      // that surfaces as a failed analysis (invalid_json) rather than a
-      // silently truncated or fabricated result, which is the safe failure
-      // mode — not a bug to chase to zero here.
-      //
-      // Switching to a non-reasoning model should bring this back down, which
-      // is exactly why it is configuration and not a hardcoded constant.
-      max_tokens: env.aiMaxTokens,
-      messages: [
-        { role: "system" as const, content: prompt.system },
-        {
-          role: "user" as const,
-          content: [
-            {
-              type: "text" as const,
-              text: prompt.user,
-            },
-            { type: "image_url" as const, image_url: { url: dataUrl } },
-          ],
-        },
-      ],
-    };
-
-    // (d) Call the model. DeepSeek's JSON mode can occasionally return empty
-    // content, so an empty or unparseable response is retried exactly once —
-    // one retry, not a loop.
-    let parsed: unknown;
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let latencyMs = 0;
-    let lastFailure: AnalysisFailure | undefined;
-
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const startedAt = Date.now();
-      let content: string | null | undefined;
-      try {
-        const completion = await aiClient.chat.completions.create(request);
-        latencyMs = Date.now() - startedAt;
-        content = completion.choices[0]?.message?.content;
-        inputTokens = completion.usage?.prompt_tokens ?? 0;
-        outputTokens = completion.usage?.completion_tokens ?? 0;
-      } catch (cause) {
-        latencyMs = Date.now() - startedAt;
-        logger.error("ai request failed", {
-          analysisId,
-          attempt,
-          cause: String(cause),
-        });
-        lastFailure = new AnalysisFailure(
-          "api_error",
-          "The AI provider request failed",
-        );
-        continue;
-      }
-
-      if (!content) {
-        lastFailure = new AnalysisFailure(
-          "invalid_json",
-          "The AI provider returned an empty response",
-        );
-        continue;
-      }
-
-      try {
-        parsed = JSON.parse(content);
-        lastFailure = undefined;
-        break;
-      } catch {
-        lastFailure = new AnalysisFailure(
-          "invalid_json",
-          "The AI provider returned a response that was not valid JSON",
-        );
-      }
-    }
-
-    if (lastFailure) {
-      throw lastFailure;
-    }
-
-    // (e) Validate. A parse success proves nothing about shape; a validation
-    // failure is treated exactly like an API failure — no coercion, no partial
-    // save.
-    const validation = AnalysisSchema.safeParse(parsed);
-    if (!validation.success) {
-      logger.error("ai response failed schema validation", {
-        analysisId,
-        issues: validation.error.issues.map((i) => i.path.join(".")).join(", "),
-      });
-      throw new AnalysisFailure(
-        "schema_validation",
-        "The AI response did not match the expected analysis shape",
-      );
-    }
-    const result = validation.data;
+    // (c)-(e) Model call, retry-once, and schema validation — factored out
+    // into runVisualAnalysis() so this exact logic is shared verbatim with
+    // the watchlist daily-briefing path (see daily-briefing.service.ts).
+    const { result, inputTokens, outputTokens, latencyMs } = await runVisualAnalysis(
+      buffer,
+      mimeTypeForKey(row.image_key),
+    );
 
     // (f) Persist. cost_usd is an ESTIMATE derived from the configured
     // per-million-token rates: it is not guaranteed to match the provider's

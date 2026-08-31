@@ -34,6 +34,24 @@ function requireNumberEnv(name: string): number {
   return value;
 }
 
+/**
+ * Optional integer env within an inclusive range, failing at startup rather
+ * than passing a bad value downstream. Deliberately strict: a NaN hour would
+ * make the scheduler's msUntilNextRun() return NaN, and setTimeout(fn, NaN)
+ * fires immediately and re-arms in its finally block — a tight loop re-running
+ * the whole job. A crash on boot is far easier to diagnose than that.
+ */
+function optionalIntEnvInRange(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`Environment variable ${name} must be an integer between ${min} and ${max}`);
+  }
+  return value;
+}
+
 export const env = {
   port: Number(process.env["PORT"] ?? 3000),
   supabaseUrl: requireEnv("SUPABASE_URL"),
@@ -63,4 +81,20 @@ export const env = {
   // because the right value depends entirely on which model is configured —
   // see the comment at its use site in services/ai-analysis.service.ts.
   aiMaxTokens: requireNumberEnv("AI_MAX_TOKENS"),
+
+  resendApiKey: requireEnv("RESEND_API_KEY"),
+  // The verified "From" address/display name Resend sends the daily briefing
+  // from, e.g. "ChartAnalyzer <briefing@yourdomain.com>".
+  resendFromAddress: requireEnv("RESEND_FROM_ADDRESS"),
+
+  // Shared-secret gate for the internal manual-trigger endpoint
+  // (routes/internal.route.ts). There is no admin-role system yet, so this is
+  // the whole access control for that route — treat it like a password.
+  internalOpsToken: requireEnv("INTERNAL_OPS_TOKEN"),
+
+  // Hour of day, in IST, the daily briefing job runs at. Numeric env rather
+  // than a hardcoded constant so the run time can be tuned without a deploy.
+  // Defaults to 8 (08:00 IST) — no prior "existing configured morning time"
+  // exists in this project yet to match.
+  dailyBriefingRunHourIst: optionalIntEnvInRange("DAILY_BRIEFING_RUN_HOUR_IST", 8, 0, 23),
 };
