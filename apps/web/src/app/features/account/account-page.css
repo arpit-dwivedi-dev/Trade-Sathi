@@ -129,10 +129,6 @@
   gap: var(--s3);
 }
 
-.account-block app-upgrade-button {
-  align-self: flex-start;
-}
-
 .account-h {
   font-size: 20px;
   letter-spacing: 0.06em;

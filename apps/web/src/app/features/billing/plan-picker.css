@@ -1,10 +1,7 @@
 .plan-list {
   display: grid;
   gap: var(--s4);
-  /* Capped at 320px so cards stay a readable width instead of stretching
-     edge-to-edge on wide screens; centered when they don't fill a row. */
-  grid-template-columns: repeat(auto-fit, minmax(200px, 320px));
-  justify-content: center;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   list-style: none;
   margin: 0;
   padding: 0;
