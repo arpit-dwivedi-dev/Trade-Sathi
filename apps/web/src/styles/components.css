@@ -75,6 +75,14 @@
   padding: var(--s8) var(--s8) var(--s12);
 }
 
+/* page-level content wrapper: keeps full-bleed shells from stretching content
+   edge to edge on wide viewports */
+.content-max {
+  margin-inline: auto;
+  max-width: 1280px;
+  width: 100%;
+}
+
 /* ── type helpers ───────────────────────────────────────── */
 .lbl {
   color: var(--tx-3);
@@ -107,7 +115,7 @@
 /* ── buttons ────────────────────────────────────────────── */
 .btn {
   align-items: center;
-  border-radius: var(--r-md);
+  border-radius: var(--r-pill);
   cursor: pointer;
   display: inline-flex;
   font-family: var(--fh);
@@ -202,7 +210,7 @@
 .card {
   background: var(--surf);
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   box-shadow: var(--shadow);
 }
 
@@ -216,7 +224,7 @@
 }
 
 .pad {
-  padding: var(--s6);
+  padding: var(--s6) var(--s8);
 }
 
 .pad-8 {
@@ -228,7 +236,7 @@
   --dim: rgba(237, 241, 245, 0.6);
   background: var(--acc-deep);
   border: 1px solid transparent;
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   box-shadow: var(--shadow-hi);
   color: #edf1f5;
   position: relative;
@@ -320,7 +328,7 @@
   align-items: center;
   background: color-mix(in srgb, currentColor 10%, transparent);
   border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   display: inline-flex;
   font-family: var(--fm);
   font-size: 10.5px;
@@ -387,7 +395,7 @@
 .tile {
   background: var(--surf);
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
@@ -408,7 +416,7 @@
   align-items: center;
   background: var(--surf-3);
   border: 1px solid var(--line);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-pill);
   color: var(--tx-2);
   display: inline-flex;
   font-family: var(--fm);
@@ -443,7 +451,7 @@
 .tbl {
   background: var(--surf);
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   box-shadow: var(--shadow);
   overflow: hidden;
 }

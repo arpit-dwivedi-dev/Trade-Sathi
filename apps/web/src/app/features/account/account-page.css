@@ -5,6 +5,18 @@
   min-height: 100vh;
 }
 
+.bar-inner {
+  align-items: center;
+  display: flex;
+  height: 100%;
+  justify-content: space-between;
+}
+
+.tabs-inner {
+  display: flex;
+  height: 100%;
+}
+
 .account-bar-end {
   align-items: center;
   display: flex;
@@ -92,7 +104,7 @@
 }
 
 .account-meter {
-  color: #9cc4e4;
+  color: var(--acc-tx);
   height: 6px;
 }
 

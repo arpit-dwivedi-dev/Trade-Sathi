@@ -1,108 +1,119 @@
 <main class="landing">
   <header class="bar landing-bar">
-    <span class="brand">
-      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--acc-tx)"
-           stroke-width="1.5" aria-hidden="true">
-        <path d="M12 2v20M2 12h20" />
-        <circle cx="12" cy="12" r="6.5" />
-      </svg>
-      <b>Chart</b><span>Analyzer</span>
-    </span>
-    <nav class="landing-nav">
-      <button type="button" class="btn btn-g btn-sm" (click)="toggleTheme()"
-              [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
-        {{ theme() === 'dark' ? 'Light' : 'Dark' }}
-      </button>
-      <a class="landing-link" routerLink="/login">Sign in</a>
-      <a class="btn btn-p landing-cta" routerLink="/login">Create account</a>
-    </nav>
+    <div class="landing-inner landing-bar-inner">
+      <span class="brand">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--acc-tx)"
+             stroke-width="1.5" aria-hidden="true">
+          <path d="M12 2v20M2 12h20" />
+          <circle cx="12" cy="12" r="6.5" />
+        </svg>
+        <b>Chart</b><span>Analyzer</span>
+      </span>
+      <nav class="landing-nav">
+        <button type="button" class="btn btn-g btn-sm" (click)="toggleTheme()"
+                [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
+          {{ theme() === 'dark' ? 'Light' : 'Dark' }}
+        </button>
+        <a class="landing-link" routerLink="/login">Sign in</a>
+        <a class="btn btn-p landing-cta" routerLink="/login">Create account</a>
+      </nav>
+    </div>
   </header>
 
-  <section class="landing-hero">
-    <div class="landing-hero-copy">
-      <span class="lbl landing-eyebrow">AI chart analysis from a screenshot</span>
-      <h1 class="landing-h1">Paste a chart. Read it properly.</h1>
-      <p class="landing-lede">
-        Drop in a screenshot of any chart and get a structured read back: trend, volatility,
-        volume, sentiment, the support and resistance levels it can see, and a written summary.
-        Seconds, not a second opinion you have to chase.
-      </p>
-      <div class="landing-actions">
-        <a class="btn btn-p btn-lg" routerLink="/login">Analyze a chart</a>
+  <section class="landing-hero-wrap">
+    <div class="landing-inner landing-hero">
+      <div class="landing-hero-copy">
+        <span class="lbl landing-eyebrow">AI chart analysis from a screenshot</span>
+        <h1 class="landing-h1">Paste a chart.<br />Read it properly.</h1>
+        <p class="landing-lede">
+          Drop in a screenshot of any chart and get a structured read back: trend, volatility,
+          volume, sentiment, the support and resistance levels it can see, and a written summary.
+          Seconds, not a second opinion you have to chase.
+        </p>
+        <div class="landing-actions">
+          <a class="btn btn-p btn-lg" routerLink="/login">Analyze a chart</a>
+        </div>
       </div>
-    </div>
 
-    <div class="plate landing-plate">
-      <span class="lbl landing-plate-lbl">Try it — paste a chart</span>
-      <div class="landing-keys" aria-hidden="true">
-        <span class="kbd">Ctrl</span>
-        <span class="landing-plus">+</span>
-        <span class="kbd">V</span>
-      </div>
-      <p class="landing-plate-sub">Or drop an image here — PNG, JPG or WEBP.</p>
-      <a class="btn btn-s landing-plate-btn" routerLink="/login">Upload a screenshot</a>
-    </div>
-  </section>
-
-  <section class="landing-section">
-    <h2 class="landing-h2">What comes back</h2>
-    <div class="landing-cards">
-      <div class="card pad landing-card">
-        <span class="lbl">Readings</span>
-        <h3 class="landing-h3">Trend, volatility, volume, sentiment</h3>
-        <p class="landing-card-copy">
-          Four compact readings of what the chart is doing, in plain words.
-        </p>
-      </div>
-      <div class="card pad landing-card">
-        <span class="lbl">Levels</span>
-        <h3 class="landing-h3">Support &amp; resistance</h3>
-        <p class="landing-card-copy">
-          The price levels the model can identify in the image, listed as numbers you can act on.
-        </p>
-      </div>
-      <div class="card pad landing-card">
-        <span class="lbl">Summary</span>
-        <h3 class="landing-h3">A written read</h3>
-        <p class="landing-card-copy">
-          A short paragraph tying the readings together, plus an optional directional scenario
-          with its own reference levels.
-        </p>
+      <div class="plate landing-plate">
+        <span class="lbl landing-plate-lbl">Try it — paste a chart</span>
+        <div class="landing-keys" aria-hidden="true">
+          <span class="kbd">Ctrl</span>
+          <span class="landing-plus">+</span>
+          <span class="kbd">V</span>
+        </div>
+        <p class="landing-plate-sub">Or drop an image here — PNG, JPG or WEBP.</p>
+        <a class="btn btn-s landing-plate-btn" routerLink="/login">Upload a screenshot</a>
       </div>
     </div>
   </section>
 
-  <section class="landing-section">
-    <h2 class="landing-h2">Three steps</h2>
-    <div class="landing-cards">
-      <div class="card pad landing-card">
-        <span class="lbl landing-step">01</span>
-        <h3 class="landing-h3">Paste or upload</h3>
-        <p class="landing-card-copy">
-          One screenshot. Include the price axis and the timeframe label.
-        </p>
+  <section class="landing-section-wrap">
+    <div class="landing-inner landing-section">
+      <h2 class="landing-h2">What comes back</h2>
+      <div class="landing-cards">
+        <div class="card pad landing-card">
+          <span class="lbl">Readings</span>
+          <h3 class="landing-h3">Trend, volatility, volume, sentiment</h3>
+          <p class="landing-card-copy">
+            Four compact readings of what the chart is doing, in plain words.
+          </p>
+        </div>
+        <div class="card pad landing-card">
+          <span class="lbl">Levels</span>
+          <h3 class="landing-h3">Support &amp; resistance</h3>
+          <p class="landing-card-copy">
+            The price levels the model can identify in the image, listed as numbers you can act
+            on.
+          </p>
+        </div>
+        <div class="card pad landing-card">
+          <span class="lbl">Summary</span>
+          <h3 class="landing-h3">A written read</h3>
+          <p class="landing-card-copy">
+            A short paragraph tying the readings together, plus an optional directional scenario
+            with its own reference levels.
+          </p>
+        </div>
       </div>
-      <div class="card pad landing-card">
-        <span class="lbl landing-step">02</span>
-        <h3 class="landing-h3">Analyze</h3>
-        <p class="landing-card-copy">One action. The analysis runs and lands on its own page.</p>
-      </div>
-      <div class="card pad landing-card">
-        <span class="lbl landing-step">03</span>
-        <h3 class="landing-h3">Keep it</h3>
-        <p class="landing-card-copy">
-          Every analysis is saved to your history with its symbol, timeframe and readings.
-        </p>
+    </div>
+  </section>
+
+  <section class="landing-section-wrap">
+    <div class="landing-inner landing-section">
+      <h2 class="landing-h2">Three steps</h2>
+      <div class="landing-cards">
+        <div class="card pad landing-card">
+          <span class="lbl landing-step">01</span>
+          <h3 class="landing-h3">Paste or upload</h3>
+          <p class="landing-card-copy">
+            One screenshot. Include the price axis and the timeframe label.
+          </p>
+        </div>
+        <div class="card pad landing-card">
+          <span class="lbl landing-step">02</span>
+          <h3 class="landing-h3">Analyze</h3>
+          <p class="landing-card-copy">One action. The analysis runs and lands on its own page.</p>
+        </div>
+        <div class="card pad landing-card">
+          <span class="lbl landing-step">03</span>
+          <h3 class="landing-h3">Keep it</h3>
+          <p class="landing-card-copy">
+            Every analysis is saved to your history with its symbol, timeframe and readings.
+          </p>
+        </div>
       </div>
     </div>
   </section>
 
   <footer class="landing-foot">
-    <p class="disc landing-disc">
-      ChartAnalyzer produces AI-generated chart analysis. It is not investment advice and not a
-      recommendation to buy or sell any instrument. Readings and scenarios can be wrong — you are
-      responsible for your own decisions.
-    </p>
-    <span class="lbl">&copy; 2026</span>
+    <div class="landing-inner landing-foot-inner">
+      <p class="disc landing-disc">
+        ChartAnalyzer produces AI-generated chart analysis. It is not investment advice and not a
+        recommendation to buy or sell any instrument. Readings and scenarios can be wrong — you
+        are responsible for your own decisions.
+      </p>
+      <span class="lbl">&copy; 2026</span>
+    </div>
   </footer>
 </main>

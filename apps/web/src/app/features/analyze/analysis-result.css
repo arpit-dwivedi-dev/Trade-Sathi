@@ -55,7 +55,6 @@
 .result-title-row h2 {
   font-size: 44px;
   letter-spacing: 0.03em;
-  max-width: 520px;
   text-transform: uppercase;
 }
 
@@ -68,6 +67,37 @@
 
 .result-raw {
   color: var(--tx-2);
+}
+
+/* two-column dashboard body: a fixed-width right rail keeps the report from
+   stretching into dead space on wide viewports, and gives support/resistance
+   and the metadata their own scannable column instead of full-width blocks. */
+.result-body {
+  display: grid;
+  gap: var(--s8);
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+}
+
+.result-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s8);
+  min-width: 0;
+}
+
+.result-aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s8);
+  position: sticky;
+  top: var(--s6);
+}
+
+.result-glance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
 }
 
 /* blocks */
@@ -119,13 +149,17 @@
 .result-summary {
   font-size: 15px;
   line-height: 1.65;
-  max-width: 86ch;
+  max-width: 70ch;
 }
 
 /* AI scenario panel */
 .result-panel {
   display: grid;
   grid-template-columns: 290px minmax(0, 1fr);
+}
+
+.result-panel .cells {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .result-panel-dir {
@@ -179,8 +213,7 @@
 .result-scenario-note {
   font-size: 13px;
   line-height: 1.55;
-  margin-left: auto;
-  max-width: 58ch;
+  max-width: 48ch;
 }
 
 /* patterns */
@@ -207,6 +240,16 @@
 .result-pattern-conf {
   color: var(--tx-2);
   font-size: 13px;
+}
+
+@media (max-width: 960px) {
+  .result-body {
+    grid-template-columns: 1fr;
+  }
+
+  .result-aside {
+    position: static;
+  }
 }
 
 @media (max-width: 720px) {

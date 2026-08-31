@@ -1,29 +1,33 @@
 <main class="shell">
   <header class="bar">
-    <a class="brand account-brand" routerLink="/app">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--acc)"
-           stroke-width="1.5" aria-hidden="true">
-        <path d="M12 2v20M2 12h20" />
-        <circle cx="12" cy="12" r="6.5" />
-      </svg>
-      <b>Chart</b><span>Analyzer</span>
-    </a>
-    <div class="account-bar-end">
-      <button type="button" class="btn btn-g btn-sm" (click)="toggleTheme()"
-              [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
-        {{ theme() === 'dark' ? 'Light' : 'Dark' }}
-      </button>
-      <button type="button" class="btn btn-s btn-sm" (click)="signOut()">Sign out</button>
+    <div class="content-max bar-inner">
+      <a class="brand account-brand" routerLink="/app">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--acc)"
+             stroke-width="1.5" aria-hidden="true">
+          <path d="M12 2v20M2 12h20" />
+          <circle cx="12" cy="12" r="6.5" />
+        </svg>
+        <b>Chart</b><span>Analyzer</span>
+      </a>
+      <div class="account-bar-end">
+        <button type="button" class="btn btn-g btn-sm" (click)="toggleTheme()"
+                [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
+          {{ theme() === 'dark' ? 'Light' : 'Dark' }}
+        </button>
+        <button type="button" class="btn btn-s btn-sm" (click)="signOut()">Sign out</button>
+      </div>
     </div>
   </header>
 
   <nav class="tabs">
-    <a class="tab" routerLink="/app">Analyze</a>
-    <a class="tab" routerLink="/app">History</a>
-    <span class="tab" aria-current="page">Account</span>
+    <div class="content-max tabs-inner">
+      <a class="tab" routerLink="/app">Analyze</a>
+      <a class="tab" routerLink="/app">History</a>
+      <span class="tab" aria-current="page">Account</span>
+    </div>
   </nav>
 
-  <div class="body">
+  <div class="body content-max">
     <h1 class="account-title">Plan &amp; usage</h1>
 
     <div class="account-grid">
