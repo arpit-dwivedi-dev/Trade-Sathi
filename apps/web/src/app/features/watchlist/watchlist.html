@@ -1,7 +1,7 @@
 <section class="body content-max watchlist">
   <div class="watchlist-head">
     <h1 class="watchlist-title">Watchlist</h1>
-    <span class="lbl dim">Instruments enabled here are analysed in your Daily Briefing.</span>
+    <span class="lbl dim">Enabled instruments are analysed in your Daily Briefing, at the window and time you set below.</span>
   </div>
 
   <div class="card watchlist-card">
@@ -58,50 +58,144 @@
       } @else if (items().length === 0) {
         <p class="dim">No symbols yet. Search above to start tracking one.</p>
       } @else {
-        <ul class="watchlist-list">
-          @for (item of items(); track item.id) {
-            <li class="watchlist-item">
-              <span class="num watchlist-symbol">{{ displaySymbol(item) }}</span>
-              @if (displayName(item); as name) {
-                <span class="dim watchlist-item-name">{{ name }}</span>
-              }
-              <label class="watchlist-daily-toggle">
-                <input
-                  type="checkbox"
-                  [checked]="item.enabled_for_daily_analysis"
-                  (change)="toggleDailyAnalysis(item)"
-                />
-                <span class="dim">Daily briefing</span>
-              </label>
-              <button
-                type="button"
-                class="btn btn-g btn-sm"
-                [disabled]="analyzingId() === item.id"
-                (click)="analyzeNow(item)"
-              >
-                @if (analyzingId() === item.id) {
-                  <span class="spin" aria-hidden="true"></span> Analyzing…
-                } @else {
-                  Analyze Now
+        <div class="watchlist-table-wrap">
+          <table class="watchlist-table">
+            <thead>
+              <tr>
+                <th scope="col">Symbol</th>
+                <th scope="col">Chart window</th>
+                <th scope="col">Run at</th>
+                <th scope="col">Daily briefing</th>
+                <th scope="col"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of items(); track item.id) {
+                <tr>
+                  <td>
+                    <span class="num watchlist-symbol">{{ displaySymbol(item) }}</span>
+                    @if (displayName(item); as name) {
+                      <span class="dim watchlist-item-name">{{ name }}</span>
+                    }
+                  </td>
+                  <td>
+                    @if (isCustomLookback(item)) {
+                      <span class="watchlist-custom">
+                        <input
+                          class="input watchlist-days-input"
+                          type="number"
+                          [min]="minLookbackDays"
+                          [max]="maxLookbackDays"
+                          [value]="item.analysis_lookback_days"
+                          (change)="setCustomLookbackDays(item, $any($event.target).value)"
+                          [attr.aria-label]="'Chart window in days for ' + displaySymbol(item)"
+                        />
+                        <span class="dim">days</span>
+                      </span>
+                    } @else {
+                      <select
+                        class="input watchlist-select"
+                        [value]="item.analysis_lookback_days"
+                        (change)="setLookbackDays(item, $any($event.target).value)"
+                        [attr.aria-label]="'Chart window for ' + displaySymbol(item)"
+                      >
+                        @for (option of lookbackOptions; track option.days) {
+                          <!-- [selected] per option, not just [value] on the select:
+                               the select's value is bound before @for has created
+                               the options, so the binding lands on an empty list
+                               and the box shows the first option while the stored
+                               value is something else entirely. -->
+                          <option [value]="option.days" [selected]="option.days === item.analysis_lookback_days">
+                            {{ option.label }}
+                          </option>
+                        }
+                        <option value="custom">Custom…</option>
+                      </select>
+                    }
+                  </td>
+                  <td>
+                    <select
+                      class="input watchlist-select"
+                      [value]="item.scheduled_hour_ist ?? ''"
+                      (change)="setScheduledHour(item, $any($event.target).value)"
+                      [attr.aria-label]="'Scheduled run time for ' + displaySymbol(item)"
+                    >
+                      <option value="" [selected]="item.scheduled_hour_ist === null">Default</option>
+                      @for (hour of hourOptions; track hour) {
+                        <option [value]="hour" [selected]="hour === item.scheduled_hour_ist">
+                          {{ formatHour(hour) }}
+                        </option>
+                      }
+                    </select>
+                  </td>
+                  <td>
+                    <label class="watchlist-daily-toggle">
+                      <input
+                        type="checkbox"
+                        [checked]="item.enabled_for_daily_analysis"
+                        (change)="toggleDailyAnalysis(item)"
+                        [attr.aria-label]="'Daily briefing for ' + displaySymbol(item)"
+                      />
+                      <span class="dim">{{ item.enabled_for_daily_analysis ? 'On' : 'Off' }}</span>
+                    </label>
+                  </td>
+                  <td class="watchlist-actions">
+                    <button
+                      type="button"
+                      class="btn btn-g btn-sm"
+                      [disabled]="!!runIdFor(item.id)"
+                      (click)="analyzeNow(item)"
+                    >
+                      @if (runIdFor(item.id)) {
+                        <span class="spin" aria-hidden="true"></span> Analyzing…
+                      } @else {
+                        Analyze Now
+                      }
+                    </button>
+                    <button
+                      type="button"
+                      class="watchlist-remove"
+                      (click)="remove(item.id)"
+                      [attr.aria-label]="'Remove ' + displaySymbol(item)"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                           stroke-linecap="round" stroke-linejoin="round" width="13" height="13" aria-hidden="true">
+                        <path d="M18 6 6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+                @if (duplicateWarning()[item.id]; as warning) {
+                  <tr class="watchlist-analyze-row">
+                    <td colspan="5">
+                      <div class="watchlist-confirm" role="alert">
+                        <span>
+                          You already analysed {{ displaySymbol(item) }} on this
+                          {{ warning.lookbackDays }}-day chart
+                          ({{ formatTimestamp(warning.lastAnalysisAt) }}). Running it again
+                          uses another Daily Briefing analysis. Are you sure you want to
+                          continue?
+                        </span>
+                        <span class="watchlist-confirm-actions">
+                          <button type="button" class="btn btn-p btn-sm" (click)="analyzeNow(item, true)">
+                            Yes, analyse again
+                          </button>
+                          <button type="button" class="btn btn-g btn-sm" (click)="dismissDuplicate(item.id)">
+                            Cancel
+                          </button>
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                } @else if (analyzeResult()[item.id]; as message) {
+                  <tr class="watchlist-analyze-row">
+                    <td colspan="5" class="dim">{{ message }}</td>
+                  </tr>
                 }
-              </button>
-              <button
-                type="button"
-                class="watchlist-remove"
-                (click)="remove(item.id)"
-                [attr.aria-label]="'Remove ' + displaySymbol(item)"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13" aria-hidden="true">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </li>
-            @if (analyzeResult()[item.id]; as message) {
-              <li class="dim watchlist-analyze-result">{{ message }}</li>
-            }
-          }
-        </ul>
+              }
+            </tbody>
+          </table>
+        </div>
       }
     </div>
   </div>

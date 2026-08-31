@@ -13,11 +13,43 @@ interface WatchlistItem {
   symbol: string;
   instrument_id: string | null;
   enabled_for_daily_analysis: boolean;
+  analysis_lookback_days: number;
+  scheduled_hour_ist: number | null;
   instruments: { exchange: string; symbol: string; name: string } | null;
 }
 
 const SEARCH_DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
+
+/** A recorded Analyze Now run, as stored in watchlist_analysis_runs. */
+interface WatchlistRun {
+  id: string;
+  watchlist_item_id: string;
+  status: 'queued' | 'processing' | 'complete' | 'failed';
+  updated_at: string;
+}
+
+/**
+ * Chart windows offered per row, in days. Must stay inside the 1-365 CHECK on
+ * watchlist_items.analysis_lookback_days — the DB is the real guard, this
+ * list is just the shortlist. Anything else is reachable through "Custom".
+ * Short windows are drawn from intraday candles server-side, so a 1-day chart
+ * is a real chart, not a single candle.
+ */
+const LOOKBACK_OPTIONS = [
+  { days: 1, label: '1 day' },
+  { days: 7, label: '1 week' },
+  { days: 30, label: '1 month' },
+  { days: 90, label: '3 months' },
+  { days: 180, label: '6 months' },
+  { days: 365, label: '1 year' },
+] as const;
+
+const MIN_LOOKBACK_DAYS = 1;
+const MAX_LOOKBACK_DAYS = 365;
+
+/** Every IST hour, offered as the per-row scheduled run time. */
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => hour);
 
 /**
  * Symbols a user wants to keep an eye on. Reads/writes go straight to
@@ -44,10 +76,34 @@ export class Watchlist implements OnInit {
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
 
-  /** Watchlist item id currently running an Analyze Now request, if any. */
-  protected readonly analyzingId = signal<string | null>(null);
+  /**
+   * Run id per watchlist item currently being watched. A map rather than a
+   * single id: a run started on another device (or before a reload) is
+   * resumed here alongside anything this tab started.
+   */
+  protected readonly activeRuns = signal<Record<string, string>>({});
+  /** Pending "you already analysed this" confirmation, keyed by item id. */
+  protected readonly duplicateWarning = signal<
+    Record<string, { lastAnalysisAt: string; lookbackDays: number }>
+  >({});
   /** Keyed by watchlist item id, so each row's message is independent. */
   protected readonly analyzeResult = signal<Record<string, string>>({});
+
+  /** How far back a settled run is still worth surfacing on load. */
+  private static readonly RESUME_WINDOW_MS = 60 * 60 * 1000;
+
+  protected readonly lookbackOptions = LOOKBACK_OPTIONS;
+  protected readonly hourOptions = HOUR_OPTIONS;
+  protected readonly minLookbackDays = MIN_LOOKBACK_DAYS;
+  protected readonly maxLookbackDays = MAX_LOOKBACK_DAYS;
+
+  /** Item ids whose window is being typed in rather than picked from the list. */
+  protected readonly customLookback = signal<Record<string, boolean>>({});
+
+  /** The in-flight run for a row, if any — drives its spinner/disabled state. */
+  protected runIdFor(itemId: string): string | undefined {
+    return this.activeRuns()[itemId];
+  }
 
   protected readonly queryInput = signal('');
   protected readonly results = signal<Instrument[]>([]);
@@ -59,6 +115,7 @@ export class Watchlist implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+    void this.resumeRuns();
 
     this.querySubject
       .pipe(
@@ -117,7 +174,8 @@ export class Watchlist implements OnInit {
     const { data, error } = await client
       .from('watchlist_items')
       .select(
-        'id, symbol, instrument_id, enabled_for_daily_analysis, instruments(exchange, symbol, name)',
+        'id, symbol, instrument_id, enabled_for_daily_analysis, analysis_lookback_days, ' +
+          'scheduled_hour_ist, instruments(exchange, symbol, name)',
       )
       .order('created_at', { ascending: false });
     if (error) {
@@ -157,10 +215,12 @@ export class Watchlist implements OnInit {
   }
 
   /**
-   * Only enabled_for_daily_analysis is writable by clients (see the
-   * column-scoped grant in
-   * 20260831160000_watchlist_daily_analysis_flag.sql) — everything else
-   * about a watch entry is immutable once added.
+   * Clients may write exactly three columns — enabled_for_daily_analysis (see
+   * the column-scoped grant in
+   * 20260831160000_watchlist_daily_analysis_flag.sql) plus
+   * analysis_lookback_days and scheduled_hour_ist
+   * (20260831170000_watchlist_analysis_settings.sql). Everything else about a
+   * watch entry is immutable once added.
    */
   protected async toggleDailyAnalysis(item: WatchlistItem): Promise<void> {
     const client = this.supabase.client;
@@ -182,15 +242,95 @@ export class Watchlist implements OnInit {
   }
 
   /**
+   * Chart window, in calendar days, this row's analyses are generated from.
+   * The sentinel 'custom' swaps the row's preset list for a free number input
+   * instead of writing anything.
+   */
+  protected async setLookbackDays(item: WatchlistItem, value: string): Promise<void> {
+    if (value === 'custom') {
+      this.customLookback.update((custom) => ({ ...custom, [item.id]: true }));
+      return;
+    }
+    const days = Number(value);
+    if (!Number.isFinite(days) || days === item.analysis_lookback_days) return;
+    await this.patchSettings(item, { analysis_lookback_days: days });
+  }
+
+  /** A typed-in window, committed on blur/Enter once it is in range. */
+  protected async setCustomLookbackDays(item: WatchlistItem, value: string): Promise<void> {
+    const days = Math.round(Number(value));
+    if (
+      !Number.isFinite(days) ||
+      days < MIN_LOOKBACK_DAYS ||
+      days > MAX_LOOKBACK_DAYS ||
+      days === item.analysis_lookback_days
+    ) {
+      return;
+    }
+    await this.patchSettings(item, { analysis_lookback_days: days });
+  }
+
+  /**
+   * A row shows the number input either because the user asked for it or
+   * because its stored window simply is not one of the presets (set earlier,
+   * or on another device).
+   */
+  protected isCustomLookback(item: WatchlistItem): boolean {
+    return (
+      this.customLookback()[item.id] === true ||
+      !LOOKBACK_OPTIONS.some((option) => option.days === item.analysis_lookback_days)
+    );
+  }
+
+  /** Empty string = follow the deployment default hour (stored as null). */
+  protected async setScheduledHour(item: WatchlistItem, value: string): Promise<void> {
+    const hour = value === '' ? null : Number(value);
+    if (hour === item.scheduled_hour_ist) return;
+    await this.patchSettings(item, { scheduled_hour_ist: hour });
+  }
+
+  /**
+   * Optimistic write of the client-writable settings columns, rolling the row
+   * back to its previous values if Supabase rejects it — same shape as
+   * toggleDailyAnalysis above.
+   */
+  private async patchSettings(
+    item: WatchlistItem,
+    patch: Partial<Pick<WatchlistItem, 'analysis_lookback_days' | 'scheduled_hour_ist'>>,
+  ): Promise<void> {
+    const client = this.supabase.client;
+    if (!client) return;
+    this.error.set(null);
+    this.items.update((items) => items.map((i) => (i.id === item.id ? { ...i, ...patch } : i)));
+    const { error } = await client.from('watchlist_items').update(patch).eq('id', item.id);
+    if (error) {
+      this.items.update((items) => items.map((i) => (i.id === item.id ? item : i)));
+      this.error.set('Could not update analysis settings.');
+    }
+  }
+
+  /** "08:00 IST" for the schedule column. */
+  protected formatHour(hour: number): string {
+    return `${String(hour).padStart(2, '0')}:00 IST`;
+  }
+
+  /**
    * Runs the same fetch/chart/AI pipeline as the scheduled daily briefing,
    * for this one symbol, right now — consumes one unit of the same
    * 30/month Daily Briefing quota. Independent of the toggle above and of
    * the once-a-day scheduled email: this never touches daily_briefing_log
    * and sends no email, it just produces one analysis immediately.
+   *
+   * `force` re-runs a chart the user has already analysed recently, after
+   * they have confirmed the duplicate warning below.
    */
-  protected async analyzeNow(item: WatchlistItem): Promise<void> {
-    if (this.analyzingId()) return;
-    this.analyzingId.set(item.id);
+  protected async analyzeNow(item: WatchlistItem, force = false): Promise<void> {
+    if (this.runIdFor(item.id)) return;
+    this.duplicateWarning.update((warnings) => {
+      const rest = { ...warnings };
+      delete rest[item.id];
+      return rest;
+    });
     this.analyzeResult.update((results) => {
       const rest = { ...results };
       delete rest[item.id];
@@ -198,26 +338,38 @@ export class Watchlist implements OnInit {
     });
 
     const token = await this.auth.getAccessToken();
-    if (!token) {
-      this.analyzingId.set(null);
-      return;
-    }
+    if (!token) return;
 
     try {
       // The API kicks off the fetch/chart/AI pipeline in the background and
       // responds as soon as its fast checks pass (202) — the pipeline itself
       // takes 20-30+ seconds, too long for some proxies/tunnels to hold a
-      // request open. We poll the analyses table (readable under RLS)
-      // instead of waiting on this call.
+      // request open. It records the run in watchlist_analysis_runs (readable
+      // under RLS) and we poll that row rather than waiting on this call.
       const accepted = await firstValueFrom(
-        this.http.post<{ instrumentId: string; startedAt: string }>(
+        this.http.post<{ runId: string }>(
           `/api/watchlist/${item.id}/analyze-now`,
-          {},
+          { force },
           { headers: { Authorization: `Bearer ${token}` } },
         ),
       );
-      await this.pollForAnalysisResult(item, accepted.instrumentId, accepted.startedAt);
+      this.activeRuns.update((runs) => ({ ...runs, [item.id]: accepted.runId }));
+      await this.pollRun(item.id, accepted.runId);
     } catch (cause) {
+      if (cause instanceof HttpErrorResponse && cause.status === 409) {
+        // Not a failure: the same symbol over the same window was analysed in
+        // the last 24h. Ask rather than silently spend another quota unit.
+        const body = cause.error as { lastAnalysisAt?: string; lookbackDays?: number };
+        this.duplicateWarning.update((warnings) => ({
+          ...warnings,
+          [item.id]: {
+            lastAnalysisAt: body?.lastAnalysisAt ?? '',
+            lookbackDays: body?.lookbackDays ?? item.analysis_lookback_days,
+          },
+        }));
+        return;
+      }
+
       let message = 'Analysis failed. Please try again.';
       if (cause instanceof HttpErrorResponse) {
         const body: unknown = cause.error;
@@ -226,31 +378,87 @@ export class Watchlist implements OnInit {
         }
       }
       this.analyzeResult.update((results) => ({ ...results, [item.id]: message }));
-      this.analyzingId.set(null);
     }
   }
 
+  protected dismissDuplicate(itemId: string): void {
+    this.duplicateWarning.update((warnings) => {
+      const rest = { ...warnings };
+      delete rest[itemId];
+      return rest;
+    });
+  }
+
+  /** "31 Aug, 14:05" — enough for the user to recognise their own earlier run. */
+  protected formatTimestamp(iso: string): string {
+    if (!iso) return 'recently';
+    return new Date(iso).toLocaleString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
   private static readonly POLL_INTERVAL_MS = 3000;
-  private static readonly POLL_MAX_ATTEMPTS = 30; // ~90s
+  private static readonly POLL_MAX_ATTEMPTS = 40; // ~2 min
 
   /**
-   * Waits for the background analysis kicked off by analyze-now to land as a
-   * new `analyses` row for this instrument, created at or after the request.
-   *
-   * instrumentId comes from the 202 response, not from the local row: a
-   * watchlist item's own instrument_id is nullable (a symbol-only row), while
-   * the analysis is always written against the instrument the API resolved
-   * server-side. Filtering on the local value would emit `instrument_id=eq.null`
-   * for those rows, which matches nothing, and every run would time out.
+   * Picks up runs that are already recorded server-side rather than assuming
+   * this tab started (and is still watching) every run: a reload, a second
+   * device, or a tab closed mid-run all leave a row here. In-flight runs
+   * resume polling; runs that settled while the user was away still show
+   * their outcome, so a refresh never loses a result the user paid a quota
+   * unit for.
    */
-  private async pollForAnalysisResult(
-    item: WatchlistItem,
-    instrumentId: string,
-    startedAt: string,
-  ): Promise<void> {
+  private async resumeRuns(): Promise<void> {
+    const client = this.supabase.client;
+    if (!client) return;
+
+    const since = new Date(Date.now() - Watchlist.RESUME_WINDOW_MS).toISOString();
+    const { data, error } = await client
+      .from('watchlist_analysis_runs')
+      .select('id, watchlist_item_id, status, updated_at')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false });
+    if (error || !data) return;
+
+    const seen = new Set<string>();
+    for (const run of data as WatchlistRun[]) {
+      // Ordered newest-first, so the first row for an item is its latest run.
+      if (seen.has(run.watchlist_item_id)) continue;
+      seen.add(run.watchlist_item_id);
+
+      const settled = run.status;
+      if (settled === 'complete' || settled === 'failed') {
+        this.analyzeResult.update((results) => ({
+          ...results,
+          [run.watchlist_item_id]: Watchlist.settledMessage(settled),
+        }));
+        continue;
+      }
+
+      this.activeRuns.update((runs) => ({ ...runs, [run.watchlist_item_id]: run.id }));
+      void this.pollRun(run.watchlist_item_id, run.id);
+    }
+  }
+
+  private static settledMessage(status: 'complete' | 'failed'): string {
+    return status === 'complete'
+      ? 'Analysis complete — check your history.'
+      : 'Analysis failed. Please try again.';
+  }
+
+  /**
+   * Watches one run row until it settles. The run row exists from the moment
+   * the API accepts the request, so unlike polling `analyses` for a row that
+   * may never appear, a failure is an explicit 'failed' status rather than a
+   * timeout.
+   */
+  private async pollRun(itemId: string, runId: string): Promise<void> {
     const client = this.supabase.client;
     if (!client) {
-      this.analyzingId.set(null);
+      this.clearRun(itemId);
       return;
     }
 
@@ -258,38 +466,39 @@ export class Watchlist implements OnInit {
       await new Promise((resolve) => setTimeout(resolve, Watchlist.POLL_INTERVAL_MS));
 
       const { data, error } = await client
-        .from('analyses')
-        .select('id, status')
-        .eq('instrument_id', instrumentId)
-        .eq('source', 'watchlist_daily')
-        .gte('created_at', startedAt)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .from('watchlist_analysis_runs')
+        .select('status')
+        .eq('id', runId)
+        .maybeSingle<{ status: WatchlistRun['status'] }>();
 
       if (error) continue;
 
-      if (data?.status === 'complete') {
+      const settled = data?.status;
+      if (settled === 'complete' || settled === 'failed') {
         this.analyzeResult.update((results) => ({
           ...results,
-          [item.id]: 'Analysis complete — check your history.',
+          [itemId]: Watchlist.settledMessage(settled),
         }));
-        this.analyzingId.set(null);
-        return;
-      }
-
-      if (data?.status === 'failed') {
-        this.analyzeResult.update((results) => ({ ...results, [item.id]: 'Analysis failed. Please try again.' }));
-        this.analyzingId.set(null);
+        this.clearRun(itemId);
         return;
       }
     }
 
+    // Only this tab stopped watching; the run itself is still recorded and
+    // will be picked up again by resumeRuns on the next load.
     this.analyzeResult.update((results) => ({
       ...results,
-      [item.id]: 'Still processing — check your history in a bit.',
+      [itemId]: 'Still processing — reopen this page in a bit to see the result.',
     }));
-    this.analyzingId.set(null);
+    this.clearRun(itemId);
+  }
+
+  private clearRun(itemId: string): void {
+    this.activeRuns.update((runs) => {
+      const rest = { ...runs };
+      delete rest[itemId];
+      return rest;
+    });
   }
 
   protected async remove(id: string): Promise<void> {

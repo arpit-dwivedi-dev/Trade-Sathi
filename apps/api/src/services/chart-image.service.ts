@@ -26,10 +26,21 @@ function formatPrice(value: number): string {
   return value >= 1000 ? value.toFixed(0) : value.toFixed(2);
 }
 
+// Every instrument this app charts trades on NSE/BSE (see the exchange->Yahoo
+// suffix map in watchlist.service.ts), so intraday times are only meaningful
+// to a reader — and to the model — in IST. The provider hands back UTC.
+const IST_OFFSET_MINUTES = 5.5 * 60;
+
 function formatDateLabel(iso: string): string {
-  // Candle timestamps are date-only (daily candles) or full ISO — either way,
-  // the calendar date is what a human reading a chart's x-axis expects.
-  return iso.slice(0, 10);
+  // Daily candles are date-only, so the calendar date is the whole label.
+  if (iso.length <= 10) return iso.slice(0, 10);
+
+  // Intraday candles all share a date or two, where the time of day is the
+  // only part that distinguishes one label from the next.
+  const ist = new Date(Date.parse(iso) + IST_OFFSET_MINUTES * 60 * 1000);
+  const hours = String(ist.getUTCHours()).padStart(2, "0");
+  const minutes = String(ist.getUTCMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
 }
 
 /**

@@ -91,25 +91,6 @@
   font-size: 0.85rem;
 }
 
-.watchlist-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s2);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.watchlist-item {
-  align-items: center;
-  background: var(--surf-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  display: flex;
-  gap: var(--s2);
-  padding: var(--s2) var(--s2) var(--s2) var(--s4);
-}
-
 .watchlist-symbol {
   font-size: 13px;
   letter-spacing: 0.02em;
@@ -132,4 +113,111 @@
 .watchlist-remove:hover {
   background: var(--surf-3);
   color: var(--tx);
+}
+
+/* The list became a table once each row carried its own settings (chart
+   window, run time) alongside its actions — pills could not hold that
+   without wrapping unreadably. */
+.watchlist-table-wrap {
+  overflow-x: auto;
+}
+
+.watchlist-table {
+  border-collapse: collapse;
+  min-width: 640px;
+  width: 100%;
+}
+
+.watchlist-table th {
+  border-bottom: 1px solid var(--line);
+  color: var(--tx-2);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 0 var(--s3) var(--s2);
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.watchlist-table td {
+  border-bottom: 1px solid var(--line);
+  padding: var(--s3);
+  vertical-align: middle;
+}
+
+.watchlist-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.watchlist-table .watchlist-symbol {
+  display: block;
+}
+
+.watchlist-table .watchlist-item-name {
+  display: block;
+}
+
+.watchlist-select {
+  min-width: 108px;
+  padding: var(--s1) var(--s2);
+}
+
+.watchlist-daily-toggle {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: var(--s2);
+}
+
+.watchlist-actions {
+  display: flex;
+  gap: var(--s2);
+  justify-content: flex-end;
+}
+
+/* Header cell that only labels the actions column for screen readers; the
+   shared stylesheets carry no such utility, hence the local copy. */
+.watchlist-table .sr-only {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.watchlist-analyze-row td {
+  font-size: 12px;
+  padding-top: 0;
+}
+
+.watchlist-confirm {
+  align-items: center;
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: var(--s3);
+  justify-content: space-between;
+  padding: var(--s3);
+}
+
+.watchlist-confirm-actions {
+  display: flex;
+  gap: var(--s2);
+}
+
+.watchlist-custom {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+}
+
+.watchlist-days-input {
+  padding: var(--s1) var(--s2);
+  width: 76px;
 }

@@ -18,15 +18,44 @@ import { sendEmail } from "../lib/email/resend-client.js";
 import { logger } from "../lib/logger.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 
-const CANDLE_LOOKBACK_DAYS = 90;
-const CANDLES_FOR_CHART = 60;
+// Upper bound on candles drawn, not on candles fetched: the renderer has a
+// fixed 1200px width, and past this the individual candles stop being
+// readable (and so stop being analysable). A longer per-item lookback still
+// widens the window; it just keeps the most recent MAX_CANDLES_FOR_CHART of
+// it. The per-item lookback itself lives in watchlist_items.
+const MAX_CANDLES_FOR_CHART = 250;
+
+/**
+ * Candle granularity for a chart window. A one-day or one-week window has too
+ * few daily candles to read anything from (one, and about five), so short
+ * windows are drawn from intraday candles instead. The thresholds are also
+ * bounded by the provider: intraday history upstream goes back days, not
+ * months, so nothing beyond a week asks for it.
+ */
+function candleSpecFor(lookbackDays: number): {
+  unit: "minutes" | "days";
+  interval: number;
+  label: string;
+} {
+  if (lookbackDays <= 1) return { unit: "minutes", interval: 5, label: "5m" };
+  if (lookbackDays <= 7) return { unit: "minutes", interval: 30, label: "30m" };
+  return { unit: "days", interval: 1, label: "1D" };
+}
 
 const BUCKET = "chart-images";
+
+const IST_OFFSET_MINUTES = 5.5 * 60;
 
 const marketDataProvider: MarketDataProvider = new YahooFinanceMarketDataProvider();
 
 function currentUtcPeriod(): string {
   return new Date().toISOString().slice(0, 7);
+}
+
+/** Current hour (0-23) in IST, the timezone every schedule setting is in. */
+function currentIstHour(): number {
+  const istMs = Date.now() + IST_OFFSET_MINUTES * 60 * 1000;
+  return new Date(istMs).getUTCHours();
 }
 
 function todayIsoDate(): string {
@@ -127,16 +156,22 @@ export async function processWatchlistItem(
   item: EnabledWatchlistItem,
   period: string,
 ): Promise<ProcessedItem | null> {
+  const spec = candleSpecFor(item.analysisLookbackDays);
   let candles;
   try {
     const toDate = todayIsoDate();
-    candles = await marketDataProvider.getHistoricalCandles({
+    const fromDate = subtractDays(toDate, item.analysisLookbackDays);
+    const fetched = await marketDataProvider.getHistoricalCandles({
       instrumentKey: item.instrumentKey,
-      unit: "days",
-      interval: 1,
+      unit: spec.unit,
+      interval: spec.interval,
       toDate,
-      fromDate: subtractDays(toDate, CANDLE_LOOKBACK_DAYS),
+      fromDate,
     });
+    // The provider widens the request to the nearest range its upstream
+    // accepts, so anything older than the window the user asked for is
+    // dropped here rather than quietly drawn.
+    candles = fetched.filter((candle) => candle.timestamp.slice(0, 10) >= fromDate);
   } catch (cause) {
     logger.error("watchlist item market-data fetch failed", {
       profileId,
@@ -157,7 +192,7 @@ export async function processWatchlistItem(
     return null;
   }
 
-  const chartCandles = candles.slice(-CANDLES_FOR_CHART);
+  const chartCandles = candles.slice(-MAX_CANDLES_FOR_CHART);
   const lastCandle = chartCandles[chartCandles.length - 1];
 
   let imageBuffer: Buffer;
@@ -166,7 +201,8 @@ export async function processWatchlistItem(
       symbol: item.symbol,
       name: item.name,
       exchange: item.exchange,
-      timeframeLabel: "1D",
+      // Granularity and window together, e.g. "1D · 90d" or "5m · 1d".
+      timeframeLabel: `${spec.label} · ${item.analysisLookbackDays}d`,
     });
   } catch (cause) {
     logger.error("chart image generation failed", {
@@ -193,7 +229,11 @@ export async function processWatchlistItem(
   }
 
   const marketDataDate = lastCandle.timestamp.slice(0, 10);
-  const imageKey = `${profileId}/watchlist-daily/${item.instrumentId}/${marketDataDate}.png`;
+  // The lookback is part of the key: two runs on the same instrument and the
+  // same market-data date but different windows render genuinely different
+  // charts, and a shared key would leave the earlier analysis pointing at the
+  // later run's image.
+  const imageKey = `${profileId}/watchlist-daily/${item.instrumentId}/${marketDataDate}-${item.analysisLookbackDays}d.png`;
   await storeWatchlistChart(imageKey, imageBuffer);
 
   const { data: insertedRow, error: insertError } = await supabaseAdmin
@@ -228,6 +268,7 @@ export async function processWatchlistItem(
     output_tokens: visual.outputTokens,
     latency_ms: visual.latencyMs,
     status: "complete",
+    analysis_lookback_days: item.analysisLookbackDays,
     })
     .select("id")
     .single<{ id: string }>();
@@ -257,16 +298,28 @@ export async function processWatchlistItem(
   };
 }
 
-export async function runDailyBriefingForUser(profileId: string): Promise<void> {
+export async function runDailyBriefingForUser(
+  profileId: string,
+  runHourIst?: number,
+): Promise<void> {
   const briefingDate = todayIsoDate();
+  // The log row is keyed by (profile, date, hour), so the idempotency guard is
+  // per scheduled slot now that symbols can be scheduled at different hours.
+  // An ops manual trigger (no hour) is logged against the current IST hour.
+  const logHourIst = runHourIst ?? currentIstHour();
 
   const { error: logInsertError } = await supabaseAdmin
     .from("daily_briefing_log")
-    .insert({ profile_id: profileId, briefing_date: briefingDate, status: "processing" });
+    .insert({
+      profile_id: profileId,
+      briefing_date: briefingDate,
+      run_hour_ist: logHourIst,
+      status: "processing",
+    });
 
   if (logInsertError) {
-    // Unique-violation on (profile_id, briefing_date) means today's briefing
-    // already ran (or is currently running) for this user — the idempotency
+    // Unique-violation on (profile_id, briefing_date, run_hour_ist) means this
+    // slot's briefing already ran (or is currently running) for this user — the idempotency
     // guard doing exactly its job. Any other error is unexpected and logged,
     // but this run still stops rather than risk a duplicate email.
     if (logInsertError.code !== "23505") {
@@ -278,13 +331,14 @@ export async function runDailyBriefingForUser(profileId: string): Promise<void> 
     return;
   }
 
-  const items = await getEnabledWatchlistItems(profileId);
+  const items = await getEnabledWatchlistItems(profileId, runHourIst);
   if (items.length === 0) {
     await supabaseAdmin
       .from("daily_briefing_log")
       .update({ status: "skipped_no_symbols", updated_at: new Date().toISOString() })
       .eq("profile_id", profileId)
-      .eq("briefing_date", briefingDate);
+      .eq("briefing_date", briefingDate)
+      .eq("run_hour_ist", logHourIst);
     return;
   }
 
@@ -334,7 +388,8 @@ export async function runDailyBriefingForUser(profileId: string): Promise<void> 
       .from("daily_briefing_log")
       .update({ status: "skipped_quota_exhausted", updated_at: new Date().toISOString() })
       .eq("profile_id", profileId)
-      .eq("briefing_date", briefingDate);
+      .eq("briefing_date", briefingDate)
+      .eq("run_hour_ist", logHourIst);
     return;
   }
 
@@ -348,7 +403,8 @@ export async function runDailyBriefingForUser(profileId: string): Promise<void> 
         updated_at: new Date().toISOString(),
       })
       .eq("profile_id", profileId)
-      .eq("briefing_date", briefingDate);
+      .eq("briefing_date", briefingDate)
+      .eq("run_hour_ist", logHourIst);
     return;
   }
 
@@ -367,7 +423,8 @@ export async function runDailyBriefingForUser(profileId: string): Promise<void> 
       .from("daily_briefing_log")
       .update({ status: "failed", updated_at: new Date().toISOString() })
       .eq("profile_id", profileId)
-      .eq("briefing_date", briefingDate);
+      .eq("briefing_date", briefingDate)
+      .eq("run_hour_ist", logHourIst);
     return;
   }
 
@@ -389,7 +446,8 @@ export async function runDailyBriefingForUser(profileId: string): Promise<void> 
         updated_at: new Date().toISOString(),
       })
       .eq("profile_id", profileId)
-      .eq("briefing_date", briefingDate);
+      .eq("briefing_date", briefingDate)
+      .eq("run_hour_ist", logHourIst);
     return;
   }
 
@@ -402,12 +460,68 @@ export async function runDailyBriefingForUser(profileId: string): Promise<void> 
       updated_at: new Date().toISOString(),
     })
     .eq("profile_id", profileId)
-    .eq("briefing_date", briefingDate);
+    .eq("briefing_date", briefingDate)
+    .eq("run_hour_ist", logHourIst);
 }
 
 export type AnalyzeNowResult =
-  | { ok: true; instrumentId: string; startedAt: string }
-  | { ok: false; reason: "not_found" | "no_subscription" | "quota_exhausted" };
+  | { ok: true; runId: string; instrumentId: string; startedAt: string }
+  | { ok: false; reason: "not_found" | "no_subscription" | "quota_exhausted" }
+  // The one non-terminal outcome: the user has already analysed this exact
+  // stock over this exact window recently. Re-running is allowed — it just
+  // needs an explicit confirmation (force), since it spends another unit of
+  // the same 30/month quota on a chart that has not changed.
+  | { ok: false; reason: "duplicate"; lastAnalysisAt: string; lookbackDays: number };
+
+/** How long a completed analysis makes an identical re-run look like a mistake. */
+const DUPLICATE_WINDOW_HOURS = 24;
+
+/**
+ * The most recent completed analysis of this instrument over this exact
+ * lookback window, if one is recent enough to be worth warning about.
+ * Instrument + window (not the raw symbol) because those two are precisely
+ * what determine the chart the model reads.
+ */
+async function findRecentIdenticalAnalysis(
+  profileId: string,
+  instrumentId: string,
+  lookbackDays: number,
+): Promise<string | null> {
+  const since = new Date(Date.now() - DUPLICATE_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from("analyses")
+    .select("created_at")
+    .eq("profile_id", profileId)
+    .eq("instrument_id", instrumentId)
+    .eq("analysis_lookback_days", lookbackDays)
+    .eq("status", "complete")
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ created_at: string }>();
+
+  // A failed duplicate lookup must not block a run the user asked for: the
+  // check is a courtesy warning, not an entitlement guard.
+  if (error) {
+    logger.error("duplicate-analysis lookup failed", { profileId, cause: String(error) });
+    return null;
+  }
+  return data?.created_at ?? null;
+}
+
+/** Marks an Analyze Now run row settled; failures here are logged, not thrown. */
+async function settleRun(
+  runId: string,
+  status: "complete" | "failed",
+  analysisId: string | null,
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from("watchlist_analysis_runs")
+    .update({ status, analysis_id: analysisId, updated_at: new Date().toISOString() })
+    .eq("id", runId);
+  if (error) logger.error("failed to settle watchlist run", { runId, cause: String(error) });
+}
 
 /**
  * User-triggered, single-item counterpart to the scheduled job — the
@@ -433,9 +547,28 @@ export type AnalyzeNowResult =
 export async function analyzeWatchlistItemNow(
   profileId: string,
   watchlistItemId: string,
+  force = false,
 ): Promise<AnalyzeNowResult> {
   const item = await getWatchlistItemForProfile(profileId, watchlistItemId);
   if (!item) return { ok: false, reason: "not_found" };
+
+  // Before the entitlement is touched: a duplicate must not cost a quota unit
+  // on the way to being refused.
+  if (!force) {
+    const lastAnalysisAt = await findRecentIdenticalAnalysis(
+      profileId,
+      item.instrumentId,
+      item.analysisLookbackDays,
+    );
+    if (lastAnalysisAt) {
+      return {
+        ok: false,
+        reason: "duplicate",
+        lastAnalysisAt,
+        lookbackDays: item.analysisLookbackDays,
+      };
+    }
+  }
 
   const outcome = await consumeDailyBriefingEntitlement(profileId);
   if (outcome === "no_subscription") return { ok: false, reason: "no_subscription" };
@@ -444,18 +577,49 @@ export async function analyzeWatchlistItemNow(
   const period = currentUtcPeriod();
   const startedAt = new Date().toISOString();
 
-  // Deliberately not awaited: see the doc comment above. Failures are
-  // already logged and compensated (quota release) inside
-  // processWatchlistItem itself.
-  void processWatchlistItem(profileId, item, period).catch((cause) => {
-    logger.error("watchlist analyze-now background processing failed", {
+  // Written before the pipeline starts, so the run exists somewhere other than
+  // in the requesting tab's memory: a reload, a different device, or a client
+  // that was closed mid-run can all still find this run and its outcome.
+  const { data: runRow, error: runError } = await supabaseAdmin
+    .from("watchlist_analysis_runs")
+    .insert({
+      profile_id: profileId,
+      watchlist_item_id: item.watchlistItemId,
+      instrument_id: item.instrumentId,
+      lookback_days: item.analysisLookbackDays,
+      status: "processing",
+    })
+    .select("id")
+    .single<{ id: string }>();
+
+  if (runError || !runRow) {
+    // The quota unit was already consumed above, so release it rather than
+    // charge for a run that is not going to be started.
+    logger.error("failed to record watchlist analysis run", {
       profileId,
       watchlistItemId,
-      cause: String(cause),
+      cause: String(runError),
     });
-  });
+    await releaseDailyBriefingEntitlement(profileId, period);
+    throw new Error("Could not start analysis");
+  }
 
-  return { ok: true, instrumentId: item.instrumentId, startedAt };
+  // Deliberately not awaited: see the doc comment above. Failures are
+  // already logged and compensated (quota release) inside
+  // processWatchlistItem itself; settling the run row here is what turns
+  // that into something the user can see after a reload.
+  void processWatchlistItem(profileId, item, period)
+    .then((processed) => settleRun(runRow.id, processed ? "complete" : "failed", processed?.analysisId ?? null))
+    .catch(async (cause: unknown) => {
+      logger.error("watchlist analyze-now background processing failed", {
+        profileId,
+        watchlistItemId,
+        cause: String(cause),
+      });
+      await settleRun(runRow.id, "failed", null);
+    });
+
+  return { ok: true, runId: runRow.id, instrumentId: item.instrumentId, startedAt };
 }
 
 /**
@@ -463,13 +627,16 @@ export async function analyzeWatchlistItemNow(
  * Iterates every profile with at least one daily-analysis-enabled watchlist
  * item; one profile's failure never aborts the run for the rest.
  */
-export async function runDailyBriefingForAllUsers(): Promise<void> {
-  const profileIds = await listProfilesWithEnabledWatchlist();
-  logger.info("daily briefing run starting", { profileCount: profileIds.length });
+export async function runDailyBriefingForAllUsers(runHourIst?: number): Promise<void> {
+  const profileIds = await listProfilesWithEnabledWatchlist(runHourIst);
+  logger.info("daily briefing run starting", {
+    profileCount: profileIds.length,
+    runHourIst: runHourIst ?? "all",
+  });
 
   for (const profileId of profileIds) {
     try {
-      await runDailyBriefingForUser(profileId);
+      await runDailyBriefingForUser(profileId, runHourIst);
     } catch (cause) {
       logger.error("daily briefing run failed for profile", {
         profileId,

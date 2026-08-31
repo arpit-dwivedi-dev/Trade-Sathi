@@ -20,13 +20,23 @@ watchlistRouter.post(
     try {
       // Non-null: requireAuth ran before this handler and only calls next()
       // after setting profileId.
-      const result = await analyzeWatchlistItemNow(req.profileId!, req.params["itemId"] ?? "");
+      // force: the user was warned this is a repeat of an analysis they
+      // already have and chose to spend another quota unit on it anyway.
+      const body: unknown = req.body;
+      const force =
+        typeof body === "object" && body !== null && (body as { force?: unknown }).force === true;
+      const result = await analyzeWatchlistItemNow(
+        req.profileId!,
+        req.params["itemId"] ?? "",
+        force,
+      );
 
       if (result.ok) {
         // 202: the pipeline runs in the background (see analyzeWatchlistItemNow's
         // doc comment). The client polls the analyses table directly for a
         // fresh row rather than waiting on this request.
         res.status(202).json({
+          runId: result.runId,
           instrumentId: result.instrumentId,
           startedAt: result.startedAt,
         });
@@ -45,6 +55,16 @@ watchlistRouter.post(
           return;
         case "quota_exhausted":
           res.status(429).json({ error: "Daily Briefing quota exhausted for this period" });
+          return;
+        case "duplicate":
+          // 409, not an error the user must accept: the same request with
+          // force: true goes through. Nothing was consumed getting here.
+          res.status(409).json({
+            error: "Already analysed",
+            reason: "duplicate",
+            lastAnalysisAt: result.lastAnalysisAt,
+            lookbackDays: result.lookbackDays,
+          });
           return;
       }
     } catch (cause) {

@@ -1,3 +1,4 @@
+import { env } from "../lib/env.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 
 export interface EnabledWatchlistItem {
@@ -7,11 +8,17 @@ export interface EnabledWatchlistItem {
   exchange: string;
   symbol: string;
   name: string;
+  /** Calendar days of daily candles to fetch/render for this symbol. */
+  analysisLookbackDays: number;
+  /** IST hour for the scheduled run, or null to follow the deployment default. */
+  scheduledHourIst: number | null;
 }
 
 interface EnabledWatchlistRow {
   id: string;
   instrument_id: string | null;
+  analysis_lookback_days: number;
+  scheduled_hour_ist: number | null;
   instruments: {
     id: string;
     exchange: string;
@@ -44,16 +51,38 @@ function toYahooSymbol(exchange: string, symbol: string): string | null {
   return suffix ? `${symbol}${suffix}` : null;
 }
 
-/** Distinct profile ids with at least one watchlist item enabled for daily analysis. */
-export async function listProfilesWithEnabledWatchlist(): Promise<string[]> {
+/**
+ * A watch item's effective scheduled IST hour: its own setting when it has
+ * one, otherwise the deployment default. Resolved here (and not in SQL with a
+ * coalesce) so a change to DAILY_BRIEFING_RUN_HOUR_IST keeps moving every
+ * unconfigured row, exactly as it did before per-item hours existed.
+ */
+export function effectiveScheduledHourIst(scheduledHourIst: number | null): number {
+  return scheduledHourIst ?? env.dailyBriefingRunHourIst;
+}
+
+/**
+ * Distinct profile ids with at least one watchlist item enabled for daily
+ * analysis. With `runHourIst` given (the hourly scheduler), only items whose
+ * effective hour is that hour count — a profile whose symbols are all
+ * scheduled elsewhere in the day is not woken up. Omitted (the ops manual
+ * trigger) means every enabled item, whatever its hour.
+ */
+export async function listProfilesWithEnabledWatchlist(runHourIst?: number): Promise<string[]> {
   const { data, error } = await supabaseAdmin
     .from("watchlist_items")
-    .select("profile_id")
+    .select("profile_id, scheduled_hour_ist")
     .eq("enabled_for_daily_analysis", true);
 
   if (error) throw error;
 
-  return [...new Set((data ?? []).map((row) => row.profile_id as string))];
+  const rows = (data ?? []) as { profile_id: string; scheduled_hour_ist: number | null }[];
+  const matching =
+    runHourIst === undefined
+      ? rows
+      : rows.filter((row) => effectiveScheduledHourIst(row.scheduled_hour_ist) === runHourIst);
+
+  return [...new Set(matching.map((row) => row.profile_id))];
 }
 
 /**
@@ -63,13 +92,17 @@ export async function listProfilesWithEnabledWatchlist(): Promise<string[]> {
  * market-data identity to fetch with, so they cannot participate in automated
  * analysis at all (not a per-run failure to report, since there was never
  * anything to run).
+ *
+ * `runHourIst` narrows the result to items scheduled for that IST hour; omit
+ * it to get every enabled item regardless of hour.
  */
 export async function getEnabledWatchlistItems(
   profileId: string,
+  runHourIst?: number,
 ): Promise<EnabledWatchlistItem[]> {
   const { data, error } = await supabaseAdmin
     .from("watchlist_items")
-    .select("id, instrument_id, instruments(id, exchange, symbol, name)")
+    .select("id, instrument_id, analysis_lookback_days, scheduled_hour_ist, instruments(id, exchange, symbol, name)")
     .eq("profile_id", profileId)
     .eq("enabled_for_daily_analysis", true);
 
@@ -82,6 +115,12 @@ export async function getEnabledWatchlistItems(
     if (!instrument) continue;
     const yahooSymbol = toYahooSymbol(instrument.exchange, instrument.symbol);
     if (!yahooSymbol) continue;
+    if (
+      runHourIst !== undefined &&
+      effectiveScheduledHourIst(row.scheduled_hour_ist) !== runHourIst
+    ) {
+      continue;
+    }
     items.push({
       watchlistItemId: row.id,
       instrumentId: instrument.id,
@@ -89,6 +128,8 @@ export async function getEnabledWatchlistItems(
       exchange: instrument.exchange,
       symbol: instrument.symbol,
       name: instrument.name,
+      analysisLookbackDays: row.analysis_lookback_days,
+      scheduledHourIst: row.scheduled_hour_ist,
     });
   }
   return items;
@@ -109,7 +150,7 @@ export async function getWatchlistItemForProfile(
 ): Promise<EnabledWatchlistItem | null> {
   const { data, error } = await supabaseAdmin
     .from("watchlist_items")
-    .select("id, instrument_id, instruments(id, exchange, symbol, name)")
+    .select("id, instrument_id, analysis_lookback_days, scheduled_hour_ist, instruments(id, exchange, symbol, name)")
     .eq("profile_id", profileId)
     .eq("id", watchlistItemId)
     .maybeSingle();
@@ -130,5 +171,7 @@ export async function getWatchlistItemForProfile(
     exchange: instrument.exchange,
     symbol: instrument.symbol,
     name: instrument.name,
+    analysisLookbackDays: row.analysis_lookback_days,
+    scheduledHourIst: row.scheduled_hour_ist,
   };
 }

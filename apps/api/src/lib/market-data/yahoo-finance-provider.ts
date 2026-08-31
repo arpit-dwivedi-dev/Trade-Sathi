@@ -48,6 +48,46 @@ function toIsoDate(epochSeconds: number): string {
   return new Date(epochSeconds * 1000).toISOString().slice(0, 10);
 }
 
+function toIsoTimestamp(epochSeconds: number): string {
+  return new Date(epochSeconds * 1000).toISOString();
+}
+
+/**
+ * Yahoo's chart endpoint takes a range/interval pair rather than from/to
+ * dates, so the requested span is widened to the nearest range Yahoo accepts
+ * and the caller trims the surplus. Intraday intervals have their own, much
+ * shorter history limits upstream (minute data goes back days, not months);
+ * the ranges paired with them here stay inside those limits.
+ */
+function toYahooRange(spanDays: number): string {
+  if (spanDays <= 1) return "1d";
+  if (spanDays <= 5) return "5d";
+  if (spanDays <= 30) return "1mo";
+  if (spanDays <= 90) return "3mo";
+  if (spanDays <= 180) return "6mo";
+  return "1y";
+}
+
+const SUPPORTED_MINUTE_INTERVALS = [5, 15, 30, 60];
+
+function toYahooInterval(unit: HistoricalCandlesParams["unit"], interval: number): string {
+  if (unit === "days" && interval === 1) return "1d";
+  if (unit === "minutes" && SUPPORTED_MINUTE_INTERVALS.includes(interval)) {
+    return `${interval}m`;
+  }
+  throw new MarketDataError(
+    "provider_error",
+    `YahooFinanceMarketDataProvider supports unit=days interval=1 or unit=minutes interval=${SUPPORTED_MINUTE_INTERVALS.join("/")}, got unit=${unit} interval=${interval}`,
+  );
+}
+
+function spanInDays(toDate: string, fromDate?: string): number {
+  if (!fromDate) return 90;
+  const ms = Date.parse(`${toDate}T00:00:00Z`) - Date.parse(`${fromDate}T00:00:00Z`);
+  if (Number.isNaN(ms)) return 90;
+  return Math.max(1, Math.round(ms / 86_400_000));
+}
+
 /**
  * Reads market data from Yahoo Finance's unofficial, undocumented chart API —
  * no API key, no account, no per-user auth. Chosen over Upstox/Dhan/Angel One
@@ -152,20 +192,15 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
   async getHistoricalCandles(params: HistoricalCandlesParams): Promise<Candle[]> {
     const { instrumentKey } = params;
 
-    // Yahoo's chart endpoint takes a range/interval pair, not from/to dates.
-    // This pipeline always requests daily candles (unit=days, interval=1) with
-    // a ~90-day lookback (see CANDLE_LOOKBACK_DAYS in daily-briefing.service.ts),
-    // so "3mo"/"1d" comfortably covers every caller today; if a caller ever
-    // needs a different unit/interval this must be revisited rather than
-    // silently mismapped.
-    if (params.unit !== "days" || params.interval !== 1) {
-      throw new MarketDataError(
-        "provider_error",
-        `YahooFinanceMarketDataProvider only supports unit=days interval=1, got unit=${params.unit} interval=${params.interval}`,
-      );
-    }
+    // The requested window is honoured, not assumed: a watchlist item carries
+    // its own chart window (a day of 5-minute candles, a year of daily ones),
+    // and this used to hardcode "3mo"/"1d" — every longer window silently got
+    // three months of data.
+    const interval = toYahooInterval(params.unit, params.interval);
+    const range = toYahooRange(spanInDays(params.toDate, params.fromDate));
+    const intraday = params.unit === "minutes";
 
-    const chartResult = await this.fetchChart(instrumentKey, "3mo", "1d");
+    const chartResult = await this.fetchChart(instrumentKey, range, interval);
 
     const quote = chartResult.indicators.quote[0];
     if (!quote) {
@@ -189,7 +224,11 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
         continue;
       }
       candles.push({
-        timestamp: toIsoDate(chartResult.timestamp[i]),
+        // Intraday candles keep their time-of-day: several candles share one
+        // calendar date, so a date-only stamp would collapse them.
+        timestamp: intraday
+          ? toIsoTimestamp(chartResult.timestamp[i])
+          : toIsoDate(chartResult.timestamp[i]),
         open,
         high,
         low,
