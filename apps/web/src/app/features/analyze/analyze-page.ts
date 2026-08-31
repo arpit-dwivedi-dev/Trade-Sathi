@@ -63,8 +63,8 @@ export class AnalyzePage implements OnInit, OnDestroy {
   }
 
   protected async onFileSelected(selection: ChartFileSelection): Promise<void> {
-    // Belt and braces: chart-drop is already given disabled=true off-idle.
-    if (this.state() !== 'idle') return;
+    // Belt and braces: chart-drop is already given disabled=true off-idle/off-complete.
+    if (this.state() !== 'idle' && this.state() !== 'complete') return;
 
     this.state.set('uploading');
     this.error.set(null);

@@ -1,6 +1,6 @@
 <section class="body content-max analyze">
   <app-chart-drop
-    [disabled]="state() !== 'idle' || quotaExhausted()"
+    [disabled]="(state() !== 'idle' && state() !== 'complete') || quotaExhausted()"
     (fileSelected)="onFileSelected($event)"
   />
 
