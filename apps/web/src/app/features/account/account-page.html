@@ -10,11 +10,27 @@
         <b>Chart</b><span>Analyzer</span>
       </a>
       <div class="account-bar-end">
-        <button type="button" class="btn btn-g btn-sm" (click)="toggleTheme()"
+        <button type="button" class="btn btn-g btn-sm btn-icon" (click)="toggleTheme()"
                 [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
-          {{ theme() === 'dark' ? 'Light' : 'Dark' }}
+          @if (theme() === 'dark') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+            </svg>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          }
         </button>
-        <button type="button" class="btn btn-s btn-sm" (click)="signOut()">Sign out</button>
+        <button type="button" class="btn btn-s btn-sm" (click)="signOut()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="15" height="15">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M21 12H9" />
+          </svg>
+          Sign out
+        </button>
       </div>
     </div>
   </header>

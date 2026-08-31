@@ -206,6 +206,16 @@
   padding: var(--s1) var(--s3);
 }
 
+.btn-icon {
+  padding: var(--s1);
+  width: 34px;
+}
+
+.btn-icon svg {
+  height: 18px;
+  width: 18px;
+}
+
 /* ── surfaces ───────────────────────────────────────────── */
 .card {
   background: var(--surf);

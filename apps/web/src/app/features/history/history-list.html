@@ -66,8 +66,10 @@
             <!-- queued/processing here is not a bug: an analysis submitted from
                  another tab or session can still be in flight. -->
             <span><span class="st st-{{ row.status }}">{{ row.status }}</span></span>
-            <span class="history-chevron" aria-hidden="true">
-              {{ expandedId() === row.id ? '▾' : '▸' }}
+            <span class="history-chevron" [class.history-chevron-open]="expandedId() === row.id" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
             </span>
           </button>
 

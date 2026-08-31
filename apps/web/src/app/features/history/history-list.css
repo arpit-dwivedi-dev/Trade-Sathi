@@ -61,6 +61,16 @@
   justify-content: flex-end;
 }
 
+.history-chevron svg {
+  height: 15px;
+  transition: transform var(--dur-subtle) var(--ease-move);
+  width: 15px;
+}
+
+.history-chevron-open svg {
+  transform: rotate(90deg);
+}
+
 .history-detail {
   background: var(--surf-2);
   border-top: 1px solid var(--line-soft);
