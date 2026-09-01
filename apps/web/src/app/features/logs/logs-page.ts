@@ -1,5 +1,7 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
+import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
 
 /** Mirrors the daily_briefing_status enum in 20260831160300_daily_briefing_schema.sql. */
@@ -60,8 +62,9 @@ const ROW_LIMIT = 20;
   templateUrl: './logs-page.html',
   styleUrl: './logs-page.css',
 })
-export class LogsPage implements OnInit {
+export class LogsPage implements OnInit, OnDestroy {
   private readonly supabase = inject(SupabaseClientService);
+  private readonly auth = inject(AuthService);
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -70,43 +73,147 @@ export class LogsPage implements OnInit {
   protected readonly watchlistRuns = signal<WatchlistRunRow[]>([]);
   protected readonly errorLog = signal<ErrorLogRow[]>([]);
 
+  /** Open subscriptions, one per source table; closed in ngOnDestroy. */
+  private channels: RealtimeChannel[] = [];
+  private reloadTimer: ReturnType<typeof setTimeout> | null = null;
+  private destroyed = false;
+
+  /**
+   * Coalescing window for Realtime events. A single briefing run touches all
+   * three tables within a second or two, and this page re-reads all three at
+   * once, so one reload per event would be three near-identical triples.
+   */
+  private static readonly RELOAD_DEBOUNCE_MS = 500;
+
   ngOnInit(): void {
     void this.load();
+    this.watchSources();
   }
 
-  protected async load(): Promise<void> {
+  ngOnDestroy(): void {
+    this.destroyed = true;
+    if (this.reloadTimer !== null) {
+      clearTimeout(this.reloadTimer);
+      this.reloadTimer = null;
+    }
+    const client = this.supabase.client;
+    for (const channel of this.channels) void client?.removeChannel(channel);
+    this.channels = [];
+  }
+
+  /**
+   * Keeps the page live rather than a snapshot taken on mount.
+   *
+   * This is the page a user opens *because* something is running, which is
+   * exactly when a mount-time read is most likely to be stale a second later:
+   * a run settling, a briefing finishing, an error being written. Each source
+   * is subscribed separately because they are separate tables — a channel is
+   * per (table, filter) — and any of them changing re-reads all three, since
+   * load() is a single cheap triple and the page renders them together.
+   *
+   * RLS scopes each subscription server-side; the profile filter is still
+   * passed so these sockets are not asked to carry anyone else's rows.
+   */
+  private watchSources(): void {
+    const client = this.supabase.client;
+    const profileId = this.auth.user()?.id;
+    if (!client || !profileId) return;
+
+    for (const table of ['app_error_logs', 'watchlist_analysis_runs', 'daily_briefing_log']) {
+      const channel = client
+        .channel(`logs-${table}-${profileId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table, filter: `profile_id=eq.${profileId}` },
+          () => this.scheduleReload(),
+        )
+        .subscribe();
+      this.channels.push(channel);
+    }
+  }
+
+  private scheduleReload(): void {
+    if (this.destroyed || this.reloadTimer !== null) return;
+    this.reloadTimer = setTimeout(() => {
+      this.reloadTimer = null;
+      // Skipped while a read is already in flight; that read is itself newer
+      // than the event, and the next event reloads again anyway.
+      if (this.destroyed || this.loading()) return;
+      void this.load(true);
+    }, LogsPage.RELOAD_DEBOUNCE_MS);
+  }
+
+  /**
+   * Human wording for a category. app_error_logs.category is free text by
+   * design (see its migration), so an unknown value falls back to itself
+   * rather than being dropped — a new category from the API must never make
+   * a row unreadable here.
+   */
+  protected categoryLabel(category: string): string {
+    switch (category) {
+      case 'analysis':
+        return 'upload';
+      case 'live_run':
+        return 'live chart';
+      case 'watchlist_run':
+        return 'watchlist';
+      case 'briefing':
+        return 'daily briefing';
+      default:
+        return category;
+    }
+  }
+
+  /**
+   * `background` is set by the Realtime path: that read replaces content the
+   * user is already looking at, and swapping a populated page for a spinner
+   * every time a row changes would be worse than the stale snapshot this
+   * whole subscription exists to fix. It also leaves the last error banner
+   * alone until it knows better, for the same reason.
+   */
+  protected async load(background = false): Promise<void> {
     const client = this.supabase.client;
     if (!client) return;
 
-    this.loading.set(true);
-    this.error.set(null);
+    if (!background) {
+      this.loading.set(true);
+      this.error.set(null);
+    }
 
     const [briefing, runs, errors] = await Promise.all([
       client
         .from('daily_briefing_log')
         .select('id, briefing_date, run_hour_ist, run_minute_ist, status, symbols_sent, symbols_failed, updated_at')
         .order('created_at', { ascending: false })
-        .limit(ROW_LIMIT),
+        .limit(ROW_LIMIT)
+        .returns<BriefingLogRow[]>(),
       client
         .from('watchlist_analysis_runs')
         .select('id, status, lookback_days, created_at, instruments(symbol, name)')
         .order('created_at', { ascending: false })
-        .limit(ROW_LIMIT),
+        .limit(ROW_LIMIT)
+        .returns<WatchlistRunRow[]>(),
       client
         .from('app_error_logs')
         .select('id, category, message, detail, created_at')
         .order('created_at', { ascending: false })
-        .limit(ROW_LIMIT),
+        .limit(ROW_LIMIT)
+        .returns<ErrorLogRow[]>(),
     ]);
 
+    if (this.destroyed) return;
+
     if (briefing.error || runs.error || errors.error) {
-      this.error.set('Could not load your logs.');
+      // A failed background refresh keeps whatever is on screen: it is still
+      // valid, and the next event retries.
+      if (!background) this.error.set('Could not load your logs.');
     } else {
-      this.briefingLog.set((briefing.data ?? []) as unknown as BriefingLogRow[]);
-      this.watchlistRuns.set((runs.data ?? []) as unknown as WatchlistRunRow[]);
-      this.errorLog.set((errors.data ?? []) as unknown as ErrorLogRow[]);
+      this.error.set(null);
+      this.briefingLog.set(briefing.data ?? []);
+      this.watchlistRuns.set(runs.data ?? []);
+      this.errorLog.set(errors.data ?? []);
     }
-    this.loading.set(false);
+    if (!background) this.loading.set(false);
   }
 
   protected briefingStatusLabel(row: BriefingLogRow): string {

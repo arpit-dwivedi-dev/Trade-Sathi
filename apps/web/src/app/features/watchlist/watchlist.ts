@@ -9,6 +9,7 @@ import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
 import type { Instrument } from '@chartanalyzer/shared';
 import { AuthService } from '../../core/auth.service';
+import { startRowWatch, type RowWatch } from '../../core/row-watch';
 import { SupabaseClientService } from '../../core/supabase-client';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import { BillingService } from '../billing/billing.service';
@@ -187,6 +188,13 @@ export class Watchlist implements OnInit, OnDestroy {
   private briefingLogChannel: RealtimeChannel | null = null;
 
   /**
+   * Live run watches by run id, so ngOnDestroy can close their channels. A
+   * leaked channel is not just a timer: it holds a Realtime subscription open
+   * for a component that is gone.
+   */
+  private readonly runWatches = new Map<string, RowWatch>();
+
+  /**
    * True from the moment Analyze Now or Brief Now is pressed until its run
    * settles, OR while the scheduled job is processing this item (see
    * scheduledBusyItemIds above) — the two paths share the same visual
@@ -210,15 +218,18 @@ export class Watchlist implements OnInit, OnDestroy {
   private readonly querySubject = new Subject<string>();
 
   /**
-   * The Watchlist tab is unmounted whenever the user looks at another tab, but
-   * pollRun is a plain await-loop that knew nothing about that: it kept
-   * querying for up to two minutes after destruction and kept writing to
-   * signals nobody was rendering. Every loop checks this and stops.
+   * The Watchlist tab is unmounted whenever the user looks at another tab.
+   * A run watch outlives that on its own — it would keep querying for up to
+   * two minutes after destruction and keep writing to signals nobody is
+   * rendering — so every check reads this and stops. ngOnDestroy also closes
+   * the watches outright; this covers a check already in flight.
    */
   private destroyed = false;
 
   ngOnDestroy(): void {
     this.destroyed = true;
+    for (const watch of this.runWatches.values()) watch.stop();
+    this.runWatches.clear();
     if (this.briefingLogChannel) {
       void this.supabase.client?.removeChannel(this.briefingLogChannel);
       this.briefingLogChannel = null;
@@ -467,7 +478,7 @@ export class Watchlist implements OnInit, OnDestroy {
    * `mode` picks which of the two row actions this is. 'analyze' just produces
    * the analysis; 'brief' also emails it, with the PDF attached. They are one
    * method rather than two because everything else — the entitlement, the
-   * chart capture, the duplicate warning, the 202-then-poll contract, the
+   * chart capture, the duplicate warning, the 202-then-watch contract, the
    * error mapping — is identical, and the endpoint is the only fork.
    *
    * `force` re-runs a chart the user has already analysed recently, after
@@ -530,7 +541,7 @@ export class Watchlist implements OnInit, OnDestroy {
       );
       this.runModes.update((modes) => ({ ...modes, [item.id]: mode }));
       this.activeRuns.update((runs) => ({ ...runs, [item.id]: accepted.runId }));
-      await this.pollRun(item.id, accepted.runId);
+      this.watchRun(item.id, accepted.runId);
     } catch (cause) {
       if (cause instanceof HttpErrorResponse && cause.status === 409) {
         // Not a failure: the same symbol over the same window was analysed in
@@ -625,11 +636,10 @@ export class Watchlist implements OnInit, OnDestroy {
 
   /**
    * Subscribes to this profile's own daily_briefing_log rows so a scheduled
-   * run's start/finish is reflected within moments, not on the next poll —
-   * there is no fixed interval to miss a run shorter than, unlike pollRun's
-   * fallback timer below (that one exists because an Analyze Now run has no
-   * Realtime counterpart to lean on; this one does, so it can skip polling
-   * entirely). RLS scopes the subscription server-side, same as the read
+   * run's start/finish is reflected within moments rather than on a fixed
+   * interval that could miss a run shorter than itself — the same mechanism
+   * watchRun below now uses for an Analyze Now run. RLS scopes the
+   * subscription server-side, same as the read
    * above, but the filter is still passed so this socket is not asked to
    * carry rows for anyone else's profile in the first place.
    */
@@ -653,14 +663,19 @@ export class Watchlist implements OnInit, OnDestroy {
       .subscribe();
   }
 
-  private static readonly POLL_INTERVAL_MS = 3000;
-  private static readonly POLL_MAX_ATTEMPTS = 40; // ~2 min
+  /**
+   * How long a single run is watched before this tab stops caring. Unchanged
+   * from the two minutes the old 3s x 40 poll loop allowed: the run itself is
+   * recorded server-side either way, so this is only how long a spinner is
+   * held, not how long the pipeline is given.
+   */
+  private static readonly RUN_WATCH_TIMEOUT_MS = 120_000;
 
   /**
    * Picks up runs that are already recorded server-side rather than assuming
    * this tab started (and is still watching) every run: a reload, a second
    * device, or a tab closed mid-run all leave a row here. In-flight runs
-   * resume polling; runs that settled while the user was away still show
+   * resume watching; runs that settled while the user was away still show
    * their outcome, so a refresh never loses a result the user paid a quota
    * unit for.
    */
@@ -692,7 +707,7 @@ export class Watchlist implements OnInit, OnDestroy {
       }
 
       this.activeRuns.update((runs) => ({ ...runs, [run.watchlist_item_id]: run.id }));
-      void this.pollRun(run.watchlist_item_id, run.id);
+      this.watchRun(run.watchlist_item_id, run.id);
     }
   }
 
@@ -715,22 +730,53 @@ export class Watchlist implements OnInit, OnDestroy {
 
   /**
    * Watches one run row until it settles. The run row exists from the moment
-   * the API accepts the request, so unlike polling `analyses` for a row that
+   * the API accepts the request, so unlike watching `analyses` for a row that
    * may never appear, a failure is an explicit 'failed' status rather than a
    * timeout.
+   *
+   * Driven by Realtime rather than a fixed interval (startRowWatch keeps a
+   * slow timer as the fallback for a browser that cannot hold the socket).
+   * A run settles exactly twice in its life and takes 20-30s, so a 3-second
+   * poll spent ten wide reads per run to learn about a change the database
+   * can push, and still reported it up to three seconds late.
    */
-  private async pollRun(itemId: string, runId: string): Promise<void> {
+  private watchRun(itemId: string, runId: string): void {
     const client = this.supabase.client;
     if (!client) {
       this.clearRun(itemId);
       return;
     }
 
-    for (let attempt = 0; attempt < Watchlist.POLL_MAX_ATTEMPTS; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, Watchlist.POLL_INTERVAL_MS));
+    const startedAt = Date.now();
+    let settled = false;
+    let watch: RowWatch | null = null;
+
+    const stop = (): void => {
+      settled = true;
+      watch?.stop();
+      watch = null;
+    };
+
+    const check = async (): Promise<void> => {
+      if (settled) return;
       // The run itself is recorded server-side and resumeRuns picks it up on
-      // the next mount, so abandoning the loop here loses nothing.
-      if (this.destroyed) return;
+      // the next mount, so abandoning the watch here loses nothing.
+      if (this.destroyed) {
+        stop();
+        return;
+      }
+
+      if (Date.now() - startedAt >= Watchlist.RUN_WATCH_TIMEOUT_MS) {
+        stop();
+        // Only this tab stopped watching; the run itself is still recorded and
+        // will be picked up again by resumeRuns on the next load.
+        this.analyzeResult.update((results) => ({
+          ...results,
+          [itemId]: 'Still processing — reopen this page in a bit to see the result.',
+        }));
+        this.clearRun(itemId);
+        return;
+      }
 
       const { data, error } = await client
         .from('watchlist_analysis_runs')
@@ -738,29 +784,37 @@ export class Watchlist implements OnInit, OnDestroy {
         .eq('id', runId)
         .maybeSingle<{ status: WatchlistRun['status'] }>();
 
-      if (error) continue;
+      // A read blip is not a failed run: the next event or fallback tick
+      // retries, and the timeout above is what eventually gives up.
+      if (error || settled) return;
 
-      const settled = data?.status;
-      if (settled === 'complete' || settled === 'failed') {
+      const status = data?.status;
+      if (status === 'complete' || status === 'failed') {
+        stop();
         this.analyzeResult.update((results) => ({
           ...results,
-          [itemId]: Watchlist.settledMessage(settled, this.runModes()[itemId]),
+          [itemId]: Watchlist.settledMessage(status, this.runModes()[itemId]),
         }));
         this.clearRun(itemId);
-        return;
       }
-    }
+    };
 
-    // Only this tab stopped watching; the run itself is still recorded and
-    // will be picked up again by resumeRuns on the next load.
-    this.analyzeResult.update((results) => ({
-      ...results,
-      [itemId]: 'Still processing — reopen this page in a bit to see the result.',
-    }));
-    this.clearRun(itemId);
+    watch = startRowWatch(
+      client,
+      `watchlist-run-${runId}`,
+      'watchlist_analysis_runs',
+      `id=eq.${runId}`,
+      () => void check(),
+    );
+    this.runWatches.set(runId, watch);
   }
 
   private clearRun(itemId: string): void {
+    const runId = this.activeRuns()[itemId];
+    if (runId) {
+      this.runWatches.get(runId)?.stop();
+      this.runWatches.delete(runId);
+    }
     this.activeRuns.update((runs) => {
       const rest = { ...runs };
       delete rest[itemId];

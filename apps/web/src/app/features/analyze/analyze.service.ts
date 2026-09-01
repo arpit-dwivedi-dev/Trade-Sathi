@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { startAnalysisWatch, type AnalysisWatch } from '../../core/analysis-watch';
+import { startRowWatch, type RowWatch } from '../../core/row-watch';
 import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
@@ -189,7 +189,7 @@ export class AnalyzeService {
    * Watches the analyses row directly through the browser Supabase client — RLS
    * already permits reading your own rows, so no backend endpoint is needed.
    *
-   * startAnalysisWatch decides when to re-read: a Realtime subscription on this
+   * startRowWatch decides when to re-read: a Realtime subscription on this
    * row, backed by a timer that carries the load on its own if the socket never
    * comes up. The reading, the timeout and the failure policy below are
    * unchanged from when this was a bare 2-second poll.
@@ -200,7 +200,7 @@ export class AnalyzeService {
   pollAnalysis(id: string, onUpdate: (row: AnalysisRow) => void): PollHandle {
     const client = this.supabase.client;
 
-    let watch: AnalysisWatch | null = null;
+    let watch: RowWatch | null = null;
     let settled = false;
     let consecutiveFailures = 0;
     const startedAt = Date.now();
@@ -278,7 +278,7 @@ export class AnalyzeService {
         }
       };
 
-      watch = startAnalysisWatch(client, `analysis-${id}`, `id=eq.${id}`, () => {
+      watch = startRowWatch(client, `analysis-${id}`, 'analyses', `id=eq.${id}`, () => {
         void tick();
       });
     });

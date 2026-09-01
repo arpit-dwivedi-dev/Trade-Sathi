@@ -1,5 +1,8 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
+import { AuthService } from '../../core/auth.service';
+import { SupabaseClientService } from '../../core/supabase-client';
 import { ChartImage } from '../../shared/chart-image';
 import { AnalysisResult } from '../analyze/analysis-result';
 import { AnalysisPdfService } from './analysis-pdf.service';
@@ -23,9 +26,11 @@ import {
   templateUrl: './history-list.html',
   styleUrl: './history-list.css',
 })
-export class HistoryList implements OnInit {
+export class HistoryList implements OnInit, OnDestroy {
   private readonly history = inject(HistoryService);
   private readonly pdf = inject(AnalysisPdfService);
+  private readonly supabase = inject(SupabaseClientService);
+  private readonly auth = inject(AuthService);
 
   protected readonly rows = signal<HistoryRow[]>([]);
   protected readonly nextCursor = signal<string | null>(null);
@@ -58,8 +63,112 @@ export class HistoryList implements OnInit {
   protected readonly exportingId = signal<string | null>(null);
   protected readonly exportError = signal<string | null>(null);
 
+  /** Realtime subscription to this profile's analyses; null during SSR. */
+  private analysesChannel: RealtimeChannel | null = null;
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private destroyed = false;
+
+  /**
+   * Coalescing window for Realtime events. One analysis writes its row at
+   * least twice (queued, then complete), and a finishing daily briefing
+   * writes one per watched symbol within a second or two — refetching the
+   * first page per event would be a burst of identical queries.
+   */
+  private static readonly REFRESH_DEBOUNCE_MS = 400;
+
   ngOnInit(): void {
     void this.loadFirstPage();
+    this.watchAnalyses();
+  }
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
+    if (this.refreshTimer !== null) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    if (this.analysesChannel) {
+      void this.supabase.client?.removeChannel(this.analysesChannel);
+      this.analysesChannel = null;
+    }
+  }
+
+  /**
+   * Keeps the list current without the user reloading the page.
+   *
+   * History was the one place a finished analysis did not reach on its own:
+   * an upload watched its own row on the Analyze page, but the moment the
+   * user switched to History the list was a snapshot of whatever was true
+   * when it mounted, so a completing upload, a live run or a daily briefing
+   * only appeared on a manual refresh. RLS scopes the subscription
+   * server-side; the profile filter is still passed so this socket is not
+   * asked to carry rows for anyone else in the first place.
+   */
+  private watchAnalyses(): void {
+    const client = this.supabase.client;
+    const profileId = this.auth.user()?.id;
+    if (!client || !profileId) return;
+
+    this.analysesChannel = client
+      .channel(`history-analyses-${profileId}`)
+      .on(
+        'postgres_changes',
+        {
+          // INSERT (a run appearing) and UPDATE (one settling) both change
+          // what this list should show.
+          event: '*',
+          schema: 'public',
+          table: 'analyses',
+          filter: `profile_id=eq.${profileId}`,
+        },
+        () => this.scheduleRefresh(),
+      )
+      .subscribe();
+  }
+
+  private scheduleRefresh(): void {
+    if (this.destroyed || this.refreshTimer !== null) return;
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = null;
+      void this.refreshFirstPage();
+    }, HistoryList.REFRESH_DEBOUNCE_MS);
+  }
+
+  /**
+   * Re-reads the first page and merges it into what is already displayed.
+   *
+   * Deliberately not a reload: the user may have paged well past the first
+   * page, and dropping those rows under them is worse than a slightly stale
+   * tail. Rows already held are updated in place (a 'queued' row becoming
+   * 'complete' is exactly the case this exists for) and genuinely new ones
+   * are prepended, so scroll position and the expanded row both survive.
+   */
+  private async refreshFirstPage(): Promise<void> {
+    // A page load or a "Load more" in flight owns `rows` and its cursor;
+    // merging underneath it would fight for the same state. The next event
+    // refreshes anyway, and a first load is itself already current.
+    if (this.destroyed || this.loading() || this.loadingMore()) return;
+
+    try {
+      const page = await this.history.fetchHistory(undefined, undefined, this.sourceFilter());
+      if (this.destroyed) return;
+
+      this.rows.update((existing) => {
+        const held = new Set(existing.map((row) => row.id));
+        const updated = new Map(page.rows.map((row) => [row.id, row] as const));
+        const merged = existing.map((row) => updated.get(row.id) ?? row);
+        return [...page.rows.filter((row) => !held.has(row.id)), ...merged];
+      });
+
+      // Only meaningful while the first page is also the last one; once the
+      // user has paged on, the cursor they hold is further down the list.
+      this.nextCursor.update((cursor) => cursor ?? page.nextCursor);
+    } catch (cause) {
+      // Silent on purpose: the list on screen is still valid, and the next
+      // event (or the user's own refresh) retries. Replacing it with an error
+      // banner would be a regression for a background read nobody asked for.
+      console.warn('history refresh failed', cause);
+    }
   }
 
   private async loadFirstPage(): Promise<void> {
