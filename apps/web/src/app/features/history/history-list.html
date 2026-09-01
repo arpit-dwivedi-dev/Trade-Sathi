@@ -1,8 +1,17 @@
 <section class="body content-max history">
   <div class="history-head">
-    <h1 class="history-title">Your analyses</h1>
+    <div class="page-head">
+      <h1 class="page-title">Your analyses</h1>
+      <p class="page-sub">
+        Every chart you've run, with the readings it came back with. Open one to see the full
+        report.
+      </p>
+    </div>
     @if (!loading() && rows().length) {
-      <span class="lbl">Showing <span class="num history-count">{{ rows().length }}</span></span>
+      <span class="history-count">
+        <span class="num">{{ rows().length }}</span>
+        <span class="lbl">shown</span>
+      </span>
     }
   </div>
 
@@ -32,10 +41,18 @@
     </div>
   } @else if (rows().length === 0) {
     <div class="card history-empty history-empty-first">
-      <span class="lbl">No analyses yet</span>
-      <h2 class="history-empty-title">Upload your first chart to get started</h2>
+      <span class="history-empty-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
+             stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M3 15.5 8 11l3.5 3.5L15 11l6 5.5" />
+          <circle cx="8.5" cy="8.5" r="1.2" />
+        </svg>
+      </span>
+      <h2 class="history-empty-title">No analyses yet</h2>
       <p class="history-msg">
-        Analyses you run are saved here with their symbol, timeframe and readings.
+        Upload your first chart on the Analyze tab. Every run is saved here with its symbol,
+        timeframe and readings.
       </p>
     </div>
   } @else {
@@ -46,7 +63,7 @@
       </div>
 
       @for (row of rows(); track row.id) {
-        <div class="history-row">
+        <div class="history-row" [class.history-row-open]="expandedId() === row.id">
           <!-- the export control is a sibling of the toggle, not a child: a
                button cannot legally nest inside another button. -->
           <div class="history-row-head">
@@ -56,16 +73,20 @@
             [attr.aria-expanded]="expandedId() === row.id"
             (click)="toggle(row)"
           >
-            <span class="history-when">
-              <span class="num history-age">{{ relativeDate(row.created_at) }}</span>
-            </span>
+            <span class="num history-age">{{ relativeDate(row.created_at) }}</span>
             <span class="sym trunc" translate="no" [class.history-unknown]="!row.symbol_raw">
               {{ row.symbol_raw ?? 'Not detected' }}
             </span>
             <span class="history-cell">{{ row.asset_class ?? '—' }}</span>
             <span class="num history-tf">{{ row.timeframe ?? '—' }}</span>
             <span class="history-cell">{{ row.trend ?? '—' }}</span>
-            <span class="history-cell">{{ row.call_direction ?? '—' }}</span>
+            <span>
+              @if (row.call_direction; as direction) {
+                <span class="dir d-{{ direction }} history-dir">{{ direction }}</span>
+              } @else {
+                <span class="history-cell">—</span>
+              }
+            </span>
             <!-- queued/processing here is not a bug: an analysis submitted from
                  another tab or session can still be in flight. -->
             <span><span class="st st-{{ row.status }}">{{ row.status }}</span></span>
@@ -78,13 +99,20 @@
 
           <button
             type="button"
-            class="btn btn-s history-export"
+            class="btn btn-g btn-sm history-export"
             [disabled]="exportingId() !== null"
             [attr.aria-label]="'Download PDF for ' + (row.symbol_raw ?? 'this analysis')"
             (click)="exportPdf(row, $event)"
           >
             @if (exportingId() === row.id) {
               <span class="spin" aria-hidden="true"></span>
+            } @else {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v11" />
+                <path d="M8 11l4 4 4-4" />
+                <path d="M4 20h16" />
+              </svg>
             }
             {{ exportingId() === row.id ? 'Building…' : 'PDF' }}
           </button>
@@ -93,7 +121,7 @@
           @if (expandedId() === row.id) {
             <div class="history-detail">
               @if (detailLoading()) {
-                <p class="history-msg"><span class="spin" aria-hidden="true"></span> Loading…</p>
+                <p class="history-msg"><span class="spin" aria-hidden="true"></span> Loading the full report…</p>
               } @else if (detailError()) {
                 <p class="err" role="alert">{{ detailError() }}</p>
               } @else if (detail(); as loaded) {

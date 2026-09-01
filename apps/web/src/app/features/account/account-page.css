@@ -8,6 +8,7 @@
 .bar-inner {
   align-items: center;
   display: flex;
+  gap: var(--s4);
   height: 100%;
   justify-content: space-between;
 }
@@ -17,46 +18,82 @@
   height: 100%;
 }
 
-.account-bar-end {
+.bar-end {
   align-items: center;
   display: flex;
-  gap: var(--s3);
+  gap: var(--s2);
+  min-width: 0;
 }
 
-.tabs a.tab,
-.tabs span.tab {
-  border-bottom: 2px solid transparent;
-  text-decoration: none;
+.who {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+  min-width: 0;
+  padding-left: var(--s1);
 }
 
-.tabs span.tab[aria-current='page'] {
-  border-bottom-color: var(--acc);
-  color: var(--acc-tx);
-}
-
-.account-title {
-  font-size: 26px;
+.who-mark {
+  align-items: center;
+  background: var(--surf-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--tx-2);
+  display: flex;
+  flex: none;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  height: 26px;
+  justify-content: center;
   text-transform: uppercase;
+  width: 26px;
 }
 
+.who-email {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
+  max-width: 200px;
+}
+
+/* The current tab here is a <span>, not a link, so it needs the same marker
+   .tab[aria-current] gives the button and anchor forms. */
+.tabs span.tab[aria-current='page'] {
+  color: var(--tx);
+  font-weight: 600;
+}
+
+.tabs span.tab[aria-current='page']::after {
+  background: var(--acc);
+}
+
+/* ── layout ─────────────────────────────────────────────── */
 .account-grid {
   align-items: start;
   display: grid;
-  gap: var(--s6);
-  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: var(--s5);
+  grid-template-columns: minmax(0, 1fr) 340px;
 }
 
+.account-main,
+.account-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+/* ── usage panel ────────────────────────────────────────── */
 .account-panel {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
-  padding: var(--s8);
+  padding: var(--s6);
 }
 
 .account-loading {
   align-items: center;
+  color: var(--slab-dim);
   display: flex;
-  font-size: 13.5px;
+  font-size: var(--t-sm);
   gap: var(--s2);
   line-height: 1.55;
 }
@@ -72,35 +109,39 @@
 .account-usage-main {
   display: flex;
   flex-direction: column;
-  gap: var(--s1);
+  gap: var(--s2);
 }
 
 .account-usage-figure {
   align-items: baseline;
   display: flex;
-  gap: var(--s2);
+  gap: 6px;
 }
 
 .account-used {
-  font-size: 48px;
-  font-weight: 700;
+  font-size: var(--t-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
   line-height: 1;
 }
 
 .account-limit {
-  font-size: 20px;
+  color: var(--slab-dim);
+  font-size: var(--t-lg);
 }
 
 .account-usage-rem {
   align-items: flex-end;
   display: flex;
   flex-direction: column;
-  gap: var(--s1);
+  gap: 2px;
 }
 
 .account-rem {
-  font-size: 26px;
-  font-weight: 700;
+  font-size: var(--t-2xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
 }
 
 .account-meter {
@@ -108,65 +149,97 @@
   height: 6px;
 }
 
-.account-details {
+:root[data-theme='dark'] .account-meter {
+  color: var(--acc);
+}
+
+.account-reset {
+  color: var(--slab-dim);
+}
+
+/* ── upsell ─────────────────────────────────────────────── */
+.account-upsell {
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
-  font-size: 13px;
+  gap: var(--s4);
+  padding: var(--s5);
 }
 
-.account-key {
-  color: var(--tx-2);
-}
-
-.account-val {
-  max-width: 220px;
-}
-
-.account-block {
+.account-upsell-copy {
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
+  gap: 6px;
 }
 
 .account-h {
-  font-size: 20px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--t-lg);
+  letter-spacing: -0.017em;
 }
 
 .account-msg {
   color: var(--tx-2);
-  font-size: 13.5px;
+  font-size: var(--t-sm);
+  line-height: 1.55;
   max-width: 60ch;
 }
 
-@media (max-width: 860px) {
-  .account-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.account-main,
-.account-side {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s4);
-}
-
+/* ── side cards ─────────────────────────────────────────── */
 .account-plan {
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
+  gap: var(--s2);
 }
 
 .account-plan-name {
   font-family: var(--fh);
-  font-size: 24px;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-size: var(--t-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  padding-bottom: 6px;
 }
 
-.account-plan-row {
-  font-size: 13px;
+.account-plan-row,
+.account-details .lvl {
+  font-size: var(--t-xs);
+}
+
+.account-key {
+  color: var(--tx-3);
+}
+
+.account-val {
+  color: var(--tx);
+  max-width: 220px;
+  text-align: right;
+}
+
+.account-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.account-disc {
+  border-top: 1px solid var(--line-soft);
+  padding-top: var(--s4);
+}
+
+@media (max-width: 900px) {
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .who-email {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .who {
+    display: none;
+  }
+
+  .account-used {
+    font-size: var(--t-3xl);
+  }
 }

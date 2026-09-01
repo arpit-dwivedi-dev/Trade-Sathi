@@ -3,39 +3,50 @@
     <header class="bar">
       <div class="content-max bar-inner">
         <span class="brand">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--acc)"
-               stroke-width="1.5" aria-hidden="true">
-            <path d="M12 2v20M2 12h20" />
-            <circle cx="12" cy="12" r="6.5" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+            <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
+            <path d="M16 6h5v5" />
           </svg>
           <b>Chart</b><span>Analyzer</span>
         </span>
 
         <div class="bar-end">
-          <span class="bar-email trunc">{{ currentUser.email }}</span>
           <button type="button" class="btn btn-p btn-sm" (click)="openPlans()">
             {{ billingLabel() }}
           </button>
+
+          <span class="bar-rule" aria-hidden="true"></span>
+
           <button type="button" class="btn btn-g btn-sm btn-icon" (click)="toggleTheme()"
+                  [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                   [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
             @if (theme() === 'dark') {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="4" />
                 <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
               </svg>
             } @else {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
               </svg>
             }
           </button>
-          <button type="button" class="btn btn-s btn-sm" (click)="signOut()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="15" height="15">
+
+          <!-- Identity, not a control: the initial gives the header an anchor
+               on narrow viewports, where the address itself is hidden. -->
+          <span class="who">
+            <span class="who-mark" aria-hidden="true">{{ (currentUser.email ?? '?').charAt(0) }}</span>
+            <span class="who-email trunc">{{ currentUser.email }}</span>
+          </span>
+
+          <button type="button" class="btn btn-g btn-sm btn-icon" (click)="signOut()"
+                  title="Sign out" aria-label="Sign out">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <path d="M16 17l5-5-5-5" />
               <path d="M21 12H9" />
             </svg>
-            Sign out
           </button>
         </div>
       </div>
@@ -76,7 +87,7 @@
         <app-live-page (plansRequested)="openPlans()" />
       </div>
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading">Loading the live chart…</p>
+      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading the live chart…</p>
     }
 
     <!-- Deferred rather than @if'd, but the effect on mounting is the same:
@@ -86,7 +97,7 @@
         <app-history-list />
       }
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading">Loading your history…</p>
+      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your history…</p>
     }
 
     <!-- Created on activation, like History: a fresh mount is the refetch that
@@ -98,7 +109,7 @@
         <app-watchlist />
       }
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading">Loading your watchlist…</p>
+      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your watchlist…</p>
     }
 
     <!-- Mounted only while open, so closing tears the purchase buttons down
@@ -114,7 +125,7 @@
     <!-- Rendered during SSR and before client-side session restoration completes. -->
     <div class="shell-loading">
       <span class="spin" aria-hidden="true"></span>
-      <p class="lbl">Loading…</p>
+      <p class="lbl">Loading</p>
     </div>
   }
 </main>

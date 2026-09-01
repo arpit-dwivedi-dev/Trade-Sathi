@@ -1,35 +1,42 @@
 <main class="shell">
   <header class="bar">
     <div class="content-max bar-inner">
-      <a class="brand account-brand" routerLink="/app">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--acc)"
-             stroke-width="1.5" aria-hidden="true">
-          <path d="M12 2v20M2 12h20" />
-          <circle cx="12" cy="12" r="6.5" />
+      <a class="brand" routerLink="/app">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
+          <path d="M16 6h5v5" />
         </svg>
         <b>Chart</b><span>Analyzer</span>
       </a>
-      <div class="account-bar-end">
+      <div class="bar-end">
         <button type="button" class="btn btn-g btn-sm btn-icon" (click)="toggleTheme()"
+                [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                 [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
           @if (theme() === 'dark') {
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="4" />
               <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
             </svg>
           } @else {
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
           }
         </button>
-        <button type="button" class="btn btn-s btn-sm" (click)="signOut()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="15" height="15">
+
+        <span class="who">
+          <span class="who-mark" aria-hidden="true">{{ (user()?.email ?? '?').charAt(0) }}</span>
+          <span class="who-email trunc">{{ user()?.email }}</span>
+        </span>
+
+        <button type="button" class="btn btn-g btn-sm btn-icon" (click)="signOut()"
+                title="Sign out" aria-label="Sign out">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
             <path d="M16 17l5-5-5-5" />
             <path d="M21 12H9" />
           </svg>
-          Sign out
         </button>
       </div>
     </div>
@@ -38,6 +45,7 @@
   <nav class="tabs">
     <div class="content-max tabs-inner">
       <a class="tab" routerLink="/app" [queryParams]="{ tab: 'analyze' }">Analyze</a>
+      <a class="tab" routerLink="/app" [queryParams]="{ tab: 'live' }">Live</a>
       <a class="tab" routerLink="/app" [queryParams]="{ tab: 'history' }">History</a>
       <a class="tab" routerLink="/app" [queryParams]="{ tab: 'watchlist' }">Watchlist</a>
       <span class="tab" aria-current="page">Account</span>
@@ -45,47 +53,61 @@
   </nav>
 
   <div class="body content-max">
-    <h1 class="account-title">Plan &amp; usage</h1>
+    <div class="page-head">
+      <h1 class="page-title">Plan &amp; usage</h1>
+      <p class="page-sub">What you're on, what you've used, and how to get more.</p>
+    </div>
 
     <div class="account-grid">
       <div class="account-main">
         <div class="panel account-panel">
-          <i class="c c-tl"></i><i class="c c-tr"></i><i class="c c-bl"></i><i class="c c-br"></i>
-
           @if (loading()) {
-            <p class="dim account-loading">
+            <p class="account-loading">
               <span class="spin" aria-hidden="true"></span> Reading your usage…
             </p>
           } @else if (quota(); as q) {
             <div class="account-usage-head">
               <div class="account-usage-main">
-                <span class="lbl dim">This period</span>
+                <span class="lbl">Analyses used this period</span>
                 <span class="account-usage-figure">
                   <span class="num account-used">{{ q.used }}</span>
-                  <span class="num dim account-limit">/ {{ q.limit }}</span>
+                  <span class="num account-limit">/ {{ q.limit }}</span>
                 </span>
-                <span class="lbl dim">analyses used</span>
               </div>
               <div class="account-usage-rem">
                 <span class="num account-rem">{{ q.remaining }}</span>
-                <span class="lbl dim">remaining</span>
+                <span class="lbl">remaining</span>
               </div>
             </div>
             <div class="meter account-meter"><i [style.width.%]="usedPercent()"></i></div>
-            <span class="lbl dim">Resets at the start of next month</span>
+            <span class="lbl account-reset">Resets at the start of next month</span>
           } @else {
-            <p class="dim account-loading">
+            <p class="account-loading">
               Usage isn't available right now. Your analyses still run — the backend enforces the
               limit.
             </p>
           }
+        </div>
+
+        <div class="card account-upsell">
+          <div class="account-upsell-copy">
+            <h2 class="account-h">Need more analyses?</h2>
+            <p class="account-msg">
+              Upgrading raises your monthly allowance, and one-off credits stack on top of it.
+              Payment is handled by Razorpay.
+            </p>
+          </div>
+          <app-upgrade-button />
         </div>
       </div>
 
       <div class="account-side">
         @if (plan(); as p) {
           <div class="card">
-            <div class="hd"><span class="lbl-h">Current plan</span></div>
+            <div class="hd">
+              <span class="lbl-h">Current plan</span>
+              <span class="st st-complete">Active</span>
+            </div>
             <div class="pad account-plan">
               <span class="account-plan-name">{{ p.name }}</span>
               <div class="lvl account-plan-row">
@@ -94,7 +116,7 @@
               </div>
               <div class="lvl account-plan-row">
                 <span class="account-key">Included</span>
-                <span class="num account-val">{{ p.analysesPerMonth }} analyses / month</span>
+                <span class="num account-val">{{ p.analysesPerMonth }} / month</span>
               </div>
               <!-- Free-plan users have no subscriptions row, so no renewal date
                    exists to show — the plan simply has no billing cycle. -->
@@ -122,15 +144,7 @@
       </div>
     </div>
 
-    <div class="account-block">
-      <h2 class="account-h">Need more analyses?</h2>
-      <p class="account-msg">
-        Upgrading raises your monthly allowance. Payment is handled by Razorpay.
-      </p>
-      <app-upgrade-button />
-    </div>
-
-    <p class="disc">
+    <p class="disc account-disc">
       ChartAnalyzer produces AI-generated chart analysis. It is not investment advice and not a
       recommendation to buy or sell any instrument.
     </p>

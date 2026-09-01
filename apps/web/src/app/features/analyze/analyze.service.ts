@@ -12,7 +12,13 @@ import type { SourceType } from './chart-drop';
 const MAX_EDGE_PX = 1024;
 const JPEG_QUALITY = 0.8;
 
-const POLL_TIMEOUT_MS = 90_000;
+/* Matches the live view's budget, and for the same reason: the pipeline is a
+ * single model call whose wall-clock time was measured across repeat runs at
+ * 35-54s, so 90s left as little as half a minute of headroom and reported
+ * 'timed out' on an analysis that was still running and would have completed.
+ * The backend gives up on its own at 120s per attempt (see lib/ai-client.ts),
+ * so this now outlasts the work rather than pre-empting it. */
+const POLL_TIMEOUT_MS = 180_000;
 /** Consecutive query failures (~6s of continuous failure) before giving up. */
 const MAX_CONSECUTIVE_POLL_FAILURES = 3;
 

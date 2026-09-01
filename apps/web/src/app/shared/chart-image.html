@@ -3,10 +3,10 @@
     @if (loading()) {
       <div class="skel chart-image-skel" aria-busy="true"></div>
     } @else if (failed()) {
-      <p class="lbl chart-image-msg">Couldn't load the chart image.</p>
+      <p class="chart-image-msg">Couldn't load the chart image.</p>
     } @else if (url(); as src) {
       <img class="chart-image-img" [src]="src" [alt]="alt()" loading="lazy" />
-      <figcaption class="lbl chart-image-cap">The chart this analysis was run on</figcaption>
+      <figcaption class="chart-image-cap">The chart this analysis was run on</figcaption>
     }
   </figure>
 }

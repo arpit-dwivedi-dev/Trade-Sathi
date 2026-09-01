@@ -8,6 +8,7 @@
 .bar-inner {
   align-items: center;
   display: flex;
+  gap: var(--s4);
   height: 100%;
   justify-content: space-between;
 }
@@ -20,19 +21,47 @@
 .bar-end {
   align-items: center;
   display: flex;
-  gap: var(--s3);
+  gap: var(--s2);
   min-width: 0;
 }
 
-.bar-email {
-  color: var(--tx-2);
-  font-size: 13px;
-  max-width: 220px;
+/* Separates the commercial control from the account controls, so the header
+   reads as two groups rather than one row of five equal buttons. */
+.bar-rule {
+  background: var(--line);
+  height: 20px;
+  margin-inline: var(--s1);
+  width: 1px;
 }
 
-.tabs a.tab {
-  border-bottom: 2px solid transparent;
-  text-decoration: none;
+.who {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+  min-width: 0;
+  padding-left: var(--s1);
+}
+
+.who-mark {
+  align-items: center;
+  background: var(--surf-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--tx-2);
+  display: flex;
+  flex: none;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  height: 26px;
+  justify-content: center;
+  text-transform: uppercase;
+  width: 26px;
+}
+
+.who-email {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
+  max-width: 200px;
 }
 
 .shell-loading {
@@ -46,16 +75,27 @@
   padding: var(--s16);
 }
 
-@media (max-width: 640px) {
-  .bar-email {
+/* Shown only while a deferred tab's chunk is in flight — after 150ms, so a
+   warm cache never flashes it, and for at least 300ms so it cannot strobe. */
+.tab-loading {
+  align-items: center;
+  color: var(--tx-3);
+  display: flex;
+  font-size: var(--t-sm);
+  gap: var(--s2);
+  justify-content: center;
+  padding: var(--s16) var(--s6);
+}
+
+@media (max-width: 860px) {
+  .who-email {
     display: none;
   }
 }
 
-/* Shown only while a deferred tab's chunk is in flight — after 150ms, so a
-   warm cache never flashes it, and for at least 300ms so it cannot strobe. */
-.tab-loading {
-  padding: var(--s8) 0;
-  color: var(--tx-3);
-  font-size: 14px;
+@media (max-width: 520px) {
+  .bar-rule,
+  .who {
+    display: none;
+  }
 }

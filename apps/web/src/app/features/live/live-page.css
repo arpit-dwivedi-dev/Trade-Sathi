@@ -1,148 +1,281 @@
 .live {
-  display: grid;
-  gap: var(--s6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
 }
 
-.live-head {
-  display: grid;
-  gap: var(--s1);
+/* ── search ─────────────────────────────────────────────
+   Anchors the absolutely positioned suggestion list. */
+.live-search {
+  max-width: 560px;
+  position: relative;
 }
 
-.live-title {
-  margin: 0;
-  font-family: var(--fh);
+.live-search-icon {
+  align-items: center;
+  color: var(--tx-3);
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: 38px;
 }
 
+.live-search-icon svg {
+  height: 16px;
+  width: 16px;
+}
+
+.live-search-input {
+  min-height: 40px;
+  padding-left: 38px;
+}
+
+.live-search-spin {
+  color: var(--tx-3);
+  position: absolute;
+  right: var(--s3);
+  top: 14px;
+}
+
+.live-suggestions {
+  top: 100%;
+}
+
+.live-suggestion-sym {
+  flex: none;
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+.live-suggestion-name {
+  color: var(--tx-2);
+  font-size: var(--t-xs);
+  min-width: 0;
+}
+
+.live-exchange {
+  color: var(--tx-3);
+  flex: none;
+  font-size: var(--t-3xs);
+  letter-spacing: 0.04em;
+  margin-inline-start: auto;
+  text-transform: uppercase;
+}
+
+.live-hint {
+  color: var(--tx-3);
+  font-size: var(--t-sm);
+  padding-top: 6px;
+}
+
+/* ── chart card ─────────────────────────────────────────── */
 .live-card {
   overflow: visible;
 }
 
-.live-body {
-  display: grid;
-  gap: var(--s4);
+.live-chart-head {
+  flex-wrap: wrap;
 }
 
-/* Anchors the absolutely positioned suggestion list below the input. */
-.live-search {
-  position: relative;
-}
-
-.live-hint {
-  margin: var(--s2) 0 0;
-}
-
-.live-suggestions {
-  position: absolute;
-  z-index: 2;
-  inset-inline: 0;
-  margin: var(--s1) 0 0;
-  padding: var(--s1);
-  list-style: none;
-  display: grid;
-  gap: var(--s1);
-  max-height: 260px;
-  overflow-y: auto;
-  background: var(--surf);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-hi);
-}
-
-.live-suggestions button {
-  width: 100%;
+.live-ident {
+  align-items: center;
   display: flex;
   gap: var(--s2);
+  min-width: 0;
+}
+
+.live-sym {
+  font-size: var(--t-md);
+}
+
+.live-quote {
   align-items: baseline;
-  padding: var(--s2) var(--s3);
-  background: none;
-  border: 0;
-  border-radius: var(--r-sm);
-  text-align: start;
-  cursor: pointer;
-  color: var(--tx);
-}
-
-.live-suggestions button:hover,
-.live-suggestions button:focus-visible {
-  background: var(--surf-3);
-}
-
-.live-exchange {
-  margin-inline-start: auto;
-  color: var(--tx-3);
-  font-size: 0.8rem;
-}
-
-.live-chart-head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
   gap: var(--s3);
 }
 
 .live-price {
-  font-size: 1.1rem;
+  font-size: var(--t-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
-.live-windows {
+.live-stamp {
+  color: var(--tx-3);
+  font-family: var(--fm);
+  font-size: var(--t-3xs);
+  white-space: nowrap;
+}
+
+.live-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s4) var(--s5) var(--s5);
+}
+
+/* Window selector on the left, the one primary action on the right — so the
+   thing the user came to press is always in the same place. */
+.live-toolbar {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s2);
+  gap: var(--s3);
+  justify-content: space-between;
 }
 
-.live-windows button[aria-pressed='true'] {
-  border-color: var(--acc-line);
-  background: var(--acc-soft);
-  color: var(--acc-tx);
+/* A real segmented control: one recessed track, one raised active segment.
+   Five separate ghost buttons never said which window was current. */
+.seg {
+  background: var(--surf-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+}
+
+.seg-btn {
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: var(--tx-2);
+  cursor: pointer;
+  font-family: var(--fh);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  min-height: 28px;
+  padding: 0 var(--s3);
+  transition:
+    background var(--dur-subtle) var(--ease-move),
+    color var(--dur-subtle) var(--ease-move);
+  white-space: nowrap;
+}
+
+.seg-btn:hover {
+  color: var(--tx);
+}
+
+.seg-btn[aria-pressed='true'] {
+  background: var(--surf);
+  box-shadow: var(--sh-1);
+  color: var(--tx);
+  font-weight: 600;
+}
+
+:root[data-theme='dark'] .seg-btn[aria-pressed='true'] {
+  background: var(--surf-2);
+  box-shadow: none;
+  outline: 1px solid var(--line-strong);
 }
 
 .live-chart-skel {
-  height: 420px;
   border-radius: var(--r-md);
-}
-
-.live-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  flex-wrap: wrap;
+  height: 420px;
 }
 
 .live-error {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
   flex-wrap: wrap;
-  color: var(--down);
 }
 
-/* Streaming indicator next to the live price. Present only while the socket
-   is actually delivering ticks, so its absence is meaningful: the price shown
-   is the last polled close, not a live one. */
-.live-tick {
-  display: inline-flex;
+.live-note {
   align-items: center;
-  gap: var(--s2);
+  justify-content: space-between;
+}
+
+/* Present only while the socket is actually delivering ticks, so its absence
+   is meaningful: the price shown is the last polled close, not a live one. */
+.live-tick {
+  align-items: center;
   color: var(--up);
+  display: inline-flex;
+  font-size: var(--t-2xs);
+  font-weight: 500;
+  gap: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .live-tick-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
+  animation: live-tick-pulse 2.4s ease-in-out infinite;
   background: var(--up);
-  animation: live-tick-pulse 2s ease-in-out infinite;
+  border-radius: 50%;
+  height: 6px;
+  width: 6px;
 }
 
 @keyframes live-tick-pulse {
   50% {
-    opacity: 0.3;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--up) 22%, transparent);
+    opacity: 0.55;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .live-tick-dot {
     animation: none;
+  }
+}
+
+/* ── placeholder ────────────────────────────────────────── */
+.live-placeholder {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s16) var(--s8);
+  text-align: center;
+}
+
+.live-placeholder-icon {
+  align-items: center;
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  color: var(--tx-3);
+  display: flex;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.live-placeholder-icon svg {
+  height: 22px;
+  width: 22px;
+}
+
+.live-placeholder-title {
+  font-size: var(--t-xl);
+  letter-spacing: -0.02em;
+}
+
+.live-placeholder-copy {
+  color: var(--tx-2);
+  font-size: var(--t-sm);
+  line-height: 1.6;
+  max-width: 48ch;
+}
+
+@media (max-width: 640px) {
+  .live-chart-skel {
+    height: 300px;
+  }
+
+  .live-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .seg {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .live-body {
+    padding: var(--s4);
   }
 }

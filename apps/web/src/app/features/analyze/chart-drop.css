@@ -3,11 +3,9 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: var(--s6);
-  padding: var(--s16) var(--s8);
-  transition:
-    border-color var(--dur-subtle) var(--ease-move),
-    background-color var(--dur-subtle) var(--ease-move);
+  gap: var(--s3);
+  padding: var(--s12) var(--s6);
+  text-align: center;
 }
 
 .drop-zone.disabled {
@@ -15,73 +13,81 @@
   opacity: 0.5;
 }
 
-.drop-corner-l {
-  color: var(--acc);
-  left: var(--s6);
-  position: absolute;
-  top: var(--s4);
-}
-
-.drop-corner-r {
-  position: absolute;
-  right: var(--s6);
-  top: var(--s4);
-}
-
-.drop-keys {
-  align-items: center;
-  display: flex;
-  gap: var(--s3);
-}
-
-.drop-plus {
+/* The one corner annotation left standing. The matching top-left label only
+   repeated the title underneath it. */
+.drop-formats {
   color: var(--tx-3);
-  font-family: var(--fh);
-  font-size: 24px;
+  position: absolute;
+  right: var(--s4);
+  top: var(--s3);
+}
+
+.drop-icon {
+  align-items: center;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  color: var(--tx-3);
+  display: flex;
+  height: 44px;
+  justify-content: center;
+  transition:
+    border-color var(--dur-subtle) var(--ease-move),
+    color var(--dur-subtle) var(--ease-move);
+  width: 44px;
+}
+
+.drop-icon svg {
+  height: 21px;
+  width: 21px;
+}
+
+.drop-zone:hover .drop-icon,
+.drop-zone.over .drop-icon {
+  border-color: var(--acc-line);
+  color: var(--acc);
 }
 
 .drop-copy {
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
-  text-align: center;
+  gap: 2px;
 }
 
-.drop-copy h2 {
-  font-size: 38px;
-  text-transform: uppercase;
+.drop-title {
+  font-size: var(--t-xl);
+  letter-spacing: -0.021em;
 }
 
 .drop-sub {
+  align-items: center;
   color: var(--tx-2);
-  font-size: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--t-sm);
+  gap: 5px;
+  justify-content: center;
 }
 
 .drop-browse {
-  min-height: 44px;
+  margin-top: var(--s1);
 }
 
 .drop-hint {
-  max-width: 64ch;
-  text-align: center;
+  max-width: 56ch;
+  padding-top: var(--s1);
 }
 
 @media (max-width: 640px) {
   .drop-zone {
-    gap: var(--s3);
     padding: var(--s8) var(--s4);
   }
 
-  .drop-keys {
-    display: none;
+  .drop-title {
+    font-size: var(--t-lg);
   }
 
-  .drop-copy h2 {
-    font-size: 24px;
-  }
-
-  .drop-corner-l,
-  .drop-corner-r {
+  .drop-formats {
     display: none;
   }
 }

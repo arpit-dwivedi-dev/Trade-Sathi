@@ -2,27 +2,24 @@
      above Razorpay Checkout and make paying impossible. -->
 <div class="plans-scrim" (click)="onBackdropClick($event)">
   <div class="plans-panel" role="dialog" aria-modal="true" aria-labelledby="plans-title">
-    <header class="bar plans-bar">
-      <span class="brand">
-        <b>Plans</b><span>&amp; Credits</span>
-      </span>
-      <div class="plans-bar-end">
+    <header class="plans-bar">
+      <div class="plans-title-block">
+        <h2 id="plans-title" class="plans-title">Plans &amp; credits</h2>
         @if (loading()) {
-          <span class="spin" aria-hidden="true"></span>
+          <span class="plans-sub"><span class="spin" aria-hidden="true"></span> Loading your plan…</span>
         } @else {
-          <span class="lbl">Current plan</span>
-          <span class="lbl-h">{{ planLabel() }}</span>
+          <span class="plans-sub">
+            You're on <b>{{ planLabel() }}</b>
+          </span>
         }
-        <button type="button" class="btn btn-g btn-sm btn-icon plans-close" (click)="close()"
-                aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
       </div>
-    </header>
 
-    <h2 id="plans-title" class="sr-only">Plans and credits</h2>
+      <button type="button" class="btn btn-g btn-sm btn-icon" (click)="close()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
+    </header>
 
     @if (!loading()) {
       <div class="plans-body">
@@ -30,16 +27,19 @@
              only, since changing between paid tiers is not built. -->
         @if (canUpgrade()) {
           <section class="plans-section">
-            <span class="lbl">Monthly plans</span>
+            <div class="plans-section-head">
+              <h3 class="plans-section-title">Monthly plans</h3>
+              <p class="plans-note">A higher allowance every month, billed by Razorpay.</p>
+            </div>
             <app-upgrade-button (upgraded)="onUpgraded()" />
           </section>
         }
 
         <section class="plans-section">
-          <span class="lbl">One-off top up</span>
-          <p class="plans-note">
-            Credits never expire and stack on top of your monthly allowance.
-          </p>
+          <div class="plans-section-head">
+            <h3 class="plans-section-title">One-off top up</h3>
+            <p class="plans-note">Credits never expire and stack on top of your monthly allowance.</p>
+          </div>
           <app-buy-credits-button (creditsAdded)="onCreditsAdded()" />
         </section>
       </div>

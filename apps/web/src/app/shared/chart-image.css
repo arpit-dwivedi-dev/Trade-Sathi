@@ -1,25 +1,33 @@
 .chart-image {
-  margin: 0;
   display: grid;
-  gap: var(--s2);
+  gap: 6px;
+  margin: 0;
 }
 
+/* Framed and matted, so a screenshot with its own white ground still reads as
+   an image inside the report rather than as a hole in the page. */
 .chart-image-img {
-  display: block;
-  width: 100%;
-  max-height: 460px;
-  object-fit: contain;
+  background: var(--surf-2);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  background: var(--surf-2);
+  display: block;
+  max-height: 460px;
+  object-fit: contain;
+  padding: var(--s2);
+  width: 100%;
 }
 
 .chart-image-skel {
-  height: 260px;
   border-radius: var(--r-md);
+  height: 260px;
 }
 
-.chart-image-msg,
+.chart-image-msg {
+  color: var(--tx-3);
+  font-size: var(--t-sm);
+}
+
 .chart-image-cap {
-  margin: 0;
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
 }

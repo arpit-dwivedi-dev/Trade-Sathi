@@ -5,9 +5,9 @@
    above the overlay. */
 .plans-scrim {
   align-items: center;
-  animation: plans-scrim-in 220ms ease-out;
-  backdrop-filter: blur(2px);
-  background: rgb(0 0 0 / 55%);
+  animation: plans-scrim-in 200ms ease-out;
+  backdrop-filter: blur(3px);
+  background: rgb(6 8 11 / 58%);
   display: flex;
   inset: 0;
   justify-content: center;
@@ -18,30 +18,40 @@
 }
 
 .plans-panel {
-  animation: plans-panel-in 240ms ease-out;
-  background: var(--ground);
+  animation: plans-panel-in 220ms var(--ease-enter);
+  background: var(--surf);
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-hi);
+  border-radius: var(--r-xl);
+  box-shadow: var(--sh-3);
   color: var(--tx);
   display: flex;
   flex-direction: column;
   max-height: 90dvh;
-  max-width: min(720px, 100%);
-  overflow: auto;
+  max-width: min(680px, 100%);
+  overflow: hidden;
   width: 100%;
 }
 
 @keyframes plans-scrim-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Starts slightly smaller and below rest position so the panel feels like it
    settles into place rather than just appearing. */
 @keyframes plans-panel-in {
-  from { opacity: 0; transform: scale(0.96) translateY(8px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.985) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -51,28 +61,50 @@
   }
 }
 
-/* Reuses the shell's .bar so the overlay reads as part of the same app rather
-   than a generic modal: same height, same border, same brand treatment. */
+/* Its own header, not a borrowed .bar: an overlay that reproduced the app's
+   chrome read as a second application rather than as a dialog. */
 .plans-bar {
-  border-radius: var(--r-md) var(--r-md) 0 0;
-  padding: 0 var(--s6);
-}
-
-.plans-bar-end {
-  align-items: center;
+  align-items: flex-start;
+  background: var(--surf-2);
+  border-bottom: 1px solid var(--line);
   display: flex;
-  gap: var(--s3);
+  flex: none;
+  gap: var(--s4);
+  justify-content: space-between;
+  padding: var(--s4) var(--s5);
 }
 
-.plans-close {
-  margin-left: var(--s2);
+.plans-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.plans-title {
+  font-size: var(--t-lg);
+  letter-spacing: -0.019em;
+}
+
+.plans-sub {
+  align-items: center;
+  color: var(--tx-3);
+  display: flex;
+  font-size: var(--t-xs);
+  gap: 6px;
+}
+
+.plans-sub b {
+  color: var(--tx-2);
+  font-weight: 600;
 }
 
 .plans-body {
   display: flex;
   flex-direction: column;
   gap: var(--s6);
-  padding: var(--s6);
+  overflow-y: auto;
+  padding: var(--s5);
 }
 
 .plans-section {
@@ -81,20 +113,29 @@
   gap: var(--s3);
 }
 
-.plans-note {
-  color: var(--tx-3);
-  font-size: 12.5px;
-  margin: 0;
+.plans-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-/* Visually hidden but kept for aria-labelledby — the visible title is the
-   .brand mark in the bar, which reads as a logo, not as a heading. */
-.sr-only {
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  height: 1px;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 1px;
+.plans-section-title {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.plans-note {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
+}
+
+@media (max-width: 640px) {
+  .plans-scrim {
+    padding: var(--s3);
+  }
+
+  .plans-body {
+    padding: var(--s4);
+  }
 }

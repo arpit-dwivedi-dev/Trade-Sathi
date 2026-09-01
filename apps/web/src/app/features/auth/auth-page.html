@@ -1,18 +1,22 @@
 <main class="auth">
   <a class="brand auth-brand" routerLink="/">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--acc-tx)"
-         stroke-width="1.5" aria-hidden="true">
-      <path d="M12 2v20M2 12h20" />
-      <circle cx="12" cy="12" r="6.5" />
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+      <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
+      <path d="M16 6h5v5" />
     </svg>
     <b>Chart</b><span>Analyzer</span>
   </a>
 
   <div class="card auth-card">
     <div class="auth-head">
-      <h1>{{ mode() === 'signup' ? 'Create an account' : mode() === 'otp' ? 'Verify your email' : 'Sign in' }}</h1>
+      <h1>{{ mode() === 'signup' ? 'Create an account' : mode() === 'otp' ? 'Verify your email' : 'Welcome back' }}</h1>
       @if (mode() === 'signup') {
-        <p class="disc">Starts on the free plan.</p>
+        <p class="disc">Starts on the free plan. No card needed.</p>
+      } @else if (mode() === 'otp') {
+        <p class="disc">Enter the 6-digit code we just sent you.</p>
+      } @else {
+        <p class="disc">Sign in to analyze a chart.</p>
       }
     </div>
 
@@ -20,7 +24,7 @@
       @if (mode() === 'otp') {
         <div class="field">
           <label for="auth-otp">6-digit code</label>
-          <input class="input" id="auth-otp" type="text" name="otp" required
+          <input class="input auth-otp" id="auth-otp" type="text" name="otp" required
                  inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code"
                  placeholder="000000"
                  [attr.aria-invalid]="error() ? 'true' : null"
@@ -49,8 +53,8 @@
 
       @if (error(); as message) {
         <p class="err" id="auth-error" role="alert">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.5" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.6" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
             <path d="M12 8v5M12 16h.01" />
           </svg>
@@ -74,20 +78,23 @@
         <button type="button" class="btn btn-g btn-sm" [disabled]="busy()" (click)="resendOtp()">
           Resend code
         </button>
-      } @else if (mode() === 'signin') {
-        <a routerLink="/forgot-password">Forgot password?</a>
-      } @else {
-        <span></span>
-      }
-      @if (mode() === 'otp') {
         <button type="button" class="btn btn-g btn-sm" (click)="useDifferentEmail()">
           Use a different email
         </button>
       } @else {
+        @if (mode() === 'signin') {
+          <a routerLink="/forgot-password">Forgot password?</a>
+        } @else {
+          <span></span>
+        }
         <button type="button" class="btn btn-g btn-sm" (click)="toggleMode()">
           {{ mode() === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
         </button>
       }
     </div>
   </div>
+
+  <p class="disc auth-disc">
+    ChartAnalyzer produces AI-generated chart analysis. It is not investment advice.
+  </p>
 </main>

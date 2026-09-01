@@ -1,118 +1,97 @@
-/* Two separate <div class="card"> sections in the template (add-search vs.
-   existing items) so the search dropdown's overlay never covers the
-   existing list — it can only ever sit over its own card. */
 .watchlist {
   display: flex;
   flex-direction: column;
-  gap: var(--s4);
+  gap: var(--s5);
 }
 
-.watchlist-head {
-  align-items: baseline;
-  display: flex;
-  gap: var(--s4);
-  justify-content: space-between;
-}
-
-.watchlist-title {
-  font-size: 26px;
-  text-transform: uppercase;
-}
-
-.watchlist-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s4);
-}
-
+/* ── add row ────────────────────────────────────────────── */
 .watchlist-add {
   align-items: flex-start;
   display: flex;
   gap: var(--s3);
 }
 
+/* Anchors the suggestion dropdown, and caps the field so it does not run the
+   full width of a wide viewport for a six-character ticker. */
 .watchlist-search {
   flex: 1;
+  max-width: 520px;
   position: relative;
 }
 
-.watchlist-search .input {
-  width: 100%;
+.watchlist-search-icon {
+  align-items: center;
+  color: var(--tx-3);
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: 36px;
 }
 
-.watchlist-hint {
-  margin: var(--s2) 0 0;
+.watchlist-search-icon svg {
+  height: 16px;
+  width: 16px;
+}
+
+.watchlist-search-input {
+  padding-left: 36px;
+}
+
+.watchlist-search-spin {
+  color: var(--tx-3);
+  position: absolute;
+  right: var(--s3);
+  top: 13px;
 }
 
 .watchlist-suggestions {
-  background: var(--surf);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-hi);
-  list-style: none;
-  margin: var(--s2) 0 0;
-  max-height: 260px;
-  overflow-y: auto;
-  padding: var(--s1);
-  position: absolute;
-  width: 100%;
-  z-index: 10;
+  top: 100%;
 }
 
-.watchlist-suggestions button {
-  align-items: center;
-  background: transparent;
-  border: none;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  display: flex;
-  gap: var(--s2);
-  padding: var(--s2);
-  text-align: left;
-  width: 100%;
+.watchlist-suggestion-sym {
+  flex: none;
+  font-size: var(--t-sm);
+  font-weight: 600;
 }
 
-.watchlist-suggestions button:hover {
-  background: var(--surf-2);
+.watchlist-suggestion-name {
+  color: var(--tx-2);
+  font-size: var(--t-xs);
+  min-width: 0;
 }
 
 .watchlist-exchange {
-  color: var(--tx-2);
-  font-size: 11px;
-  margin-left: auto;
+  color: var(--tx-3);
+  flex: none;
+  font-size: var(--t-3xs);
+  letter-spacing: 0.04em;
+  margin-inline-start: auto;
+  text-transform: uppercase;
 }
 
-.watchlist-item-name {
-  font-size: 12px;
+.watchlist-hint {
+  color: var(--tx-3);
+  font-size: var(--t-sm);
+  padding-top: 6px;
 }
 
-.watchlist-error {
-  color: var(--down);
-  font-size: 0.85rem;
+/* ── list ───────────────────────────────────────────────── */
+.watchlist-card {
+  overflow: hidden;
 }
 
-.watchlist-symbol {
-  font-size: 13px;
-  letter-spacing: 0.02em;
-}
-
-.watchlist-remove {
+.watchlist-state {
   align-items: center;
-  background: transparent;
-  border: none;
-  border-radius: var(--r-pill);
-  color: var(--tx-2);
-  cursor: pointer;
+  color: var(--tx-3);
   display: flex;
-  height: 22px;
+  font-size: var(--t-sm);
+  gap: var(--s2);
   justify-content: center;
-  padding: 0;
-  width: 22px;
-}
-
-.watchlist-remove:hover {
-  background: var(--surf-3);
-  color: var(--tx);
+  padding: var(--s12) var(--s5);
 }
 
 /* The list became a table once each row carried its own settings (chart
@@ -124,91 +103,69 @@
 
 .watchlist-table {
   border-collapse: collapse;
-  min-width: 640px;
+  min-width: 680px;
   width: 100%;
 }
 
 .watchlist-table th {
+  background: var(--surf-2);
   border-bottom: 1px solid var(--line);
-  color: var(--tx-2);
-  font-size: 11px;
+  color: var(--tx-3);
+  font-family: var(--fh);
+  font-size: var(--t-2xs);
   font-weight: 500;
   letter-spacing: 0.06em;
-  padding: 0 var(--s3) var(--s2);
+  padding: var(--s2) var(--s3);
   text-align: left;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
+.watchlist-table th:first-child {
+  padding-left: var(--s5);
+}
+
+.watchlist-table th:last-child {
+  padding-right: var(--s5);
+}
+
 .watchlist-table td {
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
   padding: var(--s3);
   vertical-align: middle;
+}
+
+.watchlist-table td:first-child {
+  padding-left: var(--s5);
+}
+
+.watchlist-table td:last-child {
+  padding-right: var(--s5);
 }
 
 .watchlist-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.watchlist-table .watchlist-symbol {
+.watchlist-symbol {
   display: block;
+  font-size: var(--t-sm);
 }
 
-.watchlist-table .watchlist-item-name {
+.watchlist-item-name {
+  color: var(--tx-3);
   display: block;
+  font-size: var(--t-2xs);
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .watchlist-select {
-  min-width: 108px;
-  padding: var(--s1) var(--s2);
-}
-
-.watchlist-daily-toggle {
-  align-items: center;
-  cursor: pointer;
-  display: flex;
-  gap: var(--s2);
-}
-
-.watchlist-actions {
-  display: flex;
-  gap: var(--s2);
-  justify-content: flex-end;
-}
-
-/* Header cell that only labels the actions column for screen readers; the
-   shared stylesheets carry no such utility, hence the local copy. */
-.watchlist-table .sr-only {
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  height: 1px;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 1px;
-}
-
-.watchlist-analyze-row td {
-  font-size: 12px;
-  padding-top: 0;
-}
-
-.watchlist-confirm {
-  align-items: center;
-  background: var(--surf-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 12px;
-  gap: var(--s3);
-  justify-content: space-between;
-  padding: var(--s3);
-}
-
-.watchlist-confirm-actions {
-  display: flex;
-  gap: var(--s2);
+  font-size: var(--t-xs);
+  min-height: 32px;
+  min-width: 116px;
 }
 
 .watchlist-custom {
@@ -218,6 +175,146 @@
 }
 
 .watchlist-days-input {
-  padding: var(--s1) var(--s2);
-  width: 76px;
+  font-size: var(--t-xs);
+  min-height: 32px;
+  width: 72px;
+}
+
+.watchlist-unit {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
+}
+
+/* ── daily-briefing switch ──────────────────────────────
+   The checkbox stays a checkbox — it is only painted as a
+   switch, so the label, keyboard and screen-reader
+   behaviour are the platform's. */
+.switch {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  gap: var(--s2);
+}
+
+.switch-input {
+  height: 1px;
+  opacity: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.switch-track {
+  background: var(--line-strong);
+  border-radius: var(--r-pill);
+  display: block;
+  flex: none;
+  height: 18px;
+  position: relative;
+  transition: background var(--dur-subtle) var(--ease-move);
+  width: 32px;
+}
+
+.switch-track::after {
+  background: #fff;
+  border-radius: 50%;
+  content: '';
+  height: 14px;
+  left: 2px;
+  position: absolute;
+  top: 2px;
+  transition: translate var(--dur-subtle) var(--ease-move);
+  width: 14px;
+}
+
+.switch-input:checked + .switch-track {
+  background: var(--up);
+}
+
+.switch-input:checked + .switch-track::after {
+  translate: 14px 0;
+}
+
+.switch-input:focus-visible + .switch-track {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.switch-label {
+  color: var(--tx-2);
+  font-size: var(--t-xs);
+  min-width: 2ch;
+}
+
+/* ── row actions ────────────────────────────────────────── */
+/* Not display:flex — a <td> taken out of table layout stops drawing its share
+   of the row rule, which left a visible gap under the last column. */
+.watchlist-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.watchlist-actions > * + * {
+  margin-left: var(--s2);
+}
+
+.watchlist-remove {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--tx-3);
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+  height: 30px;
+  justify-content: center;
+  padding: 0;
+  vertical-align: middle;
+  transition:
+    background var(--dur-subtle) var(--ease-move),
+    color var(--dur-subtle) var(--ease-move);
+  width: 30px;
+}
+
+.watchlist-remove:hover {
+  background: color-mix(in srgb, var(--down) 10%, transparent);
+  color: var(--down);
+}
+
+.watchlist-analyze-row td {
+  padding-top: 0;
+}
+
+.watchlist-result {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
+}
+
+.watchlist-confirm {
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: var(--t-xs);
+  justify-content: space-between;
+}
+
+.watchlist-confirm-copy {
+  flex: 1;
+  min-width: 18rem;
+}
+
+.watchlist-confirm-actions {
+  display: flex;
+  flex: none;
+  gap: var(--s2);
+}
+
+@media (max-width: 640px) {
+  .watchlist-add {
+    flex-direction: column;
+  }
+
+  .watchlist-search {
+    max-width: none;
+    width: 100%;
+  }
 }

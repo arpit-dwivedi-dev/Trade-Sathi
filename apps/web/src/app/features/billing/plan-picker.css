@@ -1,99 +1,94 @@
 .plan-list {
   display: grid;
-  gap: var(--s4);
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+/* No hover lift and no glow ring. A plan card is a thing you read and then
+   click a button inside — it does not need to move to say it is interactive. */
 .plan-card {
+  background: var(--surf-2);
   display: flex;
   flex-direction: column;
-  transition: box-shadow 180ms ease-out, transform 180ms ease-out;
+  gap: var(--s2);
+  padding: var(--s4);
+  transition: border-color var(--dur-subtle) var(--ease-move);
 }
 
-.plan-card:hover,
-.plan-card:focus-within {
-  box-shadow: var(--shadow-hi);
-  transform: translateY(-4px);
+.plan-card:hover {
+  border-color: var(--line-strong);
 }
 
-/* Marks the user's own tier the way .tab marks the active tab, and lifts it
-   further so the active plan reads as elevated even without hovering. */
-.plan-card-current {
+/* The user's own tier is marked the way the active tab is: with the accent,
+   and nothing else. */
+.plan-card-current,
+.plan-card-current:hover {
   border-color: var(--acc);
-  box-shadow: 0 0 0 3px var(--acc-soft), var(--shadow);
-  transform: scale(1.02);
 }
 
-.plan-card-current:hover,
-.plan-card-current:focus-within {
-  box-shadow: 0 0 0 3px var(--acc-soft), var(--shadow-hi);
-  transform: scale(1.02) translateY(-4px);
-}
-
-.plan-hd {
-  gap: var(--s2);
-  padding: var(--s3) var(--s4);
-}
-
-.plan-body {
-  align-items: flex-start;
+.plan-head {
+  align-items: center;
   display: flex;
-  flex: 1;
-  flex-direction: column;
   gap: var(--s2);
-  /* Generous bottom padding so the card breathes above the pinned button. */
-  padding: var(--s4) var(--s4) var(--s6);
+  justify-content: space-between;
+  min-height: 22px;
+}
+
+.plan-name {
+  font-family: var(--fh);
+  font-size: var(--t-sm);
+  font-weight: 600;
 }
 
 .plan-price {
   align-items: baseline;
   display: flex;
-  gap: var(--s2);
-  margin: 0;
+  gap: 5px;
 }
 
 .plan-amount {
-  font-family: var(--fh);
-  font-size: 26px;
+  font-size: var(--t-2xl);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.025em;
 }
 
-.plan-per,
-.plan-quota .lbl {
+.plan-per {
   color: var(--tx-3);
+  font-size: var(--t-xs);
 }
 
 .plan-quota {
   align-items: baseline;
   display: flex;
-  gap: var(--s2);
-  margin: 0;
+  gap: 5px;
+}
+
+.plan-quota-val {
+  color: var(--tx);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+.plan-quota-unit {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
 }
 
 /* Pushed to the bottom so every card's button sits on one line, whether or not
-   the card above it is the marked one. */
+   the card beside it is the marked one. */
 .plan-choose {
   align-self: stretch;
   margin-top: auto;
-  padding-top: var(--s2);
-  transition: box-shadow 150ms ease-out, transform 100ms ease-out;
-}
-
-.plan-choose:hover {
-  box-shadow: var(--shadow-hi);
-}
-
-.plan-choose:active {
-  transform: scale(0.97);
+  padding-top: 0;
 }
 
 .plan-loading {
   align-items: center;
+  color: var(--tx-3);
   display: flex;
+  font-size: var(--t-sm);
   gap: var(--s2);
-  margin: 0;
 }

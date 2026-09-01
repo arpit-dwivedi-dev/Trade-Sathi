@@ -5,6 +5,7 @@ import {
   type CandleAnalysisContext,
   type PromptCandle,
 } from "../prompts/candle-analysis.js";
+import { APIConnectionTimeoutError } from "openai";
 import { aiClient } from "../lib/ai-client.js";
 import { env } from "../lib/env.js";
 import { logger } from "../lib/logger.js";
@@ -222,8 +223,24 @@ async function runAnalysisCompletion(
       outputTokens = completion.usage?.completion_tokens ?? 0;
     } catch (cause) {
       latencyMs = Date.now() - startedAt;
-      logger.error("ai request failed", { attempt, cause: String(cause) });
+      logger.error("ai request failed", { attempt, latencyMs, cause: String(cause) });
       lastFailure = new AnalysisFailure("api_error", "The AI provider request failed");
+
+      // A timeout is the one failure that must NOT be retried. The other two
+      // (an empty response, unparseable JSON) come back in seconds and leave
+      // most of the caller's patience intact, so a second attempt is free to
+      // succeed. A timeout has already spent the entire request budget by
+      // definition — retrying it guarantees the browser has stopped waiting
+      // before the second attempt can even finish, and turns one slow analysis
+      // into two, on a provider that is evidently already struggling.
+      if (cause instanceof APIConnectionTimeoutError) {
+        lastFailure = new AnalysisFailure(
+          "api_error",
+          "The AI provider did not respond in time",
+        );
+        break;
+      }
+
       continue;
     }
 

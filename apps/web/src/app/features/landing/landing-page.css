@@ -7,13 +7,13 @@
 
 .landing-inner {
   margin-inline: auto;
-  max-width: 1280px;
+  max-width: 1160px;
   width: 100%;
 }
 
 .landing-bar {
-  height: 76px;
-  padding: 0 var(--s8);
+  height: 64px;
+  padding: 0 var(--s6);
 }
 
 .landing-bar-inner {
@@ -26,54 +26,79 @@
 .landing-nav {
   align-items: center;
   display: flex;
-  gap: var(--s6);
+  gap: var(--s4);
 }
 
 .landing-link {
-  border: 0;
-  font-family: var(--fh);
-  font-size: 13px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  color: var(--tx-2);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  text-decoration: none;
+  transition: color var(--dur-subtle) var(--ease-move);
 }
 
-/* hero */
+.landing-link:hover {
+  color: var(--tx);
+}
+
+/* ── hero ────────────────────────────────────────────────
+   Asymmetric on purpose: the copy owns the reading column
+   and the product still gets to be seen at a real size. */
 .landing-hero-wrap {
   border-bottom: 1px solid var(--line);
-  padding: 0 var(--s8);
+  padding: 0 var(--s6);
 }
 
 .landing-hero {
   align-items: center;
   display: grid;
-  gap: var(--s20);
-  grid-template-columns: 1fr 440px;
-  padding: var(--s24) 0;
+  gap: var(--s16);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.86fr);
+  padding: var(--s20) 0 var(--s24);
 }
 
 .landing-hero-copy {
   display: flex;
   flex-direction: column;
-  gap: var(--s6);
+  gap: var(--s5);
 }
 
 .landing-eyebrow {
-  color: var(--acc-tx);
+  align-items: center;
+  align-self: flex-start;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--tx-2);
+  display: inline-flex;
+  font-size: var(--t-xs);
+  font-weight: 500;
+  gap: var(--s2);
+  padding: 5px var(--s3) 5px var(--s2);
 }
 
+.landing-eyebrow-dot {
+  background: var(--up);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--up) 18%, transparent);
+  height: 6px;
+  margin-left: 3px;
+  width: 6px;
+}
+
+/* Sentence case at a size that still commands the page. The uppercase
+   letterspaced treatment this replaced read as a template, not a product. */
 .landing-h1 {
-  font-size: 76px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 0.94;
-  text-transform: uppercase;
+  font-size: clamp(38px, 5vw, var(--t-5xl));
+  font-weight: 600;
+  letter-spacing: -0.033em;
+  line-height: 1.06;
 }
 
 .landing-lede {
   color: var(--tx-2);
-  font-size: 18px;
-  font-weight: 200;
-  line-height: 1.6;
+  font-size: var(--t-lg);
+  line-height: 1.62;
   max-width: 52ch;
 }
 
@@ -81,47 +106,168 @@
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s3);
+  gap: var(--s4);
+  padding-top: var(--s1);
 }
 
-.landing-plate {
+.landing-actions-note {
   align-items: center;
+  color: var(--tx-3);
+  display: inline-flex;
+  font-size: var(--t-xs);
+  gap: 6px;
+}
+
+.landing-trust {
+  color: var(--tx-3);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--t-xs);
+  gap: var(--s2) var(--s4);
+  list-style: none;
+  margin: var(--s2) 0 0;
+  padding: 0;
+}
+
+/* A tick before each item, drawn rather than pulled from an icon set. */
+.landing-trust li {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.landing-trust li::before {
+  border-bottom: 1.5px solid var(--up);
+  border-left: 1.5px solid var(--up);
+  content: '';
+  height: 4px;
+  rotate: -45deg;
+  translate: 0 -1px;
+  width: 8px;
+}
+
+/* ── hero preview ───────────────────────────────────────── */
+.landing-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.landing-preview-card {
+  box-shadow: var(--sh-3);
+  overflow: hidden;
+}
+
+.landing-preview-hd {
+  background: var(--surf-2);
+}
+
+.landing-preview-sym {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+}
+
+.landing-preview-sym .sym {
+  font-size: var(--t-md);
+}
+
+.landing-preview-body {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
-  padding: var(--s8);
+  padding: var(--s4) var(--s5);
 }
 
-.landing-plate-lbl {
-  color: var(--acc-tx);
-}
-
-.landing-keys {
-  align-items: center;
-  display: flex;
+.landing-preview-readings {
+  display: grid;
   gap: var(--s3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.landing-plus {
+.landing-preview-readings > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.landing-preview-readings b {
+  font-size: var(--t-md);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.landing-preview-levels {
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--s3);
+}
+
+.landing-preview-level {
+  align-items: center;
+  display: grid;
+  gap: var(--s2);
+  grid-template-columns: 3px 1fr auto;
+  padding: 5px 0;
+}
+
+.landing-preview-level .num {
+  font-size: var(--t-sm);
+}
+
+.landing-preview-tick {
+  border-radius: 1px;
+  height: 12px;
+  width: 3px;
+}
+
+.landing-preview-tick-up {
+  background: var(--up);
+}
+
+.landing-preview-tick-down {
+  background: var(--down);
+}
+
+.landing-preview-panel {
+  border-radius: 0;
+  border-width: 1px 0 0;
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+}
+
+.landing-preview-dir {
+  border-right: 1px solid var(--slab-line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--s4);
+}
+
+.landing-preview-dir-val {
+  font-size: var(--t-2xl);
+  line-height: 1.1;
+}
+
+.landing-preview-cells .cell {
+  padding: var(--s3) var(--s4);
+}
+
+.landing-preview-cells .cell .num {
+  font-size: var(--t-sm);
+}
+
+.landing-preview-cap {
   color: var(--tx-3);
-  font-family: var(--fh);
-  font-size: 22px;
+  font-size: var(--t-3xs);
+  text-align: right;
 }
 
-.landing-plate-sub {
-  color: var(--tx-2);
-  font-size: 13.5px;
-  text-align: center;
-}
-
-.landing-plate-btn {
-  width: 100%;
-}
-
-/* sections */
+/* ── sections ───────────────────────────────────────────── */
 .landing-section-wrap {
   border-bottom: 1px solid var(--line);
-  padding: 0 var(--s8);
+  padding: 0 var(--s6);
 }
 
 .landing-section {
@@ -131,88 +277,231 @@
   padding: var(--s20) 0;
 }
 
+.landing-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 60ch;
+}
+
 .landing-h2 {
-  font-size: 30px;
-  font-weight: 400;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
+  font-size: var(--t-3xl);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
 }
 
-.landing-cards {
+.landing-section-sub {
+  color: var(--tx-2);
+  font-size: var(--t-md);
+}
+
+/* Three panes of one surface, divided by the same hairline the rest of the
+   product uses — so the group reads as a single report, not as three cards. */
+.landing-grid {
   display: grid;
-  gap: var(--s6);
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
 }
 
-.landing-card {
+.landing-grid-item {
+  border-left: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   gap: var(--s2);
+  padding: var(--s6);
+}
+
+.landing-grid-item:first-child {
+  border-left: 0;
+}
+
+.landing-grid-num {
+  color: var(--tx-3);
+  font-family: var(--fm);
+  font-size: var(--t-2xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
 }
 
 .landing-h3 {
-  font-size: 20px;
-  text-transform: uppercase;
+  font-size: var(--t-lg);
+  font-weight: 600;
+  letter-spacing: -0.017em;
 }
 
-.landing-card-copy {
+.landing-grid-copy {
   color: var(--tx-2);
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: var(--t-sm);
+  line-height: 1.6;
 }
 
+/* ── steps ──────────────────────────────────────────────── */
+.landing-steps {
+  counter-reset: step;
+  display: grid;
+  gap: var(--s8);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* The rule runs from each mark to the next, so the row reads as a sequence
+   rather than as three unrelated columns. */
 .landing-step {
-  color: var(--acc-tx);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding-top: var(--s6);
+  position: relative;
 }
 
+.landing-step::before {
+  background: var(--line);
+  content: '';
+  height: 1px;
+  left: 0;
+  position: absolute;
+  right: calc(var(--s8) * -1);
+  top: 13px;
+}
+
+.landing-step:last-child::before {
+  right: 0;
+}
+
+.landing-step-mark {
+  align-items: center;
+  background: var(--surf);
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--tx);
+  display: flex;
+  font-family: var(--fm);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  height: 26px;
+  justify-content: center;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 26px;
+}
+
+/* ── closing CTA ────────────────────────────────────────── */
+.landing-cta-wrap {
+  border-bottom: 1px solid var(--line);
+  padding: 0 var(--s6);
+}
+
+.landing-cta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s6);
+  justify-content: space-between;
+  padding: var(--s16) 0;
+}
+
+/* ── footer ─────────────────────────────────────────────── */
 .landing-foot {
   background: var(--surf);
   border-top: 1px solid var(--line);
-  padding: 0 var(--s8);
+  margin-top: auto;
+  padding: 0 var(--s6);
 }
 
 .landing-foot-inner {
-  align-items: center;
-  display: flex;
+  align-items: flex-start;
+  display: grid;
   gap: var(--s6);
-  justify-content: space-between;
-  padding: var(--s6) 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: var(--s8) 0;
+}
+
+.landing-foot-brand {
+  font-size: var(--t-sm);
 }
 
 .landing-disc {
-  max-width: 80ch;
+  max-width: 74ch;
 }
 
-@media (max-width: 900px) {
+.landing-foot-copy {
+  color: var(--tx-3);
+  font-family: var(--fm);
+  font-size: var(--t-2xs);
+}
+
+@media (max-width: 1000px) {
+  .landing-hero {
+    gap: var(--s10);
+    grid-template-columns: 1fr;
+    padding: var(--s12) 0 var(--s16);
+  }
+
+  .landing-preview {
+    max-width: 460px;
+  }
+}
+
+@media (max-width: 760px) {
   .landing-bar,
   .landing-hero-wrap,
   .landing-section-wrap,
+  .landing-cta-wrap,
   .landing-foot {
-    padding-left: var(--s4);
-    padding-right: var(--s4);
-  }
-
-  .landing-hero {
-    gap: var(--s8);
-    grid-template-columns: 1fr;
-    padding-bottom: var(--s8);
-    padding-top: var(--s8);
-  }
-
-  .landing-h1 {
-    font-size: 42px;
+    padding-inline: var(--s4);
   }
 
   .landing-section {
-    padding-bottom: var(--s8);
-    padding-top: var(--s8);
+    gap: var(--s6);
+    padding: var(--s12) 0;
   }
 
-  .landing-cards {
+  .landing-grid,
+  .landing-steps {
     grid-template-columns: 1fr;
+  }
+
+  .landing-grid-item {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding: var(--s5);
+  }
+
+  .landing-grid-item:first-child {
+    border-top: 0;
+  }
+
+  .landing-steps {
+    gap: var(--s6);
+  }
+
+  .landing-step::before {
+    display: none;
+  }
+
+  .landing-cta {
+    padding: var(--s12) 0;
+  }
+
+  .landing-foot-inner {
+    grid-template-columns: 1fr;
+    gap: var(--s4);
   }
 
   .landing-link {
     display: none;
+  }
+
+  .landing-preview-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-preview-dir {
+    border-bottom: 1px solid var(--slab-line);
+    border-right: 0;
   }
 }

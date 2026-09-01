@@ -1,95 +1,193 @@
-/* Design tokens — restyled to the "Dala" reference system
-   (https://styles.refero.design/style/e5f5f8cf-e68d-4ed1-bbf5-6b67569af648):
-   Electric Iris violet, Saffron amber, Deep Verdant teal, void/bone neutrals,
-   24px radius, flat (shadow-free) surfaces. Theme is selected by a data-theme
-   attribute on <html> so it can later fall back to prefers-color-scheme
-   without a class-toggle rewrite. */
+/* Design tokens.
+
+   The system is deliberately near-monochrome: an ink/paper neutral ramp does
+   almost all the work, and saturated colour is reserved for things that carry
+   meaning — direction (up/down), state (warn/fail), and the single accent that
+   marks what is interactive or currently active. That restraint is what makes
+   a trading surface readable: when only the numbers are coloured, the numbers
+   are what you see.
+
+   Theme is selected by a data-theme attribute on <html> so it can later fall
+   back to prefers-color-scheme without a class-toggle rewrite. */
 
 :root {
-  /* spacing scale */
+  /* ── space ───────────────────────────────────────────────
+     A 4px base. Layout gaps live on the 8px steps; the odd
+     values are for optical corrections inside components. */
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
   --s4: 16px;
+  --s5: 20px;
   --s6: 24px;
   --s8: 32px;
+  --s10: 40px;
   --s12: 48px;
   --s16: 64px;
   --s20: 80px;
   --s24: 96px;
 
-  /* radii */
-  --r-sm: 12px;
-  --r-md: 16px;
-  --r-lg: 24px;
+  /* ── radii ───────────────────────────────────────────────
+     Small and consistent. Tags are nearly square, controls
+     are gently rounded, cards get the largest value — and
+     nothing is rounder than a card except a true pill. */
+  --r-xs: 3px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
   --r-pill: 9999px;
 
-  /* type */
-  --fh: 'Inter', system-ui, sans-serif;
-  --fb: 'Inter', system-ui, sans-serif;
-  --fm: 'JetBrains Mono', ui-monospace, monospace;
+  /* ── type ────────────────────────────────────────────────
+     One family for the interface, one for figures. Numbers
+     are monospaced everywhere so columns of prices align
+     down the page without a table to hold them. */
+  --fh: 'Inter', system-ui, -apple-system, sans-serif;
+  --fb: 'Inter', system-ui, -apple-system, sans-serif;
+  --fm: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 
-  /* motion */
-  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
-  --ease-exit: cubic-bezier(1, 0, 0.8, 1);
+  /* modular-ish scale, tuned by hand at the small end where
+     rounding matters more than ratio */
+  --t-3xs: 10.5px;
+  --t-2xs: 11.5px;
+  --t-xs: 12.5px;
+  --t-sm: 13px;
+  --t-base: 14px;
+  --t-md: 15px;
+  --t-lg: 17px;
+  --t-xl: 20px;
+  --t-2xl: 24px;
+  --t-3xl: 30px;
+  --t-4xl: 38px;
+  --t-5xl: 52px;
+
+  --lh-tight: 1.15;
+  --lh-snug: 1.35;
+  --lh-body: 1.6;
+
+  /* ── motion ──────────────────────────────────────────────
+     Short and unshowy. Nothing on this surface should take
+     long enough to be noticed as an animation. */
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
-  --dur-instant: 100ms;
-  --dur-subtle: 140ms;
-  --dur-standard: 200ms;
-  --dur-screen: 300ms;
+  --dur-instant: 90ms;
+  --dur-subtle: 130ms;
+  --dur-standard: 190ms;
+  --dur-screen: 280ms;
 
-  /* light palette — the default */
+  /* ── light palette (default) ─────────────────────────── */
   color-scheme: light;
-  --ground: #f9fafb;
+
+  /* surfaces, from the page floor up */
+  --ground: #f5f6f8;
   --surf: #ffffff;
-  --surf-2: #f9fafb;
-  --surf-3: #f3f4f6;
-  --line: #e6e3f1;
-  --line-soft: #f0eef8;
-  --line-strong: #d6d0ea;
-  --tx: #16121f;
-  --tx-2: #4b4459;
-  --tx-3: #7a7286;
-  --acc: #6c3ce0;
-  --acc-tx: #5a2fc7;
-  --acc-soft: #f2edfd;
-  --acc-deep: #0e0a17;
-  --acc-line: #c9b8f5;
-  --acc-2: #d98f00;
-  --acc-3: #0f6656;
-  --up: #047857;
-  --down: #b91c1c;
+  --surf-2: #fafbfc;
+  --surf-3: #eff1f4;
+
+  /* hairlines: soft divides content, plain divides regions,
+     strong outlines a control the user can act on */
+  --line-soft: #edeff2;
+  --line: #e2e5ea;
+  --line-strong: #cbd0d8;
+
+  /* text, in descending emphasis */
+  --tx: #0d1117;
+  --tx-2: #4c5563;
+  --tx-3: #7b8492;
+
+  /* the one accent — interactive and active states only */
+  --acc: #1f4fd8;
+  --acc-tx: #1a45bd;
+  --acc-soft: #eef2fe;
+  --acc-line: #c2d0f6;
+
+  /* the primary control: ink on paper, inverted in dark */
+  --ink: #14181f;
+  --ink-hi: #000000;
+  --ink-fg: #ffffff;
+
+  /* the dark analytical slab, used on both themes */
+  --slab: #0d1117;
+  --slab-tx: #e8ebf0;
+  --slab-dim: #9099a8;
+  --slab-line: rgba(232, 235, 240, 0.14);
+
+  /* semantics — the only other saturated colour in the system */
+  --up: #0a7d55;
+  --down: #c02a26;
   --flat: #6b7280;
-  --warn: #b45309;
-  --focus: #5a2fc7;
-  --shadow: 0 1px 2px rgba(20, 10, 40, 0.03), 0 2px 8px -2px rgba(20, 10, 40, 0.05);
-  --shadow-hi: 0 4px 12px -2px rgba(20, 10, 40, 0.08), 0 18px 36px -14px rgba(20, 10, 40, 0.09);
+  --warn: #a05a06;
+  --focus: #1f4fd8;
+
+  /* elevation. Deliberately shallow: this is a dense product,
+     and deep shadows on a dense surface read as noise. */
+  --sh-1: 0 1px 2px rgba(13, 17, 23, 0.04);
+  --sh-2:
+    0 1px 2px rgba(13, 17, 23, 0.05),
+    0 4px 12px -2px rgba(13, 17, 23, 0.07);
+  --sh-3:
+    0 2px 4px rgba(13, 17, 23, 0.05),
+    0 12px 28px -8px rgba(13, 17, 23, 0.14);
+
+  /* legacy aliases, kept so nothing that still reads them breaks */
+  --shadow: var(--sh-1);
+  --shadow-hi: var(--sh-2);
+  --acc-2: #a05a06;
+  --acc-3: #0a7d55;
+  --acc-deep: var(--slab);
+  --r-sm-legacy: 6px;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --ground: #060507;
-  --surf: #100d16;
-  --surf-2: #16121f;
-  --surf-3: #0b0910;
-  --line: rgba(210, 197, 235, 0.13);
-  --line-soft: rgba(210, 197, 235, 0.07);
-  --line-strong: rgba(210, 197, 235, 0.24);
-  --tx: #f6f4fb;
-  --tx-2: #b8b0c9;
-  --tx-3: #8b8399;
-  --acc: #8052ff;
-  --acc-tx: #ac93ff;
-  --acc-soft: rgba(128, 82, 255, 0.16);
-  --acc-deep: #17131f;
-  --acc-line: #4f3d8f;
-  --acc-2: #ffb829;
-  --acc-3: #15846e;
-  --up: #34d399;
-  --down: #f87171;
-  --flat: #b8b0c9;
-  --warn: #f0b44a;
-  --focus: #ac93ff;
-  --shadow: none;
-  --shadow-hi: 0 12px 32px -12px rgba(0, 0, 0, 0.65);
+
+  /* Not pure black: a slightly blue-shifted charcoal keeps the
+     candles and the type from vibrating against the ground. */
+  --ground: #0a0c10;
+  --surf: #111418;
+  --surf-2: #151921;
+  --surf-3: #1c212a;
+
+  --line-soft: #1a1e25;
+  --line: #242a33;
+  --line-strong: #363d49;
+
+  --tx: #e8ebf0;
+  --tx-2: #9aa3b1;
+  --tx-3: #6b7482;
+
+  --acc: #4d84ff;
+  --acc-tx: #83aaff;
+  --acc-soft: rgba(77, 132, 255, 0.13);
+  --acc-line: #2b4a8f;
+
+  /* inverted: the primary control is the light one here */
+  --ink: #e8ebf0;
+  --ink-hi: #ffffff;
+  --ink-fg: #0a0c10;
+
+  --slab: #060809;
+  --slab-tx: #e8ebf0;
+  --slab-dim: #8b94a3;
+  --slab-line: rgba(232, 235, 240, 0.11);
+
+  --up: #2ebd85;
+  --down: #ef5f56;
+  --flat: #8b94a3;
+  --warn: #d99a34;
+  --focus: #83aaff;
+
+  /* On a dark ground a shadow cannot be seen; separation comes
+     from the surface step and the hairline instead. Only true
+     overlays keep a shadow, to sell that they float. */
+  --sh-1: none;
+  --sh-2: 0 8px 24px -8px rgba(0, 0, 0, 0.7);
+  --sh-3: 0 16px 40px -12px rgba(0, 0, 0, 0.8);
+
+  --shadow: var(--sh-1);
+  --shadow-hi: var(--sh-2);
+  --acc-2: #d99a34;
+  --acc-3: #2ebd85;
+  --acc-deep: var(--slab);
 }

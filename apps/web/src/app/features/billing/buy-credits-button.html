@@ -1,6 +1,8 @@
 @switch (state()) {
   @case ('idle') {
-    <button type="button" class="btn" (click)="onBuyClick()">Buy 10 more analyses — ₹79</button>
+    <button type="button" class="btn btn-p" (click)="onBuyClick()">
+      Buy 10 more analyses — ₹79
+    </button>
   }
   @case ('ordering') {
     <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Starting your purchase…</p>
@@ -9,23 +11,36 @@
     <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Opening the payment window…</p>
   }
   @case ('checkout_open') {
-    <p class="billing-msg">Complete your payment in the Razorpay window.</p>
+    <p class="billing-msg">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+      Complete your payment in the Razorpay window.
+    </p>
   }
   @case ('confirming') {
     <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Confirming your payment…</p>
   }
   @case ('success') {
-    <p class="billing-msg billing-ok">10 analyses added. You're good to go.</p>
+    <p class="billing-msg billing-ok">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></svg>
+      10 analyses added. You're good to go.
+    </p>
   }
   @case ('confirming_slow') {
-    <p class="billing-msg">
+    <p class="billing-msg billing-warn">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 17H2.5L12 3z"/><path d="M12 10v4M12 17h.01"/></svg>
       Still confirming your payment — this can take a minute, check back shortly.
     </p>
   }
   @case ('poll_error') {
-    <p class="err" role="alert">{{ error() }}</p>
+    <p class="billing-msg billing-error" role="alert">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
+      {{ error() }}
+    </p>
   }
   @case ('error') {
-    <p class="err" role="alert">{{ error() }}</p>
+    <p class="billing-msg billing-error" role="alert">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
+      {{ error() }}
+    </p>
   }
 }

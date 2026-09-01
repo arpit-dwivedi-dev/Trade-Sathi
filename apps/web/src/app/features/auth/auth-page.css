@@ -1,39 +1,62 @@
+/* Shared by sign-in/sign-up, forgot-password and reset-password: the three
+   screens are one flow and must not drift apart. */
 .auth {
   align-items: center;
   background: var(--ground);
-  background-image:
-    linear-gradient(to right, var(--line-soft) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--line-soft) 1px, transparent 1px);
-  background-size: 56px 56px;
   display: flex;
   flex-direction: column;
-  gap: var(--s6);
   justify-content: center;
   min-height: 100vh;
+  overflow: hidden;
   padding: var(--s12) var(--s4);
+  position: relative;
+}
+
+/* A single soft wash behind the card instead of the graph-paper tile that used
+   to run edge to edge. It gives the card somewhere to sit without becoming a
+   texture the eye has to filter out. */
+.auth::before {
+  background: radial-gradient(
+    58% 42% at 50% 0%,
+    color-mix(in srgb, var(--acc) 7%, transparent) 0%,
+    transparent 100%
+  );
+  content: '';
+  inset: 0 0 auto;
+  height: 420px;
+  pointer-events: none;
+  position: absolute;
 }
 
 .auth-brand {
-  font-size: 20px;
+  font-size: var(--t-lg);
+  margin-bottom: var(--s6);
+  position: relative;
 }
 
 .auth-card {
   display: flex;
   flex-direction: column;
-  gap: var(--s8);
-  max-width: 26rem;
-  padding: var(--s12) var(--s8);
+  gap: var(--s5);
+  max-width: 25rem;
+  padding: var(--s8);
+  position: relative;
   width: 100%;
 }
 
 .auth-head {
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
+  gap: 4px;
 }
 
 .auth-head h1 {
-  font-size: 34px;
+  font-size: var(--t-2xl);
+  letter-spacing: -0.025em;
+}
+
+.auth-head .disc {
+  font-size: var(--t-sm);
 }
 
 .auth-form {
@@ -43,26 +66,52 @@
 }
 
 .auth-submit {
+  margin-top: var(--s1);
   width: 100%;
 }
 
 .auth-notice {
+  background: color-mix(in srgb, var(--up) 8%, var(--surf));
+  border: 1px solid color-mix(in srgb, var(--up) 26%, var(--line));
+  border-radius: var(--r-sm);
   color: var(--up);
-  font-size: 12.5px;
+  font-size: var(--t-xs);
+  line-height: 1.55;
+  padding: var(--s3);
 }
 
 .auth-foot {
   align-items: center;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-soft);
   display: flex;
-  font-size: 13px;
-  gap: var(--s3);
+  flex-wrap: wrap;
+  font-size: var(--t-sm);
+  gap: var(--s2);
   justify-content: space-between;
+  margin-top: calc(var(--s1) * -1);
   padding-top: var(--s4);
+}
+
+/* A six-digit code is read as a group, not as a word: space it out and centre
+   it so the field looks like the thing being typed into it. */
+.auth-otp {
+  font-family: var(--fm);
+  font-size: var(--t-xl);
+  letter-spacing: 0.34em;
+  padding-left: calc(var(--s3) + 0.34em);
+  text-align: center;
 }
 
 .auth-checking {
   align-items: center;
   display: flex;
   gap: var(--s2);
+}
+
+/* The one line of legal copy every auth screen carries. */
+.auth-disc {
+  margin-top: var(--s6);
+  max-width: 25rem;
+  position: relative;
+  text-align: center;
 }

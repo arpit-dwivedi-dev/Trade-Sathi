@@ -1,10 +1,24 @@
 .analyze {
-  padding-top: var(--s6);
+  padding-top: var(--s5);
+}
+
+/* The quota block is one row: icon, copy, and the way out of it — the action
+   was previously stranded in a second element below the callout. */
+.analyze-quota {
+  align-items: center;
 }
 
 .note-icon {
   flex: none;
-  margin-top: 2px;
+}
+
+.analyze-quota-copy {
+  flex: 1;
+  min-width: 14rem;
+}
+
+.analyze-quota-cta {
+  flex: none;
 }
 
 .state-card {
@@ -13,43 +27,58 @@
   gap: var(--s3);
 }
 
-.state-card .st {
-  align-self: flex-start;
+.state-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
 }
 
 .state-title {
-  font-size: 18px;
+  font-size: var(--t-lg);
+  letter-spacing: -0.017em;
 }
 
 .state-msg {
-  align-items: center;
   color: var(--tx-2);
-  display: flex;
-  font-size: 14px;
-  gap: var(--s2);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  max-width: 64ch;
 }
 
 .state-ref {
-  color: var(--tx-2);
+  align-items: center;
+  color: var(--tx-3);
+  display: flex;
+  font-size: var(--t-xs);
+  gap: var(--s2);
 }
 
 .state-skel {
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
-  padding-top: var(--s2);
+  gap: var(--s2);
+  padding-top: var(--s1);
 }
 
 .analyze-again {
   align-self: flex-start;
 }
 
-/* The two quota-block actions sit side by side, wrapping on narrow screens.
-   Each child renders either a button or a status line, so aligning on the
-   start keeps a spinner line from stretching next to a button. */
+/* The quota-block actions sit side by side, wrapping on narrow screens. Each
+   child renders either a button or a status line, so aligning on the start
+   keeps a spinner line from stretching next to a button. */
 .billing-actions {
   align-items: flex-start;
   display: flex;
   flex-wrap: wrap;
   gap: var(--s3);
+  padding-top: var(--s1);
+}
+
+@media (max-width: 640px) {
+  .analyze-quota {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
 }

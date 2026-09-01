@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import './styles/tokens.css';
 @import './styles/components.css';
 
@@ -18,18 +18,39 @@ body {
   background: var(--ground);
   color: var(--tx);
   font-family: var(--fb);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: var(--t-base);
+  line-height: var(--lh-body);
+  /* Inter's contextual alternates give a proper single-storey 'a' free of the
+     default's tail, and disabling the default ligatures keeps ticker strings
+     like "BTCUSDT" from fusing. */
+  font-feature-settings: 'cv05' 1, 'cv11' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
+/* Headings are set in sentence case at a real weight, with tracking tightened
+   as size grows — the opposite of the letterspaced uppercase they replaced.
+   Sizes stay with the components; this only fixes the shared qualities. */
 h1,
 h2,
-h3 {
+h3,
+h4 {
+  color: var(--tx);
   font-family: var(--fh);
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.011em;
+  line-height: var(--lh-snug);
   margin: 0;
   text-wrap: balance;
+}
+
+h1 {
+  letter-spacing: -0.022em;
+}
+
+h2 {
+  letter-spacing: -0.017em;
 }
 
 p {
@@ -37,34 +58,75 @@ p {
   text-wrap: pretty;
 }
 
-/* Anchors that are styled as buttons or tabs bring their own border, so the
-   underline is scoped away from them rather than overridden per page. */
-a:not(.btn):not(.tab):not(.brand) {
-  border-bottom: 1px solid var(--acc-line);
-  color: var(--acc-tx);
-  text-decoration: none;
-}
-
-a:not(.btn):not(.tab):not(.brand):hover {
-  border-color: currentColor;
-  color: var(--tx);
-}
-
-a.btn,
-a.tab,
-a.brand {
+/* An anchor is plain by default and takes its look from whatever class it
+   carries — a button, a tab, the wordmark. Only a classless anchor is prose,
+   and only prose gets the link treatment. Selecting on [class] rather than on
+   a growing :not(.btn):not(.tab)… chain keeps the specificity at one class, so
+   a component's own colour always wins without a fight. */
+a {
   color: inherit;
   text-decoration: none;
 }
 
+a:not([class]) {
+  color: var(--acc-tx);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 32%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  transition: text-decoration-color var(--dur-subtle) var(--ease-move);
+}
+
+a:not([class]):hover {
+  color: var(--tx);
+  text-decoration-color: currentColor;
+}
+
 :focus-visible {
+  border-radius: var(--r-xs);
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
+/* Mouse users never see a ring; keyboard users always do. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+::selection {
+  background: var(--acc-soft);
+  color: var(--acc-tx);
+}
+
+/* Every figure in the product: monospaced and tabular, so a column of prices
+   lines up on the decimal without a table to hold it. */
 .num {
   font-family: var(--fm);
-  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: -0.01em;
+}
+
+/* Native controls inherit the interface font rather than the platform's. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+/* Form controls take the accent for their own painted parts (checkmarks,
+   focus rings drawn by the UA) instead of the browser default blue. */
+input,
+select,
+textarea {
+  accent-color: var(--acc);
+}
+
+img,
+svg {
+  vertical-align: middle;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -73,6 +135,7 @@ a.brand {
   *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
     transition-duration: 0.001ms !important;
   }
 }

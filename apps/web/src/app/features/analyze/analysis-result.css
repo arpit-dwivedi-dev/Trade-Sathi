@@ -1,35 +1,45 @@
 .result {
   display: flex;
   flex-direction: column;
-  gap: var(--s8);
+  gap: var(--s6);
 }
 
+/* ── failed ─────────────────────────────────────────────── */
 .result-failed {
   display: flex;
   flex-direction: column;
   gap: var(--s3);
 }
 
-.result-failed .st {
-  align-self: flex-start;
+.result-failed-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
 }
 
 .result-failed-title {
-  font-size: 20px;
+  font-size: var(--t-lg);
 }
 
 .result-msg {
   color: var(--tx-2);
-  font-size: 13.5px;
+  font-size: var(--t-sm);
   line-height: 1.55;
 }
 
-/* header */
+.result-empty {
+  color: var(--tx-3);
+  font-size: var(--t-sm);
+}
+
+/* ── header ─────────────────────────────────────────────── */
 .result-head {
-  align-items: flex-end;
+  align-items: flex-start;
   border-bottom: 1px solid var(--line);
   display: flex;
-  gap: var(--s6);
+  flex-wrap: wrap;
+  gap: var(--s4);
   justify-content: space-between;
   padding-bottom: var(--s4);
 }
@@ -37,46 +47,70 @@
 .result-ident {
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
+  gap: 6px;
   min-width: 0;
 }
 
-.result-ident .st {
-  align-self: flex-start;
-}
-
 .result-title-row {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s4);
+  gap: var(--s3);
 }
 
-.result-title-row h2 {
-  font-size: 44px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+/* The ticker is the page's title, so it is set at display size — but still in
+   the monospace the rest of the product uses for identifiers and figures. */
+.result-sym {
+  font-family: var(--fm);
+  font-size: var(--t-3xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .result-chips {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s2);
+  gap: 6px;
 }
 
 .result-raw {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
+}
+
+.result-raw .num {
   color: var(--tx-2);
 }
 
-/* two-column dashboard body: a fixed-width right rail keeps the report from
-   stretching into dead space on wide viewports, and gives support/resistance
-   and the metadata their own scannable column instead of full-width blocks. */
+.result-head-end {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.result-time {
+  color: var(--tx-3);
+  font-family: var(--fm);
+  font-size: var(--t-2xs);
+  white-space: nowrap;
+}
+
+.result-tiles {
+  gap: var(--s3);
+}
+
+/* ── body ───────────────────────────────────────────────
+   A fixed-width right rail keeps the report from stretching into dead space on
+   wide viewports, and gives support/resistance and the metadata their own
+   scannable column instead of full-width blocks. */
 .result-body {
+  align-items: start;
   display: grid;
   gap: var(--s8);
-  grid-template-columns: minmax(0, 1fr) 320px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 300px;
 }
 
 .result-main {
@@ -89,47 +123,86 @@
 .result-aside {
   display: flex;
   flex-direction: column;
-  gap: var(--s8);
+  gap: var(--s6);
   position: sticky;
-  top: var(--s6);
+  top: 116px;
 }
 
-.result-glance {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s3);
-}
-
-/* blocks */
+/* ── blocks ─────────────────────────────────────────────── */
 .result-block {
   display: flex;
   flex-direction: column;
   gap: var(--s3);
 }
 
+/* Heading and its aside share a hairline, which is what separates one section
+   of the report from the next without a card around each. */
 .result-block-head {
   align-items: baseline;
+  border-bottom: 1px solid var(--line-soft);
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s4);
+  gap: var(--s3);
   justify-content: space-between;
+  padding-bottom: 6px;
 }
 
 .result-h {
-  font-size: 20px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--t-md);
+  font-weight: 600;
+  letter-spacing: -0.014em;
 }
 
-/* levels */
+.result-summary {
+  color: var(--tx);
+  font-size: var(--t-md);
+  line-height: 1.7;
+  max-width: 68ch;
+}
+
+/* ── levels ─────────────────────────────────────────────── */
 .result-levels {
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
+}
+
+.result-levels-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s3) var(--s4);
+}
+
+.result-levels-group + .result-levels-group {
+  border-top: 1px solid var(--line-soft);
 }
 
 .result-level {
-  font-size: 15px;
+  align-items: center;
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: 3px 1fr;
+  padding: 3px 0;
+}
+
+/* A coloured tick rather than a coloured number: the value stays neutral and
+   readable, and the side is still obvious at a glance. */
+.result-tick {
+  border-radius: 1px;
+  height: 13px;
+  width: 3px;
+}
+
+.result-tick-up {
+  background: var(--up);
+}
+
+.result-tick-down {
+  background: var(--down);
+}
+
+.result-level-val {
+  font-size: var(--t-sm);
 }
 
 .result-lbl-down {
@@ -140,110 +213,122 @@
   color: var(--up);
 }
 
-.result-rule {
-  background: var(--line);
-  height: 1px;
-  margin: var(--s1) 0;
+/* ── at a glance ────────────────────────────────────────── */
+.result-glance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
 }
 
-.result-summary {
-  font-size: 15px;
-  line-height: 1.65;
-  max-width: 70ch;
+.result-key {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
 }
 
-/* AI scenario panel */
-.result-panel {
+.result-val {
+  color: var(--tx);
+  font-size: var(--t-xs);
+  text-align: right;
+  text-transform: capitalize;
+}
+
+/* ── scenario panel ─────────────────────────────────────── */
+.result-panel-grid {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
-}
-
-.result-panel .cells {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: 216px minmax(0, 1fr);
 }
 
 .result-panel-dir {
-  border-right: 1px solid rgba(237, 241, 245, 0.2);
+  border-right: 1px solid var(--slab-line);
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
-  padding: var(--s6);
+  gap: var(--s2);
+  padding: var(--s5);
 }
 
 .result-dir {
-  font-size: 44px;
-  line-height: 0.9;
+  font-size: var(--t-3xl);
+  line-height: 1.05;
 }
 
 .result-conf {
   align-items: baseline;
   display: flex;
   gap: var(--s2);
+  padding-top: var(--s1);
 }
 
-.result-conf .num {
-  font-size: 18px;
-  font-weight: 700;
+.result-conf-val {
+  font-size: var(--t-md);
+  font-weight: 600;
 }
 
-.result-cell-wide {
+.result-cells {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* The third and fourth cells start a second row, so they need the divider the
+   :first-child rule removes only from the very first cell. */
+.result-cells .cell:nth-child(3),
+.result-cells .cell:nth-child(4) {
+  border-top: 1px solid var(--slab-line);
+}
+
+.result-cells .cell:nth-child(3) {
   border-left: 0;
-  border-top: 1px solid rgba(237, 241, 245, 0.16);
-  grid-column: 1 / -1;
-  padding: var(--s4);
 }
 
-.result-horizon {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s6);
-}
-
-.result-horizon-val {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.result-horizon-val .num {
-  font-size: 16px;
-}
-
+/* A footer strip across the whole panel, not a cell pretending to be one. */
 .result-scenario-note {
-  font-size: 13px;
+  border-top: 1px solid var(--slab-line);
+  color: var(--slab-dim);
+  font-size: var(--t-xs);
   line-height: 1.55;
-  max-width: 48ch;
+  padding: var(--s3) var(--s5);
 }
 
-/* patterns */
+/* ── patterns ───────────────────────────────────────────── */
 .result-patterns {
   display: grid;
   gap: var(--s3);
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
 }
 
 .result-pattern {
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
+  gap: 6px;
+  padding: var(--s4);
+}
+
+.result-pattern-head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--s3);
+  justify-content: space-between;
 }
 
 .result-pattern-key {
   font-family: var(--fh);
-  font-size: 16px;
+  font-size: var(--t-sm);
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  text-transform: capitalize;
 }
 
 .result-pattern-conf {
-  color: var(--tx-2);
-  font-size: 13px;
+  color: var(--tx-3);
+  font-size: var(--t-xs);
 }
 
-@media (max-width: 960px) {
+.result-disc {
+  border-top: 1px solid var(--line-soft);
+  padding-top: var(--s4);
+}
+
+@media (max-width: 980px) {
   .result-body {
+    gap: var(--s6);
     grid-template-columns: 1fr;
   }
 
@@ -253,39 +338,35 @@
 }
 
 @media (max-width: 720px) {
-  .result {
+  .result-sym {
+    font-size: var(--t-2xl);
+  }
+
+  .result-head-end {
+    align-items: flex-start;
+    flex-direction: row;
+    gap: var(--s3);
+  }
+
+  .result-main {
     gap: var(--s6);
   }
 
-  .result-title-row h2 {
-    font-size: 28px;
-  }
-
-  .result-head {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: var(--s2);
-  }
-
-  .result-panel {
+  .result-panel-grid {
     grid-template-columns: 1fr;
   }
 
   .result-panel-dir {
-    border-bottom: 1px solid rgba(237, 241, 245, 0.2);
+    border-bottom: 1px solid var(--slab-line);
     border-right: 0;
     padding: var(--s4);
   }
 
   .result-dir {
-    font-size: 32px;
+    font-size: var(--t-2xl);
   }
 
-  .cells {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .result-scenario-note {
-    margin-left: 0;
+  .result-cells .cell {
+    padding: var(--s3) var(--s4);
   }
 }

@@ -1,204 +1,219 @@
 <section class="body content-max watchlist">
-  <div class="watchlist-head">
-    <h1 class="watchlist-title">Watchlist</h1>
-    <span class="lbl dim">Enabled instruments are analysed in your Daily Briefing, at the window and time you set below.</span>
+  <div class="page-head">
+    <h1 class="page-title">Watchlist</h1>
+    <p class="page-sub">
+      Enabled instruments are analysed in your Daily Briefing, at the window and time you set
+      below.
+    </p>
   </div>
 
-  <div class="card watchlist-card">
-    <div class="hd"><span class="lbl-h">Add to watchlist</span></div>
-    <div class="pad watchlist-body">
-      <form class="watchlist-add" (ngSubmit)="add()">
-        <div class="watchlist-search">
-          <input
-            class="input"
-            type="text"
-            placeholder="Search symbol or company, e.g. RELIANCE"
-            [ngModel]="queryInput()"
-            (ngModelChange)="onQueryChange($event)"
-            name="query"
-            autocomplete="off"
-            [disabled]="saving()"
-          />
+  <!-- The add control is a toolbar, not a card: it is one field and one button,
+       and a titled panel around it added chrome without adding meaning. -->
+  <form class="watchlist-add" (ngSubmit)="add()">
+    <div class="watchlist-search">
+      <span class="watchlist-search-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+      </span>
+      <input
+        class="input watchlist-search-input"
+        type="text"
+        placeholder="Search symbol or company, e.g. RELIANCE"
+        [ngModel]="queryInput()"
+        (ngModelChange)="onQueryChange($event)"
+        name="query"
+        autocomplete="off"
+        aria-label="Search instruments to add"
+        [disabled]="saving()"
+      />
+      @if (searching()) {
+        <span class="spin watchlist-search-spin" aria-hidden="true"></span>
+      }
 
-          @if (searching()) {
-            <p class="dim watchlist-hint">Searching…</p>
-          } @else if (results().length > 0) {
-            <ul class="watchlist-suggestions">
-              @for (result of results(); track result.id) {
-                <li>
-                  <button type="button" (click)="selectInstrument(result)">
-                    <span class="num">{{ result.symbol }}</span>
-                    <span class="dim">{{ result.name }}</span>
-                    <span class="watchlist-exchange">{{ result.exchange }}</span>
-                  </button>
-                </li>
-              }
-            </ul>
-          } @else if (searched()) {
-            <p class="dim watchlist-hint">No instruments found.</p>
+      @if (results().length > 0) {
+        <ul class="menu watchlist-suggestions">
+          @for (result of results(); track result.id) {
+            <li>
+              <button type="button" (click)="selectInstrument(result)">
+                <span class="num watchlist-suggestion-sym">{{ result.symbol }}</span>
+                <span class="watchlist-suggestion-name trunc">{{ result.name }}</span>
+                <span class="watchlist-exchange">{{ result.exchange }}</span>
+              </button>
+            </li>
           }
-        </div>
-
-        <button type="submit" class="btn btn-p btn-sm" [disabled]="saving() || !selected()">
-          Add
-        </button>
-      </form>
-
-      @if (error(); as err) {
-        <p class="watchlist-error">{{ err }}</p>
+        </ul>
+      } @else if (searched() && !searching()) {
+        <p class="watchlist-hint">No instruments found.</p>
       }
     </div>
-  </div>
+
+    <button type="submit" class="btn btn-p" [disabled]="saving() || !selected()">
+      Add to watchlist
+    </button>
+  </form>
+
+  @if (error(); as err) {
+    <p class="err" role="alert">{{ err }}</p>
+  }
 
   <div class="card watchlist-card">
-    <div class="hd"><span class="lbl-h">Your watchlist</span></div>
-    <div class="pad watchlist-body">
-      @if (loading()) {
-        <p class="dim">Loading your watchlist…</p>
-      } @else if (items().length === 0) {
-        <p class="dim">No symbols yet. Search above to start tracking one.</p>
-      } @else {
-        <div class="watchlist-table-wrap">
-          <table class="watchlist-table">
-            <thead>
+    <div class="hd">
+      <span class="lbl-h">Tracked instruments</span>
+      @if (!loading() && items().length) {
+        <span class="lbl">{{ items().length }} total</span>
+      }
+    </div>
+
+    @if (loading()) {
+      <p class="watchlist-state"><span class="spin" aria-hidden="true"></span> Loading your watchlist…</p>
+    } @else if (items().length === 0) {
+      <p class="watchlist-state">No symbols yet. Search above to start tracking one.</p>
+    } @else {
+      <div class="watchlist-table-wrap">
+        <table class="watchlist-table">
+          <thead>
+            <tr>
+              <th scope="col">Symbol</th>
+              <th scope="col">Chart window</th>
+              <th scope="col">Run at</th>
+              <th scope="col">Daily briefing</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track item.id) {
               <tr>
-                <th scope="col">Symbol</th>
-                <th scope="col">Chart window</th>
-                <th scope="col">Run at</th>
-                <th scope="col">Daily briefing</th>
-                <th scope="col"><span class="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of items(); track item.id) {
-                <tr>
-                  <td>
-                    <span class="num watchlist-symbol">{{ displaySymbol(item) }}</span>
-                    @if (displayName(item); as name) {
-                      <span class="dim watchlist-item-name">{{ name }}</span>
-                    }
-                  </td>
-                  <td>
-                    @if (isCustomLookback(item)) {
-                      <span class="watchlist-custom">
-                        <input
-                          class="input watchlist-days-input"
-                          type="number"
-                          [min]="minLookbackDays"
-                          [max]="maxLookbackDays"
-                          [value]="item.analysis_lookback_days"
-                          (change)="setCustomLookbackDays(item, $any($event.target).value)"
-                          [attr.aria-label]="'Chart window in days for ' + displaySymbol(item)"
-                        />
-                        <span class="dim">days</span>
-                      </span>
-                    } @else {
-                      <select
-                        class="input watchlist-select"
+                <td>
+                  <span class="sym watchlist-symbol">{{ displaySymbol(item) }}</span>
+                  @if (displayName(item); as name) {
+                    <span class="watchlist-item-name">{{ name }}</span>
+                  }
+                </td>
+                <td>
+                  @if (isCustomLookback(item)) {
+                    <span class="watchlist-custom">
+                      <input
+                        class="input watchlist-days-input"
+                        type="number"
+                        [min]="minLookbackDays"
+                        [max]="maxLookbackDays"
                         [value]="item.analysis_lookback_days"
-                        (change)="setLookbackDays(item, $any($event.target).value)"
-                        [attr.aria-label]="'Chart window for ' + displaySymbol(item)"
-                      >
-                        @for (option of lookbackOptions; track option.days) {
-                          <!-- [selected] per option, not just [value] on the select:
-                               the select's value is bound before @for has created
-                               the options, so the binding lands on an empty list
-                               and the box shows the first option while the stored
-                               value is something else entirely. -->
-                          <option [value]="option.days" [selected]="option.days === item.analysis_lookback_days">
-                            {{ option.label }}
-                          </option>
-                        }
-                        <option value="custom">Custom…</option>
-                      </select>
-                    }
-                  </td>
-                  <td>
+                        (change)="setCustomLookbackDays(item, $any($event.target).value)"
+                        [attr.aria-label]="'Chart window in days for ' + displaySymbol(item)"
+                      />
+                      <span class="watchlist-unit">days</span>
+                    </span>
+                  } @else {
                     <select
                       class="input watchlist-select"
-                      [value]="item.scheduled_hour_ist ?? ''"
-                      (change)="setScheduledHour(item, $any($event.target).value)"
-                      [attr.aria-label]="'Scheduled run time for ' + displaySymbol(item)"
+                      [value]="item.analysis_lookback_days"
+                      (change)="setLookbackDays(item, $any($event.target).value)"
+                      [attr.aria-label]="'Chart window for ' + displaySymbol(item)"
                     >
-                      <option value="" [selected]="item.scheduled_hour_ist === null">Default</option>
-                      @for (hour of hourOptions; track hour) {
-                        <option [value]="hour" [selected]="hour === item.scheduled_hour_ist">
-                          {{ formatHour(hour) }}
+                      @for (option of lookbackOptions; track option.days) {
+                        <!-- [selected] per option, not just [value] on the select:
+                             the select's value is bound before @for has created
+                             the options, so the binding lands on an empty list
+                             and the box shows the first option while the stored
+                             value is something else entirely. -->
+                        <option [value]="option.days" [selected]="option.days === item.analysis_lookback_days">
+                          {{ option.label }}
                         </option>
                       }
+                      <option value="custom">Custom…</option>
                     </select>
-                  </td>
-                  <td>
-                    <label class="watchlist-daily-toggle">
-                      <input
-                        type="checkbox"
-                        [checked]="item.enabled_for_daily_analysis"
-                        (change)="toggleDailyAnalysis(item)"
-                        [attr.aria-label]="'Daily briefing for ' + displaySymbol(item)"
-                      />
-                      <span class="dim">{{ item.enabled_for_daily_analysis ? 'On' : 'Off' }}</span>
-                    </label>
-                  </td>
-                  <td class="watchlist-actions">
-                    <button
-                      type="button"
-                      class="btn btn-g btn-sm"
-                      [disabled]="isBusy(item.id)"
-                      (click)="analyzeNow(item)"
-                    >
-                      @if (preparing()[item.id]) {
-                        <span class="spin" aria-hidden="true"></span> Drawing chart…
-                      } @else if (runIdFor(item.id)) {
-                        <span class="spin" aria-hidden="true"></span> Analyzing…
-                      } @else {
-                        Analyze Now
-                      }
-                    </button>
-                    <button
-                      type="button"
-                      class="watchlist-remove"
-                      (click)="remove(item.id)"
-                      [attr.aria-label]="'Remove ' + displaySymbol(item)"
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                           stroke-linecap="round" stroke-linejoin="round" width="13" height="13" aria-hidden="true">
-                        <path d="M18 6 6 18M6 6l12 12" />
-                      </svg>
-                    </button>
+                  }
+                </td>
+                <td>
+                  <select
+                    class="input watchlist-select"
+                    [value]="item.scheduled_hour_ist ?? ''"
+                    (change)="setScheduledHour(item, $any($event.target).value)"
+                    [attr.aria-label]="'Scheduled run time for ' + displaySymbol(item)"
+                  >
+                    <option value="" [selected]="item.scheduled_hour_ist === null">Default</option>
+                    @for (hour of hourOptions; track hour) {
+                      <option [value]="hour" [selected]="hour === item.scheduled_hour_ist">
+                        {{ formatHour(hour) }}
+                      </option>
+                    }
+                  </select>
+                </td>
+                <td>
+                  <label class="switch">
+                    <input
+                      type="checkbox"
+                      class="switch-input"
+                      [checked]="item.enabled_for_daily_analysis"
+                      (change)="toggleDailyAnalysis(item)"
+                      [attr.aria-label]="'Daily briefing for ' + displaySymbol(item)"
+                    />
+                    <span class="switch-track" aria-hidden="true"></span>
+                    <span class="switch-label">{{ item.enabled_for_daily_analysis ? 'On' : 'Off' }}</span>
+                  </label>
+                </td>
+                <td class="watchlist-actions">
+                  <button
+                    type="button"
+                    class="btn btn-s btn-sm"
+                    [disabled]="isBusy(item.id)"
+                    (click)="analyzeNow(item)"
+                  >
+                    @if (preparing()[item.id]) {
+                      <span class="spin" aria-hidden="true"></span> Drawing chart…
+                    } @else if (runIdFor(item.id)) {
+                      <span class="spin" aria-hidden="true"></span> Analyzing…
+                    } @else {
+                      Analyze now
+                    }
+                  </button>
+                  <button
+                    type="button"
+                    class="watchlist-remove"
+                    (click)="remove(item.id)"
+                    [attr.aria-label]="'Remove ' + displaySymbol(item)"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" width="13" height="13" aria-hidden="true">
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+              @if (duplicateWarning()[item.id]; as warning) {
+                <tr class="watchlist-analyze-row">
+                  <td colspan="5">
+                    <div class="note watchlist-confirm" style="--tone: var(--warn)" role="alert">
+                      <span class="watchlist-confirm-copy">
+                        You already analysed {{ displaySymbol(item) }} on this
+                        {{ warning.lookbackDays }}-day chart
+                        ({{ formatTimestamp(warning.lastAnalysisAt) }}). Running it again
+                        uses another Daily Briefing analysis. Are you sure you want to
+                        continue?
+                      </span>
+                      <span class="watchlist-confirm-actions">
+                        <button type="button" class="btn btn-p btn-sm" (click)="analyzeNow(item, true)">
+                          Yes, analyse again
+                        </button>
+                        <button type="button" class="btn btn-g btn-sm" (click)="dismissDuplicate(item.id)">
+                          Cancel
+                        </button>
+                      </span>
+                    </div>
                   </td>
                 </tr>
-                @if (duplicateWarning()[item.id]; as warning) {
-                  <tr class="watchlist-analyze-row">
-                    <td colspan="5">
-                      <div class="watchlist-confirm" role="alert">
-                        <span>
-                          You already analysed {{ displaySymbol(item) }} on this
-                          {{ warning.lookbackDays }}-day chart
-                          ({{ formatTimestamp(warning.lastAnalysisAt) }}). Running it again
-                          uses another Daily Briefing analysis. Are you sure you want to
-                          continue?
-                        </span>
-                        <span class="watchlist-confirm-actions">
-                          <button type="button" class="btn btn-p btn-sm" (click)="analyzeNow(item, true)">
-                            Yes, analyse again
-                          </button>
-                          <button type="button" class="btn btn-g btn-sm" (click)="dismissDuplicate(item.id)">
-                            Cancel
-                          </button>
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                } @else if (analyzeResult()[item.id]; as message) {
-                  <tr class="watchlist-analyze-row">
-                    <td colspan="5" class="dim">{{ message }}</td>
-                  </tr>
-                }
+              } @else if (analyzeResult()[item.id]; as message) {
+                <tr class="watchlist-analyze-row">
+                  <td colspan="5"><span class="watchlist-result">{{ message }}</span></td>
+                </tr>
               }
-            </tbody>
-          </table>
-        </div>
-      }
-    </div>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
   </div>
 </section>

@@ -56,15 +56,15 @@ export interface ChartPalette {
 
 /** Used when a token is missing — during SSR, or before styles are applied. */
 const FALLBACK_PALETTE: ChartPalette = {
-  up: '#047857',
-  down: '#b91c1c',
+  up: '#0a7d55',
+  down: '#c02a26',
   flat: '#6b7280',
-  text: '#7a7286',
-  textStrong: '#16121f',
-  line: '#e6e3f1',
-  lineSoft: '#f0eef8',
+  text: '#7b8492',
+  textStrong: '#0d1117',
+  line: '#e2e5ea',
+  lineSoft: '#edeff2',
   surface: '#ffffff',
-  accent: '#6c3ce0',
+  accent: '#1f4fd8',
 };
 
 export function readPalette(element: HTMLElement): ChartPalette {
