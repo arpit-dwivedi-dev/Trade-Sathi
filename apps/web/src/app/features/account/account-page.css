@@ -1,71 +1,3 @@
-.shell {
-  background: var(--ground);
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.bar-inner {
-  align-items: center;
-  display: flex;
-  gap: var(--s4);
-  height: 100%;
-  justify-content: space-between;
-}
-
-.tabs-inner {
-  display: flex;
-  height: 100%;
-}
-
-.bar-end {
-  align-items: center;
-  display: flex;
-  gap: var(--s2);
-  min-width: 0;
-}
-
-.who {
-  align-items: center;
-  display: flex;
-  gap: var(--s2);
-  min-width: 0;
-  padding-left: var(--s1);
-}
-
-.who-mark {
-  align-items: center;
-  background: var(--surf-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  color: var(--tx-2);
-  display: flex;
-  flex: none;
-  font-size: var(--t-xs);
-  font-weight: 600;
-  height: 26px;
-  justify-content: center;
-  text-transform: uppercase;
-  width: 26px;
-}
-
-.who-email {
-  color: var(--tx-3);
-  font-size: var(--t-xs);
-  max-width: 200px;
-}
-
-/* The current tab here is a <span>, not a link, so it needs the same marker
-   .tab[aria-current] gives the button and anchor forms. */
-.tabs span.tab[aria-current='page'] {
-  color: var(--tx);
-  font-weight: 600;
-}
-
-.tabs span.tab[aria-current='page']::after {
-  background: var(--acc);
-}
-
 /* ── layout ─────────────────────────────────────────────── */
 .account-grid {
   align-items: start;
@@ -228,17 +160,9 @@
   .account-grid {
     grid-template-columns: 1fr;
   }
-
-  .who-email {
-    display: none;
-  }
 }
 
 @media (max-width: 520px) {
-  .who {
-    display: none;
-  }
-
   .account-used {
     font-size: var(--t-3xl);
   }

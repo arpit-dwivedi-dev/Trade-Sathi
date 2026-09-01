@@ -5,18 +5,266 @@
    appears. */
 
 /* ════════════════════════════════════════════════════════
-   1. Layout
+   1. Dashboard shell
    ════════════════════════════════════════════════════════ */
 
-/* The app header. Sticky, because the plan control and the sign-out live here
-   and a long analysis report should not strand them off-screen. */
+/* The signed-in frame: a fixed nav rail beside a scrolling content column.
+   Shared by the app shell and Account so the two screens are one product. */
+.shell {
+  background: var(--ground);
+  display: grid;
+  grid-template-columns: var(--nav-w) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+/* ── nav rail ───────────────────────────────────────────── */
+.nav {
+  background: var(--surf);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  height: 100vh;
+  padding: var(--s4) var(--s3);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.nav-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: var(--s1) var(--s2) var(--s4);
+}
+
+/* The scrolling middle: if the nav ever outgrows the viewport it is the item
+   list that scrolls, never the brand or the account block. */
+.nav-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.nav-lbl {
+  color: var(--tx-3);
+  font-family: var(--fh);
+  font-size: var(--t-3xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  padding: var(--s4) var(--s2) var(--s2);
+  text-transform: uppercase;
+}
+
+/* One nav row. The active state is a filled pill rather than a rule, which is
+   what makes this read as an application rather than a website's menu. */
+.nav-item {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  color: var(--tx-2);
+  cursor: pointer;
+  display: flex;
+  font-family: var(--fh);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  gap: var(--s3);
+  min-height: 36px;
+  padding: 0 var(--s2);
+  position: relative;
+  text-align: left;
+  transition:
+    background var(--dur-subtle) var(--ease-move),
+    color var(--dur-subtle) var(--ease-move);
+  width: 100%;
+}
+
+.nav-item svg {
+  flex: none;
+  height: 17px;
+  opacity: 0.85;
+  width: 17px;
+}
+
+.nav-item:hover {
+  background: var(--surf-3);
+  color: var(--tx);
+}
+
+.nav-item[aria-current='page'] {
+  background: var(--acc-soft);
+  color: var(--acc-tx);
+  font-weight: 600;
+}
+
+.nav-item[aria-current='page'] svg {
+  opacity: 1;
+}
+
+:root[data-theme='dark'] .nav-item[aria-current='page'] {
+  color: var(--acc-tx);
+}
+
+/* Sits at the bottom of the rail: plan control, then identity. */
+.nav-foot {
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin-top: auto;
+  padding-top: var(--s3);
+}
+
+.nav-cta {
+  width: 100%;
+}
+
+/* The identity block. A row, not a menu — the controls beside it are the
+   theme toggle and sign-out, and both are icon buttons. */
+.who {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+  min-width: 0;
+  padding: var(--s1) var(--s1) var(--s1) var(--s2);
+}
+
+.who-mark {
+  align-items: center;
+  background: var(--acc-soft);
+  border: 1px solid var(--acc-line);
+  border-radius: var(--r-pill);
+  color: var(--acc-tx);
+  display: flex;
+  flex: none;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  height: 28px;
+  justify-content: center;
+  text-transform: uppercase;
+  width: 28px;
+}
+
+.who-email {
+  color: var(--tx-2);
+  flex: 1;
+  font-size: var(--t-xs);
+  min-width: 0;
+}
+
+/* ── content column ─────────────────────────────────────── */
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* A slim header inside the content column rather than across the whole page:
+   the nav already owns the left edge, and a bar spanning both would cut the
+   rail off at the top and undo the two-column read. */
+.topbar {
+  align-items: center;
+  background: color-mix(in srgb, var(--surf) 82%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex: none;
+  gap: var(--s3);
+  /* Only the utility controls are here on desktop, so they sit to the right. */
+  justify-content: flex-end;
+  min-height: var(--top-h);
+  padding: var(--s2) var(--s6);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+/* Hidden while the rail is visible: the rail's active pill already names the
+   screen, and the body carries the real page title. Repeating it here put the
+   same words on screen twice on every single tab. */
+.topbar-title {
+  display: none;
+  font-size: var(--t-md);
+  font-weight: 600;
+  letter-spacing: -0.014em;
+  min-width: 0;
+}
+
+.topbar-end {
+  align-items: center;
+  display: flex;
+  flex: none;
+  gap: var(--s2);
+}
+
+/* Opens the nav drawer. Only ever visible once the rail collapses. Qualified
+   with .btn because .btn sets its own display further down the file, and an
+   unqualified selector would lose to it on source order. */
+.btn.nav-toggle {
+  display: none;
+}
+
+/* Dims the page behind the drawer. Absent from the layout until the drawer
+   can actually open, so it never intercepts a click on the desktop layout. */
+.nav-scrim {
+  display: none;
+}
+
+/* ── page body ──────────────────────────────────────────── */
+
+/* The vertical rhythm of every page body. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  padding: var(--s6) var(--s6) var(--s16);
+}
+
+/* Keeps content from stretching edge to edge on wide viewports. 1180 rather
+   than 1280: the result page's two columns hit their comfortable measure
+   there, and the extra width only bought dead space. */
+.content-max {
+  margin-inline: auto;
+  max-width: 1180px;
+  width: 100%;
+}
+
+/* The standard page heading block: title, then one line saying what the screen
+   is for. Used by History, Live, Watchlist and Account so all four open the
+   same way. */
+.page-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.page-title {
+  font-size: var(--t-2xl);
+  letter-spacing: -0.022em;
+  line-height: 1.2;
+}
+
+.page-sub {
+  color: var(--tx-2);
+  font-size: var(--t-sm);
+  max-width: 72ch;
+}
+
+/* ── marketing top bar ──────────────────────────────────
+   The landing page keeps a conventional horizontal header; it is a website,
+   not the application. */
 .bar {
   align-items: center;
   background: var(--surf);
   border-bottom: 1px solid var(--line);
   display: flex;
   flex: none;
-  height: 56px;
+  height: 60px;
   justify-content: space-between;
   padding: 0 var(--s6);
   position: sticky;
@@ -47,102 +295,34 @@
   font-weight: 400;
 }
 
-.brand svg {
+/* A bare glyph beside the wordmark takes the accent; the tile below paints its
+   own. Scoped to a direct child so it never repaints the tile's glyph. */
+.brand > svg {
   color: var(--acc);
   flex: none;
 }
 
-/* Sits directly under .bar and sticks to its underside. */
-.tabs {
-  background: var(--surf);
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  flex: none;
-  height: 44px;
-  padding: 0 var(--s6);
-  position: sticky;
-  top: 56px;
-  z-index: 20;
-}
-
-.tab {
+/* The mark as a filled tile, so the wordmark has an anchor at small sizes and
+   against the nav rail's own surface. */
+.brand-mark {
   align-items: center;
-  background: none;
-  border: 0;
-  color: var(--tx-3);
-  cursor: pointer;
-  display: flex;
-  font-family: var(--fh);
-  font-size: var(--t-sm);
-  font-weight: 500;
-  padding: 0 var(--s3);
-  position: relative;
-  transition: color var(--dur-subtle) var(--ease-move);
-}
-
-/* The rule is drawn by a pseudo-element rather than a border so it can sit on
-   the container's hairline exactly, and so the tab's own box never shifts by
-   a pixel when it becomes current. */
-.tab::after {
-  background: transparent;
-  bottom: -1px;
-  content: '';
-  height: 2px;
-  left: var(--s2);
-  position: absolute;
-  right: var(--s2);
-  transition: background var(--dur-subtle) var(--ease-move);
-}
-
-.tab:hover {
-  color: var(--tx);
-}
-
-.tab[aria-current='page'] {
-  color: var(--tx);
-  font-weight: 600;
-}
-
-.tab[aria-current='page']::after {
   background: var(--acc);
+  border-radius: var(--r-sm);
+  /* Raw white, like every glyph sitting on an accent fill in this file: the
+     tile is indigo on both themes, and every white in the palette (--surf,
+     --ink-fg, --ink-hi) inverts with the theme. */
+  color: #fff;
+  display: inline-flex;
+  flex: none;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
 }
 
-/* The vertical rhythm of every page body. */
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s6);
-  padding: var(--s6) var(--s6) var(--s16);
-}
-
-/* Keeps full-bleed shells from stretching content edge to edge on wide
-   viewports. 1200 rather than 1280: the result page's two columns hit their
-   comfortable measure there, and the extra width only bought dead space. */
-.content-max {
-  margin-inline: auto;
-  max-width: 1200px;
-  width: 100%;
-}
-
-/* The standard page heading block: title, then one line saying what the screen
-   is for. Used by History, Live, Watchlist and Account so all four open the
-   same way. */
-.page-head {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-}
-
-.page-title {
-  font-size: var(--t-2xl);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-.page-sub {
-  color: var(--tx-2);
-  font-size: var(--t-sm);
-  max-width: 72ch;
+.brand-mark svg {
+  color: #fff;
+  height: 15px;
+  width: 15px;
 }
 
 /* ════════════════════════════════════════════════════════
@@ -157,7 +337,7 @@
   font-family: var(--fh);
   font-size: var(--t-2xs);
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   line-height: 1.4;
   text-transform: uppercase;
 }
@@ -201,8 +381,7 @@
   white-space: nowrap;
 }
 
-/* Visually hidden, still announced. Two screens needed this independently,
-   which is what earns it a place here rather than a third local copy. */
+/* Visually hidden, still announced. */
 .sr-only {
   clip: rect(0 0 0 0);
   clip-path: inset(50%);
@@ -231,7 +410,7 @@
   letter-spacing: -0.005em;
   line-height: 1;
   min-height: 36px;
-  padding: 0 var(--s3);
+  padding: 0 var(--s4);
   text-align: center;
   touch-action: manipulation;
   transition:
@@ -250,7 +429,7 @@
 
 .btn[disabled] {
   cursor: not-allowed;
-  opacity: 0.42;
+  opacity: 0.45;
 }
 
 .btn svg {
@@ -259,29 +438,43 @@
   width: 15px;
 }
 
-/* Primary: ink on paper, and paper on ink once the theme flips. Reserving the
-   accent for state (active tab, focus, links) and letting the primary control
-   be plain ink is what keeps the blue meaningful everywhere else. */
+/* Primary: the accent, because in a dashboard the main action should look like
+   the product's own colour rather than like plain ink. */
 .btn-p {
-  background: var(--ink);
-  border: 1px solid var(--ink);
+  background: var(--acc);
+  border: 1px solid var(--acc);
   box-shadow: var(--sh-1);
-  color: var(--ink-fg);
+  /* Light theme only — the dark override below swaps to ink for contrast. */
+  color: #fff;
 }
 
 .btn-p:hover:not([disabled]) {
-  background: var(--ink-hi);
-  border-color: var(--ink-hi);
+  background: var(--acc-tx);
+  border-color: var(--acc-tx);
+}
+
+/* On dark the accent is a bright indigo, and white on it lands near 3.4:1 —
+   under AA for label text. Dark ink on the same fill clears 4.6:1, and the
+   lighter hover fill only improves it. */
+:root[data-theme='dark'] .btn-p {
+  color: var(--ink-fg);
+}
+
+:root[data-theme='dark'] .btn-p:hover:not([disabled]) {
+  background: var(--acc-tx);
+  border-color: var(--acc-tx);
+  color: var(--ink-fg);
 }
 
 .btn-s {
   background: var(--surf);
   border: 1px solid var(--line-strong);
+  box-shadow: var(--sh-1);
   color: var(--tx);
 }
 
 .btn-s:hover:not([disabled]) {
-  background: var(--surf-3);
+  background: var(--surf-2);
   border-color: var(--tx-3);
 }
 
@@ -301,6 +494,7 @@
 }
 
 .btn-lg {
+  border-radius: var(--r-md);
   font-size: var(--t-md);
   min-height: 44px;
   padding: 0 var(--s5);
@@ -309,7 +503,7 @@
 .btn-sm {
   font-size: var(--t-xs);
   min-height: 30px;
-  padding: 0 var(--s2);
+  padding: 0 var(--s3);
 }
 
 .btn-sm svg {
@@ -350,7 +544,7 @@
   display: flex;
   gap: var(--s3);
   justify-content: space-between;
-  min-height: 44px;
+  min-height: 48px;
   padding: var(--s2) var(--s5);
 }
 
@@ -418,17 +612,17 @@
    shape before the word — and for anyone who cannot separate the hues. */
 .st {
   align-items: center;
-  background: color-mix(in srgb, currentColor 9%, transparent);
-  border: 1px solid color-mix(in srgb, currentColor 26%, transparent);
-  border-radius: var(--r-xs);
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: var(--r-pill);
   display: inline-flex;
   font-family: var(--fh);
   font-size: var(--t-2xs);
   font-weight: 500;
-  gap: var(--s1);
-  letter-spacing: 0.03em;
+  gap: 5px;
+  letter-spacing: 0.01em;
   line-height: 1;
-  padding: 4px 7px 4px 6px;
+  padding: 5px 9px 5px 7px;
   text-transform: capitalize;
   white-space: nowrap;
 }
@@ -518,11 +712,12 @@
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
+  box-shadow: var(--sh-1);
   display: flex;
   flex-direction: column;
-  gap: var(--s1);
+  gap: 3px;
   min-width: 0;
-  padding: var(--s3) var(--s4);
+  padding: var(--s4);
 }
 
 .tile b {
@@ -547,7 +742,7 @@
   font-size: var(--t-2xs);
   font-weight: 500;
   gap: var(--s1);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   line-height: 1;
   padding: 4px 7px;
   text-transform: uppercase;
@@ -560,7 +755,7 @@
   background: color-mix(in srgb, currentColor 18%, transparent);
   border-radius: var(--r-pill);
   display: flex;
-  height: 5px;
+  height: 6px;
   overflow: hidden;
   width: 100%;
 }
@@ -614,9 +809,9 @@
   color: var(--tx-3);
   font-family: var(--fh);
   font-size: var(--t-2xs);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  padding: var(--s2) var(--s5);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: var(--s3) var(--s5);
   text-transform: uppercase;
 }
 
@@ -664,7 +859,7 @@
   color: var(--tx);
   font-family: var(--fb);
   font-size: var(--t-base);
-  min-height: 38px;
+  min-height: 40px;
   padding: 0 var(--s3);
   transition:
     border-color var(--dur-subtle) var(--ease-move),
@@ -777,11 +972,11 @@ select.input {
   background: var(--surf);
   border: 1px solid var(--line-strong);
   border-bottom-width: 2px;
-  border-radius: var(--r-sm);
+  border-radius: var(--r-xs);
   color: var(--tx-2);
   display: inline-flex;
   font-family: var(--fm);
-  font-size: var(--t-xs);
+  font-size: var(--t-2xs);
   font-weight: 500;
   height: 24px;
   justify-content: center;
@@ -797,7 +992,7 @@ select.input {
   background: var(--surf-3);
   border-radius: var(--r-pill);
   display: flex;
-  height: 3px;
+  height: 4px;
   overflow: hidden;
 }
 
@@ -849,14 +1044,13 @@ select.input {
   align-items: flex-start;
   background: color-mix(in srgb, var(--tone, var(--acc)) 7%, var(--surf));
   border: 1px solid color-mix(in srgb, var(--tone, var(--acc)) 24%, var(--line));
-  border-left: 2px solid var(--tone, var(--acc));
-  border-radius: var(--r-sm);
+  border-radius: var(--r-md);
   color: var(--tx-2);
   display: flex;
   font-size: var(--t-sm);
   gap: var(--s3);
   line-height: 1.55;
-  padding: var(--s3) var(--s4);
+  padding: var(--s4);
 }
 
 .note b {
@@ -904,39 +1098,70 @@ select.input {
    11. Responsive
    ════════════════════════════════════════════════════════ */
 
+/* The rail collapses to a drawer. Below this width a 248px column costs more
+   than it returns, and the content is what the user came for. */
 @media (max-width: 900px) {
-  .bar,
-  .tabs {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nav {
+    bottom: 0;
+    height: auto;
+    transform: translateX(-100%);
+    transition: transform var(--dur-standard) var(--ease-move);
+    width: var(--nav-w);
+    position: fixed;
+    top: 0;
+    z-index: 60;
+  }
+
+  .shell-nav-open .nav {
+    box-shadow: var(--sh-3);
+    transform: translateX(0);
+  }
+
+  .shell-nav-open .nav-scrim {
+    background: rgb(8 8 10 / 45%);
+    display: block;
+    inset: 0;
+    position: fixed;
+    z-index: 50;
+  }
+
+  .btn.nav-toggle {
+    display: inline-flex;
+  }
+
+  /* The rail is gone, so the bar becomes the only thing naming the screen. */
+  .topbar {
+    justify-content: space-between;
+  }
+
+  .topbar-title {
+    display: block;
+  }
+
+  .bar {
+    padding-inline: var(--s4);
+  }
+
+  .topbar {
     padding-inline: var(--s4);
   }
 
   .body {
-    padding: var(--s4) var(--s4) var(--s12);
+    padding: var(--s5) var(--s4) var(--s12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav {
+    transition: none;
   }
 }
 
 @media (max-width: 640px) {
-  .bar {
-    height: 52px;
-  }
-
-  .tabs {
-    /* Four tabs plus Account overflow a phone; scroll them rather than
-       wrapping the row into a second line under the header. */
-    overflow-x: auto;
-    padding-inline: var(--s3);
-    scrollbar-width: none;
-    top: 52px;
-  }
-
-  .tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  .tab {
-    flex: none;
-  }
-
   .body {
     gap: var(--s4);
   }

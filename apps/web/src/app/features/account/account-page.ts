@@ -46,6 +46,8 @@ export class AccountPage implements OnInit {
   protected readonly briefingUsage = computed(() => this.plan()?.briefingUsage ?? null);
   protected readonly analysisCredits = computed(() => this.plan()?.creditBalance ?? 0);
   protected readonly loading = signal(true);
+  /** Drawer state. Only consulted below 900px, where the rail is off-canvas. */
+  protected readonly navOpen = signal(false);
 
   /**
    * Whether the briefing block is worth rendering at all. Credits alone are
@@ -78,6 +80,14 @@ export class AccountPage implements OnInit {
    */
   protected onCreditsAdded(): void {
     void this.billing.refreshPlanSummary();
+  }
+
+  protected toggleNav(): void {
+    this.navOpen.update((open) => !open);
+  }
+
+  protected closeNav(): void {
+    this.navOpen.set(false);
   }
 
   protected toggleTheme(): void {

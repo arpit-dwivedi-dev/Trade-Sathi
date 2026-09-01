@@ -16,6 +16,14 @@ type Tab = 'analyze' | 'live' | 'history' | 'watchlist' | 'logs';
 
 const TABS: readonly Tab[] = ['analyze', 'live', 'history', 'watchlist', 'logs'];
 
+const TAB_TITLES: Readonly<Record<Tab, string>> = {
+  analyze: 'Analyze',
+  live: 'Live chart',
+  history: 'Your analyses',
+  watchlist: 'Watchlist',
+  logs: 'Logs',
+};
+
 function parseTab(value: string | null): Tab {
   return TABS.includes(value as Tab) ? (value as Tab) : 'analyze';
 }
@@ -38,6 +46,8 @@ export class AppPage implements OnInit {
   protected readonly tab = signal<Tab>('analyze');
   protected readonly theme = this.themeService.theme;
   protected readonly plansOpen = signal(false);
+  /** Drawer state. Only consulted below 900px, where the rail is off-canvas. */
+  protected readonly navOpen = signal(false);
   /** The shared cached read; the overlay and the picker use this same value. */
   protected readonly currentPlanKey = this.billing.currentPlanKey;
 
@@ -74,6 +84,19 @@ export class AppPage implements OnInit {
     return this.currentPlanKey() === 'free' ? 'Upgrade' : 'Buy Credits';
   }
 
+  /** Names the current screen in the top bar, beside the drawer toggle. */
+  protected pageTitle(): string {
+    return TAB_TITLES[this.tab()];
+  }
+
+  protected toggleNav(): void {
+    this.navOpen.update((open) => !open);
+  }
+
+  protected closeNav(): void {
+    this.navOpen.set(false);
+  }
+
   protected openPlans(): void {
     this.plansOpen.set(true);
   }
@@ -100,6 +123,7 @@ export class AppPage implements OnInit {
    * identical path. replaceUrl keeps tab switching out of the back stack.
    */
   protected select(tab: Tab): void {
+    this.navOpen.set(false);
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { tab },

@@ -125,7 +125,9 @@
   flex-direction: column;
   gap: var(--s6);
   position: sticky;
-  top: 116px;
+  /* Clears the top bar (--top-h) plus a gap. The old 116px assumed the
+     header + tab-rail stack this shell replaced with a single bar. */
+  top: calc(var(--top-h) + var(--s4));
 }
 
 /* ── blocks ─────────────────────────────────────────────── */

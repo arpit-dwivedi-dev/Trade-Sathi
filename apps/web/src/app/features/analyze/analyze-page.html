@@ -1,4 +1,12 @@
 <section class="body content-max analyze">
+  <div class="page-head">
+    <h1 class="page-title">Analyze a chart</h1>
+    <p class="page-sub">
+      Upload a chart and get trend, volatility, volume and sentiment readings, the support and
+      resistance levels the model can see, and a written summary.
+    </p>
+  </div>
+
   <app-chart-drop
     [disabled]="(state() !== 'idle' && state() !== 'complete') || quotaExhausted()"
     (fileSelected)="onFileSelected($event)"

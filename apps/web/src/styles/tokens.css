@@ -1,11 +1,10 @@
 /* Design tokens.
 
-   The system is deliberately near-monochrome: an ink/paper neutral ramp does
-   almost all the work, and saturated colour is reserved for things that carry
-   meaning — direction (up/down), state (warn/fail), and the single accent that
-   marks what is interactive or currently active. That restraint is what makes
-   a trading surface readable: when only the numbers are coloured, the numbers
-   are what you see.
+   A warm, modern SaaS surface: neutral greys carry a trace of warmth so the
+   product reads as approachable rather than clinical, and one indigo accent
+   marks everything interactive. Saturated colour is still rationed — direction
+   (up/down), state (warn/fail) and the accent are the only places it appears,
+   because on a trading surface the numbers have to be the loudest thing.
 
    Theme is selected by a data-theme attribute on <html> so it can later fall
    back to prefers-color-scheme without a class-toggle rewrite. */
@@ -28,14 +27,14 @@
   --s24: 96px;
 
   /* ── radii ───────────────────────────────────────────────
-     Small and consistent. Tags are nearly square, controls
-     are gently rounded, cards get the largest value — and
-     nothing is rounder than a card except a true pill. */
-  --r-xs: 3px;
-  --r-sm: 6px;
-  --r-md: 8px;
-  --r-lg: 12px;
-  --r-xl: 16px;
+     Softer than a dense terminal, tighter than a consumer app.
+     Controls are gently rounded, cards get the larger value,
+     and nothing is rounder than a card except a true pill. */
+  --r-xs: 5px;
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
   --r-pill: 9999px;
 
   /* ── type ────────────────────────────────────────────────
@@ -46,20 +45,21 @@
   --fb: 'Inter', system-ui, -apple-system, sans-serif;
   --fm: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 
-  /* modular-ish scale, tuned by hand at the small end where
-     rounding matters more than ratio */
-  --t-3xs: 10.5px;
-  --t-2xs: 11.5px;
-  --t-xs: 12.5px;
-  --t-sm: 13px;
-  --t-base: 14px;
-  --t-md: 15px;
-  --t-lg: 17px;
-  --t-xl: 20px;
-  --t-2xl: 24px;
-  --t-3xl: 30px;
-  --t-4xl: 38px;
-  --t-5xl: 52px;
+  /* Set a step larger than a trading terminal would: this scale
+     is built for reading, and the mono figures hold their own
+     density regardless. */
+  --t-3xs: 11px;
+  --t-2xs: 12px;
+  --t-xs: 13px;
+  --t-sm: 13.5px;
+  --t-base: 15px;
+  --t-md: 16px;
+  --t-lg: 18px;
+  --t-xl: 21px;
+  --t-2xl: 26px;
+  --t-3xl: 32px;
+  --t-4xl: 40px;
+  --t-5xl: 56px;
 
   --lh-tight: 1.15;
   --lh-snug: 1.35;
@@ -76,118 +76,133 @@
   --dur-standard: 190ms;
   --dur-screen: 280ms;
 
+  /* ── shell ───────────────────────────────────────────────
+     The dashboard's fixed measurements, needed by both the nav
+     itself and the main column that has to clear it. */
+  --nav-w: 248px;
+  --nav-w-sm: 72px;
+  --top-h: 60px;
+
   /* ── light palette (default) ─────────────────────────── */
   color-scheme: light;
 
-  /* surfaces, from the page floor up */
-  --ground: #f5f6f8;
+  /* surfaces, from the page floor up. Warm-shifted: a neutral
+     grey next to this indigo reads cold and slightly blue. */
+  --ground: #f7f7f6;
   --surf: #ffffff;
-  --surf-2: #fafbfc;
-  --surf-3: #eff1f4;
+  --surf-2: #fafaf9;
+  --surf-3: #f1f1ef;
 
   /* hairlines: soft divides content, plain divides regions,
      strong outlines a control the user can act on */
-  --line-soft: #edeff2;
-  --line: #e2e5ea;
-  --line-strong: #cbd0d8;
+  --line-soft: #f0f0ed;
+  --line: #e6e6e2;
+  --line-strong: #d3d3ce;
 
   /* text, in descending emphasis */
-  --tx: #0d1117;
-  --tx-2: #4c5563;
-  --tx-3: #7b8492;
+  --tx: #1a1a18;
+  --tx-2: #5c5c57;
+  /* Dark enough to clear 4.5:1 on the page ground, which is the tightest
+     pairing it appears in — .lbl and .disc are normal-size text, not large,
+     so the AA threshold is the full one. */
+  --tx-3: #6f6f69;
 
   /* the one accent — interactive and active states only */
-  --acc: #1f4fd8;
-  --acc-tx: #1a45bd;
-  --acc-soft: #eef2fe;
-  --acc-line: #c2d0f6;
+  --acc: #4f46e5;
+  --acc-tx: #4338ca;
+  --acc-soft: #eef2ff;
+  --acc-line: #c7d2fe;
 
   /* the primary control: ink on paper, inverted in dark */
-  --ink: #14181f;
+  --ink: #1a1a18;
   --ink-hi: #000000;
   --ink-fg: #ffffff;
 
   /* the dark analytical slab, used on both themes */
-  --slab: #0d1117;
-  --slab-tx: #e8ebf0;
-  --slab-dim: #9099a8;
-  --slab-line: rgba(232, 235, 240, 0.14);
+  --slab: #17171a;
+  --slab-tx: #ededec;
+  --slab-dim: #9a9a95;
+  --slab-line: rgba(237, 237, 236, 0.14);
 
   /* semantics — the only other saturated colour in the system */
-  --up: #0a7d55;
-  --down: #c02a26;
-  --flat: #6b7280;
-  --warn: #a05a06;
-  --focus: #1f4fd8;
+  --up: #0d8f5b;
+  --down: #d33f3f;
+  --flat: #78787a;
+  --warn: #b45309;
+  --focus: #4f46e5;
 
-  /* elevation. Deliberately shallow: this is a dense product,
-     and deep shadows on a dense surface read as noise. */
-  --sh-1: 0 1px 2px rgba(13, 17, 23, 0.04);
+  /* elevation. Soft and ambient rather than deep: this is a
+     dense product, and a hard shadow on a dense surface reads
+     as noise. Two layers so the falloff looks like real light. */
+  --sh-1:
+    0 1px 2px rgba(24, 24, 20, 0.04),
+    0 1px 3px rgba(24, 24, 20, 0.03);
   --sh-2:
-    0 1px 2px rgba(13, 17, 23, 0.05),
-    0 4px 12px -2px rgba(13, 17, 23, 0.07);
+    0 2px 4px -1px rgba(24, 24, 20, 0.04),
+    0 8px 16px -4px rgba(24, 24, 20, 0.07);
   --sh-3:
-    0 2px 4px rgba(13, 17, 23, 0.05),
-    0 12px 28px -8px rgba(13, 17, 23, 0.14);
+    0 4px 8px -2px rgba(24, 24, 20, 0.05),
+    0 20px 32px -8px rgba(24, 24, 20, 0.13);
 
   /* legacy aliases, kept so nothing that still reads them breaks */
   --shadow: var(--sh-1);
   --shadow-hi: var(--sh-2);
-  --acc-2: #a05a06;
-  --acc-3: #0a7d55;
+  --acc-2: #b45309;
+  --acc-3: #0d8f5b;
   --acc-deep: var(--slab);
-  --r-sm-legacy: 6px;
+  --r-sm-legacy: 8px;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* Not pure black: a slightly blue-shifted charcoal keeps the
-     candles and the type from vibrating against the ground. */
-  --ground: #0a0c10;
-  --surf: #111418;
-  --surf-2: #151921;
-  --surf-3: #1c212a;
+  /* Warm-black rather than blue-black: it sits under the same
+     indigo without the whole page turning navy. */
+  --ground: #0e0e10;
+  --surf: #161618;
+  --surf-2: #1c1c1f;
+  --surf-3: #232327;
 
-  --line-soft: #1a1e25;
-  --line: #242a33;
-  --line-strong: #363d49;
+  --line-soft: #1f1f22;
+  --line: #2a2a2e;
+  --line-strong: #3d3d43;
 
-  --tx: #e8ebf0;
-  --tx-2: #9aa3b1;
-  --tx-3: #6b7482;
+  --tx: #f0f0ef;
+  --tx-2: #a3a3a0;
+  /* Light enough to clear 4.5:1 on --surf, the tightest pairing here. */
+  --tx-3: #86868d;
 
-  --acc: #4d84ff;
-  --acc-tx: #83aaff;
-  --acc-soft: rgba(77, 132, 255, 0.13);
-  --acc-line: #2b4a8f;
+  --acc: #7c73ff;
+  --acc-tx: #a9a3ff;
+  --acc-soft: rgba(124, 115, 255, 0.14);
+  --acc-line: #3f3a8f;
 
   /* inverted: the primary control is the light one here */
-  --ink: #e8ebf0;
+  --ink: #f0f0ef;
   --ink-hi: #ffffff;
-  --ink-fg: #0a0c10;
+  --ink-fg: #0e0e10;
 
-  --slab: #060809;
-  --slab-tx: #e8ebf0;
-  --slab-dim: #8b94a3;
-  --slab-line: rgba(232, 235, 240, 0.11);
+  --slab: #08080a;
+  --slab-tx: #f0f0ef;
+  --slab-dim: #92929a;
+  --slab-line: rgba(240, 240, 239, 0.11);
 
-  --up: #2ebd85;
-  --down: #ef5f56;
-  --flat: #8b94a3;
-  --warn: #d99a34;
-  --focus: #83aaff;
+  --up: #34d399;
+  --down: #f87171;
+  --flat: #92929a;
+  --warn: #fbbf24;
+  --focus: #a9a3ff;
 
-  /* On a dark ground a shadow cannot be seen; separation comes
-     from the surface step and the hairline instead. Only true
-     overlays keep a shadow, to sell that they float. */
+  /* On a dark ground a soft shadow cannot be seen; separation
+     comes from the surface step and the hairline instead. Only
+     true overlays keep a shadow, to sell that they float. */
   --sh-1: none;
   --sh-2: 0 8px 24px -8px rgba(0, 0, 0, 0.7);
   --sh-3: 0 16px 40px -12px rgba(0, 0, 0, 0.8);
 
   --shadow: var(--sh-1);
   --shadow-hi: var(--sh-2);
-  --acc-2: #d99a34;
-  --acc-3: #2ebd85;
+  --acc-2: #fbbf24;
+  --acc-3: #34d399;
   --acc-deep: var(--slab);
 }

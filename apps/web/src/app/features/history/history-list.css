@@ -255,7 +255,7 @@
 
 .history-filter-on {
   background: var(--surf-3);
-  border-color: var(--line-strong, var(--line));
+  border-color: var(--line-strong);
   color: var(--tx);
   font-weight: 600;
 }
@@ -303,7 +303,7 @@
    so they are the one worth picking out of a scanned column. */
 .history-src-watchlist_daily {
   border-color: color-mix(in srgb, var(--acc) 40%, var(--line));
-  color: var(--acc-tx, var(--acc));
+  color: var(--acc-tx);
 }
 
 .history-mailed {
