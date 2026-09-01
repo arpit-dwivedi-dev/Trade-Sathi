@@ -26,14 +26,6 @@ function requireEnv(name: string): string {
   return value;
 }
 
-function requireNumberEnv(name: string): number {
-  const value = Number(requireEnv(name));
-  if (!Number.isFinite(value)) {
-    throw new Error(`Environment variable ${name} must be a number`);
-  }
-  return value;
-}
-
 /**
  * Optional integer env within an inclusive range, failing at startup rather
  * than passing a bad value downstream. Deliberately strict: a NaN hour would
@@ -52,6 +44,98 @@ function optionalIntEnvInRange(name: string, fallback: number, min: number, max:
   return value;
 }
 
+/**
+ * One entry in the AI provider fallback chain (AI_PROVIDERS).
+ *
+ * Every provider is expected to speak the OpenAI-compatible Chat Completions
+ * shape used in services/ai-analysis.service.ts; provider-specific request
+ * differences must not be introduced unless a future provider actually
+ * requires them. Model id, token budget and pricing are per-provider because
+ * none of them survive a switch: DeepSeek's rates are not Gemini's, and a
+ * reasoning model's max_tokens is not a non-reasoning one's.
+ */
+export interface AiProviderConfig {
+  /** Human label, used only in logs to say which provider served a call. */
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  /** USD per million tokens. Config, never hardcoded: provider pricing
+   *  changes and a baked-in number goes stale silently. */
+  inputCostPerM: number;
+  outputCostPerM: number;
+  /** Completion token budget per request — see the comment at its use site in
+   *  services/ai-analysis.service.ts. */
+  maxTokens: number;
+  /** Whether the model accepts image_url content parts. Text-only models
+   *  (DeepSeek's chat models, for one) cannot serve the uploaded-screenshot
+   *  path at all, so the visual analysis chain skips them rather than
+   *  spending a doomed request; the candle-series path still uses them. */
+  supportsVision: boolean;
+}
+
+function providerField(raw: Record<string, unknown>, index: number, key: string): string {
+  const value = raw[key];
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`AI_PROVIDERS[${index}].${key} must be a non-empty string`);
+  }
+  return value;
+}
+
+function providerNumberField(raw: Record<string, unknown>, index: number, key: string): number {
+  const value = Number(raw[key]);
+  if (!Number.isFinite(value)) {
+    throw new Error(`AI_PROVIDERS[${index}].${key} must be a number`);
+  }
+  return value;
+}
+
+/**
+ * Parses AI_PROVIDERS: a JSON array of provider objects, in priority order.
+ *
+ * Validated eagerly at startup rather than at the first analysis, because the
+ * whole point of the chain is that a user never sees a provider outage — a
+ * malformed fallback that only surfaces once the primary is already down
+ * defeats it entirely.
+ */
+function parseAiProviders(): AiProviderConfig[] {
+  const raw = requireEnv("AI_PROVIDERS");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Environment variable AI_PROVIDERS must be valid JSON");
+  }
+
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error("Environment variable AI_PROVIDERS must be a non-empty JSON array");
+  }
+
+  return parsed.map((entry, index) => {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      throw new Error(`AI_PROVIDERS[${index}] must be an object`);
+    }
+    const item = entry as Record<string, unknown>;
+
+    return {
+      name: typeof item["name"] === "string" && item["name"].length > 0
+        ? item["name"]
+        : `provider-${index}`,
+      baseUrl: providerField(item, index, "baseUrl"),
+      apiKey: providerField(item, index, "apiKey"),
+      model: providerField(item, index, "model"),
+      inputCostPerM: providerNumberField(item, index, "inputCostPerM"),
+      outputCostPerM: providerNumberField(item, index, "outputCostPerM"),
+      maxTokens: providerNumberField(item, index, "maxTokens"),
+      // Defaults to true: the existing primary is a vision model, and an
+      // omitted flag on a text-only provider fails loudly on the visual path
+      // rather than silently skipping it everywhere.
+      supportsVision: item["supportsVision"] !== false,
+    };
+  });
+}
+
 export const env = {
   port: Number(process.env["PORT"] ?? 3000),
   supabaseUrl: requireEnv("SUPABASE_URL"),
@@ -65,22 +149,9 @@ export const env = {
   // verify inbound webhook signatures.
   razorpayWebhookSecret: requireEnv("RAZORPAY_WEBHOOK_SECRET"),
 
-  // AI provider config. The configured provider is expected to support the
-  // OpenAI-compatible Chat Completions shape used here; provider-specific
-  // differences must not be introduced unless a future provider actually
-  // requires them.
-  aiBaseUrl: requireEnv("AI_BASE_URL"),
-  aiApiKey: requireEnv("AI_API_KEY"),
-  aiModel: requireEnv("AI_MODEL"),
-  // USD per million tokens for the currently configured model. Kept in config,
-  // never hardcoded in code: provider pricing changes and a baked-in number
-  // goes stale silently.
-  aiInputCostPerM: requireNumberEnv("AI_INPUT_COST_PER_M"),
-  aiOutputCostPerM: requireNumberEnv("AI_OUTPUT_COST_PER_M"),
-  // Completion token budget per analysis request. Config, not a constant,
-  // because the right value depends entirely on which model is configured —
-  // see the comment at its use site in services/ai-analysis.service.ts.
-  aiMaxTokens: requireNumberEnv("AI_MAX_TOKENS"),
+  // Ordered AI provider chain — first entry is primary, the rest are
+  // fallbacks tried in order when one fails. See parseAiProviders above.
+  aiProviders: parseAiProviders(),
 
   resendApiKey: requireEnv("RESEND_API_KEY"),
   // The verified "From" address/display name Resend sends the daily briefing

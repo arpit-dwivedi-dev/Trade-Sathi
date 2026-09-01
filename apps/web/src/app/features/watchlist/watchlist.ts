@@ -1,6 +1,9 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { firstValueFrom, Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
@@ -8,6 +11,7 @@ import type { Instrument } from '@chartanalyzer/shared';
 import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
+import { BillingService } from '../billing/billing.service';
 import { LiveService } from '../live/live.service';
 
 interface WatchlistItem {
@@ -17,6 +21,7 @@ interface WatchlistItem {
   enabled_for_daily_analysis: boolean;
   analysis_lookback_days: number;
   scheduled_hour_ist: number | null;
+  scheduled_minute_ist: number | null;
   instruments: { exchange: string; symbol: string; name: string } | null;
 }
 
@@ -24,12 +29,21 @@ const SEARCH_DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
 
 /** A recorded Analyze Now run, as stored in watchlist_analysis_runs. */
+/**
+ * Which of the two row actions a run came from.
+ *
+ * They spend the same Daily Briefing entitlement and run the same pipeline —
+ * the only difference is that 'brief' emails the result with its PDF attached.
+ */
+type RunMode = 'analyze' | 'brief';
+
 interface WatchlistRun {
   id: string;
   watchlist_item_id: string;
   status: 'queued' | 'processing' | 'complete' | 'failed';
   updated_at: string;
 }
+
 
 /**
  * Chart windows offered per row, in days. Must stay inside the 1-365 CHECK on
@@ -50,8 +64,6 @@ const LOOKBACK_OPTIONS = [
 const MIN_LOOKBACK_DAYS = 1;
 const MAX_LOOKBACK_DAYS = 365;
 
-/** Every IST hour, offered as the per-row scheduled run time. */
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => hour);
 
 /**
  * Symbols a user wants to keep an eye on. Reads/writes go straight to
@@ -64,16 +76,18 @@ const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => hour);
  */
 @Component({
   selector: 'app-watchlist',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   styleUrl: './watchlist.css',
   templateUrl: './watchlist.html',
 })
-export class Watchlist implements OnInit {
+export class Watchlist implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly supabase = inject(SupabaseClientService);
   private readonly http = inject(HttpClient);
   private readonly live = inject(LiveService);
   private readonly chartCapture = inject(ChartCaptureService);
+  protected readonly billing = inject(BillingService);
 
   protected readonly items = signal<WatchlistItem[]>([]);
   protected readonly loading = signal(true);
@@ -92,10 +106,34 @@ export class Watchlist implements OnInit {
    * row still has to look busy — a capture takes a second or two.
    */
   protected readonly preparing = signal<Record<string, boolean>>({});
-  /** Pending "you already analysed this" confirmation, keyed by item id. */
+  /**
+   * Item awaiting a remove confirmation, or null.
+   *
+   * Removing was a single unguarded click on a small icon next to "Analyze
+   * now", and it cascades: the item's recorded runs go with it and there is no
+   * undo. Confirmed inline, matching the duplicate-analysis warning below,
+   * rather than through a browser confirm() dialog.
+   */
+  protected readonly pendingRemoval = signal<string | null>(null);
+
+  /**
+   * Pending "you already analysed this" confirmation, keyed by item id.
+   *
+   * `mode` is carried so the confirm button re-runs what the user actually
+   * pressed: without it, confirming a duplicate from Brief Now silently ran a
+   * plain Analyze Now and no email was ever sent.
+   */
   protected readonly duplicateWarning = signal<
-    Record<string, { lastAnalysisAt: string; lookbackDays: number }>
+    Record<string, { lastAnalysisAt: string; lookbackDays: number; mode: RunMode }>
   >({});
+
+  /**
+   * Which action started each in-flight run, so the settled message can say
+   * whether an email went out. Not persisted anywhere: a run resumed after a
+   * reload (see resumeRuns) reports the neutral wording, because the run row
+   * does not record which button produced it.
+   */
+  private readonly runModes = signal<Record<string, RunMode>>({});
   /** Keyed by watchlist item id, so each row's message is independent. */
   protected readonly analyzeResult = signal<Record<string, string>>({});
 
@@ -103,7 +141,6 @@ export class Watchlist implements OnInit {
   private static readonly RESUME_WINDOW_MS = 60 * 60 * 1000;
 
   protected readonly lookbackOptions = LOOKBACK_OPTIONS;
-  protected readonly hourOptions = HOUR_OPTIONS;
   protected readonly minLookbackDays = MIN_LOOKBACK_DAYS;
   protected readonly maxLookbackDays = MAX_LOOKBACK_DAYS;
 
@@ -115,9 +152,53 @@ export class Watchlist implements OnInit {
     return this.activeRuns()[itemId];
   }
 
-  /** True from the moment Analyze Now is pressed until its run settles. */
+  /**
+   * (hour, minute) slots of this profile's currently-'processing'
+   * daily_briefing_log rows — i.e. the SCHEDULED job is mid-run right now.
+   * Kept live via Realtime rather than polled (see the subscription in
+   * ngOnInit): a scheduled run is typically seconds long, and a poll interval
+   * would either miss it entirely between ticks or add constant background
+   * traffic for something that changes rarely.
+   */
+  private readonly processingSlots = signal<{ hour: number; minute: number }[]>([]);
+
+  /**
+   * Items the scheduled job is processing right now, derived by matching each
+   * item's own (scheduled_hour_ist, scheduled_minute_ist) against
+   * processingSlots. Only items with an EXPLICIT Run-at hour are matched —
+   * one left on "Default" resolves its hour from a server-side env var
+   * (DAILY_BRIEFING_RUN_HOUR_IST) that this client has no way to read, so it
+   * is deliberately excluded rather than guessed at.
+   */
+  protected readonly scheduledBusyItemIds = computed<ReadonlySet<string>>(() => {
+    const slots = this.processingSlots();
+    if (slots.length === 0) return new Set();
+    const busy = new Set<string>();
+    for (const item of this.items()) {
+      if (!item.enabled_for_daily_analysis || item.scheduled_hour_ist === null) continue;
+      const minute = item.scheduled_minute_ist ?? 0;
+      if (slots.some((slot) => slot.hour === item.scheduled_hour_ist && slot.minute === minute)) {
+        busy.add(item.id);
+      }
+    }
+    return busy;
+  });
+
+  private briefingLogChannel: RealtimeChannel | null = null;
+
+  /**
+   * True from the moment Analyze Now or Brief Now is pressed until its run
+   * settles, OR while the scheduled job is processing this item (see
+   * scheduledBusyItemIds above) — the two paths share the same visual
+   * "something is happening to this row right now" state even though only
+   * the first ever sets preparing/activeRuns.
+   */
   protected isBusy(itemId: string): boolean {
-    return this.preparing()[itemId] === true || this.activeRuns()[itemId] !== undefined;
+    return (
+      this.preparing()[itemId] === true ||
+      this.activeRuns()[itemId] !== undefined ||
+      this.scheduledBusyItemIds().has(itemId)
+    );
   }
 
   protected readonly queryInput = signal('');
@@ -128,15 +209,35 @@ export class Watchlist implements OnInit {
 
   private readonly querySubject = new Subject<string>();
 
+  /**
+   * The Watchlist tab is unmounted whenever the user looks at another tab, but
+   * pollRun is a plain await-loop that knew nothing about that: it kept
+   * querying for up to two minutes after destruction and kept writing to
+   * signals nobody was rendering. Every loop checks this and stops.
+   */
+  private destroyed = false;
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
+    if (this.briefingLogChannel) {
+      void this.supabase.client?.removeChannel(this.briefingLogChannel);
+      this.briefingLogChannel = null;
+    }
+  }
+
   ngOnInit(): void {
     void this.load();
     void this.resumeRuns();
+    void this.billing.ensurePlanSummary();
+    void this.loadProcessingSlots();
+    this.watchBriefingLog();
 
     this.querySubject
       .pipe(
         debounceTime(SEARCH_DEBOUNCE_MS),
         distinctUntilChanged(),
         switchMap((q) => this.search(q)),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((instruments) => {
         this.results.set(instruments);
@@ -175,6 +276,18 @@ export class Watchlist implements OnInit {
     }
   }
 
+  /** Dismisses the suggestion list without choosing anything. */
+  protected dismissResults(): void {
+    this.results.set([]);
+    this.searched.set(false);
+  }
+
+  /** Empties the search box and returns focus to it — see LivePage.clearQuery. */
+  protected clearQuery(input: HTMLInputElement): void {
+    this.onQueryChange('');
+    input.focus();
+  }
+
   protected selectInstrument(instrument: Instrument): void {
     this.selected.set(instrument);
     this.queryInput.set(`${instrument.symbol} — ${instrument.name}`);
@@ -190,7 +303,7 @@ export class Watchlist implements OnInit {
       .from('watchlist_items')
       .select(
         'id, symbol, instrument_id, enabled_for_daily_analysis, analysis_lookback_days, ' +
-          'scheduled_hour_ist, instruments(exchange, symbol, name)',
+          'scheduled_hour_ist, scheduled_minute_ist, instruments(exchange, symbol, name)',
       )
       .order('created_at', { ascending: false });
     if (error) {
@@ -297,11 +410,29 @@ export class Watchlist implements OnInit {
     );
   }
 
-  /** Empty string = follow the deployment default hour (stored as null). */
-  protected async setScheduledHour(item: WatchlistItem, value: string): Promise<void> {
-    const hour = value === '' ? null : Number(value);
-    if (hour === item.scheduled_hour_ist) return;
-    await this.patchSettings(item, { scheduled_hour_ist: hour });
+  /**
+   * `value` is an `<input type="time">` value ("HH:mm"), or '' to follow the
+   * deployment default (stored as hour=null, minute=null).
+   */
+  protected async setScheduledTime(item: WatchlistItem, value: string): Promise<void> {
+    let hour: number | null = null;
+    let minute: number | null = null;
+    if (value !== '') {
+      const [h, m] = value.split(':').map(Number);
+      if (!Number.isFinite(h) || !Number.isFinite(m)) return;
+      hour = h;
+      minute = m;
+    }
+    if (hour === item.scheduled_hour_ist && minute === item.scheduled_minute_ist) return;
+    await this.patchSettings(item, { scheduled_hour_ist: hour, scheduled_minute_ist: minute });
+  }
+
+  /** "08:15" for the time input's value, or '' when following the default. */
+  protected scheduledTimeValue(item: WatchlistItem): string {
+    if (item.scheduled_hour_ist === null) return '';
+    const hour = String(item.scheduled_hour_ist).padStart(2, '0');
+    const minute = String(item.scheduled_minute_ist ?? 0).padStart(2, '0');
+    return `${hour}:${minute}`;
   }
 
   /**
@@ -311,7 +442,9 @@ export class Watchlist implements OnInit {
    */
   private async patchSettings(
     item: WatchlistItem,
-    patch: Partial<Pick<WatchlistItem, 'analysis_lookback_days' | 'scheduled_hour_ist'>>,
+    patch: Partial<
+      Pick<WatchlistItem, 'analysis_lookback_days' | 'scheduled_hour_ist' | 'scheduled_minute_ist'>
+    >,
   ): Promise<void> {
     const client = this.supabase.client;
     if (!client) return;
@@ -324,17 +457,18 @@ export class Watchlist implements OnInit {
     }
   }
 
-  /** "08:00 IST" for the schedule column. */
-  protected formatHour(hour: number): string {
-    return `${String(hour).padStart(2, '0')}:00 IST`;
-  }
-
   /**
    * Runs the same fetch/chart/AI pipeline as the scheduled daily briefing,
    * for this one symbol, right now — consumes one unit of the same
-   * 30/month Daily Briefing quota. Independent of the toggle above and of
-   * the once-a-day scheduled email: this never touches daily_briefing_log
-   * and sends no email, it just produces one analysis immediately.
+   * 30/month Daily Briefing quota (then a top-up credit, once that is spent).
+   * Independent of the toggle above and of the once-a-day scheduled email:
+   * neither mode touches daily_briefing_log.
+   *
+   * `mode` picks which of the two row actions this is. 'analyze' just produces
+   * the analysis; 'brief' also emails it, with the PDF attached. They are one
+   * method rather than two because everything else — the entitlement, the
+   * chart capture, the duplicate warning, the 202-then-poll contract, the
+   * error mapping — is identical, and the endpoint is the only fork.
    *
    * `force` re-runs a chart the user has already analysed recently, after
    * they have confirmed the duplicate warning below.
@@ -343,7 +477,11 @@ export class Watchlist implements OnInit {
    * request — the same thing the live chart view does — so the model reads
    * the chart this app renders rather than a separate server-side picture.
    */
-  protected async analyzeNow(item: WatchlistItem, force = false): Promise<void> {
+  protected async analyzeNow(
+    item: WatchlistItem,
+    force = false,
+    mode: RunMode = 'analyze',
+  ): Promise<void> {
     if (this.isBusy(item.id)) return;
     this.duplicateWarning.update((warnings) => {
       const rest = { ...warnings };
@@ -384,10 +522,13 @@ export class Watchlist implements OnInit {
       // request open. It records the run in watchlist_analysis_runs (readable
       // under RLS) and we poll that row rather than waiting on this call.
       const accepted = await firstValueFrom(
-        this.http.post<{ runId: string }>(`/api/watchlist/${item.id}/analyze-now`, form, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        this.http.post<{ runId: string }>(
+          `/api/watchlist/${item.id}/${mode === 'brief' ? 'brief-now' : 'analyze-now'}`,
+          form,
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
       );
+      this.runModes.update((modes) => ({ ...modes, [item.id]: mode }));
       this.activeRuns.update((runs) => ({ ...runs, [item.id]: accepted.runId }));
       await this.pollRun(item.id, accepted.runId);
     } catch (cause) {
@@ -400,12 +541,13 @@ export class Watchlist implements OnInit {
           [item.id]: {
             lastAnalysisAt: body?.lastAnalysisAt ?? '',
             lookbackDays: body?.lookbackDays ?? item.analysis_lookback_days,
+            mode,
           },
         }));
         return;
       }
 
-      let message = 'Analysis failed. Please try again.';
+      let message = mode === 'brief' ? 'Briefing failed. Please try again.' : 'Analysis failed. Please try again.';
       if (cause instanceof HttpErrorResponse) {
         const body: unknown = cause.error;
         if (body && typeof body === 'object' && typeof (body as { error?: unknown }).error === 'string') {
@@ -459,6 +601,58 @@ export class Watchlist implements OnInit {
     });
   }
 
+  /**
+   * Reads this profile's currently-'processing' daily_briefing_log rows and
+   * updates processingSlots — the seed read for scheduledBusyItemIds, and
+   * also what re-runs on every Realtime event from watchBriefingLog below (a
+   * status change is exactly what a client-side filter on the row's own
+   * columns cannot see, so this re-fetches rather than trying to patch the
+   * signal from the event payload).
+   */
+  private async loadProcessingSlots(): Promise<void> {
+    const client = this.supabase.client;
+    if (!client || this.destroyed) return;
+
+    const { data, error } = await client
+      .from('daily_briefing_log')
+      .select('run_hour_ist, run_minute_ist')
+      .eq('status', 'processing');
+    if (error || this.destroyed) return;
+
+    const rows = (data ?? []) as { run_hour_ist: number; run_minute_ist: number }[];
+    this.processingSlots.set(rows.map((row) => ({ hour: row.run_hour_ist, minute: row.run_minute_ist })));
+  }
+
+  /**
+   * Subscribes to this profile's own daily_briefing_log rows so a scheduled
+   * run's start/finish is reflected within moments, not on the next poll —
+   * there is no fixed interval to miss a run shorter than, unlike pollRun's
+   * fallback timer below (that one exists because an Analyze Now run has no
+   * Realtime counterpart to lean on; this one does, so it can skip polling
+   * entirely). RLS scopes the subscription server-side, same as the read
+   * above, but the filter is still passed so this socket is not asked to
+   * carry rows for anyone else's profile in the first place.
+   */
+  private watchBriefingLog(): void {
+    const client = this.supabase.client;
+    const profileId = this.auth.user()?.id;
+    if (!client || !profileId) return;
+
+    this.briefingLogChannel = client
+      .channel(`watchlist-briefing-log-${profileId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'daily_briefing_log',
+          filter: `profile_id=eq.${profileId}`,
+        },
+        () => void this.loadProcessingSlots(),
+      )
+      .subscribe();
+  }
+
   private static readonly POLL_INTERVAL_MS = 3000;
   private static readonly POLL_MAX_ATTEMPTS = 40; // ~2 min
 
@@ -480,7 +674,7 @@ export class Watchlist implements OnInit {
       .select('id, watchlist_item_id, status, updated_at')
       .gte('created_at', since)
       .order('created_at', { ascending: false });
-    if (error || !data) return;
+    if (error || !data || this.destroyed) return;
 
     const seen = new Set<string>();
     for (const run of data as WatchlistRun[]) {
@@ -502,10 +696,21 @@ export class Watchlist implements OnInit {
     }
   }
 
-  private static settledMessage(status: 'complete' | 'failed'): string {
-    return status === 'complete'
-      ? 'Analysis complete — check your history.'
-      : 'Analysis failed. Please try again.';
+  /**
+   * `mode` defaults to 'analyze' so a run resumed after a reload reports the
+   * neutral wording: watchlist_analysis_runs does not record which button
+   * started it, and claiming an email was sent when it may not have been is
+   * worse than omitting the detail.
+   */
+  private static settledMessage(status: 'complete' | 'failed', mode: RunMode = 'analyze'): string {
+    if (status === 'failed') {
+      return mode === 'brief'
+        ? 'Briefing failed. Please try again.'
+        : 'Analysis failed. Please try again.';
+    }
+    return mode === 'brief'
+      ? 'Briefing sent — check your inbox for the PDF. It is in your history too.'
+      : 'Analysis complete — check your history.';
   }
 
   /**
@@ -523,6 +728,9 @@ export class Watchlist implements OnInit {
 
     for (let attempt = 0; attempt < Watchlist.POLL_MAX_ATTEMPTS; attempt++) {
       await new Promise((resolve) => setTimeout(resolve, Watchlist.POLL_INTERVAL_MS));
+      // The run itself is recorded server-side and resumeRuns picks it up on
+      // the next mount, so abandoning the loop here loses nothing.
+      if (this.destroyed) return;
 
       const { data, error } = await client
         .from('watchlist_analysis_runs')
@@ -536,7 +744,7 @@ export class Watchlist implements OnInit {
       if (settled === 'complete' || settled === 'failed') {
         this.analyzeResult.update((results) => ({
           ...results,
-          [itemId]: Watchlist.settledMessage(settled),
+          [itemId]: Watchlist.settledMessage(settled, this.runModes()[itemId]),
         }));
         this.clearRun(itemId);
         return;
@@ -558,17 +766,45 @@ export class Watchlist implements OnInit {
       delete rest[itemId];
       return rest;
     });
+    // Dropped after the settled message has already been built from it, so the
+    // record never outlives the run it describes.
+    this.runModes.update((modes) => {
+      const rest = { ...modes };
+      delete rest[itemId];
+      return rest;
+    });
   }
 
-  protected async remove(id: string): Promise<void> {
+  /** Asks for confirmation; the second step is confirmRemove below. */
+  protected requestRemove(id: string): void {
+    // An in-flight run is about to write to this item; let it finish rather
+    // than deleting the row out from under it.
+    if (this.isBusy(id)) return;
+    this.error.set(null);
+    this.pendingRemoval.set(id);
+  }
+
+  protected cancelRemove(): void {
+    this.pendingRemoval.set(null);
+  }
+
+  protected async confirmRemove(id: string): Promise<void> {
     const client = this.supabase.client;
     if (!client) return;
+
+    this.pendingRemoval.set(null);
     const { error } = await client.from('watchlist_items').delete().eq('id', id);
     if (error) {
       this.error.set('Could not remove symbol.');
       return;
     }
     this.items.update((items) => items.filter((item) => item.id !== id));
+    // Nothing left to report about an item that is gone.
+    this.analyzeResult.update((results) => {
+      const rest = { ...results };
+      delete rest[id];
+      return rest;
+    });
   }
 
   /** Canonical symbol/name when resolved, else the legacy free-text symbol. */

@@ -243,3 +243,60 @@
     font-size: var(--t-3xl);
   }
 }
+
+/* Separates stacked add-on blocks inside the one card, so two of them don't
+   read as a single list of rows. */
+.account-addon + .account-addon {
+  border-top: 1px solid var(--line);
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+}
+
+.account-addon-name {
+  font-family: var(--fh);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+/* The top-up sits under the add-on list, separated: it tops the add-on up, it
+   is not another add-on. */
+.account-addon-topup {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+}
+
+/* Meter footnotes sit on one line and wrap together, so the reserve balance
+   reads as a qualifier on the meter above rather than a separate stat. */
+.account-meter-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+  justify-content: space-between;
+}
+
+.account-reserve {
+  color: var(--tx-2);
+}
+
+.account-reserve .num {
+  color: var(--tx);
+  font-weight: 600;
+}
+
+/* Separated from the plan picker below it: topping up and switching tiers are
+   two different purchases, and running them together read as one form. */
+.account-topup {
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: var(--s2);
+  justify-items: start;
+  padding-bottom: var(--s4);
+}
+
+.account-topup-note {
+  color: var(--slab-dim);
+  line-height: 1.55;
+}

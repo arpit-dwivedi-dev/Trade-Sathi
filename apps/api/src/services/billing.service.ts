@@ -141,7 +141,7 @@ export async function createSubscription(
     .eq("plan_id", price.plans.id)
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle<{ provider_subscription_id: string | null }>();
   if (pendingError) {
     throw pendingError;
   }

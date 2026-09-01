@@ -53,14 +53,17 @@ app.use((req, res, next) => {
  */
 if (isMainModule(import.meta.url) || process.env['pm_id']) {
   const port = process.env['PORT'] || 4000;
-  // The workspace pins @types/express to the v4 line, whose listen() callback
-  // takes no arguments; the optional parameter keeps this assignable there.
-  app.listen(port, (error?: unknown) => {
-    if (error) {
-      throw error;
-    }
-
+  const server = app.listen(port, () => {
     console.log(`Node Express server listening on http://localhost:${port}`);
+  });
+
+  // listen()'s callback only ever runs on success, so a failure to bind — a
+  // port already in use, most often — surfaces here or nowhere. Left
+  // unhandled it is an EADDRINUSE thrown from the event loop, which reads as
+  // an unexplained crash at startup.
+  server.on('error', (error: unknown) => {
+    console.error('Failed to start the SSR server', error);
+    process.exitCode = 1;
   });
 }
 

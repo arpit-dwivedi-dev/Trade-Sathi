@@ -1,4 +1,16 @@
-import { Component, HostListener, OnInit, inject, output, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import {
+  Component,
+  ElementRef,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  afterNextRender,
+  inject,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 
 import { BillingService } from './billing.service';
 import { BuyCreditsButton } from './buy-credits-button';
@@ -30,8 +42,9 @@ import { UpgradeButton } from './upgrade-button';
   styleUrl: './plans-overlay.css',
   templateUrl: './plans-overlay.html',
 })
-export class PlansOverlay implements OnInit {
+export class PlansOverlay implements OnInit, OnDestroy {
   private readonly billing = inject(BillingService);
+  private readonly document = inject(DOCUMENT);
 
   readonly closed = output<void>();
   /** Forwarded from the mounted UpgradeButton, unchanged. */
@@ -43,8 +56,44 @@ export class PlansOverlay implements OnInit {
   protected readonly plan = this.billing.currentPlan;
   protected readonly loading = signal(true);
 
+  private readonly upgrade = viewChild(UpgradeButton);
+  private readonly credits = viewChild(BuyCreditsButton);
+  private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
+
+  /** The page's own overflow, restored on close. */
+  private previousOverflow: string | null = null;
+
+  constructor() {
+    // Focus has to enter the dialog for Esc and Tab to behave as a dialog's
+    // should; without this it stayed on whatever opened the overlay, behind
+    // the scrim.
+    afterNextRender(() => this.panel()?.nativeElement.focus());
+  }
+
+  /**
+   * True while either mounted purchase flow is taking or confirming money.
+   *
+   * Closing unmounts those components, and their ngOnDestroy cancels the poll
+   * that confirms the webhook landed — so an Esc keypress or a stray backdrop
+   * click during confirmation left a user who had genuinely paid with no
+   * indication that anything had happened.
+   */
+  protected purchaseInFlight(): boolean {
+    return this.upgrade()?.busy() === true || this.credits()?.busy() === true;
+  }
+
   ngOnInit(): void {
     void this.billing.ensurePlanSummary().finally(() => this.loading.set(false));
+
+    // The page behind a fixed scrim still scrolls, so a scroll gesture over
+    // the overlay moved the content underneath it instead of the panel.
+    const body = this.document.body;
+    this.previousOverflow = body.style.overflow;
+    body.style.overflow = 'hidden';
+  }
+
+  ngOnDestroy(): void {
+    this.document.body.style.overflow = this.previousOverflow ?? '';
   }
 
   /**
@@ -74,7 +123,13 @@ export class PlansOverlay implements OnInit {
     return this.plan()?.name ?? 'Unknown';
   }
 
+  /**
+   * Dismisses the overlay unless a purchase is mid-flight — see
+   * purchaseInFlight. The explicit close button is bound to this too: there is
+   * no dismissal route that should be able to discard a payment in progress.
+   */
   protected close(): void {
+    if (this.purchaseInFlight()) return;
     this.closed.emit();
   }
 

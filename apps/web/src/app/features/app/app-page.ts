@@ -7,13 +7,14 @@ import { BillingService } from '../billing/billing.service';
 import { PlansOverlay } from '../billing/plans-overlay';
 import { HistoryList } from '../history/history-list';
 import { LivePage } from '../live/live-page';
+import { LogsPage } from '../logs/logs-page';
 import { Watchlist } from '../watchlist/watchlist';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 
-type Tab = 'analyze' | 'live' | 'history' | 'watchlist';
+type Tab = 'analyze' | 'live' | 'history' | 'watchlist' | 'logs';
 
-const TABS: readonly Tab[] = ['analyze', 'live', 'history', 'watchlist'];
+const TABS: readonly Tab[] = ['analyze', 'live', 'history', 'watchlist', 'logs'];
 
 function parseTab(value: string | null): Tab {
   return TABS.includes(value as Tab) ? (value as Tab) : 'analyze';
@@ -21,7 +22,7 @@ function parseTab(value: string | null): Tab {
 
 @Component({
   selector: 'app-app-page',
-  imports: [AnalyzePage, HistoryList, LivePage, PlansOverlay, RouterLink, Watchlist],
+  imports: [AnalyzePage, HistoryList, LivePage, LogsPage, PlansOverlay, RouterLink, Watchlist],
   styleUrl: './app-page.css',
   templateUrl: './app-page.html',
 })

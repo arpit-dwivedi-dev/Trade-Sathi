@@ -2,6 +2,7 @@
   @case ('idle') {
     <app-plan-picker
       [currentPlanKey]="currentPlanKey()"
+      [heldAddOnKeys]="heldAddOnKeys()"
       (planSelected)="onPlanSelected($event)"
     />
   }
@@ -29,7 +30,7 @@
   @case ('already_subscribed') {
     <p class="billing-msg">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
-      You already have a subscription in progress.
+      You're already subscribed to that — refresh to see it on your account.
     </p>
   }
   @case ('confirming_slow') {

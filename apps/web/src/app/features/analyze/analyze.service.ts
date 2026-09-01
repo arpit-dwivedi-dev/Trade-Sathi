@@ -84,7 +84,11 @@ export class AnalyzeService {
       return await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (blob) => {
-            blob ? resolve(blob) : reject(new Error('Failed to encode the image'));
+            if (blob) {
+              resolve(blob);
+              return;
+            }
+            reject(new Error('Failed to encode the image'));
           },
           'image/jpeg',
           JPEG_QUALITY,

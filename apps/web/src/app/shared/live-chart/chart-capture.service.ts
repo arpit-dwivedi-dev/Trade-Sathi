@@ -134,6 +134,29 @@ export class ChartCaptureService {
   }
 }
 
+/**
+ * Longest a paint is waited for before the canvas is read anyway.
+ *
+ * requestAnimationFrame does not fire at all in a backgrounded tab, so a user
+ * who pressed Analyze and then switched away left this awaiting a frame that
+ * would never come: the capture never settled, the button sat on "Drawing
+ * chart…" forever, and the analysis request was never even sent. A timeout
+ * turns that into, at worst, a slightly under-painted image — and the caller
+ * treats a bad capture as "send no image", which the API already handles by
+ * rendering its own chart.
+ */
+const FRAME_TIMEOUT_MS = 1_000;
+
 function nextFrame(): Promise<void> {
-  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(done, FRAME_TIMEOUT_MS);
+    requestAnimationFrame(done);
+  });
 }

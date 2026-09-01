@@ -1,4 +1,4 @@
-import { Component, OnDestroy, inject, output, signal } from '@angular/core';
+import { Component, OnDestroy, computed, inject, output, signal } from '@angular/core';
 
 import { AuthService } from '../../core/auth.service';
 import { BillingService, type SubscriptionPollHandle } from './billing.service';
@@ -49,8 +49,32 @@ export class UpgradeButton implements OnDestroy {
    */
   protected readonly currentPlanKey = this.billing.currentPlanKey;
 
+  /**
+   * Add-ons the user already holds, so the picker can mark them rather than
+   * offer them. Read from the same shared cache as currentPlanKey — an add-on
+   * is not represented by that key at all (it never occupies the manual-plan
+   * slot), so it needs its own channel to the picker.
+   */
+  protected readonly heldAddOnKeys = this.billing.heldAddOnKeys;
+
   protected readonly state = signal<UpgradeState>('idle');
   protected readonly error = signal<string | null>(null);
+
+  /**
+   * True while money is being taken or confirmed. The overlay above reads this
+   * to refuse to close: unmounting mid-flow tears this component down, which
+   * cancels the poll that is the only thing telling the user whether the
+   * payment they just made actually landed.
+   */
+  readonly busy = computed(() => {
+    const state = this.state();
+    return (
+      state === 'subscribing' ||
+      state === 'loading_checkout' ||
+      state === 'checkout_open' ||
+      state === 'confirming'
+    );
+  });
 
   private poll: SubscriptionPollHandle | null = null;
 
@@ -65,9 +89,15 @@ export class UpgradeButton implements OnDestroy {
     const subscribed = await this.billing.subscribe(planKey);
     if (!subscribed.ok) {
       if (subscribed.reason === 'already_subscribed') {
+        // Reaching here now means the cached plan summary was stale — a live
+        // subscription exists that the picker didn't know to mark. Re-read it
+        // so the cards correct themselves instead of leaving the user staring
+        // at a Choose button the backend will keep refusing.
+        //
         // Known MVP limitation: the 409 does not carry the existing
         // subscriptionId, so there is nothing to reopen Checkout with. Resuming
         // an in-flight subscription is separate future work, not solved here.
+        void this.billing.refreshPlanSummary();
         this.state.set('already_subscribed');
         return;
       }

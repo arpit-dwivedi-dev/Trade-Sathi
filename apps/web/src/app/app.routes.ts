@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-import { authGuard } from './core/auth.guard';
+import { authGuard, guestGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   {
@@ -10,10 +10,12 @@ export const routes: Routes = [
   },
   {
     path: 'login',
+    canActivate: [guestGuard],
     loadComponent: () => import('./features/auth/auth-page').then((m) => m.AuthPage),
   },
   {
     path: 'forgot-password',
+    canActivate: [guestGuard],
     loadComponent: () =>
       import('./features/auth/forgot-password-page').then((m) => m.ForgotPasswordPage),
   },
@@ -31,5 +33,13 @@ export const routes: Routes = [
     path: 'account',
     canActivate: [authGuard],
     loadComponent: () => import('./features/account/account-page').then((m) => m.AccountPage),
+  },
+  // Catch-all. Without it the router matched nothing for an unknown URL — a
+  // mistyped path, or a stale bookmark — and left the page blank with only a
+  // console error. A redirect rather than a component so the prerenderer has no
+  // extra page to render.
+  {
+    path: '**',
+    redirectTo: '',
   },
 ];

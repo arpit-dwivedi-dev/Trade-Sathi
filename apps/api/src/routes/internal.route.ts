@@ -39,7 +39,12 @@ internalRouter.post(
   "/api/internal/daily-briefing/run",
   requireInternalToken,
   (req: Request, res: Response) => {
-    const profileId = typeof req.body?.profileId === "string" ? req.body.profileId : undefined;
+    const body: unknown = req.body;
+    const rawProfileId =
+      typeof body === "object" && body !== null
+        ? (body as { profileId?: unknown }).profileId
+        : undefined;
+    const profileId = typeof rawProfileId === "string" ? rawProfileId : undefined;
 
     const run = profileId
       ? runDailyBriefingForUser(profileId)

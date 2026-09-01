@@ -1,10 +1,18 @@
+<!-- role/tabindex rather than a real <button>: the zone contains a heading and
+     a button-styled span, neither of which is legal inside a button. -->
 <div
   class="plate drop-zone"
+  role="button"
+  [attr.tabindex]="disabled() ? -1 : 0"
+  [attr.aria-disabled]="disabled() ? 'true' : null"
+  aria-label="Choose a chart screenshot, or paste or drop one here"
   [class.over]="dragging()"
   [class.disabled]="disabled()"
+  (dragenter)="onDragEnter($event)"
   (dragover)="onDragOver($event)"
-  (dragleave)="onDragLeave()"
+  (dragleave)="onDragLeave($event)"
   (drop)="onDrop($event)"
+  (keydown)="onKeydown($event)"
   (click)="browse()"
 >
   <span class="lbl drop-formats">PNG · JPG · WEBP</span>
@@ -34,6 +42,10 @@
     from the image.
   </p>
 </div>
+
+@if (notice(); as message) {
+  <p class="err drop-notice" role="alert">{{ message }}</p>
+}
 
 <!-- Outside the drop-zone on purpose: browse() calls input.click(), and a click
      event on a child would bubble back to the zone's own (click) handler. -->

@@ -78,6 +78,12 @@
   padding-top: var(--s1);
 }
 
+/* Why a paste or drop was refused. Sits under the zone rather than inside it,
+   so it does not reflow the zone's own layout as it appears and clears. */
+.drop-notice {
+  margin-top: var(--s3);
+}
+
 @media (max-width: 640px) {
   .drop-zone {
     padding: var(--s8) var(--s4);

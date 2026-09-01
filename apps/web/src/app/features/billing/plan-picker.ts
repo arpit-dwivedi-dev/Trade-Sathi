@@ -1,21 +1,14 @@
-import { Component, OnInit, inject, input, output, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 
 import { SupabaseClientService } from '../../core/supabase-client';
+import { MANUAL_PLAN_KEYS } from './billing.service';
 
 /**
  * The free tier's key. It is listed on a card for orientation but is never
  * purchasable — see isChoosable().
  */
 const FREE_PLAN_KEY = 'free';
-
-/**
- * Manual-analysis tiers, where a user holds exactly one at a time and moving
- * between them is not built — see isChoosable(). Anything not in this set
- * (e.g. 'daily_briefing_monthly') is an independent add-on: purchasable
- * regardless of which manual tier the user is on, since it doesn't occupy
- * the same profiles.plan_id slot.
- */
-const MANUAL_PLAN_KEYS = new Set(['free', 'starter_monthly', 'pro_monthly', 'pro_annual']);
 
 /** One plan, as rendered on a card. */
 export interface PurchasablePlan {
@@ -65,6 +58,7 @@ interface DailyBriefingEntitlementRow {
  */
 @Component({
   selector: 'app-plan-picker',
+  imports: [NgTemplateOutlet],
   styleUrl: './plan-picker.css',
   templateUrl: './plan-picker.html',
 })
@@ -78,10 +72,32 @@ export class PlanPicker implements OnInit {
    */
   readonly currentPlanKey = input.required<string | null>();
 
+  /**
+   * Add-ons the user already holds. Separate from currentPlanKey on purpose:
+   * currentPlanKey names the one manual tier a user occupies, and an add-on is
+   * never that — so without this input a held add-on had no way to be marked
+   * as current, and was offered for sale again.
+   */
+  readonly heldAddOnKeys = input.required<ReadonlySet<string>>();
+
   readonly planSelected = output<string>();
 
   protected readonly plans = signal<PurchasablePlan[] | null>(null);
   protected readonly error = signal<string | null>(null);
+
+  /**
+   * The two families, rendered as two sections rather than one list of cards.
+   * A monthly tier and an add-on answer different questions ("which plan am I
+   * on?" vs "what else have I switched on?"), and mixing them into one row of
+   * identical cards is what made the add-on read as a fourth tier that would
+   * replace the user's current one.
+   */
+  protected readonly manualPlans = computed(
+    () => this.plans()?.filter((plan) => MANUAL_PLAN_KEYS.has(plan.key)) ?? [],
+  );
+  protected readonly addOnPlans = computed(
+    () => this.plans()?.filter((plan) => !MANUAL_PLAN_KEYS.has(plan.key)) ?? [],
+  );
 
   ngOnInit(): void {
     void this.load();
@@ -90,19 +106,38 @@ export class PlanPicker implements OnInit {
   /**
    * Free is shown for orientation only — there is no downgrade-to-free purchase
    * flow, so its card is never actionable regardless of which plan the user is
-   * on. An add-on (e.g. 'daily_briefing_monthly') is always offered, since it
-   * doesn't occupy the manual-plan slot and isn't a "switch tiers" action.
+   * on. An add-on is offered regardless of manual tier, since it doesn't occupy
+   * the manual-plan slot and isn't a "switch tiers" action — but only when the
+   * user doesn't already hold it, because the backend rejects a second live
+   * subscription to the same plan with a 409 the user can do nothing about.
    * Switching between manual tiers is not built, so a manual-tier card is
    * offered only from 'free' — matching the previous behavior for those keys.
    */
   protected isChoosable(plan: PurchasablePlan): boolean {
-    if (plan.key === FREE_PLAN_KEY || plan.key === this.currentPlanKey()) return false;
+    if (plan.key === FREE_PLAN_KEY || this.isCurrent(plan)) return false;
     if (!MANUAL_PLAN_KEYS.has(plan.key)) return true;
     return this.currentPlanKey() === FREE_PLAN_KEY;
   }
 
+  /**
+   * "Current" means the user's manual tier for a manual plan, and "already
+   * subscribed" for an add-on — the two families record it in different places
+   * (profiles.plan_id vs a live subscriptions row), which is exactly why a held
+   * add-on could not be marked before.
+   */
   protected isCurrent(plan: PurchasablePlan): boolean {
-    return plan.key === this.currentPlanKey();
+    return MANUAL_PLAN_KEYS.has(plan.key)
+      ? plan.key === this.currentPlanKey()
+      : this.heldAddOnKeys().has(plan.key);
+  }
+
+  /**
+   * Add-on quota is automated briefing runs, not the manual analyses the tier
+   * cards count. Labelling both "analyses / month" implied the add-on's 30
+   * replaced the tier's allowance rather than sitting beside it.
+   */
+  protected quotaUnit(plan: PurchasablePlan): string {
+    return MANUAL_PLAN_KEYS.has(plan.key) ? 'analyses / month' : 'briefings / month';
   }
 
   /** Paise → "₹399", matching AccountPage.priceLabel. Free reads as "Free". */

@@ -22,6 +22,10 @@ export interface AnalysisRow {
   image_key: string;
   symbol_raw: string | null;
   symbol: string | null;
+  /** The catalogue instrument a generated analysis was run on; null for an upload. */
+  instrument_id: string | null;
+  /** Chart window a generated analysis was read from, in days; null for an upload. */
+  analysis_lookback_days: number | null;
   asset_class: string | null;
   timeframe: string | null;
   trend: string | null;
@@ -37,6 +41,10 @@ export interface AnalysisRow {
   call_target: number | null;
   horizon_candles: number | null;
   summary: string | null;
+  /** When this analysis was emailed to its owner (daily briefing digest or
+   *  Brief Now). Null means it was never emailed — which is every manual
+   *  upload, every live run and every Analyze Now. */
+  emailed_at: string | null;
   error_code: string | null;
   error_message: string | null;
   created_at: string;

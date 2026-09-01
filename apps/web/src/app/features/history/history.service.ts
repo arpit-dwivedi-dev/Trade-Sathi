@@ -11,17 +11,31 @@ export type HistoryRow = Pick<
   AnalysisRow,
   | 'id'
   | 'created_at'
+  | 'symbol'
   | 'symbol_raw'
   | 'asset_class'
   | 'trend'
   | 'call_direction'
   | 'status'
+  | 'source'
   | 'source_type'
   | 'timeframe'
+  | 'emailed_at'
 >;
 
+// `symbol` and `source` join the list because symbol_raw alone was not enough
+// to label a row: a generated analysis (live chart, daily briefing) knows its
+// canonical symbol even when the model read none off the image, and those rows
+// all store source_type 'upload', so `source` is their only real provenance.
 const HISTORY_COLUMNS =
-  'id, created_at, symbol_raw, asset_class, trend, call_direction, status, source_type, timeframe';
+  'id, created_at, symbol, symbol_raw, asset_class, trend, call_direction, status, source, source_type, timeframe, emailed_at';
+
+/**
+ * Which provenances a listing is restricted to. 'all' is the absence of a
+ * filter rather than a value, so it is spelled out here instead of being
+ * represented by an empty array — an empty `in` list would match nothing.
+ */
+export type HistorySourceFilter = 'all' | 'manual' | 'live' | 'watchlist_daily';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -85,7 +99,11 @@ export class HistoryService {
    *
    * `cursor` is opaque to callers; only this service encodes/decodes it.
    */
-  async fetchHistory(cursor?: string, limit: number = DEFAULT_LIMIT): Promise<HistoryPage> {
+  async fetchHistory(
+    cursor?: string,
+    limit: number = DEFAULT_LIMIT,
+    source: HistorySourceFilter = 'all',
+  ): Promise<HistoryPage> {
     const client = this.supabase.client;
     // SSR has no Supabase client (and no session); the browser refetches.
     if (!client) return { rows: [], nextCursor: null };
@@ -103,6 +121,13 @@ export class HistoryService {
       // rows.length === pageSize cannot answer that when the total happens to
       // be an exact multiple of the page size.
       .limit(pageSize + 1);
+
+    // Filtered in the query, not after the fetch: filtering a page client-side
+    // would return fewer rows than asked for and make the cursor describe a
+    // boundary the next page does not share.
+    if (source !== 'all') {
+      query = query.eq('source', source);
+    }
 
     const decoded = cursor ? decodeCursor(cursor) : null;
     if (decoded) {

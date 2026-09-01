@@ -92,3 +92,22 @@
   font-size: var(--t-sm);
   gap: var(--s2);
 }
+
+/* Sections, not one flat grid: the heading is what tells the user an add-on
+   stacks on their plan rather than replacing it. */
+.plan-group + .plan-group {
+  margin-top: var(--s5);
+}
+
+.plan-group-h {
+  font-family: var(--fh);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  margin: 0;
+}
+
+.plan-group-sub {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
+  margin: 4px 0 var(--s3);
+}

@@ -19,11 +19,13 @@
         </svg>
       </span>
       <input
+        #search
         class="input watchlist-search-input"
         type="text"
         placeholder="Search symbol or company, e.g. RELIANCE"
         [ngModel]="queryInput()"
         (ngModelChange)="onQueryChange($event)"
+        (keydown.escape)="dismissResults()"
         name="query"
         autocomplete="off"
         aria-label="Search instruments to add"
@@ -31,6 +33,14 @@
       />
       @if (searching()) {
         <span class="spin watchlist-search-spin" aria-hidden="true"></span>
+      } @else if (queryInput() && !saving()) {
+        <button type="button" class="watchlist-search-clear" (click)="clearQuery(search)"
+                title="Clear search" aria-label="Clear search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
       }
 
       @if (results().length > 0) {
@@ -57,6 +67,14 @@
 
   @if (error(); as err) {
     <p class="err" role="alert">{{ err }}</p>
+  }
+
+  @if (billing.hasDailyBriefingEntitlement() === false) {
+    <p class="note watchlist-entitlement-note" role="status">
+      Scheduling and Daily Briefing are part of the Daily Briefing add-on. You can still
+      browse your watchlist, but the schedule and toggle below won't run until you
+      <a routerLink="/account">add Daily Briefing</a> to your account.
+    </p>
   }
 
   <div class="card watchlist-card">
@@ -86,13 +104,25 @@
           <tbody>
             @for (item of items(); track item.id) {
               <tr>
-                <td>
+                <td class="watchlist-cell">
                   <span class="sym watchlist-symbol">{{ displaySymbol(item) }}</span>
                   @if (displayName(item); as name) {
                     <span class="watchlist-item-name">{{ name }}</span>
                   }
+                  @if (isBusy(item.id)) {
+                    <!-- Blurs and covers only THIS cell — position:relative on
+                         a <tr> does not reliably establish a containing block
+                         across browsers, so the overlay is per-cell rather
+                         than row-spanning. Repeated (blank, no text) in every
+                         other <td> below so the whole row reads as blurred;
+                         this cell is the one that carries the message. -->
+                    <span class="watchlist-cell-overlay" aria-live="polite">
+                      <span class="spin" aria-hidden="true"></span>
+                      Background process is running on this item ({{ displaySymbol(item) }})
+                    </span>
+                  }
                 </td>
-                <td>
+                <td class="watchlist-cell">
                   @if (isCustomLookback(item)) {
                     <span class="watchlist-custom">
                       <input
@@ -126,36 +156,58 @@
                       <option value="custom">Custom…</option>
                     </select>
                   }
+                  @if (isBusy(item.id)) {
+                    <span class="watchlist-cell-overlay" aria-hidden="true"></span>
+                  }
                 </td>
-                <td>
-                  <select
-                    class="input watchlist-select"
-                    [value]="item.scheduled_hour_ist ?? ''"
-                    (change)="setScheduledHour(item, $any($event.target).value)"
-                    [attr.aria-label]="'Scheduled run time for ' + displaySymbol(item)"
-                  >
-                    <option value="" [selected]="item.scheduled_hour_ist === null">Default</option>
-                    @for (hour of hourOptions; track hour) {
-                      <option [value]="hour" [selected]="hour === item.scheduled_hour_ist">
-                        {{ formatHour(hour) }}
-                      </option>
+                <td class="watchlist-cell">
+                  <span class="watchlist-time">
+                    <input
+                      class="input watchlist-time-input"
+                      type="time"
+                      [value]="scheduledTimeValue(item)"
+                      (change)="setScheduledTime(item, $any($event.target).value)"
+                      [disabled]="billing.hasDailyBriefingEntitlement() === false"
+                      [attr.title]="
+                        billing.hasDailyBriefingEntitlement() === false
+                          ? 'Requires the Daily Briefing add-on'
+                          : null
+                      "
+                      [attr.aria-label]="'Scheduled run time for ' + displaySymbol(item)"
+                    />
+                    @if (item.scheduled_hour_ist === null) {
+                      <span class="watchlist-unit">Default</span>
+                    } @else {
+                      <span class="watchlist-unit">IST</span>
                     }
-                  </select>
+                  </span>
+                  @if (isBusy(item.id)) {
+                    <span class="watchlist-cell-overlay" aria-hidden="true"></span>
+                  }
                 </td>
-                <td>
+                <td class="watchlist-cell">
                   <label class="switch">
                     <input
                       type="checkbox"
                       class="switch-input"
                       [checked]="item.enabled_for_daily_analysis"
                       (change)="toggleDailyAnalysis(item)"
+                      [disabled]="billing.hasDailyBriefingEntitlement() === false"
+                      [attr.title]="
+                        billing.hasDailyBriefingEntitlement() === false
+                          ? 'Requires the Daily Briefing add-on'
+                          : null
+                      "
                       [attr.aria-label]="'Daily briefing for ' + displaySymbol(item)"
                     />
                     <span class="switch-track" aria-hidden="true"></span>
                     <span class="switch-label">{{ item.enabled_for_daily_analysis ? 'On' : 'Off' }}</span>
                   </label>
+                  @if (isBusy(item.id)) {
+                    <span class="watchlist-cell-overlay" aria-hidden="true"></span>
+                  }
                 </td>
-                <td class="watchlist-actions">
+                <td class="watchlist-cell watchlist-actions">
                   <button
                     type="button"
                     class="btn btn-s btn-sm"
@@ -170,10 +222,23 @@
                       Analyze now
                     }
                   </button>
+                  <!-- Same run, same Daily Briefing entitlement as the button
+                       beside it — the difference is that this one emails the
+                       result with its analysis attached as a PDF. -->
+                  <button
+                    type="button"
+                    class="btn btn-p btn-sm"
+                    [disabled]="isBusy(item.id)"
+                    (click)="analyzeNow(item, false, 'brief')"
+                    title="Run this symbol now and email me the analysis as a PDF"
+                  >
+                    Brief now
+                  </button>
                   <button
                     type="button"
                     class="watchlist-remove"
-                    (click)="remove(item.id)"
+                    [disabled]="isBusy(item.id)"
+                    (click)="requestRemove(item.id)"
                     [attr.aria-label]="'Remove ' + displaySymbol(item)"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -183,7 +248,27 @@
                   </button>
                 </td>
               </tr>
-              @if (duplicateWarning()[item.id]; as warning) {
+              @if (pendingRemoval() === item.id) {
+                <tr class="watchlist-analyze-row">
+                  <td colspan="5">
+                    <div class="note watchlist-confirm" style="--tone: var(--warn)" role="alert">
+                      <span class="watchlist-confirm-copy">
+                        Remove {{ displaySymbol(item) }} from your watchlist? Its schedule and
+                        recorded runs go with it. Analyses it already produced stay in your
+                        history.
+                      </span>
+                      <span class="watchlist-confirm-actions">
+                        <button type="button" class="btn btn-p btn-sm" (click)="confirmRemove(item.id)">
+                          Yes, remove
+                        </button>
+                        <button type="button" class="btn btn-g btn-sm" (click)="cancelRemove()">
+                          Cancel
+                        </button>
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              } @else if (duplicateWarning()[item.id]; as warning) {
                 <tr class="watchlist-analyze-row">
                   <td colspan="5">
                     <div class="note watchlist-confirm" style="--tone: var(--warn)" role="alert">
@@ -195,8 +280,14 @@
                         continue?
                       </span>
                       <span class="watchlist-confirm-actions">
-                        <button type="button" class="btn btn-p btn-sm" (click)="analyzeNow(item, true)">
-                          Yes, analyse again
+                        <!-- Re-runs whichever action raised the warning, so
+                             confirming a Brief Now still sends the email. -->
+                        <button
+                          type="button"
+                          class="btn btn-p btn-sm"
+                          (click)="analyzeNow(item, true, warning.mode)"
+                        >
+                          {{ warning.mode === 'brief' ? 'Yes, brief me again' : 'Yes, analyse again' }}
                         </button>
                         <button type="button" class="btn btn-g btn-sm" (click)="dismissDuplicate(item.id)">
                           Cancel

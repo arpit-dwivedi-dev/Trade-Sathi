@@ -244,3 +244,73 @@
     gap: var(--s2);
   }
 }
+
+/* ── source filter ──────────────────────────────────────── */
+.history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s4);
+}
+
+.history-filter-on {
+  background: var(--surf-3);
+  border-color: var(--line-strong, var(--line));
+  color: var(--tx);
+  font-weight: 600;
+}
+
+/* ── provenance chips inside the symbol cell ────────────── */
+/* The cell becomes a two-line stack: ticker, then its tags. Kept to the cell
+   so the row's nth-child grid is untouched. */
+.sym:has(.history-tags) {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.history-sym-text {
+  max-width: 100%;
+}
+
+.history-tags {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.history-src,
+.history-mailed {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-family: var(--fh);
+  font-size: var(--t-2xs);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 3px 5px;
+  white-space: nowrap;
+}
+
+.history-src {
+  background: var(--surf-2);
+  color: var(--tx-3);
+}
+
+/* Briefings are the one provenance the user pays a separate subscription for,
+   so they are the one worth picking out of a scanned column. */
+.history-src-watchlist_daily {
+  border-color: color-mix(in srgb, var(--acc) 40%, var(--line));
+  color: var(--acc-tx, var(--acc));
+}
+
+.history-mailed {
+  align-items: center;
+  background: transparent;
+  border-color: color-mix(in srgb, var(--up) 35%, var(--line));
+  color: var(--up);
+  display: inline-flex;
+  gap: 3px;
+}

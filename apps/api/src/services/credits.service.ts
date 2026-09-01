@@ -3,21 +3,59 @@ import { razorpay } from "../lib/razorpay-client.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 
 /**
- * The one credit pack on sale: 10 credits for ₹79.
+ * The credit packs on sale, keyed by what they top up.
  *
- * Hardcoded on purpose while there is exactly one SKU. If a second pack size
- * is added, this should move to a small config object or a database table —
- * not urgent before then, and inventing that indirection now would be the
- * premature abstraction this repo avoids.
+ * Two SKUs, two currencies. `analysis` credits are spent on user-initiated
+ * analyses (profiles.credit_balance); `daily_briefing` credits are spent on
+ * automated watchlist runs (profiles.daily_briefing_credit_balance). They are
+ * deliberately not interchangeable — a briefing run costs us a full model call
+ * with no user waiting on it, and letting one balance pay for the other would
+ * make either price wrong.
+ *
+ * A briefing top-up exists because the Daily Briefing add-on is a
+ * subscription, and buying that subscription a second time would charge every
+ * month while granting nothing: its allowance comes from the plan's
+ * daily_briefing_entitlements row, not from a count of subscriptions. Packs
+ * stack within a month (10 + 10 + 10); a second subscription cannot.
+ *
+ * `purpose` is what the webhook routes on, and is stored on the payments row —
+ * so these strings are persisted history and must not be reused for a
+ * different pack if one is ever repriced.
  *
  * Money is integer minor units (paise), never a float.
  */
-const CREDIT_PACK = {
-  purpose: "credit_pack_10",
-  credits: 10,
-  amountMinor: 7900,
-  currency: "INR",
+const CREDIT_PACKS = {
+  analysis: {
+    purpose: "credit_pack_10",
+    credits: 10,
+    amountMinor: 7900,
+    currency: "INR",
+  },
+  daily_briefing: {
+    purpose: "daily_briefing_credit_pack_10",
+    credits: 10,
+    // Priced above the analysis pack: a briefing run renders its own chart and
+    // makes the same model call, with no user waiting on the result.
+    amountMinor: 9900,
+    currency: "INR",
+  },
 } as const;
+
+/** Which balance a pack tops up. */
+export type CreditPackKind = keyof typeof CREDIT_PACKS;
+
+/**
+ * Which SQL function grants a captured payment's credits, by the purpose
+ * stored on the payments row.
+ *
+ * The webhook routes on this rather than deciding for itself: the purpose was
+ * written when the order was created, so a payment can only ever grant the
+ * currency it was sold as, no matter what the webhook payload claims.
+ */
+export const CREDIT_GRANT_FUNCTION_BY_PURPOSE: Readonly<Record<string, string>> = {
+  [CREDIT_PACKS.analysis.purpose]: "apply_credit_purchase",
+  [CREDIT_PACKS.daily_briefing.purpose]: "apply_daily_briefing_credit_purchase",
+};
 
 export type CreateCreditOrderResult =
   | { ok: true; orderId: string; keyId: string; amountMinor: number }
@@ -37,7 +75,10 @@ export type CreateCreditOrderResult =
  */
 export async function createCreditOrder(
   profileId: string,
+  kind: CreditPackKind = "analysis",
 ): Promise<CreateCreditOrderResult> {
+  const pack = CREDIT_PACKS[kind];
+
   // (a) Create the Razorpay Order.
   //
   // notes carry the profile id so a purchase can be traced back from the
@@ -47,9 +88,9 @@ export async function createCreditOrder(
   let order;
   try {
     order = await razorpay.orders.create({
-      amount: CREDIT_PACK.amountMinor,
-      currency: CREDIT_PACK.currency,
-      notes: { profile_id: profileId, purpose: CREDIT_PACK.purpose },
+      amount: pack.amountMinor,
+      currency: pack.currency,
+      notes: { profile_id: profileId, purpose: pack.purpose },
     });
   } catch {
     // The caught error is deliberately not inspected, forwarded, or logged
@@ -67,17 +108,17 @@ export async function createCreditOrder(
   //
   // status='created' and signature_verified=false are the honest state right
   // now: an order exists, nothing has been paid, and no signature has been
-  // checked. apply_credit_purchase is the only thing that moves either — it
-  // runs after the webhook route verifies the signature over the raw body.
-  // Credits are granted there and nowhere else.
+  // checked. The apply_* function this pack's purpose routes to is the only
+  // thing that moves either — it runs after the webhook route verifies the
+  // signature over the raw body. Credits are granted there and nowhere else.
   const { error: insertError } = await supabaseAdmin.from("payments").insert({
     profile_id: profileId,
     provider: "razorpay",
     provider_order_id: order.id,
-    purpose: CREDIT_PACK.purpose,
-    credits_granted: CREDIT_PACK.credits,
-    amount_minor: CREDIT_PACK.amountMinor,
-    currency: CREDIT_PACK.currency,
+    purpose: pack.purpose,
+    credits_granted: pack.credits,
+    amount_minor: pack.amountMinor,
+    currency: pack.currency,
     status: "created",
     signature_verified: false,
   });
@@ -92,6 +133,6 @@ export async function createCreditOrder(
     ok: true,
     orderId: order.id,
     keyId: env.razorpayKeyId,
-    amountMinor: CREDIT_PACK.amountMinor,
+    amountMinor: pack.amountMinor,
   };
 }

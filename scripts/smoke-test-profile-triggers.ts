@@ -95,7 +95,7 @@ async function main() {
     if (userId) {
       try {
         await admin.auth.admin.deleteUser(userId);
-      } catch (e) {
+      } catch {
         // best-effort cleanup
       }
     }

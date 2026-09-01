@@ -75,10 +75,12 @@
 
     <div class="auth-foot">
       @if (mode() === 'otp') {
-        <button type="button" class="btn btn-g btn-sm" [disabled]="busy()" (click)="resendOtp()">
-          Resend code
+        <button type="button" class="btn btn-g btn-sm"
+                [disabled]="busy() || resendIn() > 0" (click)="resendOtp()">
+          {{ resendIn() > 0 ? 'Resend in ' + resendIn() + 's' : 'Resend code' }}
         </button>
-        <button type="button" class="btn btn-g btn-sm" (click)="useDifferentEmail()">
+        <button type="button" class="btn btn-g btn-sm" [disabled]="busy()"
+                (click)="useDifferentEmail()">
           Use a different email
         </button>
       } @else {

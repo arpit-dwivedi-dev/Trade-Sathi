@@ -2,18 +2,8 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { startAnalysisWatch, type AnalysisWatch } from '../../core/analysis-watch';
 import { AuthService } from '../../core/auth.service';
-import { SupabaseClientService } from '../../core/supabase-client';
-import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
 import type { LiveCandle } from '../../shared/live-chart/live-chart';
-
-/* The pipeline is market data + a model call over up to 250 candles, measured
- * at ~55s end to end on a one-day intraday window. Three minutes leaves real
- * headroom over that without leaving a user staring at a spinner forever. */
-const POLL_TIMEOUT_MS = 180_000;
-/** Consecutive query failures (~6s of continuous failure) before giving up. */
-const MAX_CONSECUTIVE_POLL_FAILURES = 3;
 
 export interface CandleWindowResponse {
   instrument: { id: string; symbol: string; name: string; exchange: string };
@@ -29,32 +19,22 @@ export type CandlesResult =
   | { ok: false; message: string };
 
 export type StartAnalysisResult =
-  | { ok: true; startedAt: string }
+  | { ok: true; analysisId: string }
   | { ok: false; reason: 'quota_exceeded' | 'error'; message: string };
-
-export type LiveAnalysisOutcome =
-  | { outcome: 'complete'; row: AnalysisRow; patterns: AnalysisPattern[] }
-  | { outcome: 'timed_out' }
-  | { outcome: 'poll_error' };
-
-export interface LiveAnalysisHandle {
-  result: Promise<LiveAnalysisOutcome>;
-  cancel: () => void;
-}
 
 /**
  * Backend calls for the live chart view.
  *
- * Candles and the analyze trigger go through the API (the market-data provider
- * is server-side only, and analysis spends quota); reading the finished
- * analysis row goes straight to Supabase under RLS, the same read-your-own-data
- * path AnalyzeService.pollAnalysis uses.
+ * Candles and the analyze trigger go through the API: the market-data provider
+ * is server-side only, and starting an analysis spends quota. Watching the
+ * resulting row is NOT here — it is AnalyzeService.pollAnalysis, which already
+ * watches an analyses row by id and is now shared by both flows rather than
+ * reimplemented per feature.
  */
 @Injectable({ providedIn: 'root' })
 export class LiveService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
-  private readonly supabase = inject(SupabaseClientService);
 
   async fetchCandles(instrumentId: string, lookbackDays: number): Promise<CandlesResult> {
     const token = await this.auth.getAccessToken();
@@ -80,7 +60,8 @@ export class LiveService {
   /**
    * Starts a live analysis. The API responds as soon as its fast checks pass
    * (202) and runs the 20-30s pipeline in the background, so what comes back
-   * is a start time, not a result — see awaitAnalysis.
+   * is the id of the 'queued' analyses row it will fill in — watch that row
+   * with AnalyzeService.pollAnalysis, which reports its 'failed' status too.
    *
    * `chart` is the PNG this browser rendered from the same candles. It is
    * stored with the analysis so the user can see and download the chart they
@@ -106,11 +87,11 @@ export class LiveService {
 
     try {
       const accepted = await firstValueFrom(
-        this.http.post<{ startedAt: string }>('/api/market/analyze', form, {
+        this.http.post<{ analysisId: string }>('/api/market/analyze', form, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       );
-      return { ok: true, startedAt: accepted.startedAt };
+      return { ok: true, analysisId: accepted.analysisId };
     } catch (cause) {
       const status = cause instanceof HttpErrorResponse ? cause.status : 0;
       if (status === 402) {
@@ -124,106 +105,4 @@ export class LiveService {
     }
   }
 
-  /**
-   * Waits for the row the background pipeline writes: the newest source='live'
-   * analysis for this instrument created at or after the run's start time.
-   * Identifying it by (instrument, source, time) rather than by id is what
-   * lets the API answer immediately instead of holding the request open for
-   * the whole pipeline.
-   *
-   * The pipeline only ever inserts already-complete rows, so there is no
-   * queued/processing state to observe here — a failed run simply never
-   * produces a row and this times out. That single INSERT is exactly what the
-   * Realtime subscription in startAnalysisWatch is waiting for, which is why
-   * this no longer re-runs the ordered range scan below every two seconds.
-   */
-  awaitAnalysis(instrumentId: string, startedAt: string): LiveAnalysisHandle {
-    const client = this.supabase.client;
-
-    let watch: AnalysisWatch | null = null;
-    let settled = false;
-    let consecutiveFailures = 0;
-    const beganAt = Date.now();
-
-    const result = new Promise<LiveAnalysisOutcome>((resolve) => {
-      const finish = (outcome: LiveAnalysisOutcome): void => {
-        if (settled) return;
-        settled = true;
-        watch?.stop();
-        watch = null;
-        resolve(outcome);
-      };
-
-      if (!client) {
-        // SSR has no Supabase client; nothing can be polled.
-        finish({ outcome: 'poll_error' });
-        return;
-      }
-
-      const tick = async (): Promise<void> => {
-        if (settled) return;
-
-        if (Date.now() - beganAt >= POLL_TIMEOUT_MS) {
-          finish({ outcome: 'timed_out' });
-          return;
-        }
-
-        try {
-          const { data, error } = await client
-            .from('analyses')
-            .select('*')
-            .eq('instrument_id', instrumentId)
-            .eq('source', 'live')
-            .gte('created_at', startedAt)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle<AnalysisRow>();
-
-          if (error) throw error;
-
-          consecutiveFailures = 0;
-          if (!data || settled) return;
-
-          const { data: patterns, error: patternsError } = await client
-            .from('analysis_patterns')
-            .select('*')
-            .eq('analysis_id', data.id)
-            .returns<AnalysisPattern[]>();
-
-          if (patternsError) throw patternsError;
-          finish({ outcome: 'complete', row: data, patterns: patterns ?? [] });
-        } catch (cause) {
-          // A read error here is a frontend problem (network, client config),
-          // not the pipeline failing. One blip waits for the next poll; only
-          // sustained failure gives up.
-          consecutiveFailures += 1;
-          console.warn('live analysis poll attempt failed', cause);
-          if (consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
-            finish({ outcome: 'poll_error' });
-          }
-        }
-      };
-
-      // Filtered on the instrument only: Realtime filters take one column, and
-      // the source/created_at narrowing stays in tick()'s own query. A stray
-      // wake-up for a different run on the same instrument costs one read.
-      watch = startAnalysisWatch(
-        client,
-        `live-analysis-${instrumentId}-${startedAt}`,
-        `instrument_id=eq.${instrumentId}`,
-        () => {
-          void tick();
-        },
-      );
-    });
-
-    return {
-      result,
-      cancel: () => {
-        settled = true;
-        watch?.stop();
-        watch = null;
-      },
-    };
-  }
 }

@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { asyncRoute } from "../lib/async-route.js";
 import { logger } from "../lib/logger.js";
 import { handleImageUpload } from "../middleware/image-upload.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -11,9 +12,9 @@ const SOURCE_TYPES = ["paste", "upload"];
 
 analysesRouter.post(
   "/api/analyses",
-  requireAuth,
+  asyncRoute(requireAuth),
   handleImageUpload,
-  async (req: Request, res: Response) => {
+  asyncRoute(async (req: Request, res: Response) => {
     const file = req.file;
     if (!file) {
       res.status(400).json({ error: "Missing image file" });
@@ -26,7 +27,11 @@ analysesRouter.post(
     // analytics (which interaction produced this image), not a different payload
     // shape or a different validation path. Do not add logic that treats 'paste'
     // differently from 'upload' at this endpoint.
-    const sourceType: unknown = req.body?.sourceType;
+    const body: unknown = req.body;
+    const sourceType: unknown =
+      typeof body === "object" && body !== null
+        ? (body as { sourceType?: unknown }).sourceType
+        : undefined;
     if (typeof sourceType !== "string" || !SOURCE_TYPES.includes(sourceType)) {
       res.status(400).json({ error: "sourceType must be 'paste' or 'upload'" });
       return;
@@ -68,5 +73,5 @@ analysesRouter.post(
       logger.error("failed to create analysis", { cause: String(cause) });
       res.status(500).json({ error: "Failed to create analysis" });
     }
-  },
+  }),
 );

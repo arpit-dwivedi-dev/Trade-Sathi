@@ -1,0 +1,88 @@
+<section class="body content-max logs">
+  <div class="page-head">
+    <h1 class="page-title">Logs</h1>
+    <p class="page-sub">
+      Your own scheduled runs, manual runs and background failures — the same things Analyze
+      Now/Brief Now and the Daily Briefing toggle do, kept here so a background failure is
+      never invisible.
+    </p>
+  </div>
+
+  @if (error(); as err) {
+    <p class="err" role="alert">{{ err }}</p>
+  }
+
+  @if (loading()) {
+    <p class="logs-state"><span class="spin" aria-hidden="true"></span> Loading your logs…</p>
+  } @else {
+    <div class="card logs-card">
+      <div class="hd">
+        <span class="lbl-h">Scheduled briefings</span>
+        <span class="lbl">Toggle + Run-at time</span>
+      </div>
+      @if (briefingLog().length === 0) {
+        <p class="logs-empty">No scheduled runs yet.</p>
+      } @else {
+        <ul class="logs-list">
+          @for (row of briefingLog(); track row.id) {
+            <li class="logs-row">
+              @if (row.status === 'processing') {
+                <span class="spin" aria-hidden="true"></span>
+              }
+              <span class="logs-time">{{ briefingTimeLabel(row) }}</span>
+              <span class="logs-date">{{ row.briefing_date }}</span>
+              <span class="logs-status" [class.logs-status-fail]="briefingIsFailure(row)">
+                {{ briefingStatusLabel(row) }}
+              </span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <div class="card logs-card">
+      <div class="hd">
+        <span class="lbl-h">Manual runs</span>
+        <span class="lbl">Analyze now / Brief now</span>
+      </div>
+      @if (watchlistRuns().length === 0) {
+        <p class="logs-empty">No manual runs yet.</p>
+      } @else {
+        <ul class="logs-list">
+          @for (row of watchlistRuns(); track row.id) {
+            <li class="logs-row">
+              @if (row.status === 'processing' || row.status === 'queued') {
+                <span class="spin" aria-hidden="true"></span>
+              }
+              <span class="sym logs-sym">{{ runSymbol(row) }}</span>
+              <span class="logs-date">{{ formatTimestamp(row.created_at) }}</span>
+              <span class="logs-status" [class.logs-status-fail]="row.status === 'failed'">
+                {{ runStatusLabel(row) }}
+              </span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <div class="card logs-card">
+      <div class="hd">
+        <span class="lbl-h">Errors</span>
+        <span class="lbl">Background failures</span>
+      </div>
+      @if (errorLog().length === 0) {
+        <p class="logs-empty">No errors recorded. Good sign.</p>
+      } @else {
+        <ul class="logs-list logs-list-errors">
+          @for (row of errorLog(); track row.id) {
+            <li class="logs-row logs-row-error">
+              <span class="chip logs-category">{{ row.category }}</span>
+              <span class="logs-message">{{ row.message }}</span>
+              <span class="logs-date">{{ formatTimestamp(row.created_at) }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</section>

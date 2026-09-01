@@ -1,20 +1,22 @@
 import OpenAI from "openai";
-import { env } from "./env.js";
+import { env, type AiProviderConfig } from "./env.js";
 
 /**
- * The AI provider client.
+ * The AI provider clients.
  *
  * The `openai` SDK is used purely as an OpenAI-compatible Chat Completions HTTP
- * client — the configured provider is not necessarily OpenAI (currently
- * Google Gemini, via its OpenAI-compatible endpoint). No business logic
- * belongs in this module.
+ * client — the configured providers are not necessarily OpenAI (currently
+ * Google Gemini, via its OpenAI-compatible endpoint, with DeepSeek behind it).
+ * No business logic belongs in this module: which client to try, in what order,
+ * and what counts as a failure worth falling back on all live in
+ * services/ai-analysis.service.ts.
  */
 
 /**
  * One attempt, bounded — but bounded generously.
  *
  * The SDK's defaults are a 600s timeout and 2 internal retries, which sat
- * underneath runAnalysisCompletion's own 2-attempt loop: six upstream requests
+ * underneath runAnalysisCompletion's own attempt loop: six upstream requests
  * and up to ~20 minutes before the promise settled, long after the browser
  * stopped waiting (90s for an upload, 180s for a live run) and left the
  * analyses row stranded at 'queued'.
@@ -34,9 +36,23 @@ import { env } from "./env.js";
  */
 const REQUEST_TIMEOUT_MS = 120_000;
 
-export const aiClient = new OpenAI({
-  baseURL: env.aiBaseUrl,
-  apiKey: env.aiApiKey,
-  timeout: REQUEST_TIMEOUT_MS,
-  maxRetries: 0,
-});
+/** A configured provider paired with the client that talks to it. */
+export interface AiProvider extends AiProviderConfig {
+  client: OpenAI;
+}
+
+/**
+ * The provider chain in priority order: index 0 is primary, the rest are
+ * fallbacks. Clients are constructed once at startup — an OpenAI instance is
+ * just config plus an HTTP agent, so holding one per configured provider costs
+ * nothing and keeps the failover path free of per-request setup.
+ */
+export const aiProviders: AiProvider[] = env.aiProviders.map((provider) => ({
+  ...provider,
+  client: new OpenAI({
+    baseURL: provider.baseUrl,
+    apiKey: provider.apiKey,
+    timeout: REQUEST_TIMEOUT_MS,
+    maxRetries: 0,
+  }),
+}));

@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { asyncRoute } from "../lib/async-route.js";
 import { MarketDataError } from "../lib/market-data/types.js";
 import { logger } from "../lib/logger.js";
 import { handleImageUpload } from "../middleware/image-upload.js";
@@ -43,54 +44,69 @@ function sendMarketDataError(res: Response, cause: unknown, context: string): vo
   res.status(500).json({ error: "Market data request failed" });
 }
 
-marketRouter.get("/api/market/candles", requireAuth, async (req: Request, res: Response) => {
-  const instrumentId = typeof req.query["instrumentId"] === "string" ? req.query["instrumentId"] : "";
-  const lookbackDays = parseLookbackDays(req.query["lookbackDays"]);
+marketRouter.get(
+  "/api/market/candles",
+  asyncRoute(requireAuth),
+  asyncRoute(async (req: Request, res: Response) => {
+    const instrumentId =
+      typeof req.query["instrumentId"] === "string" ? req.query["instrumentId"] : "";
+    const lookbackDays = parseLookbackDays(req.query["lookbackDays"]);
 
-  if (!instrumentId || lookbackDays === null) {
-    res.status(400).json({ error: "instrumentId and lookbackDays (1-365) are required" });
-    return;
-  }
-
-  try {
-    const ref = await fetchInstrumentById(instrumentId);
-    if (!ref) {
-      res.status(404).json({ error: "Instrument not found" });
+    if (!instrumentId || lookbackDays === null) {
+      res.status(400).json({ error: "instrumentId and lookbackDays (1-365) are required" });
       return;
     }
 
-    const window = await getCandlesForInstrument(ref, lookbackDays);
-    res.json({
-      instrument: { id: ref.instrumentId, symbol: ref.symbol, name: ref.name, exchange: ref.exchange },
-      timeframeLabel: window.timeframeLabel,
-      intervalMinutes: window.intervalMinutes,
-      marketDataDate: window.marketDataDate,
-      candles: window.candles,
-    });
-  } catch (cause) {
-    sendMarketDataError(res, cause, "live candles request failed");
-  }
-});
+    try {
+      const ref = await fetchInstrumentById(instrumentId);
+      if (!ref) {
+        res.status(404).json({ error: "Instrument not found" });
+        return;
+      }
 
-marketRouter.get("/api/market/quote", requireAuth, async (req: Request, res: Response) => {
-  const instrumentId = typeof req.query["instrumentId"] === "string" ? req.query["instrumentId"] : "";
-  if (!instrumentId) {
-    res.status(400).json({ error: "instrumentId is required" });
-    return;
-  }
+      const window = await getCandlesForInstrument(ref, lookbackDays);
+      res.json({
+        instrument: {
+          id: ref.instrumentId,
+          symbol: ref.symbol,
+          name: ref.name,
+          exchange: ref.exchange,
+        },
+        timeframeLabel: window.timeframeLabel,
+        intervalMinutes: window.intervalMinutes,
+        marketDataDate: window.marketDataDate,
+        candles: window.candles,
+      });
+    } catch (cause) {
+      sendMarketDataError(res, cause, "live candles request failed");
+    }
+  }),
+);
 
-  try {
-    const ref = await fetchInstrumentById(instrumentId);
-    if (!ref) {
-      res.status(404).json({ error: "Instrument not found" });
+marketRouter.get(
+  "/api/market/quote",
+  asyncRoute(requireAuth),
+  asyncRoute(async (req: Request, res: Response) => {
+    const instrumentId =
+      typeof req.query["instrumentId"] === "string" ? req.query["instrumentId"] : "";
+    if (!instrumentId) {
+      res.status(400).json({ error: "instrumentId is required" });
       return;
     }
-    const quote = await getQuoteForInstrument(ref);
-    res.json({ lastPrice: quote.lastPrice, asOf: quote.asOf });
-  } catch (cause) {
-    sendMarketDataError(res, cause, "live quote request failed");
-  }
-});
+
+    try {
+      const ref = await fetchInstrumentById(instrumentId);
+      if (!ref) {
+        res.status(404).json({ error: "Instrument not found" });
+        return;
+      }
+      const quote = await getQuoteForInstrument(ref);
+      res.json({ lastPrice: quote.lastPrice, asOf: quote.asOf });
+    } catch (cause) {
+      sendMarketDataError(res, cause, "live quote request failed");
+    }
+  }),
+);
 
 /**
  * Starts a live analysis. The request is multipart because the browser sends
@@ -101,9 +117,9 @@ marketRouter.get("/api/market/quote", requireAuth, async (req: Request, res: Res
  */
 marketRouter.post(
   "/api/market/analyze",
-  requireAuth,
+  asyncRoute(requireAuth),
   handleImageUpload,
-  async (req: Request, res: Response) => {
+  asyncRoute(async (req: Request, res: Response) => {
     const body = (typeof req.body === "object" && req.body !== null ? req.body : {}) as {
       instrumentId?: unknown;
       lookbackDays?: unknown;
@@ -128,10 +144,15 @@ marketRouter.post(
       );
 
       if (result.ok) {
-        // 202: the pipeline runs in the background. The client polls the
-        // analyses table for a source='live' row on this instrument newer than
-        // startedAt rather than waiting on this request.
-        res.status(202).json({ instrumentId: result.instrumentId, startedAt: result.startedAt });
+        // 202: the pipeline runs in the background. analysisId names the
+        // 'queued' row it will fill in, which is what the client watches —
+        // including for a 'failed' status, so a failure surfaces immediately
+        // instead of as a client-side timeout.
+        res.status(202).json({
+          analysisId: result.analysisId,
+          instrumentId: result.instrumentId,
+          startedAt: result.startedAt,
+        });
         return;
       }
 
@@ -151,5 +172,5 @@ marketRouter.post(
       logger.error("live analyze request failed", { cause: String(cause) });
       res.status(500).json({ error: "Could not start analysis" });
     }
-  },
+  }),
 );

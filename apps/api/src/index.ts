@@ -39,6 +39,21 @@ app.use(watchlistRouter);
 const server = createServer(app);
 attachMarketStream(server);
 
+// listen()'s callback only runs on success, so a failure to bind — a port
+// already in use, most often — surfaces here or nowhere. Left unhandled it is
+// an EADDRINUSE thrown out of the event loop, which reads as an unexplained
+// stack trace rather than the one-line configuration problem it is.
+server.on("error", (cause: NodeJS.ErrnoException) => {
+  if (cause.code === "EADDRINUSE") {
+    logger.error(`port ${env.port} is already in use`, {
+      hint: "another instance of the API is probably already running",
+    });
+  } else {
+    logger.error("the api server failed to start", { cause: String(cause) });
+  }
+  process.exit(1);
+});
+
 server.listen(env.port, () => {
   logger.info(`api listening on port ${env.port}`);
   // Not awaited: the server should accept requests immediately, and every

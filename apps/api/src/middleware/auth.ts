@@ -3,6 +3,9 @@ import { logger } from "../lib/logger.js";
 import { supabaseAuth } from "../lib/supabase.js";
 
 declare global {
+  // Express's own types are declared in the `Express` namespace, so augmenting
+  // Request means reopening it — there is no module-syntax equivalent.
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       /** Set by requireAuth from the verified JWT's `sub` claim. */

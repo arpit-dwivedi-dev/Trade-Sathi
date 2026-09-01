@@ -62,6 +62,23 @@ export interface SubscriptionPollHandle {
   cancel: () => void;
 }
 
+/**
+ * Which credit currency a top-up buys. 'analysis' tops up manual analyses;
+ * 'daily_briefing' tops up automated watchlist runs. Deliberately not
+ * interchangeable — see CREDIT_PACKS in apps/api/src/services/credits.service.ts.
+ */
+export type CreditPackKind = 'analysis' | 'daily_briefing';
+
+/**
+ * One endpoint per currency, not one endpoint taking the currency: a client
+ * that could name the pack could pay the cheaper price and be granted the
+ * dearer credits.
+ */
+const CREDIT_ENDPOINTS: Record<CreditPackKind, string> = {
+  analysis: '/api/billing/buy-credits',
+  daily_briefing: '/api/billing/buy-briefing-credits',
+};
+
 export type BuyCreditsResult =
   | { ok: true; orderId: string; keyId: string; amountMinor: number }
   | { ok: false; reason: 'error'; message: string };
@@ -71,6 +88,72 @@ export type CreditPollOutcome = 'captured' | 'timed_out' | 'poll_error';
 export interface CreditPollHandle {
   result: Promise<CreditPollOutcome>;
   cancel: () => void;
+}
+
+/**
+ * The manual-analysis tiers, of which a user holds exactly one at a time — the
+ * tier that occupies profiles.plan_id and sets the monthly analysis allowance.
+ *
+ * Anything NOT in this set is an add-on: a separate SKU, billed through the
+ * same subscriptions table, that a user holds *alongside* their manual tier
+ * rather than instead of it (see the comment at the top of
+ * supabase/migrations/20260831160400_daily_briefing_entitlement_functions.sql
+ * — a Daily Briefing entitlement is a live subscriptions row, never
+ * profiles.plan_id). Treating the two families as one list is what made the
+ * account screen claim a user was on one plan while silently holding another.
+ *
+ * Exported because the picker splits its cards on exactly this distinction and
+ * must not carry a second copy of the list that can drift from this one.
+ */
+export const MANUAL_PLAN_KEYS: ReadonlySet<string> = new Set([
+  'free',
+  'starter_monthly',
+  'pro_monthly',
+  'pro_annual',
+]);
+
+/**
+ * Subscription statuses that mean "this subscription is in force". Mirrors
+ * LIVE_SUBSCRIPTION_STATUSES in apps/api/src/services/billing.service.ts and
+ * the status list in check_and_consume_daily_briefing_entitlement — all three
+ * must agree, or the UI shows an add-on the backend won't honour (or hides one
+ * it will). 'created' is excluded here for the same reason it is there: it only
+ * means a checkout was opened, not that anything was paid for.
+ */
+const LIVE_SUBSCRIPTION_STATUSES = [
+  'authenticated',
+  'active',
+  'pending',
+  'halted',
+  'paused',
+] as const;
+
+/**
+ * The one Daily Briefing plan key. Hardcoded for the same reason the backend's
+ * PURCHASABLE_PLAN_KEYS and daily_briefing_entitlements' own lookups are: there
+ * is exactly one briefing SKU, and its allowance is keyed by this literal in
+ * check_and_consume_daily_briefing_entitlement.
+ */
+const DAILY_BRIEFING_PLAN_KEY = 'daily_briefing_monthly';
+
+/**
+ * A period's consumption of one allowance. `used`/`limit` are the same numbers
+ * the SQL entitlement function compares, so the screen and the enforcement
+ * cannot disagree.
+ */
+export interface UsageStatus {
+  used: number;
+  limit: number;
+  remaining: number;
+}
+
+/** One add-on the user currently holds, for display on the account screen. */
+export interface AddOnSummary {
+  /** plans.key — 'daily_briefing_monthly' today. */
+  key: string;
+  name: string;
+  amountMinor: number;
+  currentPeriodEnd: string | null;
 }
 
 /**
@@ -84,7 +167,44 @@ export interface PlanSummary {
   name: string;
   priceInrPaise: number;
   analysesPerMonth: number;
+  /**
+   * The renewal date of the MANUAL tier's own subscription, and only that one.
+   * Reading "the newest subscription row" instead put an add-on's renewal date
+   * under the manual plan's price the moment a user held both — the exact
+   * conflation this whole split exists to stop.
+   */
   currentPeriodEnd: string | null;
+  /** Live add-ons held alongside this tier. Empty for most users. */
+  addOns: AddOnSummary[];
+  /**
+   * Unspent Daily Briefing top-up credits. Separate from the manual credit
+   * balance and from the add-on's monthly allowance: these are what a user
+   * buys to run MORE briefings inside a month, since the add-on subscription
+   * itself cannot be bought twice for extra quota.
+   */
+  briefingCreditBalance: number;
+  /**
+   * Unspent manual analysis top-up credits (profiles.credit_balance). Spent
+   * only after the monthly allowance is gone, which is why the account screen
+   * shows it beside the quota meter rather than folded into it: a user sitting
+   * at 100/100 still has these to draw on, and hiding them read as "you are
+   * out" when they were not.
+   */
+  creditBalance: number;
+  /**
+   * This period's Daily Briefing consumption against the add-on's allowance,
+   * or null when no live briefing subscription is held — a user with only
+   * top-up credits has no monthly allowance to meter, and rendering "0 / 0"
+   * would claim an exhausted quota that does not exist.
+   */
+  briefingUsage: UsageStatus | null;
+}
+
+/** A live subscriptions row joined to its plan, as fetchPlanSummary reads it. */
+interface LiveSubscriptionRow {
+  current_period_end: string | null;
+  amount_minor: number;
+  plans: { key: string; name: string } | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -110,6 +230,36 @@ export class BillingService {
   /** null until the first load resolves, and for users whose plan can't be read. */
   readonly currentPlanKey = computed(() => this.planSummary()?.key ?? null);
   readonly currentPlan = this.planSummary.asReadonly();
+
+  /**
+   * Keys of the add-ons the user already holds. The picker reads this to mark
+   * those cards as current instead of offering them: an add-on is not covered
+   * by currentPlanKey (which only ever names the manual tier), so before this
+   * existed a held add-on was still rendered with a live "Choose" button, and
+   * clicking it could only ever come back as the backend's 409.
+   */
+  readonly heldAddOnKeys = computed<ReadonlySet<string>>(
+    () => new Set((this.planSummary()?.addOns ?? []).map((addOn) => addOn.key)),
+  );
+
+  /**
+   * Whether this profile can currently run a Daily Briefing at all — a live
+   * `daily_briefing_monthly` add-on, or a leftover top-up credit even without
+   * one. Mirrors exactly what check_and_consume_daily_briefing_entitlement
+   * checks server-side (LIVE add-on OR briefingCreditBalance > 0), so a
+   * consumer gating UI on this signal doesn't disagree with what the backend
+   * will actually accept.
+   *
+   * Null while the plan summary hasn't loaded yet — callers should treat that
+   * as "unknown", not "no entitlement", to avoid a flash of gated UI before
+   * the real answer arrives.
+   */
+  readonly hasDailyBriefingEntitlement = computed<boolean | null>(() => {
+    const summary = this.planSummary();
+    if (!summary) return null;
+    return summary.addOns.some((addOn) => addOn.key === DAILY_BRIEFING_PLAN_KEY) ||
+      summary.briefingCreditBalance > 0;
+  });
 
   /** Dedupes concurrent first-loads onto one in-flight request. */
   private planSummaryRequest: Promise<PlanSummary | null> | null = null;
@@ -201,7 +351,7 @@ export class BillingService {
    * purchases with no "already has one" state, so every non-201 collapses to a
    * single 'error' reason.
    */
-  async buyCredits(): Promise<BuyCreditsResult> {
+  async buyCredits(kind: CreditPackKind = 'analysis'): Promise<BuyCreditsResult> {
     const token = await this.auth.getAccessToken();
     if (!token) {
       return { ok: false, reason: 'error', message: 'You are not signed in.' };
@@ -210,7 +360,7 @@ export class BillingService {
     try {
       const response = await firstValueFrom(
         this.http.post<{ orderId: string; keyId: string; amountMinor: number }>(
-          '/api/billing/buy-credits',
+          CREDIT_ENDPOINTS[kind],
           {},
           { headers: { Authorization: `Bearer ${token}` } },
         ),
@@ -558,13 +708,22 @@ export class BillingService {
     const profileId = this.auth.user()?.id;
     if (!profileId) return null;
 
+    // The same UTC bucket check_and_consume_daily_briefing_entitlement derives
+    // with to_char(now() at time zone 'UTC', 'YYYY-MM'). Local time would read
+    // the wrong month's counter near a boundary.
+    const period = new Date().toISOString().slice(0, 7);
+
     try {
-      const [profile, subscription] = await Promise.all([
+      const [profile, subscriptions, briefingCounter, briefingEntitlement] = await Promise.all([
         client
           .from('profiles')
-          .select('plans(key, name, price_inr_paise, analyses_per_month)')
+          .select(
+            'credit_balance, daily_briefing_credit_balance, plans(key, name, price_inr_paise, analyses_per_month)',
+          )
           .eq('id', profileId)
           .single<{
+            credit_balance: number;
+            daily_briefing_credit_balance: number;
             plans: {
               key: string;
               name: string;
@@ -574,27 +733,91 @@ export class BillingService {
           }>(),
         client
           .from('subscriptions')
-          .select('current_period_end')
-          // A profile can accumulate rows over time (a resubscribe writes a new
-          // one); the newest is the one whose period is current.
+          .select('current_period_end, amount_minor, plans!inner(key, name)')
+          // Every live subscription, not just the newest one: a user can hold a
+          // manual tier and an add-on at the same time, and both are needed
+          // here. Newest first so that when a plan has accumulated rows over
+          // time (a resubscribe writes a new one) the current period wins.
           .eq('profile_id', profileId)
+          .in('status', [...LIVE_SUBSCRIPTION_STATUSES])
           .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle<{ current_period_end: string | null }>(),
+          .returns<LiveSubscriptionRow[]>(),
+        // Both briefing reads are issued unconditionally rather than after the
+        // subscription check: whether the add-on is held is only known once
+        // that query resolves, and sequencing on it would cost a second
+        // round-trip to save two cheap reads (one own-row counter, one
+        // publicly-readable entitlement row). The result is discarded below if
+        // no live subscription turns up.
+        client
+          .from('daily_briefing_usage_counters')
+          .select('analyses_used')
+          .eq('profile_id', profileId)
+          .eq('period', period)
+          .maybeSingle<{ analyses_used: number }>(),
+        client
+          .from('daily_briefing_entitlements')
+          .select('monthly_auto_analyses')
+          .eq('plan_key', DAILY_BRIEFING_PLAN_KEY)
+          .maybeSingle<{ monthly_auto_analyses: number }>(),
       ]);
 
       if (profile.error) throw profile.error;
-      if (subscription.error) throw subscription.error;
+      if (subscriptions.error) throw subscriptions.error;
+      if (briefingCounter.error) throw briefingCounter.error;
+      if (briefingEntitlement.error) throw briefingEntitlement.error;
 
       const plan = profile.data?.plans;
       if (!plan) return null;
+
+      const live = subscriptions.data ?? [];
+
+      // Scoped to the manual tier's own key. A user on Pro with a Daily
+      // Briefing add-on has two live rows, and the add-on's is often the newer
+      // of the two — so "the newest row" would date the manual plan's renewal
+      // off the add-on's billing cycle.
+      const manual = live.find((row) => row.plans?.key === plan.key);
+
+      // Deduped by key: an add-on that has been resubscribed has more than one
+      // live row, and it is one product either way. Newest-first ordering means
+      // the first row seen for a key is the current one.
+      const addOns = new Map<string, AddOnSummary>();
+      for (const row of live) {
+        const rowPlan = row.plans;
+        if (!rowPlan || MANUAL_PLAN_KEYS.has(rowPlan.key) || addOns.has(rowPlan.key)) continue;
+        addOns.set(rowPlan.key, {
+          key: rowPlan.key,
+          name: rowPlan.name,
+          amountMinor: row.amount_minor,
+          currentPeriodEnd: row.current_period_end,
+        });
+      }
+
+      // Metered only while the subscription that grants the allowance is live.
+      // A lapsed subscriber keeps any credits they bought (the SQL function
+      // serves them deliberately) but has no monthly allowance left to show.
+      const briefingLimit = addOns.has(DAILY_BRIEFING_PLAN_KEY)
+        ? (briefingEntitlement.data?.monthly_auto_analyses ?? null)
+        : null;
+      // No counter row yet just means nothing has run this month.
+      const briefingUsed = briefingCounter.data?.analyses_used ?? 0;
 
       return {
         key: plan.key,
         name: plan.name,
         priceInrPaise: plan.price_inr_paise,
         analysesPerMonth: plan.analyses_per_month,
-        currentPeriodEnd: subscription.data?.current_period_end ?? null,
+        currentPeriodEnd: manual?.current_period_end ?? null,
+        addOns: [...addOns.values()],
+        briefingCreditBalance: profile.data?.daily_briefing_credit_balance ?? 0,
+        creditBalance: profile.data?.credit_balance ?? 0,
+        briefingUsage:
+          briefingLimit === null
+            ? null
+            : {
+                used: briefingUsed,
+                limit: briefingLimit,
+                remaining: Math.max(0, briefingLimit - briefingUsed),
+              },
       };
     } catch (cause) {
       console.warn('plan summary lookup failed', cause);

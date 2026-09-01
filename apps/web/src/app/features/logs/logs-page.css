@@ -1,0 +1,82 @@
+.logs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+.logs-card {
+  overflow: hidden;
+}
+
+.logs-state,
+.logs-empty {
+  align-items: center;
+  color: var(--tx-3);
+  display: flex;
+  font-size: var(--t-sm);
+  gap: var(--s2);
+  padding: var(--s6) var(--s5);
+}
+
+.logs-empty {
+  padding: var(--s4) var(--s5);
+}
+
+.logs-list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: var(--s2) var(--s5) var(--s4);
+}
+
+.logs-row {
+  align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  font-size: var(--t-xs);
+  gap: var(--s3);
+  padding: var(--s2) 0;
+}
+
+.logs-list > .logs-row:last-child {
+  border-bottom: none;
+}
+
+.logs-time {
+  color: var(--tx);
+  flex: none;
+  font-family: var(--fm);
+  font-weight: 600;
+}
+
+.logs-sym {
+  flex: none;
+}
+
+.logs-date {
+  color: var(--tx-3);
+  flex: none;
+}
+
+.logs-status {
+  color: var(--tx-2);
+}
+
+.logs-status-fail {
+  color: var(--down);
+}
+
+.logs-row-error {
+  align-items: flex-start;
+}
+
+.logs-category {
+  flex: none;
+}
+
+.logs-message {
+  color: var(--tx-2);
+  flex: 1;
+  min-width: 0;
+}

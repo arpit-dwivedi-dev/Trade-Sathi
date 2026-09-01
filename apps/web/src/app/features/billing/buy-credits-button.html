@@ -1,7 +1,7 @@
 @switch (state()) {
   @case ('idle') {
     <button type="button" class="btn btn-p" (click)="onBuyClick()">
-      Buy 10 more analyses — ₹79
+      {{ buyLabel() }}
     </button>
   }
   @case ('ordering') {
@@ -22,7 +22,7 @@
   @case ('success') {
     <p class="billing-msg billing-ok">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></svg>
-      10 analyses added. You're good to go.
+      {{ successLabel() }}
     </p>
   }
   @case ('confirming_slow') {

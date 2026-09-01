@@ -11,6 +11,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom, Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
@@ -21,7 +22,8 @@ import { AnalysisResult } from '../analyze/analysis-result';
 import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
 import { LiveChart, type ChartOverlays, type LiveCandle } from '../../shared/live-chart/live-chart';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
-import { LiveService, type LiveAnalysisHandle } from './live.service';
+import { AnalyzeService, type PollHandle } from '../analyze/analyze.service';
+import { LiveService } from './live.service';
 import { MarketStreamService } from './market-stream.service';
 import { HttpClient } from '@angular/common/http';
 
@@ -74,6 +76,13 @@ const ROLLOVER_REFETCH_MIN_GAP_MS = 5_000;
 
 type AnalyzeState = 'idle' | 'starting' | 'processing' | 'complete' | 'failed' | 'quota_exceeded';
 
+/** The exact chart an analysis run belongs to: one instrument, one window. */
+interface AnalysisTarget {
+  instrumentId: string;
+  symbol: string;
+  lookbackDays: number;
+}
+
 /**
  * The live chart view: search any instrument, watch its candles update, and
  * run the same AI analysis on the window currently on screen.
@@ -92,6 +101,9 @@ export class LivePage implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly http = inject(HttpClient);
   private readonly live = inject(LiveService);
+  // The one implementation of "watch an analyses row until it settles",
+  // shared with the upload flow rather than reimplemented here.
+  private readonly analyses = inject(AnalyzeService);
   private readonly chartCapture = inject(ChartCaptureService);
   private readonly stream = inject(MarketStreamService);
   private readonly destroyRef = inject(DestroyRef);
@@ -131,6 +143,23 @@ export class LivePage implements OnInit, OnDestroy {
   protected readonly patterns = signal<AnalysisPattern[]>([]);
 
   /**
+   * What the in-flight run is for, or null.
+   *
+   * A run is paid for the moment it starts, so changing the window or the
+   * symbol while one is in flight no longer abandons it — this is what lets
+   * the view keep saying which chart is still being analysed after the user
+   * has moved on to looking at another one.
+   */
+  protected readonly runningFor = signal<AnalysisTarget | null>(null);
+
+  /**
+   * A finished analysis for an instrument the user has since navigated away
+   * from. Surfaced as a note rather than dropped silently: the quota unit was
+   * spent and the result is real, it just does not belong on this chart.
+   */
+  protected readonly finishedElsewhere = signal<AnalysisTarget | null>(null);
+
+  /**
    * The live price shown next to the symbol: a streamed tick when one has
    * arrived for this instrument, otherwise the latest close from the polled
    * candles. Falling back rather than requiring the stream is deliberate —
@@ -144,10 +173,20 @@ export class LivePage implements OnInit, OnDestroy {
     return candles.length > 0 ? candles[candles.length - 1].close : null;
   });
 
-  /** Analysis levels, fed to the chart as price lines. Cleared with the row. */
+  /**
+   * Analysis levels, fed to the chart as price lines.
+   *
+   * Drawn only while the chart on screen is the one they were read from. A
+   * support level from a one-day intraday chart means nothing painted over a
+   * one-year daily chart, so switching either the symbol or the window takes
+   * the lines down without discarding the analysis itself.
+   */
   protected readonly overlays = computed<ChartOverlays | null>(() => {
     const row = this.row();
-    if (!row || row.status !== 'complete') return null;
+    const instrument = this.instrument();
+    if (!row || row.status !== 'complete' || !instrument) return null;
+    if (row.instrument_id !== instrument.id) return null;
+    if (row.analysis_lookback_days !== this.lookbackDays()) return null;
     return {
       support: row.support_levels ?? [],
       resistance: row.resistance_levels ?? [],
@@ -163,7 +202,7 @@ export class LivePage implements OnInit, OnDestroy {
 
   private readonly querySubject = new Subject<string>();
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
-  private pending: LiveAnalysisHandle | null = null;
+  private pending: PollHandle | null = null;
   /** Releases the socket's subscription for the current instrument. */
   private stopStream: (() => void) | null = null;
   private lastRolloverFetchAt = 0;
@@ -180,7 +219,6 @@ export class LivePage implements OnInit, OnDestroy {
       const streaming = this.stream.streaming();
       void streaming;
       if (!this.isBrowser || !this.instrument()) return;
-      this.stopRefreshing();
       this.startRefreshing();
     });
   }
@@ -191,12 +229,20 @@ export class LivePage implements OnInit, OnDestroy {
         debounceTime(SEARCH_DEBOUNCE_MS),
         distinctUntilChanged(),
         switchMap((q) => this.search(q)),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((instruments) => {
         this.results.set(instruments);
         this.searching.set(false);
         this.searched.set(true);
       });
+
+    // refresh() declines to poll a backgrounded tab, so coming back to one
+    // meant looking at candles as old as the last interval — up to five minutes
+    // on a daily window — until the next tick. Catch up on return instead.
+    if (this.isBrowser) {
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+    }
 
     this.destroyRef.onDestroy(() => this.teardown());
   }
@@ -205,7 +251,16 @@ export class LivePage implements OnInit, OnDestroy {
     this.teardown();
   }
 
+  private readonly onVisibilityChange = (): void => {
+    if (document.visibilityState !== 'visible') return;
+    if (!this.instrument()) return;
+    void this.refresh();
+  };
+
   private teardown(): void {
+    if (this.isBrowser) {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
     this.stopRefreshing();
     this.stopStreaming();
     this.pending?.cancel();
@@ -241,21 +296,46 @@ export class LivePage implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Dismisses the suggestion list without choosing anything.
+   *
+   * The list had no way out other than picking a row or emptying the field: it
+   * covered the chart underneath it until one of those happened.
+   */
+  protected dismissResults(): void {
+    this.results.set([]);
+    this.searched.set(false);
+  }
+
+  /**
+   * Empties the search box and returns focus to it.
+   *
+   * Selecting an instrument replaces the query with "SYM — Name", so searching
+   * again meant selecting all that text and deleting it by hand first. The
+   * chart itself is deliberately left alone — clearing the box is a step
+   * towards a new search, not a request to throw away what is on screen.
+   */
+  protected clearQuery(input: HTMLInputElement): void {
+    this.onQueryChange('');
+    input.focus();
+  }
+
   protected selectInstrument(instrument: Instrument): void {
     this.instrument.set(instrument);
     this.queryInput.set(`${instrument.symbol} — ${instrument.name}`);
     this.results.set([]);
     this.searched.set(false);
-    this.resetAnalysis();
+    this.clearResult();
     void this.reload();
   }
 
   protected selectLookback(days: number): void {
     if (days === this.lookbackDays()) return;
     this.lookbackDays.set(days);
-    // A different window is a different chart: the previous analysis was read
-    // from candles that are no longer on screen, so its levels stop applying.
-    this.resetAnalysis();
+    // A different window is a different chart, so the previous analysis's
+    // levels stop applying — overlays() drops them on its own. The result
+    // itself, and any run still in flight, are deliberately left alone.
+    this.clearResult();
     void this.reload();
   }
 
@@ -289,6 +369,13 @@ export class LivePage implements OnInit, OnDestroy {
   }
 
   private startRefreshing(): void {
+    // Clearing first makes this idempotent, which it has to be: reload() stops
+    // the timer, awaits the fetch, then starts it again — and the effect in the
+    // constructor can fire during that await and start one of its own. Without
+    // this the second call overwrote the handle of a timer that was already
+    // running, leaking one uncancellable poll per symbol or window change.
+    this.stopRefreshing();
+
     // No timers during SSR, and none while the tab is hidden — see refresh().
     if (!this.isBrowser || !this.instrument()) return;
     const intraday = this.lookbackDays() <= INTRADAY_MAX_LOOKBACK_DAYS;
@@ -383,21 +470,67 @@ export class LivePage implements OnInit, OnDestroy {
     void this.refresh();
   }
 
-  private resetAnalysis(): void {
-    this.pending?.cancel();
-    this.pending = null;
-    this.analyzeState.set('idle');
+  /**
+   * Clears the displayed result, leaving any in-flight run alone.
+   *
+   * Deliberately not a cancel. A run is charged the moment it starts, so
+   * changing the window or the symbol while one is in flight used to throw
+   * away an analysis the user had already paid for — it completed server-side
+   * and they never saw it. Now only what is on screen is cleared; the run
+   * itself keeps going and reports back through analyze() below.
+   */
+  private clearResult(): void {
     this.analyzeError.set(null);
     this.row.set(null);
     this.patterns.set([]);
+    this.finishedElsewhere.set(null);
+    // A run still in flight keeps the view busy; only an idle view goes idle.
+    if (!this.busy()) this.analyzeState.set('idle');
+  }
+
+  /** True while the result on screen was read from the chart on screen. */
+  protected readonly resultApplies = computed(() => {
+    const row = this.row();
+    const instrument = this.instrument();
+    return row !== null && instrument !== null && row.instrument_id === instrument.id;
+  });
+
+  /**
+   * The result is for this instrument but a different window — worth saying,
+   * since its levels are not drawn on the chart in that case.
+   */
+  protected readonly resultWindowDiffers = computed(() => {
+    const row = this.row();
+    return (
+      this.resultApplies() &&
+      row?.status === 'complete' &&
+      row.analysis_lookback_days !== this.lookbackDays()
+    );
+  });
+
+  protected windowLabel(days: number | null): string {
+    return LOOKBACK_OPTIONS.find((option) => option.days === days)?.label ?? `${days} days`;
+  }
+
+  protected dismissFinishedElsewhere(): void {
+    this.finishedElsewhere.set(null);
   }
 
   protected async analyze(): Promise<void> {
     const instrument = this.instrument();
     if (!instrument || this.busy()) return;
 
-    this.resetAnalysis();
+    // Captured now: the user is free to change either while this runs, and the
+    // result belongs to the chart as it was when they pressed the button.
+    const target: AnalysisTarget = {
+      instrumentId: instrument.id,
+      symbol: instrument.symbol,
+      lookbackDays: this.lookbackDays(),
+    };
+
+    this.clearResult();
     this.analyzeState.set('starting');
+    this.runningFor.set(target);
 
     // The image is rendered here, from the candles already on screen, and
     // posted with the request purely so the stored analysis keeps the exact
@@ -411,25 +544,37 @@ export class LivePage implements OnInit, OnDestroy {
       timeframeLabel: this.timeframeLabel(),
     });
 
-    const started = await this.live.startAnalysis(instrument.id, this.lookbackDays(), chart);
+    const started = await this.live.startAnalysis(target.instrumentId, target.lookbackDays, chart);
     if (!started.ok) {
+      this.runningFor.set(null);
       this.analyzeState.set(started.reason === 'quota_exceeded' ? 'quota_exceeded' : 'failed');
       this.analyzeError.set(started.message);
       return;
     }
 
     this.analyzeState.set('processing');
-    const handle = this.live.awaitAnalysis(instrument.id, started.startedAt);
+    // Watched by row id, so a run that fails reports 'failed' as soon as the
+    // pipeline records it rather than after a three-minute client timeout.
+    const handle = this.analyses.pollAnalysis(started.analysisId, () => {
+      /* Intermediate states are not rendered here; only the outcome matters. */
+    });
     this.pending = handle;
 
     const outcome = await handle.result;
     if (this.pending !== handle) return;
     this.pending = null;
+    this.runningFor.set(null);
 
-    if (outcome.outcome === 'complete') {
+    if (outcome.outcome === 'complete' || outcome.outcome === 'failed') {
       this.row.set(outcome.row);
-      this.patterns.set(outcome.patterns);
-      this.analyzeState.set('complete');
+      this.patterns.set(outcome.outcome === 'complete' ? outcome.patterns : []);
+      this.analyzeState.set(outcome.outcome === 'complete' ? 'complete' : 'failed');
+      // The user moved to a different symbol while this ran. The result is
+      // real and already in their history, so point at it rather than
+      // rendering it over a chart it was not read from.
+      if (this.instrument()?.id !== target.instrumentId) {
+        this.finishedElsewhere.set(target);
+      }
       return;
     }
 

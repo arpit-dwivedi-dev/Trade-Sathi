@@ -7,6 +7,10 @@ export default tseslint.config(
       "**/dist/**",
       "**/.angular/**",
       "**/*.d.ts",
+      // Agent worktrees are throwaway checkouts of this same repo. Linting
+      // them reported every finding twice, against paths that do not exist on
+      // any branch.
+      ".claude/worktrees/**",
     ],
   },
 

@@ -7,10 +7,16 @@ import { env } from "../env.js";
  */
 export const resendClient = new Resend(env.resendApiKey);
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+}
+
 export interface SendEmailParams {
   to: string;
   subject: string;
   html: string;
+  attachments?: EmailAttachment[];
 }
 
 export async function sendEmail(params: SendEmailParams): Promise<void> {
@@ -19,6 +25,9 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
     to: params.to,
     subject: params.subject,
     html: params.html,
+    // Omitted entirely when there is nothing to attach: Resend treats an empty
+    // array as a malformed attachments field rather than as "no attachments".
+    ...(params.attachments?.length ? { attachments: params.attachments } : {}),
   });
   if (error) {
     throw new Error(`Resend send failed: ${error.message}`);

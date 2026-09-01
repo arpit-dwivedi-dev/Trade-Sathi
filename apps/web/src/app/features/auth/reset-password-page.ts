@@ -28,7 +28,14 @@ export class ResetPasswordPage implements OnInit {
    */
   protected readonly ready = signal<boolean | null>(null);
 
-  async ngOnInit(): Promise<void> {
+  ngOnInit(): void {
+    // Angular ignores whatever ngOnInit returns, so the work is started here
+    // and its own rejection path is handled inside restore().
+    void this.restore();
+  }
+
+  /** Resolves whether the recovery link in the URL produced a usable session. */
+  private async restore(): Promise<void> {
     if (!this.supabase.isBrowser) return;
 
     // Supabase rejects an expired or already-used link by putting the reason in

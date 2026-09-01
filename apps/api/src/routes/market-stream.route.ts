@@ -36,10 +36,23 @@ const CLIENT_HEARTBEAT_MS = 30_000;
 /** Application close code, in the WebSocket spec's private range. */
 const CLOSE_UNAUTHORIZED = 4001;
 
+/** Ceiling on one client frame — see the WebSocketServer construction below. */
+const MAX_FRAME_BYTES = 16 * 1024;
+
 interface Session {
   profileId: string | null;
   /** Releases the current instrument's upstream subscription, if any. */
   release: (() => void) | null;
+  /**
+   * Bumped by every subscribe/unsubscribe. handleSubscribe awaits an instrument
+   * lookup before it takes its upstream subscription, so two frames arriving
+   * close together could both get past that await; without a generation to
+   * check on the way back, the first one's release handle was overwritten by
+   * the second and its upstream subscription leaked for the life of the
+   * process. The later frame always wins — it is what the client asked for
+   * most recently.
+   */
+  generation: number;
   alive: boolean;
 }
 
@@ -95,8 +108,12 @@ async function handleSubscribe(
   // subscription list without bound.
   session.release?.();
   session.release = null;
+  const generation = ++session.generation;
 
   const ref = await fetchInstrumentById(instrumentId);
+  // A newer subscribe/unsubscribe overtook this one while the lookup was in
+  // flight. Stop before taking a subscription nothing would ever release.
+  if (generation !== session.generation) return;
   if (!ref) {
     sendError(socket, "not_found", "Instrument not available for live prices");
     return;
@@ -109,9 +126,9 @@ async function handleSubscribe(
     });
   });
 
-  // The socket can close while fetchInstrumentById is in flight; without this
-  // the subscription it just took would never be released.
-  if (socket.readyState !== socket.OPEN) {
+  // The socket can close, or a newer frame can land, between the check above
+  // and here; without this the subscription just taken would never be released.
+  if (socket.readyState !== socket.OPEN || generation !== session.generation) {
     release();
     return;
   }
@@ -153,6 +170,9 @@ async function handleMessage(socket: WebSocket, session: Session, raw: string): 
     return;
   }
 
+  // Unsubscribe. The generation bump is what makes an in-flight subscribe
+  // discard its result instead of resurrecting the subscription just dropped.
+  session.generation += 1;
   session.release?.();
   session.release = null;
 }
@@ -163,7 +183,11 @@ async function handleMessage(socket: WebSocket, session: Session, raw: string): 
  * upgrade request is refused rather than silently accepted.
  */
 export function attachMarketStream(server: HttpServer): void {
-  const wss = new WebSocketServer({ noServer: true });
+  // maxPayload: every frame this protocol defines is a small JSON object, the
+  // largest being an auth frame carrying a JWT. The library's default ceiling
+  // is 100MB, which lets an unauthenticated socket buffer that much before a
+  // single message is even parsed.
+  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_FRAME_BYTES });
 
   server.on("upgrade", (request, socket, head) => {
     // `request.url` is path+query only; a base is needed to parse it, and is
@@ -177,7 +201,7 @@ export function attachMarketStream(server: HttpServer): void {
   });
 
   wss.on("connection", (socket: WebSocket) => {
-    const session: Session = { profileId: null, release: null, alive: true };
+    const session: Session = { profileId: null, release: null, generation: 0, alive: true };
 
     const authTimer = setTimeout(() => {
       if (session.profileId) return;

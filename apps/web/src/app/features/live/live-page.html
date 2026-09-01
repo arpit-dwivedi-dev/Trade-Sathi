@@ -17,17 +17,27 @@
       </svg>
     </span>
     <input
+      #search
       class="input live-search-input"
       type="text"
       placeholder="Search symbol or company, e.g. RELIANCE"
       [ngModel]="queryInput()"
       (ngModelChange)="onQueryChange($event)"
+      (keydown.escape)="dismissResults()"
       name="query"
       autocomplete="off"
       aria-label="Search instruments"
     />
     @if (searching()) {
       <span class="spin live-search-spin" aria-hidden="true"></span>
+    } @else if (queryInput()) {
+      <button type="button" class="live-search-clear" (click)="clearQuery(search)"
+              title="Clear search" aria-label="Clear search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
     }
 
     @if (results().length > 0) {
@@ -112,6 +122,19 @@
           />
         }
 
+        <!-- A run is charged when it starts, so it is never abandoned when the
+             chart changes underneath it. This says what is still running. -->
+        @if (runningFor(); as running) {
+          <div class="note live-note" style="--tone: var(--acc)">
+            <span class="spin" aria-hidden="true"></span>
+            <span>
+              Analysing <b>{{ running.symbol }}</b> on the
+              {{ windowLabel(running.lookbackDays) }} chart. You can keep looking around —
+              the result appears here when it's ready.
+            </span>
+          </div>
+        }
+
         @if (analyzeState() === 'quota_exceeded') {
           <div class="note live-note" style="--tone: var(--warn)">
             <span>{{ analyzeError() }}</span>
@@ -120,10 +143,32 @@
         } @else if (analyzeState() === 'failed' && analyzeError()) {
           <p class="err live-error">{{ analyzeError() }}</p>
         }
+
+        <!-- Finished while the user was looking at a different symbol. Not
+             dropped silently: it cost a quota unit and it is a real result. -->
+        @if (finishedElsewhere(); as done) {
+          <div class="note live-note" style="--tone: var(--up)">
+            <span>
+              Your <b>{{ done.symbol }}</b> analysis finished. Open the History tab to read it.
+            </span>
+            <button type="button" class="btn btn-g btn-sm" (click)="dismissFinishedElsewhere()">
+              Dismiss
+            </button>
+          </div>
+        }
       </div>
     </div>
 
-    @if (row(); as analysis) {
+    @if (resultApplies() && row(); as analysis) {
+      <!-- The levels are only drawn on the chart while the window matches, so
+           say why they are missing rather than leaving it unexplained. -->
+      @if (resultWindowDiffers()) {
+        <p class="disc live-window-note">
+          This analysis was read from the
+          {{ windowLabel(analysis.analysis_lookback_days) }} chart, so its levels aren't drawn on
+          the {{ windowLabel(lookbackDays()) }} view you're looking at now.
+        </p>
+      }
       <app-analysis-result [row]="analysis" [patterns]="patterns()" />
     }
   } @else {

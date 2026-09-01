@@ -3,7 +3,12 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { ChartImage } from '../../shared/chart-image';
 import { AnalysisResult } from '../analyze/analysis-result';
 import { AnalysisPdfService } from './analysis-pdf.service';
-import { HistoryService, type HistoryDetail, type HistoryRow } from './history.service';
+import {
+  HistoryService,
+  type HistoryDetail,
+  type HistoryRow,
+  type HistorySourceFilter,
+} from './history.service';
 
 /**
  * The signed-in user's past analyses, newest first.
@@ -35,6 +40,20 @@ export class HistoryList implements OnInit {
   protected readonly detailLoading = signal(false);
   protected readonly detailError = signal<string | null>(null);
 
+  /**
+   * Which provenance the list is restricted to. Applied server-side and reset
+   * to the first page on every change, because the cursor encodes a position
+   * within one particular filtered ordering.
+   */
+  protected readonly sourceFilter = signal<HistorySourceFilter>('all');
+
+  protected readonly sourceFilters: { value: HistorySourceFilter; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'manual', label: 'Uploads' },
+    { value: 'live', label: 'Live' },
+    { value: 'watchlist_daily', label: 'Daily briefing' },
+  ];
+
   /** id of the row whose PDF is being generated, or null when none is. */
   protected readonly exportingId = signal<string | null>(null);
   protected readonly exportError = signal<string | null>(null);
@@ -47,7 +66,7 @@ export class HistoryList implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const page = await this.history.fetchHistory();
+      const page = await this.history.fetchHistory(undefined, undefined, this.sourceFilter());
       this.rows.set(page.rows);
       this.nextCursor.set(page.nextCursor);
     } catch (cause) {
@@ -58,6 +77,23 @@ export class HistoryList implements OnInit {
     }
   }
 
+  protected async selectSource(source: HistorySourceFilter): Promise<void> {
+    if (this.sourceFilter() === source) return;
+    this.sourceFilter.set(source);
+    // The open row may not be in the new listing at all; collapsing avoids a
+    // detail panel hanging under a list that no longer contains its row.
+    this.expandedId.set(null);
+    this.detail.set(null);
+    this.rows.set([]);
+    this.nextCursor.set(null);
+    await this.loadFirstPage();
+  }
+
+  /** True for rows a briefing email actually carried out to the user. */
+  protected wasEmailed(row: HistoryRow): boolean {
+    return row.emailed_at !== null;
+  }
+
   protected async loadMore(): Promise<void> {
     const cursor = this.nextCursor();
     if (!cursor || this.loadingMore()) return;
@@ -65,7 +101,7 @@ export class HistoryList implements OnInit {
     this.loadingMore.set(true);
     this.error.set(null);
     try {
-      const page = await this.history.fetchHistory(cursor);
+      const page = await this.history.fetchHistory(cursor, undefined, this.sourceFilter());
       this.rows.update((existing) => [...existing, ...page.rows]);
       this.nextCursor.set(page.nextCursor);
     } catch (cause) {
@@ -131,6 +167,28 @@ export class HistoryList implements OnInit {
       this.exportError.set("Couldn't build the PDF. Try again.");
     } finally {
       this.exportingId.set(null);
+    }
+  }
+
+  /**
+   * The best name available for a row: the canonical symbol when the analysis
+   * has one (every generated analysis does), otherwise whatever the model read
+   * off the image. Only a manual upload the model could not read falls through
+   * to "Not detected".
+   */
+  protected displaySymbol(row: HistoryRow): string | null {
+    return row.symbol ?? row.symbol_raw;
+  }
+
+  /** Provenance in the user's terms — see AnalysisResult.sourceLabel. */
+  protected sourceLabel(row: HistoryRow): string {
+    switch (row.source) {
+      case 'live':
+        return 'live chart';
+      case 'watchlist_daily':
+        return 'daily briefing';
+      default:
+        return row.source_type;
     }
   }
 

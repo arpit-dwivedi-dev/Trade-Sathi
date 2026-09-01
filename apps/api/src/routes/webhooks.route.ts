@@ -1,8 +1,10 @@
 import express, { Router, type Request, type Response } from "express";
 import Razorpay from "razorpay";
+import { asyncRoute } from "../lib/async-route.js";
 import { env } from "../lib/env.js";
 import { logger } from "../lib/logger.js";
-import { supabaseAdmin } from "../lib/supabase.js";
+import { callRpc, supabaseAdmin } from "../lib/supabase.js";
+import { CREDIT_GRANT_FUNCTION_BY_PURPOSE } from "../services/credits.service.js";
 
 export const webhooksRouter = Router();
 
@@ -59,15 +61,13 @@ webhooksRouter.post(
   // and keeps its normal parsing — see index.ts for the mount ordering that
   // keeps the global express.json() away from this path.
   express.raw({ type: "application/json" }),
-  async (req: Request, res: Response) => {
+  asyncRoute(async (req: Request, res: Response) => {
     // The exact received bytes, as a string. Deliberately NOT
     // JSON.stringify(JSON.parse(...)): re-serializing a parsed object does not
     // reliably reproduce the original byte sequence (key order, whitespace and
     // escaping can all differ), which makes signature verification fail
     // unpredictably on genuine webhooks. Razorpay's own FAQ warns against it.
-    const rawBody = Buffer.isBuffer(req.body)
-      ? req.body.toString("utf8")
-      : null;
+    const rawBody = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : null;
     const signature = req.header("x-razorpay-signature");
 
     if (rawBody === null || !signature) {
@@ -82,11 +82,7 @@ webhooksRouter.post(
     // through timing.
     let verified = false;
     try {
-      verified = Razorpay.validateWebhookSignature(
-        rawBody,
-        signature,
-        env.razorpayWebhookSecret,
-      );
+      verified = Razorpay.validateWebhookSignature(rawBody, signature, env.razorpayWebhookSecret);
     } catch {
       // A malformed signature header can make the helper throw; that is a
       // failed verification, not an infrastructure error.
@@ -140,8 +136,7 @@ webhooksRouter.post(
     }
 
     const payload = body["payload"] as
-      | { subscription?: { entity?: RazorpaySubscriptionEntity } }
-      | undefined;
+      { subscription?: { entity?: RazorpaySubscriptionEntity } } | undefined;
     const entity = payload?.subscription?.entity;
     const providerSubscriptionId = asStringOrNull(entity?.id);
     const status = asStringOrNull(entity?.status);
@@ -158,33 +153,26 @@ webhooksRouter.post(
     }
 
     try {
-      const { data, error } = await supabaseAdmin.rpc(
-        "apply_subscription_webhook",
-        {
-          p_event_id: eventId,
-          p_event_type: eventType,
-          // The envelope's own created_at: when Razorpay generated the event,
-          // which is the ordering signal the RPC uses to reject stale
-          // deliveries — not when it happened to arrive here.
-          p_event_created_at: toIsoOrNull(body["created_at"]),
-          p_provider_subscription_id: providerSubscriptionId,
-          p_status: status,
-          p_current_period_start: toIsoOrNull(entity.current_start),
-          p_current_period_end: toIsoOrNull(entity.current_end),
-          p_charge_at: toIsoOrNull(entity.charge_at),
-          p_provider_customer_id: asStringOrNull(entity.customer_id),
-        },
-      );
-
-      if (error) {
-        throw new Error(error.message);
-      }
+      const outcome = await callRpc<string>("apply_subscription_webhook", {
+        p_event_id: eventId,
+        p_event_type: eventType,
+        // The envelope's own created_at: when Razorpay generated the event,
+        // which is the ordering signal the RPC uses to reject stale
+        // deliveries — not when it happened to arrive here.
+        p_event_created_at: toIsoOrNull(body["created_at"]),
+        p_provider_subscription_id: providerSubscriptionId,
+        p_status: status,
+        p_current_period_start: toIsoOrNull(entity.current_start),
+        p_current_period_end: toIsoOrNull(entity.current_end),
+        p_charge_at: toIsoOrNull(entity.charge_at),
+        p_provider_customer_id: asStringOrNull(entity.customer_id),
+      });
 
       // All four RPC outcomes are 200. None of them is improved by a Razorpay
       // retry: 'duplicate' and 'stale' are correctly-handled non-actions, and
       // 'subscription_not_found' means the local record does not exist, which
       // redelivering the same event will not change.
-      if (data === "subscription_not_found") {
+      if (outcome === "subscription_not_found") {
         logger.warn("razorpay webhook: no local subscription for event", {
           eventType,
           eventId,
@@ -195,7 +183,7 @@ webhooksRouter.post(
           eventType,
           eventId,
           providerSubscriptionId,
-          outcome: data,
+          outcome,
         });
       }
 
@@ -212,7 +200,7 @@ webhooksRouter.post(
       });
       res.status(500).json({ error: "Failed to process webhook" });
     }
-  },
+  }),
 );
 
 /**
@@ -235,9 +223,7 @@ async function handlePaymentCaptured(
   eventId: string,
   res: Response,
 ): Promise<void> {
-  const payload = body["payload"] as
-    | { payment?: { entity?: RazorpayPaymentEntity } }
-    | undefined;
+  const payload = body["payload"] as { payment?: { entity?: RazorpayPaymentEntity } } | undefined;
   const entity = payload?.payment?.entity;
   const providerOrderId = asStringOrNull(entity?.order_id);
   const providerPaymentId = asStringOrNull(entity?.id);
@@ -259,9 +245,9 @@ async function handlePaymentCaptured(
     // subscription charge, already handled through subscription.charged.
     const { data: payment, error: lookupError } = await supabaseAdmin
       .from("payments")
-      .select("id")
+      .select("id, purpose")
       .eq("provider_order_id", providerOrderId)
-      .maybeSingle();
+      .maybeSingle<{ id: string; purpose: string }>();
 
     if (lookupError) {
       throw new Error(lookupError.message);
@@ -277,20 +263,36 @@ async function handlePaymentCaptured(
       return;
     }
 
-    const { data, error } = await supabaseAdmin.rpc("apply_credit_purchase", {
+    // Which currency this payment grants is decided by the purpose stored on
+    // OUR row when the order was created — never by anything in the webhook
+    // payload, which the provider controls. There are two credit currencies
+    // (manual analyses and Daily Briefing runs) at different prices, so
+    // granting the wrong one would hand out value that was never paid for.
+    const grantFunction = CREDIT_GRANT_FUNCTION_BY_PURPOSE[payment.purpose];
+    if (!grantFunction) {
+      // A payments row exists but its purpose is not a credit pack — a
+      // retired SKU, or a purpose added without a grant function. Acknowledge
+      // rather than retry: no redelivery makes an unknown purpose known.
+      logger.warn("razorpay webhook: payment purpose has no credit grant function", {
+        eventType,
+        eventId,
+        providerOrderId,
+        purpose: payment.purpose,
+      });
+      res.status(200).json({ received: true });
+      return;
+    }
+
+    const outcome = await callRpc<string>(grantFunction, {
       p_provider_order_id: providerOrderId,
       p_provider_payment_id: providerPaymentId,
     });
-
-    if (error) {
-      throw new Error(error.message);
-    }
 
     // All outcomes are 200, same policy as the subscription webhook: none of
     // them is improved by a Razorpay retry. 'duplicate' is a correctly-handled
     // non-action, and 'order_not_found' would mean the row vanished between
     // the lookup above and the call, which redelivery will not fix.
-    if (data === "order_not_found") {
+    if (outcome === "order_not_found") {
       logger.warn("razorpay webhook: credit payment row disappeared", {
         eventType,
         eventId,
@@ -301,7 +303,7 @@ async function handlePaymentCaptured(
         eventType,
         eventId,
         providerOrderId,
-        outcome: data,
+        outcome,
       });
     }
 

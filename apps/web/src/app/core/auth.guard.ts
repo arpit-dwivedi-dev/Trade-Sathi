@@ -17,7 +17,35 @@ import { AuthService } from './auth.service';
  * restoration to finish. Reading the session signal synchronously would see a
  * transient null and redirect milliseconds before the real session resolves.
  */
-export const authGuard: CanActivateFn = async () => {
+export const authGuard: CanActivateFn = async (_route, state) => {
+  if (isPlatformServer(inject(PLATFORM_ID))) {
+    return true;
+  }
+
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  await auth.whenRestored();
+  if (auth.session()) return true;
+
+  // The attempted URL rides along so signing in returns the user to where they
+  // were headed. Without it, following a link to /account while signed out
+  // always landed on /app afterwards, silently discarding the destination.
+  return router.createUrlTree(['/login'], {
+    queryParams: { returnUrl: state.url },
+  });
+};
+
+/**
+ * The mirror of authGuard, for the routes that only make sense signed OUT.
+ *
+ * A signed-in user opening /login (a bookmark, the browser's back button after
+ * signing in) was shown the sign-in form again, with no indication they already
+ * had a session — and signing in a second time simply re-established the one
+ * they had. Server-side this allows the route through for the same reason
+ * authGuard does: SSR cannot see the session either way.
+ */
+export const guestGuard: CanActivateFn = async () => {
   if (isPlatformServer(inject(PLATFORM_ID))) {
     return true;
   }
@@ -27,5 +55,5 @@ export const authGuard: CanActivateFn = async () => {
 
   await auth.whenRestored();
 
-  return auth.session() ? true : router.createUrlTree(['/login']);
+  return auth.session() ? router.createUrlTree(['/app']) : true;
 };

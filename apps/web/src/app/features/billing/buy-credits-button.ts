@@ -1,7 +1,7 @@
-import { Component, OnDestroy, inject, output, signal } from '@angular/core';
+import { Component, OnDestroy, computed, inject, input, output, signal } from '@angular/core';
 
 import { AuthService } from '../../core/auth.service';
-import { BillingService, type CreditPollHandle } from './billing.service';
+import { BillingService, type CreditPackKind, type CreditPollHandle } from './billing.service';
 
 type BuyCreditsState =
   | 'idle'
@@ -34,11 +34,43 @@ export class BuyCreditsButton implements OnDestroy {
   private readonly billing = inject(BillingService);
   private readonly auth = inject(AuthService);
 
+  /**
+   * Which credit currency this button tops up. Parameterised rather than
+   * copied into a second component: the order → Checkout → poll flow, and the
+   * discipline that credits are never inferred from Razorpay's client-side
+   * callback, are identical for both packs. Only the label and the endpoint
+   * differ.
+   */
+  readonly kind = input<CreditPackKind>('analysis');
+
   /** Lets the parent clear whatever state the quota block put it in. */
   readonly creditsAdded = output<void>();
 
+  /** Pack copy, kept beside the kind so the two cannot drift apart. */
+  protected readonly buyLabel = computed(() =>
+    this.kind() === 'daily_briefing'
+      ? 'Buy 10 more briefings — ₹99'
+      : 'Buy 10 more analyses — ₹79',
+  );
+  protected readonly successLabel = computed(() =>
+    this.kind() === 'daily_briefing'
+      ? "10 briefings added. They'll be used once this month's allowance runs out."
+      : "10 analyses added. You're good to go.",
+  );
+
   protected readonly state = signal<BuyCreditsState>('idle');
   protected readonly error = signal<string | null>(null);
+
+  /** True while money is being taken or confirmed — see UpgradeButton.busy. */
+  readonly busy = computed(() => {
+    const state = this.state();
+    return (
+      state === 'ordering' ||
+      state === 'loading_checkout' ||
+      state === 'checkout_open' ||
+      state === 'confirming'
+    );
+  });
 
   private poll: CreditPollHandle | null = null;
 
@@ -50,7 +82,7 @@ export class BuyCreditsButton implements OnDestroy {
     this.error.set(null);
     this.state.set('ordering');
 
-    const order = await this.billing.buyCredits();
+    const order = await this.billing.buyCredits(this.kind());
     if (!order.ok) {
       this.error.set(order.message);
       this.state.set('error');

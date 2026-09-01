@@ -15,6 +15,23 @@
     }
   </div>
 
+  <!-- Provenance filter. Uploads, live runs and briefings were one
+       undifferentiated list, so a user who wanted "what did my briefing send
+       me" had to open rows one at a time to find out. -->
+  <div class="history-filters" role="group" aria-label="Filter by source">
+    @for (filter of sourceFilters; track filter.value) {
+      <button
+        type="button"
+        class="btn btn-g btn-sm history-filter"
+        [class.history-filter-on]="sourceFilter() === filter.value"
+        [attr.aria-pressed]="sourceFilter() === filter.value"
+        (click)="selectSource(filter.value)"
+      >
+        {{ filter.label }}
+      </button>
+    }
+  </div>
+
   @if (loading()) {
     <div class="tbl" aria-busy="true">
       <div class="tr tr-h">
@@ -74,8 +91,30 @@
             (click)="toggle(row)"
           >
             <span class="num history-age">{{ relativeDate(row.created_at) }}</span>
-            <span class="sym trunc" translate="no" [class.history-unknown]="!row.symbol_raw">
-              {{ row.symbol_raw ?? 'Not detected' }}
+            <!-- title carries the provenance rather than a ninth column: the
+                 row's grid is addressed by nth-child, so its cell count is
+                 load-bearing. -->
+            <!-- The chips live INSIDE the symbol cell rather than in a column
+                 of their own: this row's grid is addressed by nth-child, so
+                 adding a cell would silently reflow every rule that follows. -->
+            <span class="sym trunc" translate="no"
+                  [class.history-unknown]="!displaySymbol(row)"
+                  [attr.title]="(displaySymbol(row) ?? 'Symbol not detected') + ' · from ' + sourceLabel(row)">
+              <span class="history-sym-text trunc">{{ displaySymbol(row) ?? 'Not detected' }}</span>
+              <span class="history-tags">
+                <span class="history-src history-src-{{ row.source }}">{{ sourceLabel(row) }}</span>
+                @if (wasEmailed(row)) {
+                  <span class="history-mailed" title="Emailed to you with the PDF attached">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" width="10" height="10"
+                         aria-hidden="true">
+                      <rect x="3" y="5" width="18" height="14" rx="2" />
+                      <path d="m3 7 9 6 9-6" />
+                    </svg>
+                    emailed
+                  </span>
+                }
+              </span>
             </span>
             <span class="history-cell">{{ row.asset_class ?? '—' }}</span>
             <span class="num history-tf">{{ row.timeframe ?? '—' }}</span>
@@ -101,7 +140,7 @@
             type="button"
             class="btn btn-g btn-sm history-export"
             [disabled]="exportingId() !== null"
-            [attr.aria-label]="'Download PDF for ' + (row.symbol_raw ?? 'this analysis')"
+            [attr.aria-label]="'Download PDF for ' + (displaySymbol(row) ?? 'this analysis')"
             (click)="exportPdf(row, $event)"
           >
             @if (exportingId() === row.id) {

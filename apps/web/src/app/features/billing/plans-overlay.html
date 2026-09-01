@@ -1,7 +1,10 @@
 <!-- A plain fixed layer, not <dialog>.showModal(): the top layer would paint
      above Razorpay Checkout and make paying impossible. -->
 <div class="plans-scrim" (click)="onBackdropClick($event)">
-  <div class="plans-panel" role="dialog" aria-modal="true" aria-labelledby="plans-title">
+  <!-- tabindex="-1" so the panel can take focus on open without becoming a
+       tab stop of its own afterwards. -->
+  <div #panel class="plans-panel" role="dialog" aria-modal="true" tabindex="-1"
+       aria-labelledby="plans-title">
     <header class="plans-bar">
       <div class="plans-title-block">
         <h2 id="plans-title" class="plans-title">Plans &amp; credits</h2>
@@ -14,7 +17,13 @@
         }
       </div>
 
-      <button type="button" class="btn btn-g btn-sm btn-icon" (click)="close()" aria-label="Close">
+      <!-- Disabled, not hidden, while a payment is being confirmed: the control
+           staying visibly present and inert explains itself better than a
+           button that vanishes mid-flow. -->
+      <button type="button" class="btn btn-g btn-sm btn-icon" (click)="close()"
+              [disabled]="purchaseInFlight()"
+              [attr.title]="purchaseInFlight() ? 'Hold on — confirming your payment' : 'Close'"
+              aria-label="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>

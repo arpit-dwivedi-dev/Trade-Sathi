@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { logger } from "../lib/logger.js";
-import { supabaseAdmin } from "../lib/supabase.js";
+import { callRpc, supabaseAdmin } from "../lib/supabase.js";
 
 const BUCKET = "chart-images";
 
@@ -39,13 +39,10 @@ export function currentUtcPeriod(): string {
  * captured before the RPC ran, never a freshly recomputed "current" period.
  */
 async function decrementUsage(profileId: string, period: string): Promise<void> {
-  const { error } = await supabaseAdmin.rpc("decrement_usage", {
+  await callRpc<null>("decrement_usage", {
     p_profile_id: profileId,
     p_period: period,
   });
-  if (error) {
-    throw error;
-  }
 }
 
 /**
@@ -56,12 +53,7 @@ async function decrementUsage(profileId: string, period: string): Promise<void> 
  * there is no captured period to pass.
  */
 async function refundCredit(profileId: string): Promise<void> {
-  const { error } = await supabaseAdmin.rpc("refund_credit", {
-    p_profile_id: profileId,
-  });
-  if (error) {
-    throw error;
-  }
+  await callRpc<null>("refund_credit", { p_profile_id: profileId });
 }
 
 /**
@@ -94,12 +86,12 @@ export async function releaseEntitlement(
 export async function consumeAnalysisEntitlement(
   profileId: string,
 ): Promise<EntitlementSource | null> {
-  const { data, error } = await supabaseAdmin.rpc("check_and_consume_entitlement", {
-    p_profile_id: profileId,
-  });
-  if (error) throw error;
-  if (data === "denied") return null;
-  return data === "credit" ? "credit" : "quota";
+  const outcome = await callRpc<"denied" | "credit" | "quota">(
+    "check_and_consume_entitlement",
+    { p_profile_id: profileId },
+  );
+  if (outcome === "denied") return null;
+  return outcome === "credit" ? "credit" : "quota";
 }
 
 /**
@@ -249,7 +241,7 @@ export async function createAnalysis(
       status: "queued",
     })
     .select("id")
-    .single();
+    .single<{ id: string }>();
 
   if (insertError || !inserted) {
     // Best-effort cleanup of the now-orphaned object. A cleanup failure must

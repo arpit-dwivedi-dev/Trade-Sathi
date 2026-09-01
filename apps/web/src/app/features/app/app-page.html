@@ -62,6 +62,8 @@
                 [attr.aria-current]="tab() === 'history' ? 'page' : null">History</button>
         <button type="button" class="tab" (click)="select('watchlist')"
                 [attr.aria-current]="tab() === 'watchlist' ? 'page' : null">Watchlist</button>
+        <button type="button" class="tab" (click)="select('logs')"
+                [attr.aria-current]="tab() === 'logs' ? 'page' : null">Logs</button>
         <a class="tab" routerLink="/account">Account</a>
       </div>
     </nav>
@@ -110,6 +112,16 @@
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your watchlist…</p>
+    }
+
+    <!-- Created on activation, like History and Watchlist: a fresh mount is
+         the refetch that picks up whatever ran since the last visit. -->
+    @defer (when tab() === 'logs') {
+      @if (tab() === 'logs') {
+        <app-logs-page />
+      }
+    } @loading (after 150ms; minimum 300ms) {
+      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your logs…</p>
     }
 
     <!-- Mounted only while open, so closing tears the purchase buttons down
