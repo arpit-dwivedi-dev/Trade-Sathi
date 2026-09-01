@@ -49,13 +49,19 @@ analysesRouter.post(
         return;
       }
 
-      // Deliberately fire-and-forget for the MVP: the response must return
-      // immediately with status 'queued', so this is not awaited. The trade-off
-      // is that if the Node process restarts between this call and completion,
-      // that analysis stays stuck at 'queued' forever with no automatic retry.
-      // Acceptable for now; a durable queue (e.g. BullMQ) is the real fix and is
-      // out of scope here. processAnalysis() never rejects, by contract.
-      void processAnalysis(result.id);
+      // A 'complete' result is a dedupe hit: createAnalysis recognised these
+      // exact image bytes from one of this user's earlier analyses and returned
+      // that row instead of storing and processing a second copy. There is
+      // nothing to dispatch — the row is already finished.
+      if (result.status === "queued") {
+        // Deliberately fire-and-forget for the MVP: the response must return
+        // immediately with status 'queued', so this is not awaited. If the Node
+        // process restarts between this call and completion, the row is left at
+        // 'queued'; the startup/interval sweep in jobs/stranded-analyses.job.ts
+        // is what reclaims it. A durable queue (e.g. BullMQ) remains the real
+        // fix. processAnalysis() never rejects, by contract.
+        void processAnalysis(result.id);
+      }
 
       res.status(201).json({ id: result.id, status: result.status });
     } catch (cause) {

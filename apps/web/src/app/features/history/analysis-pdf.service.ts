@@ -1,5 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { jsPDF } from 'jspdf';
+// Type-only: the library itself is loaded on demand in download(). jsPDF drags
+// canvg and core-js in behind it (~200KB raw), and this whole feature is
+// reachable only by clicking Download PDF inside the History tab — a static
+// import put all of it in the /app chunk that every signed-in user downloads.
+import type { jsPDF } from 'jspdf';
 
 import { SupabaseClientService } from '../../core/supabase-client';
 import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
@@ -80,7 +84,11 @@ export class AnalysisPdfService {
   private readonly supabase = inject(SupabaseClientService);
 
   async download(row: AnalysisRow, patterns: AnalysisPattern[]): Promise<void> {
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    // Resolved once and then cached by the module loader, so a second export in
+    // the same session pays nothing.
+    const { jsPDF: JsPdf } = await import('jspdf');
+
+    const doc = new JsPdf({ unit: 'mm', format: 'a4' });
     // The chart is the one part that can fail on its own (private bucket, an
     // expired object). A missing image must not cost the user the whole export.
     const image = await this.loadImage(row.image_key);

@@ -63,21 +63,42 @@
       <app-analyze-page (plansRequested)="openPlans()" />
     </div>
 
-    <!-- Kept mounted while hidden, like Analyze: a live analysis takes 20-30s
-         and its poll must survive a glance at another tab. Its refresh timer
-         idles on its own while the browser tab is in the background. -->
-    <div [hidden]="tab() !== 'live'">
-      <app-live-page (plansRequested)="openPlans()" />
-    </div>
+    <!-- Deferred, then kept mounted while hidden. The defer only decides when
+         the chart bundle is fetched — the first time this tab is opened rather
+         than as part of the /app chunk everyone downloads; @defer never tears a
+         rendered block back down, so once the user has been here the [hidden]
+         wrapper takes over and Live behaves exactly as it did before: a live
+         analysis takes 20-30s and its poll must survive a glance at another
+         tab. Its refresh timer idles on its own while the browser tab is in
+         the background. -->
+    @defer (when tab() === 'live') {
+      <div [hidden]="tab() !== 'live'">
+        <app-live-page (plansRequested)="openPlans()" />
+      </div>
+    } @loading (after 150ms; minimum 300ms) {
+      <p class="tab-loading">Loading the live chart…</p>
+    }
 
-    @if (tab() === 'history') {
-      <app-history-list />
+    <!-- Deferred rather than @if'd, but the effect on mounting is the same:
+         nothing renders until this tab is activated. -->
+    @defer (when tab() === 'history') {
+      @if (tab() === 'history') {
+        <app-history-list />
+      }
+    } @loading (after 150ms; minimum 300ms) {
+      <p class="tab-loading">Loading your history…</p>
     }
 
     <!-- Created on activation, like History: a fresh mount is the refetch that
-         picks up items added or toggled elsewhere. -->
-    @if (tab() === 'watchlist') {
-      <app-watchlist />
+         picks up items added or toggled elsewhere. The inner @if is what keeps
+         that true — @defer alone would render the block permanently after the
+         first visit. -->
+    @defer (when tab() === 'watchlist') {
+      @if (tab() === 'watchlist') {
+        <app-watchlist />
+      }
+    } @loading (after 150ms; minimum 300ms) {
+      <p class="tab-loading">Loading your watchlist…</p>
     }
 
     <!-- Mounted only while open, so closing tears the purchase buttons down

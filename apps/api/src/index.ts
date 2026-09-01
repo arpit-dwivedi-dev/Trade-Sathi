@@ -3,6 +3,7 @@ import express from "express";
 import { env } from "./lib/env.js";
 import { logger } from "./lib/logger.js";
 import { startDailyBriefingScheduler } from "./jobs/daily-briefing.job.js";
+import { startStrandedAnalysisSweeper } from "./jobs/stranded-analyses.job.js";
 import { analysesRouter } from "./routes/analyses.route.js";
 import { billingRouter } from "./routes/billing.route.js";
 import { healthRouter } from "./routes/health.route.js";
@@ -48,3 +49,7 @@ server.listen(env.port, () => {
 // Requires the API process to stay running continuously — see the top-of-file
 // comment in jobs/daily-briefing.job.ts for the documented limitation.
 startDailyBriefingScheduler();
+
+// Recovers analyses stranded at 'queued' by a restart — the counterpart to the
+// fire-and-forget dispatch in routes/analyses.route.ts.
+startStrandedAnalysisSweeper();

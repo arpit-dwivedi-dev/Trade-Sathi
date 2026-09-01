@@ -77,6 +77,26 @@ unless noted.
 - Money is always stored and passed as integer minor units (paise),
   never as a float.
 
+## Operational constraints
+The API is designed to run as **exactly one instance**. Three pieces of
+state live in the process and none of them are shared:
+- the candle/quote TTL cache and the instrument catalogue
+  (`services/market-chart.service.ts`, `services/instruments.service.ts`),
+- the hourly daily-briefing scheduler (`jobs/daily-briefing.job.ts`),
+- the stranded-analysis sweeper (`jobs/stranded-analyses.job.ts`).
+
+Running a second instance doubles the upstream Yahoo load (two independent
+caches in front of a free endpoint that throttles by stalling), and makes
+both jobs fire twice. The briefing degrades safely — the
+`daily_briefing_log` unique constraint on
+`(profile_id, briefing_date, run_hour_ist)` stops the duplicate email — and
+the sweeper only ever matches `queued` rows, so a duplicate sweep is
+wasteful rather than wrong. The cache fan-out is the part that does not
+degrade safely.
+
+Before scaling out: move the caches behind Redis and replace both
+schedulers with an external trigger against `routes/internal.route.ts`.
+
 ## Migrations
 - Before naming a new migration file, run `npx supabase migration
   list` and give the new file a timestamp later than the newest entry

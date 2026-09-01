@@ -2,12 +2,12 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+import { startAnalysisWatch, type AnalysisWatch } from '../../core/analysis-watch';
 import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
 import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
 import type { LiveCandle } from '../../shared/live-chart/live-chart';
 
-const POLL_INTERVAL_MS = 2000;
 /* The pipeline is market data + a model call over up to 250 candles, measured
  * at ~55s end to end on a one-day intraday window. Three minutes leaves real
  * headroom over that without leaving a user staring at a spinner forever. */
@@ -133,12 +133,14 @@ export class LiveService {
    *
    * The pipeline only ever inserts already-complete rows, so there is no
    * queued/processing state to observe here — a failed run simply never
-   * produces a row and this times out.
+   * produces a row and this times out. That single INSERT is exactly what the
+   * Realtime subscription in startAnalysisWatch is waiting for, which is why
+   * this no longer re-runs the ordered range scan below every two seconds.
    */
   awaitAnalysis(instrumentId: string, startedAt: string): LiveAnalysisHandle {
     const client = this.supabase.client;
 
-    let timer: ReturnType<typeof setInterval> | null = null;
+    let watch: AnalysisWatch | null = null;
     let settled = false;
     let consecutiveFailures = 0;
     const beganAt = Date.now();
@@ -147,10 +149,8 @@ export class LiveService {
       const finish = (outcome: LiveAnalysisOutcome): void => {
         if (settled) return;
         settled = true;
-        if (timer !== null) {
-          clearInterval(timer);
-          timer = null;
-        }
+        watch?.stop();
+        watch = null;
         resolve(outcome);
       };
 
@@ -204,18 +204,25 @@ export class LiveService {
         }
       };
 
-      timer = setInterval(() => void tick(), POLL_INTERVAL_MS);
-      void tick();
+      // Filtered on the instrument only: Realtime filters take one column, and
+      // the source/created_at narrowing stays in tick()'s own query. A stray
+      // wake-up for a different run on the same instrument costs one read.
+      watch = startAnalysisWatch(
+        client,
+        `live-analysis-${instrumentId}-${startedAt}`,
+        `instrument_id=eq.${instrumentId}`,
+        () => {
+          void tick();
+        },
+      );
     });
 
     return {
       result,
       cancel: () => {
         settled = true;
-        if (timer !== null) {
-          clearInterval(timer);
-          timer = null;
-        }
+        watch?.stop();
+        watch = null;
       },
     };
   }

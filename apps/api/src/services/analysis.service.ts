@@ -10,8 +10,14 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   "image/webp": "webp",
 };
 
+/**
+ * `status: "complete"` means this request was answered from a previous
+ * analysis of the byte-identical image (see findCachedAnalysis) — no upload,
+ * no model call, no entitlement spent. The caller must NOT dispatch
+ * processAnalysis for it; the row it names is already finished.
+ */
 export type CreateAnalysisResult =
-  | { ok: true; id: string; status: "queued" }
+  | { ok: true; id: string; status: "queued" | "complete" }
   | { ok: false; reason: "quota_exceeded" };
 
 /** Which entitlement check_and_consume_entitlement actually spent, so the
@@ -108,24 +114,78 @@ export async function consumeAnalysisEntitlement(
  * Expected outcomes are returned as a discriminated result; only genuinely
  * unexpected failures (storage/DB errors) throw, and the route maps those to 500.
  */
+/**
+ * The most recent completed analysis this profile already has of these exact
+ * image bytes, or null.
+ *
+ * Deliberately scoped to one profile even though the hash is global: another
+ * user's analysis of the same chart is their data, and serving it here would
+ * hand out a row this user cannot read under RLS anyway. The cost of that
+ * choice is a duplicate model call the first time each user submits a widely
+ * shared screenshot, which is the right trade.
+ *
+ * Only 'complete' rows qualify. A 'queued' row is a run still in flight (or
+ * one stranded by a restart, which the sweeper in jobs/stranded-analyses.job
+ * will fail), and a 'failed' row is exactly the case that SHOULD get a fresh
+ * attempt rather than being handed its own failure back forever.
+ *
+ * A lookup error returns null rather than throwing: a cache miss costs a model
+ * call, while a thrown error would fail an analysis the user can legitimately
+ * pay for.
+ */
+async function findCachedAnalysis(
+  profileId: string,
+  imageHash: string,
+): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from("analyses")
+    .select("id")
+    // analyses_image_hash_created_at_idx covers the hash and the ordering;
+    // profile_id and status are filters on the handful of rows that survive it.
+    .eq("image_hash", imageHash)
+    .eq("profile_id", profileId)
+    .eq("status", "complete")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+
+  if (error) {
+    logger.error("cached analysis lookup failed", {
+      profileId,
+      cause: String(error),
+    });
+    return null;
+  }
+
+  return data?.id ?? null;
+}
+
 export async function createAnalysis(
   profileId: string,
   file: { buffer: Buffer; mimetype: string },
   sourceType: "paste" | "upload",
 ): Promise<CreateAnalysisResult> {
+  // (a) Content address of the image, computed before anything is spent —
+  // re-submitting the same screenshot must not cost a quota unit or a model
+  // call to discover it is the same screenshot.
+  const imageHash = createHash("sha256").update(file.buffer).digest("hex");
+
+  const cachedId = await findCachedAnalysis(profileId, imageHash);
+  if (cachedId) {
+    logger.info("analysis served from cache", { profileId, analysisId: cachedId });
+    return { ok: true, id: cachedId, status: "complete" };
+  }
+
   // Captured ONCE, before the RPC, and reused verbatim by every compensating
   // decrement below — see the trade-off notes at the upload failure branch.
   const periodForCompensation = currentUtcPeriod();
 
-  // (a) Atomic entitlement gate: monthly quota first, then a one-off credit.
+  // (b) Atomic entitlement gate: monthly quota first, then a one-off credit.
   // Everything after this point has consumed exactly one of the two.
   const entitlementSource = await consumeAnalysisEntitlement(profileId);
   if (!entitlementSource) {
     return { ok: false, reason: "quota_exceeded" };
   }
-
-  // (b) For future dedupe/caching. Nothing reads it yet.
-  const imageHash = createHash("sha256").update(file.buffer).digest("hex");
 
   // (c) The bucket's RLS read policy requires the first path segment to be the
   // owning profile id.

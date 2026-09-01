@@ -51,3 +51,11 @@
     display: none;
   }
 }
+
+/* Shown only while a deferred tab's chunk is in flight — after 150ms, so a
+   warm cache never flashes it, and for at least 300ms so it cannot strobe. */
+.tab-loading {
+  padding: var(--s8) 0;
+  color: var(--tx-3);
+  font-size: 14px;
+}

@@ -118,6 +118,51 @@ export async function processWatchlistItem(
   };
 }
 
+/**
+ * How many watchlist items are analysed at once. Kept deliberately small: each
+ * one is a model call and an upstream market-data fetch, and the point is to
+ * stop a long watchlist overrunning its scheduled hour, not to fan out as hard
+ * as the providers will tolerate.
+ */
+const BRIEFING_CONCURRENCY = 3;
+
+/**
+ * Runs `run` over `items` with at most `limit` in flight, returning results in
+ * the ORDER OF THE INPUT rather than the order they finished.
+ *
+ * `run` is expected not to reject — processWatchlistItem returns null for
+ * failure — so there is no per-item error handling here; a rejection would
+ * propagate out of the whole batch, which is the same thing an unguarded
+ * sequential loop did.
+ */
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  run: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array<R>(items.length);
+  let cursor = 0;
+
+  // Each worker pulls the next index and runs it. Reading and advancing the
+  // cursor happens with no await between them, so the workers cannot be handed
+  // the same index.
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const index = cursor;
+      cursor += 1;
+      const item = items[index];
+      if (index >= items.length || item === undefined) return;
+      results[index] = await run(item);
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => worker()),
+  );
+
+  return results;
+}
+
 export async function runDailyBriefingForUser(
   profileId: string,
   runHourIst?: number,
@@ -165,11 +210,14 @@ export async function runDailyBriefingForUser(
   const period = currentUtcPeriod();
   const succeeded: BriefingItem[] = [];
   const failed: FailedBriefingItem[] = [];
-  let entitlementExhausted = false;
 
+  // Phase 1 — admission, strictly sequential. Entitlement is consumed one unit
+  // per item before any work starts, exactly as it was when the whole loop was
+  // sequential: the concurrency added below must never be able to consume more
+  // units than the user has, or to race two items against the same last unit.
+  // These are cheap RPC calls, so serialising them costs nothing worth saving.
+  const admitted: EnabledWatchlistItem[] = [];
   for (const item of items) {
-    if (entitlementExhausted) break;
-
     const outcome = await consumeDailyBriefingEntitlement(profileId);
     if (outcome === "no_subscription") {
       // No Daily Briefing entitlement at all: stop immediately, no market-data/AI
@@ -182,12 +230,26 @@ export async function runDailyBriefingForUser(
         .eq("briefing_date", briefingDate);
       return;
     }
-    if (outcome === "quota_exhausted") {
-      entitlementExhausted = true;
-      break;
-    }
+    if (outcome === "quota_exhausted") break;
 
-    const processed = await processWatchlistItem(profileId, item, period);
+    admitted.push(item);
+  }
+
+  // Phase 2 — the expensive part, a few at a time. Each item is a full pipeline
+  // (market data, chart render, model call) at roughly a minute each, so a ten
+  // symbol watchlist used to take the better part of ten minutes inside a single
+  // hourly tick, pushing later users' briefings well past the hour they asked
+  // for. Each item still releases its own entitlement on failure, inside
+  // processWatchlistItem, so failure handling is unchanged by running them
+  // alongside each other.
+  const outcomes = await mapWithConcurrency(admitted, BRIEFING_CONCURRENCY, (item) =>
+    processWatchlistItem(profileId, item, period),
+  );
+
+  // Results are folded back in watchlist order, not completion order, so the
+  // email lists symbols in the order the user arranged them.
+  admitted.forEach((item, index) => {
+    const processed = outcomes[index];
     if (processed) {
       succeeded.push({
         symbol: processed.item.symbol,
@@ -199,7 +261,7 @@ export async function runDailyBriefingForUser(
     } else {
       failed.push({ symbol: item.symbol, name: item.name });
     }
-  }
+  });
 
   if (succeeded.length === 0 && failed.length === 0) {
     // Every item was skipped because quota ran out before any could even be

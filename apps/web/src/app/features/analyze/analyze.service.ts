@@ -2,6 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+import { startAnalysisWatch, type AnalysisWatch } from '../../core/analysis-watch';
 import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
@@ -11,7 +12,6 @@ import type { SourceType } from './chart-drop';
 const MAX_EDGE_PX = 1024;
 const JPEG_QUALITY = 0.8;
 
-const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 90_000;
 /** Consecutive query failures (~6s of continuous failure) before giving up. */
 const MAX_CONSECUTIVE_POLL_FAILURES = 3;
@@ -176,26 +176,29 @@ export class AnalyzeService {
   }
 
   /**
-   * Polls the analyses row directly through the browser Supabase client — RLS
+   * Watches the analyses row directly through the browser Supabase client — RLS
    * already permits reading your own rows, so no backend endpoint is needed.
    *
+   * startAnalysisWatch decides when to re-read: a Realtime subscription on this
+   * row, backed by a timer that carries the load on its own if the socket never
+   * comes up. The reading, the timeout and the failure policy below are
+   * unchanged from when this was a bare 2-second poll.
+   *
    * Returns a cancel() alongside the promise because a bare Promise cannot be
-   * cancelled from outside, and the page must stop polling on destroy.
+   * cancelled from outside, and the page must stop watching on destroy.
    */
   pollAnalysis(id: string, onUpdate: (row: AnalysisRow) => void): PollHandle {
     const client = this.supabase.client;
 
-    let timer: ReturnType<typeof setInterval> | null = null;
+    let watch: AnalysisWatch | null = null;
     let settled = false;
     let consecutiveFailures = 0;
     const startedAt = Date.now();
 
     const result = new Promise<PollOutcome>((resolve) => {
       const stop = (): void => {
-        if (timer !== null) {
-          clearInterval(timer);
-          timer = null;
-        }
+        watch?.stop();
+        watch = null;
       };
 
       // Every exit path clears the interval first: an interval still firing
@@ -265,8 +268,9 @@ export class AnalyzeService {
         }
       };
 
-      timer = setInterval(() => void tick(), POLL_INTERVAL_MS);
-      void tick();
+      watch = startAnalysisWatch(client, `analysis-${id}`, `id=eq.${id}`, () => {
+        void tick();
+      });
     });
 
     return {
@@ -275,10 +279,8 @@ export class AnalyzeService {
         // Called from ngOnDestroy: the caller has already stopped caring, so the
         // promise is simply left unresolved rather than given a special outcome.
         settled = true;
-        if (timer !== null) {
-          clearInterval(timer);
-          timer = null;
-        }
+        watch?.stop();
+        watch = null;
       },
     };
   }

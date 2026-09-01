@@ -168,9 +168,24 @@ type AnalysisMessage =
     };
 
 /**
+ * Pause before a retry. Without this the second attempt left immediately,
+ * which is the worst possible response to the two failures most likely to
+ * have caused the first one — a rate limit or an overloaded provider.
+ */
+const RETRY_BACKOFF_MS = 1_500;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
  * The shared model call: JSON mode, one retry on an empty or unparseable
  * response (a provider's JSON mode occasionally returns empty content — one
  * retry, not a loop), then schema validation.
+ *
+ * This is the ONLY retry policy in the AI path: the SDK client is constructed
+ * with maxRetries: 0 (see lib/ai-client.ts) precisely so its silent internal
+ * retries cannot multiply with this loop.
  *
  * max_tokens is deliberately generous and env-driven (AI_MAX_TOKENS) rather
  * than a constant.
@@ -192,6 +207,11 @@ async function runAnalysisCompletion(
   let lastFailure: AnalysisFailure | undefined;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    // Only ever between attempts, never before the first one or after the last.
+    if (attempt > 0) {
+      await delay(RETRY_BACKOFF_MS);
+    }
+
     const startedAt = Date.now();
     let content: string | null | undefined;
     try {
@@ -436,4 +456,69 @@ export async function processAnalysis(analysisId: string): Promise<void> {
       });
     }
   }
+}
+
+/**
+ * Age past which a still-'queued' row cannot plausibly be a run in flight.
+ * The bound on one real run is two model attempts (60s each, see
+ * lib/ai-client.ts) plus a backoff and the storage round trips, so this sits
+ * several times past the worst legitimate case.
+ */
+const STRANDED_AFTER_MS = 10 * 60_000;
+
+/**
+ * Upper bound on rows re-dispatched per sweep. A restart during an incident
+ * can leave a lot of these, and running them all at once would aim a burst of
+ * model calls at a provider that may be the reason they are stranded.
+ */
+const MAX_RECLAIM_BATCH = 20;
+
+/**
+ * Re-dispatches analyses left at 'queued' by a process restart.
+ *
+ * The route dispatches processAnalysis fire-and-forget, so a restart between
+ * the 201 and the model returning used to strand that row at 'queued'
+ * permanently: the user's entitlement was spent, the UI polled until it timed
+ * out, and nothing would ever pick the row up again.
+ *
+ * Re-running is the right recovery rather than marking the row failed. The
+ * image is already durably stored and the entitlement is already spent, so
+ * processing it is what the user actually paid for — and it needs no refund
+ * policy, which matters because the row does not record whether a quota unit
+ * or a credit was consumed. A re-run that fails for a real reason still ends
+ * up 'failed' through processAnalysis's own handler, exactly as a first
+ * attempt would.
+ *
+ * Sequential and bounded, and never throws — it is called from a timer.
+ */
+export async function reclaimStrandedAnalyses(): Promise<number> {
+  const cutoff = new Date(Date.now() - STRANDED_AFTER_MS).toISOString();
+
+  // Served by analyses_status_created_at_idx.
+  const { data, error } = await supabaseAdmin
+    .from("analyses")
+    .select("id")
+    .eq("status", "queued")
+    .lt("created_at", cutoff)
+    .order("created_at", { ascending: true })
+    .limit(MAX_RECLAIM_BATCH)
+    .returns<{ id: string }[]>();
+
+  if (error) {
+    logger.error("stranded analysis sweep query failed", { cause: String(error) });
+    return 0;
+  }
+
+  const rows = data ?? [];
+  if (rows.length === 0) return 0;
+
+  logger.info("reclaiming stranded analyses", { count: rows.length });
+
+  for (const row of rows) {
+    // processAnalysis never rejects, by contract, so one bad row cannot stop
+    // the sweep from reaching the rest.
+    await processAnalysis(row.id);
+  }
+
+  return rows.length;
 }
