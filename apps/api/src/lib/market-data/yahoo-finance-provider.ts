@@ -10,6 +10,15 @@ import {
 
 const YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
 
+/**
+ * Node's fetch has no default timeout, and Yahoo under load soft-throttles by
+ * stalling the connection rather than returning 429 — so an un-aborted request
+ * can hang forever, taking the awaiting HTTP request or briefing job with it.
+ * The endpoint answers in well under a second when healthy (~60ms warm), so a
+ * few seconds is already far past "slow but working" and into "never coming".
+ */
+const REQUEST_TIMEOUT_MS = 5_000;
+
 // Yahoo's unofficial chart endpoint: { chart: { result: [{ timestamp: number[],
 // indicators: { quote: [{ open, high, low, close, volume }] } }], error } }.
 // Unofficial and undocumented — validated field-by-field, exactly like the
@@ -91,6 +100,24 @@ function spanInDays(toDate: string, fromDate?: string): number {
 }
 
 /**
+ * The (range, interval) pair Yahoo is actually asked for. Several distinct
+ * caller windows collapse onto one upstream request — a 60-day and a 90-day
+ * lookback are both `range=3mo&interval=1d` — so this is what the caller's
+ * cache should be keyed on, not the caller's own from/to dates.
+ */
+export interface UpstreamChartRequest {
+  range: string;
+  interval: string;
+}
+
+export function resolveUpstreamRequest(params: HistoricalCandlesParams): UpstreamChartRequest {
+  return {
+    range: toYahooRange(spanInDays(params.toDate, params.fromDate)),
+    interval: toYahooInterval(params.unit, params.interval),
+  };
+}
+
+/**
  * Reads market data from Yahoo Finance's unofficial, undocumented chart API —
  * no API key, no account, no per-user auth. Chosen over Upstox/Dhan/Angel One
  * specifically to avoid any token/account setup; the trade-off (explicit,
@@ -124,8 +151,18 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
           // community workaround, not a spoofing/evasion measure.
           "User-Agent": "Mozilla/5.0 (compatible; ChartAnalyzer/1.0)",
         },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (cause) {
+      // A timeout is reported as its own thing rather than folded into the
+      // generic failure text: it is the symptom of upstream throttling, and
+      // the one this endpoint actually exhibits under load.
+      if (cause instanceof DOMException && cause.name === "TimeoutError") {
+        throw new MarketDataError(
+          "provider_error",
+          `Yahoo Finance did not respond within ${REQUEST_TIMEOUT_MS}ms for symbol ${instrumentKey}`,
+        );
+      }
       throw new MarketDataError(
         "provider_error",
         `Yahoo Finance request failed: ${String(cause)}`,
@@ -153,6 +190,9 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
 
     let body: unknown;
     try {
+      // AbortSignal.timeout also aborts a stalled body stream, so a response
+      // whose headers arrive promptly but whose body never completes fails
+      // here rather than hanging.
       body = await response.json();
     } catch (cause) {
       throw new MarketDataError(
@@ -198,8 +238,7 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
     // its own chart window (a day of 5-minute candles, a year of daily ones),
     // and this used to hardcode "3mo"/"1d" — every longer window silently got
     // three months of data.
-    const interval = toYahooInterval(params.unit, params.interval);
-    const range = toYahooRange(spanInDays(params.toDate, params.fromDate));
+    const { range, interval } = resolveUpstreamRequest(params);
     const intraday = params.unit === "minutes";
 
     const chartResult = await this.fetchChart(instrumentKey, range, interval);

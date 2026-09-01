@@ -1,4 +1,7 @@
-import { YahooFinanceMarketDataProvider } from "../lib/market-data/yahoo-finance-provider.js";
+import {
+  resolveUpstreamRequest,
+  YahooFinanceMarketDataProvider,
+} from "../lib/market-data/yahoo-finance-provider.js";
 import type { Candle, MarketDataProvider, Quote } from "../lib/market-data/types.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { toYahooSymbol } from "./watchlist.service.js";
@@ -121,11 +124,99 @@ function intradayTtlMs(intervalMinutes: number): number {
   const sixth = (intervalMinutes * 60_000) / 6;
   return Math.min(Math.max(sixth, INTRADAY_TTL_MIN_MS), INTRADAY_TTL_MAX_MS);
 }
-const cache = new Map<string, { candles: Candle[]; fetchedAt: number }>();
 
-/** Test seam: the cache is process-global, which would otherwise leak between tests. */
+/** A live price is only ever wanted as "right now", so it gets the floor TTL. */
+const QUOTE_TTL_MS = INTRADAY_TTL_MIN_MS;
+
+/**
+ * Upper bound on distinct keys held. Candle keys are bounded by
+ * (instrument x range x interval) and quote keys by instrument, so this is
+ * only reachable across a large catalogue; it exists so a long-running process
+ * cannot grow the map without limit. Expired entries are dropped first, and
+ * only if that frees nothing is the oldest entry evicted.
+ */
+const MAX_CACHE_ENTRIES = 500;
+
+interface CacheEntry<T> {
+  value: T;
+  fetchedAt: number;
+}
+
+/**
+ * TTL cache that also collapses concurrent misses. Storing only settled
+ * results was not enough: every request arriving while a fetch was in flight
+ * missed too and started its own, so each TTL expiry on a symbol several
+ * people were watching turned into a burst of identical upstream calls — the
+ * very thing that earns the throttling this cache exists to avoid. In-flight
+ * promises are shared, and a failed one is evicted so the error is not cached.
+ */
+class TtlCache<T> {
+  private readonly entries = new Map<string, CacheEntry<T>>();
+  private readonly inFlight = new Map<string, Promise<T>>();
+
+  async resolve(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
+    const entry = this.entries.get(key);
+    if (entry && Date.now() - entry.fetchedAt < ttlMs) return entry.value;
+
+    const pending = this.inFlight.get(key);
+    if (pending) return pending;
+
+    const promise = load()
+      .then((value) => {
+        this.entries.set(key, { value, fetchedAt: Date.now() });
+        this.prune();
+        return value;
+      })
+      .finally(() => {
+        this.inFlight.delete(key);
+      });
+
+    this.inFlight.set(key, promise);
+    return promise;
+  }
+
+  clear(): void {
+    this.entries.clear();
+    this.inFlight.clear();
+  }
+
+  /**
+   * Keys embed a range and interval, not a date, so the map no longer grows a
+   * fresh generation of keys every midnight — but entries for instruments
+   * nobody looks at again would still be held forever without this.
+   */
+  private prune(): void {
+    if (this.entries.size <= MAX_CACHE_ENTRIES) return;
+    const now = Date.now();
+    for (const [key, entry] of this.entries) {
+      // The longest TTL in use, so this only drops entries no caller could
+      // still have served to them.
+      if (now - entry.fetchedAt >= DAILY_TTL_MS) this.entries.delete(key);
+    }
+    // Map iterates in insertion order, so the first key is the oldest write.
+    while (this.entries.size > MAX_CACHE_ENTRIES) {
+      const oldest = this.entries.keys().next();
+      if (oldest.done) break;
+      this.entries.delete(oldest.value);
+    }
+  }
+}
+
+/**
+ * Keyed on the request the provider actually makes upstream, not on the
+ * caller's window. `toYahooRange` buckets a span into one of a handful of
+ * ranges, so a 60-day and a 90-day lookback are the same `range=3mo` fetch;
+ * keying on the caller's from/to dates made those two separate entries and
+ * two identical upstream calls. The cached candles are therefore the
+ * untrimmed upstream response, and each caller trims to its own window below.
+ */
+const candleCache = new TtlCache<Candle[]>();
+const quoteCache = new TtlCache<Quote>();
+
+/** Test seam: the caches are process-global, which would otherwise leak between tests. */
 export function clearCandleCache(): void {
-  cache.clear();
+  candleCache.clear();
+  quoteCache.clear();
 }
 
 export interface CandleWindow {
@@ -159,24 +250,26 @@ export async function getCandlesForInstrument(
   const spec = candleSpecFor(lookbackDays);
   const toDate = todayIsoDate();
   const fromDate = subtractDays(toDate, lookbackDays);
-  const cacheKey = `${ref.instrumentKey}|${spec.unit}|${spec.interval}|${fromDate}|${toDate}`;
+  const params = {
+    instrumentKey: ref.instrumentKey,
+    unit: spec.unit,
+    interval: spec.interval,
+    toDate,
+    fromDate,
+  };
+
+  const upstream = resolveUpstreamRequest(params);
+  const cacheKey = `${ref.instrumentKey}|${upstream.range}|${upstream.interval}`;
   const ttl = spec.unit === "minutes" ? intradayTtlMs(spec.interval) : DAILY_TTL_MS;
 
-  const cached = cache.get(cacheKey);
-  let candles: Candle[];
-  if (cached && Date.now() - cached.fetchedAt < ttl) {
-    candles = cached.candles;
-  } else {
-    const fetched = await marketDataProvider.getHistoricalCandles({
-      instrumentKey: ref.instrumentKey,
-      unit: spec.unit,
-      interval: spec.interval,
-      toDate,
-      fromDate,
-    });
-    candles = fetched.filter((candle) => candle.timestamp.slice(0, 10) >= fromDate);
-    cache.set(cacheKey, { candles, fetchedAt: Date.now() });
-  }
+  const fetched = await candleCache.resolve(cacheKey, ttl, () =>
+    marketDataProvider.getHistoricalCandles(params),
+  );
+
+  // Trimming happens per request, not before caching: the shared entry holds
+  // the full upstream range, and two callers with different lookbacks inside
+  // that range each get their own window from it.
+  const candles = fetched.filter((candle) => candle.timestamp.slice(0, 10) >= fromDate);
 
   const last = candles[candles.length - 1];
   return {
@@ -188,6 +281,14 @@ export async function getCandlesForInstrument(
   };
 }
 
+/**
+ * The live price, cached on the same terms as candles. This used to go
+ * straight to the provider while the candle path was cached, so the quote
+ * endpoint the live view polls was one uncached upstream round trip per client
+ * per tick — the exact per-client fan-out the candle cache was added to stop.
+ */
 export async function getQuoteForInstrument(ref: InstrumentRef): Promise<Quote> {
-  return marketDataProvider.getQuote(ref.instrumentKey);
+  return quoteCache.resolve(ref.instrumentKey, QUOTE_TTL_MS, () =>
+    marketDataProvider.getQuote(ref.instrumentKey),
+  );
 }

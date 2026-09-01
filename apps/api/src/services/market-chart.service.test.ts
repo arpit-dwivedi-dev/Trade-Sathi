@@ -6,16 +6,25 @@ import type { Candle } from "../lib/market-data/types.js";
 vi.mock("../lib/supabase.js", () => ({ supabaseAdmin: {} }));
 
 const getHistoricalCandles = vi.fn();
-vi.mock("../lib/market-data/yahoo-finance-provider.js", () => ({
+const getQuote = vi.fn();
+// Only the provider class is replaced; resolveUpstreamRequest is the real
+// range/interval bucketing, which is what the cache key is built from and so
+// is part of the behaviour under test.
+vi.mock("../lib/market-data/yahoo-finance-provider.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/market-data/yahoo-finance-provider.js")>()),
   YahooFinanceMarketDataProvider: class {
     getHistoricalCandles = getHistoricalCandles;
-    getQuote = vi.fn();
+    getQuote = getQuote;
   },
 }));
 
-const { candleSpecFor, clearCandleCache, getCandlesForInstrument, subtractDays } = await import(
-  "./market-chart.service.js"
-);
+const {
+  candleSpecFor,
+  clearCandleCache,
+  getCandlesForInstrument,
+  getQuoteForInstrument,
+  subtractDays,
+} = await import("./market-chart.service.js");
 
 const ref = {
   instrumentId: "i1",
@@ -45,6 +54,7 @@ describe("getCandlesForInstrument", () => {
   beforeEach(() => {
     clearCandleCache();
     getHistoricalCandles.mockReset();
+    getQuote.mockReset();
   });
 
   it("drops candles older than the requested window", async () => {
@@ -77,5 +87,73 @@ describe("getCandlesForInstrument", () => {
     await getCandlesForInstrument(ref, 30);
 
     expect(getHistoricalCandles).toHaveBeenCalledTimes(2);
+  });
+
+  it("shares one upstream fetch between windows that resolve to the same range", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    getHistoricalCandles.mockResolvedValue([
+      candleOn(subtractDays(today, 80)),
+      candleOn(subtractDays(today, 5)),
+    ]);
+
+    // 60d and 90d are both range=3mo interval=1d upstream.
+    const wide = await getCandlesForInstrument(ref, 90);
+    const narrow = await getCandlesForInstrument(ref, 60);
+
+    expect(getHistoricalCandles).toHaveBeenCalledTimes(1);
+    // The shared entry is the untrimmed response; each caller still gets only
+    // the candles inside its own window.
+    expect(wide.candles).toHaveLength(2);
+    expect(narrow.candles).toHaveLength(1);
+  });
+
+  it("collapses concurrent misses into a single upstream fetch", async () => {
+    let release: (candles: Candle[]) => void = () => {};
+    getHistoricalCandles.mockReturnValue(
+      new Promise<Candle[]>((resolve) => {
+        release = resolve;
+      }),
+    );
+
+    const both = Promise.all([
+      getCandlesForInstrument(ref, 90),
+      getCandlesForInstrument(ref, 90),
+    ]);
+    release([candleOn(new Date().toISOString().slice(0, 10))]);
+    const [first, second] = await both;
+
+    expect(getHistoricalCandles).toHaveBeenCalledTimes(1);
+    expect(first.candles).toEqual(second.candles);
+  });
+
+  it("does not cache a failed fetch", async () => {
+    getHistoricalCandles.mockRejectedValueOnce(new Error("upstream down"));
+    getHistoricalCandles.mockResolvedValueOnce([candleOn(new Date().toISOString().slice(0, 10))]);
+
+    await expect(getCandlesForInstrument(ref, 90)).rejects.toThrow("upstream down");
+    const retried = await getCandlesForInstrument(ref, 90);
+
+    expect(retried.candles).toHaveLength(1);
+    expect(getHistoricalCandles).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("getQuoteForInstrument", () => {
+  beforeEach(() => {
+    clearCandleCache();
+    getQuote.mockReset();
+  });
+
+  it("serves a repeat quote from cache instead of hitting the provider again", async () => {
+    getQuote.mockResolvedValue({
+      instrumentKey: ref.instrumentKey,
+      lastPrice: 100,
+      asOf: new Date().toISOString(),
+    });
+
+    await getQuoteForInstrument(ref);
+    await getQuoteForInstrument(ref);
+
+    expect(getQuote).toHaveBeenCalledTimes(1);
   });
 });

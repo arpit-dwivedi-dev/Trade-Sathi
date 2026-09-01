@@ -7,6 +7,7 @@ import { analysesRouter } from "./routes/analyses.route.js";
 import { billingRouter } from "./routes/billing.route.js";
 import { healthRouter } from "./routes/health.route.js";
 import { instrumentsRouter } from "./routes/instruments.route.js";
+import { warmInstrumentCache } from "./services/instruments.service.js";
 import { internalRouter } from "./routes/internal.route.js";
 import { attachMarketStream } from "./routes/market-stream.route.js";
 import { marketRouter } from "./routes/market.route.js";
@@ -39,6 +40,9 @@ attachMarketStream(server);
 
 server.listen(env.port, () => {
   logger.info(`api listening on port ${env.port}`);
+  // Not awaited: the server should accept requests immediately, and every
+  // search already waits on the same shared load if one is still in flight.
+  void warmInstrumentCache();
 });
 
 // Requires the API process to stay running continuously — see the top-of-file
