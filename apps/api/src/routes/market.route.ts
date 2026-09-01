@@ -94,9 +94,10 @@ marketRouter.get("/api/market/quote", requireAuth, async (req: Request, res: Res
 
 /**
  * Starts a live analysis. The request is multipart because the browser sends
- * the chart it drew as the image the model reads — see ChartCaptureService on
- * the web side. The image is optional: a client that could not produce one
- * (or an older client) still gets an analysis, from the server-rendered chart.
+ * the chart it drew, which is stored with the analysis for the user to view —
+ * see ChartCaptureService on the web side. The image is display-only (the
+ * analysis reads the candle data) and optional: without one the API renders
+ * its own chart instead.
  */
 marketRouter.post(
   "/api/market/analyze",

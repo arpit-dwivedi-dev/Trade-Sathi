@@ -108,7 +108,7 @@ export class LivePage implements OnInit, OnDestroy {
   protected readonly searched = signal(false);
   protected readonly instrument = signal<Instrument | null>(null);
 
-  protected readonly lookbackDays = signal<number>(90);
+  protected readonly lookbackDays = signal<number>(1);
   protected readonly candles = signal<LiveCandle[]>([]);
   protected readonly timeframeLabel = signal<string | null>(null);
   protected readonly intervalMinutes = signal(0);
@@ -400,9 +400,10 @@ export class LivePage implements OnInit, OnDestroy {
     this.analyzeState.set('starting');
 
     // The image is rendered here, from the candles already on screen, and
-    // posted with the request: the model then reads the same chart the user
-    // is looking at rather than a server-side redraw of the same data. A null
-    // capture is not an error — the API falls back to its own renderer.
+    // posted with the request purely so the stored analysis keeps the exact
+    // chart the user was looking at, to view and download later. The analysis
+    // itself is made from the candle data server-side, not from this picture.
+    // A null capture is not an error — the API falls back to its own renderer.
     const chart = await this.chartCapture.capture(this.candles(), {
       symbol: instrument.symbol,
       name: instrument.name,

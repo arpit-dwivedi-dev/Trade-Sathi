@@ -1,5 +1,10 @@
 import { renderCandlestickChart } from "./chart-image.service.js";
-import { runVisualAnalysis, AnalysisFailure } from "./ai-analysis.service.js";
+import {
+  runSeriesAnalysis,
+  runVisualAnalysis,
+  AnalysisFailure,
+  SERIES_PROMPT_VERSION,
+} from "./ai-analysis.service.js";
 import type { AnalysisAiResult } from "./ai-analysis.service.js";
 import {
   MAX_CANDLES_FOR_CHART,
@@ -175,9 +180,23 @@ export async function runInstrumentAnalysis(
     }
   }
 
+  // Live runs analyse the candles themselves; the image above is rendered and
+  // stored only so the user can see and download the chart behind the result.
+  // The watchlist daily path still reads the image, which is all it has ever
+  // had — see runSeriesAnalysis for why the numbers are the better input.
+  const readsSeries = source === "live";
+
   let visual;
   try {
-    visual = await runVisualAnalysis(chart.buffer, chart.mimetype);
+    visual = readsSeries
+      ? await runSeriesAnalysis(chartCandles, {
+          symbol: ref.symbol,
+          name: ref.name,
+          exchange: ref.exchange,
+          timeframeLabel: window.timeframeLabel,
+          intervalMinutes: window.intervalMinutes,
+        })
+      : await runVisualAnalysis(chart.buffer, chart.mimetype);
   } catch (cause) {
     logger.error("instrument AI analysis failed", {
       profileId,
@@ -229,7 +248,7 @@ export async function runInstrumentAnalysis(
       horizon_candles: visual.result.call.horizon_candles,
       summary: visual.result.summary,
       model_id: process.env["AI_MODEL"] ?? "unknown",
-      prompt_version: "v2",
+      prompt_version: readsSeries ? SERIES_PROMPT_VERSION : "v2",
       input_tokens: visual.inputTokens,
       output_tokens: visual.outputTokens,
       latency_ms: visual.latencyMs,

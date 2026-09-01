@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { buildChartAnalysisPrompt } from "../prompts/chart-analysis.js";
+import {
+  buildCandleAnalysisPrompt,
+  type CandleAnalysisContext,
+  type PromptCandle,
+} from "../prompts/candle-analysis.js";
 import { aiClient } from "../lib/ai-client.js";
 import { env } from "../lib/env.js";
 import { logger } from "../lib/logger.js";
@@ -11,6 +16,12 @@ const BUCKET = "chart-images";
  *  changes, so every stored analysis stays attributable to the prompt that
  *  produced it. */
 const PROMPT_VERSION = "v2";
+
+/** Version of the candle-series prompt in ../prompts/candle-analysis.ts.
+ *  Tracked separately from PROMPT_VERSION: the two prompts are edited
+ *  independently, and a stored analysis must stay attributable to whichever
+ *  one produced it. */
+export const SERIES_PROMPT_VERSION = "series-v1";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   jpg: "image/jpeg",
@@ -108,29 +119,72 @@ export async function runVisualAnalysis(
   mimeType: string,
 ): Promise<VisualAnalysisOutcome> {
   const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
-
-  // Deliberately generous, and env-driven (AI_MAX_TOKENS) rather than a
-  // constant — see the extended reasoning originally documented at this
-  // request's construction site (now here, its sole remaining call site).
   const prompt = buildChartAnalysisPrompt();
+
+  return runAnalysisCompletion([
+    { role: "system", content: prompt.system },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: prompt.user },
+        { type: "image_url", image_url: { url: dataUrl } },
+      ],
+    },
+  ]);
+}
+
+/**
+ * Runs one candle series through the AI provider — the same schema, retry
+ * policy and validation as runVisualAnalysis, from the exact OHLCV rows the
+ * market-data provider returned instead of a picture of them.
+ *
+ * This is what the live chart view analyses: the numbers are already exact
+ * server-side, so making the model read them back off a rendered image only
+ * loses precision. The image is still rendered and stored, but purely so the
+ * user can see and download the chart behind their analysis.
+ */
+export async function runSeriesAnalysis(
+  candles: PromptCandle[],
+  context: CandleAnalysisContext,
+): Promise<VisualAnalysisOutcome> {
+  const prompt = buildCandleAnalysisPrompt(candles, context);
+
+  return runAnalysisCompletion([
+    { role: "system", content: prompt.system },
+    { role: "user", content: prompt.user },
+  ]);
+}
+
+/** The message shapes the two entry points above build. */
+type AnalysisMessage =
+  | { role: "system"; content: string }
+  | { role: "user"; content: string }
+  | {
+      role: "user";
+      content: (
+        | { type: "text"; text: string }
+        | { type: "image_url"; image_url: { url: string } }
+      )[];
+    };
+
+/**
+ * The shared model call: JSON mode, one retry on an empty or unparseable
+ * response (a provider's JSON mode occasionally returns empty content — one
+ * retry, not a loop), then schema validation.
+ *
+ * max_tokens is deliberately generous and env-driven (AI_MAX_TOKENS) rather
+ * than a constant.
+ */
+async function runAnalysisCompletion(
+  messages: AnalysisMessage[],
+): Promise<VisualAnalysisOutcome> {
   const request = {
     model: env.aiModel,
     response_format: { type: "json_object" as const },
     max_tokens: env.aiMaxTokens,
-    messages: [
-      { role: "system" as const, content: prompt.system },
-      {
-        role: "user" as const,
-        content: [
-          { type: "text" as const, text: prompt.user },
-          { type: "image_url" as const, image_url: { url: dataUrl } },
-        ],
-      },
-    ],
+    messages,
   };
 
-  // A provider's JSON mode can occasionally return empty content, so an empty
-  // or unparseable response is retried exactly once — one retry, not a loop.
   let parsed: unknown;
   let inputTokens = 0;
   let outputTokens = 0;

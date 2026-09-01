@@ -8,7 +8,10 @@ import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
 import type { LiveCandle } from '../../shared/live-chart/live-chart';
 
 const POLL_INTERVAL_MS = 2000;
-const POLL_TIMEOUT_MS = 120_000;
+/* The pipeline is market data + a model call over up to 250 candles, measured
+ * at ~55s end to end on a one-day intraday window. Three minutes leaves real
+ * headroom over that without leaving a user staring at a spinner forever. */
+const POLL_TIMEOUT_MS = 180_000;
 /** Consecutive query failures (~6s of continuous failure) before giving up. */
 const MAX_CONSECUTIVE_POLL_FAILURES = 3;
 
@@ -79,10 +82,11 @@ export class LiveService {
    * (202) and runs the 20-30s pipeline in the background, so what comes back
    * is a start time, not a result — see awaitAnalysis.
    *
-   * `chart` is the PNG this browser rendered from the same candles; it becomes
-   * the image the model reads, so the analysis is of the chart the user is
-   * actually looking at. Null means the capture failed and the API should
-   * render its own — the analysis still runs.
+   * `chart` is the PNG this browser rendered from the same candles. It is
+   * stored with the analysis so the user can see and download the chart they
+   * were actually looking at; the model reads the candle data itself, not this
+   * image. Null means the capture failed and the API renders its own — the
+   * analysis is unaffected either way.
    *
    * Sent as multipart, and deliberately without an explicit Content-Type: the
    * browser has to set it itself so the multipart boundary matches the body.
