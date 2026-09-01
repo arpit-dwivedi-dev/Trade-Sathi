@@ -51,6 +51,12 @@
         @if (lastPrice(); as price) {
           <span class="num live-price">{{ price | number: '1.2-2' }}</span>
         }
+        @if (streaming()) {
+          <span class="lbl live-tick" title="Streaming live prices">
+            <span class="live-tick-dot" aria-hidden="true"></span>
+            Live
+          </span>
+        }
       </div>
 
       <div class="pad live-body">
@@ -94,7 +100,9 @@
             }
           </button>
 
-          @if (lastRefreshedAt(); as refreshed) {
+          @if (streaming()) {
+            <span class="lbl dim">Streaming live</span>
+          } @else if (lastRefreshedAt(); as refreshed) {
             <span class="lbl dim">Updated {{ refreshed | date: 'HH:mm:ss' }}</span>
           }
         </div>

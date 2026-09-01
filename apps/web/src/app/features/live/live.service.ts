@@ -15,6 +15,8 @@ const MAX_CONSECUTIVE_POLL_FAILURES = 3;
 export interface CandleWindowResponse {
   instrument: { id: string; symbol: string; name: string; exchange: string };
   timeframeLabel: string;
+  /** Length of one candle in minutes — see CandleWindow on the API side. */
+  intervalMinutes: number;
   marketDataDate: string | null;
   candles: LiveCandle[];
 }

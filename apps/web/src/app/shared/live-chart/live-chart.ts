@@ -17,6 +17,7 @@ import {
   chartOptions,
   createCandleChart,
   readPalette,
+  updateLastCandle,
   type CandleChart,
   type ChartOverlays,
   type ChartPalette,
@@ -54,6 +55,13 @@ export class LiveChart implements OnDestroy {
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('container');
 
   private target: CandleChart | null = null;
+  /**
+   * Identifies the series currently drawn — its length and its end
+   * timestamps. Unchanged between two renders means the same candles are on
+   * screen and only the newest one's price moved, which is the incremental
+   * path; anything else is a new window and gets redrawn whole.
+   */
+  private appliedSignature: string | null = null;
   private priceLines: IPriceLine[] = [];
   private resizeObserver: ResizeObserver | null = null;
 
@@ -64,7 +72,16 @@ export class LiveChart implements OnDestroy {
       const candles = this.candles();
       if (!this.isBrowser) return;
       this.ensureChart();
-      if (this.target) applyCandles(this.target, candles, this.palette());
+      if (!this.target) return;
+
+      const signature = seriesSignature(candles);
+      const last = candles[candles.length - 1];
+      if (last && signature === this.appliedSignature) {
+        updateLastCandle(this.target, last, this.palette());
+        return;
+      }
+      applyCandles(this.target, candles, this.palette());
+      this.appliedSignature = signature;
     });
 
     effect(() => {
@@ -140,4 +157,14 @@ export class LiveChart implements OnDestroy {
     if (overlays.target !== null) add(overlays.target, 'Target', palette.up, true);
     if (overlays.invalidation !== null) add(overlays.invalidation, 'Stop', palette.down, true);
   }
+}
+
+/**
+ * A cheap identity for a drawn series. Deliberately ignores prices: a live
+ * tick only ever changes the newest candle's OHLC, never which candles are on
+ * screen, so prices must not be part of what decides "same series".
+ */
+function seriesSignature(candles: LiveCandle[]): string {
+  if (candles.length === 0) return '0';
+  return `${candles.length}|${candles[0].timestamp}|${candles[candles.length - 1].timestamp}`;
 }

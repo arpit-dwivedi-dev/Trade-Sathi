@@ -168,31 +168,54 @@ export function toTime(timestamp: string): Time {
   return (Date.parse(timestamp) / 1000) as UTCTimestamp;
 }
 
+function toBar(candle: LiveCandle): CandlestickData {
+  return {
+    time: toTime(candle.timestamp),
+    open: candle.open,
+    high: candle.high,
+    low: candle.low,
+    close: candle.close,
+  };
+}
+
+function toVolumeBar(candle: LiveCandle, palette: ChartPalette): HistogramData {
+  return {
+    time: toTime(candle.timestamp),
+    value: candle.volume,
+    color: candle.close >= candle.open ? `${palette.up}55` : `${palette.down}55`,
+  };
+}
+
+/**
+ * Replaces the whole series. This is the expensive path — it reparses every
+ * point and refits the time scale — so it belongs to a window change, not to
+ * a price moving. See updateLastCandle for the latter.
+ */
 export function applyCandles(
   target: CandleChart,
   candles: LiveCandle[],
   palette: ChartPalette,
 ): void {
-  const bars: CandlestickData[] = [];
-  const volumes: HistogramData[] = [];
-
-  for (const candle of candles) {
-    const time = toTime(candle.timestamp);
-    bars.push({
-      time,
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close,
-    });
-    volumes.push({
-      time,
-      value: candle.volume,
-      color: candle.close >= candle.open ? `${palette.up}55` : `${palette.down}55`,
-    });
-  }
-
-  target.priceSeries.setData(bars);
-  target.volumeSeries.setData(volumes);
+  target.priceSeries.setData(candles.map(toBar));
+  target.volumeSeries.setData(candles.map((candle) => toVolumeBar(candle, palette)));
   target.chart.timeScale().fitContent();
+}
+
+/**
+ * Redraws only the newest candle, which is the one a live price moves.
+ *
+ * This exists because streaming made the difference matter: setData() on every
+ * tick reparses the entire series and, worse, fitContent() snaps the time
+ * scale back — so a live chart both stuttered and fought any pan or zoom the
+ * user tried. `update()` is the library's incremental path and touches one
+ * bar, which is what makes a streaming chart feel immediate rather than
+ * merely correct.
+ */
+export function updateLastCandle(
+  target: CandleChart,
+  candle: LiveCandle,
+  palette: ChartPalette,
+): void {
+  target.priceSeries.update(toBar(candle));
+  target.volumeSeries.update(toVolumeBar(candle, palette));
 }

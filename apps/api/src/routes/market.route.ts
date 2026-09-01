@@ -63,6 +63,7 @@ marketRouter.get("/api/market/candles", requireAuth, async (req: Request, res: R
     res.json({
       instrument: { id: ref.instrumentId, symbol: ref.symbol, name: ref.name, exchange: ref.exchange },
       timeframeLabel: window.timeframeLabel,
+      intervalMinutes: window.intervalMinutes,
       marketDataDate: window.marketDataDate,
       candles: window.candles,
     });

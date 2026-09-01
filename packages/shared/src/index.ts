@@ -71,3 +71,45 @@ export function isDisposableEmail(email: string): boolean {
   const domain = email.trim().toLowerCase().split('@').pop();
   return !!domain && DISPOSABLE_EMAIL_DOMAINS.has(domain);
 }
+
+/**
+ * Wire protocol for the live market-data socket (`/api/market/stream`).
+ *
+ * The API proxies Yahoo Finance's streaming socket rather than the browser
+ * connecting to it directly, so this is the one contract between them. It
+ * lives here, not in either app, because a message the server sends and the
+ * client never learns to read is a silent failure — the compiler should catch
+ * a divergence.
+ *
+ * A browser cannot set headers on a WebSocket handshake, so the session
+ * authenticates with an `auth` message as its first frame rather than an
+ * Authorization header. The token is deliberately not a query parameter:
+ * URLs end up in access logs, and this one is a bearer credential.
+ */
+
+/** Messages the browser sends. */
+export type MarketStreamClientMessage =
+  | { type: 'auth'; token: string }
+  /** One instrument at a time — this replaces any previous subscription. */
+  | { type: 'subscribe'; instrumentId: string }
+  | { type: 'unsubscribe' };
+
+/**
+ * A single price update. Deliberately just the traded price and when it
+ * traded: the provider's frame carries more (day high/low, volume, session),
+ * but nothing on the live chart reads those, and a field on the wire that no
+ * client consumes is a contract to keep for no benefit.
+ */
+export interface MarketTick {
+  instrumentId: string;
+  price: number;
+  /** Epoch milliseconds. */
+  time: number;
+}
+
+/** Messages the API sends. */
+export type MarketStreamServerMessage =
+  | { type: 'ready' }
+  | { type: 'subscribed'; instrumentId: string }
+  | { type: 'tick'; tick: MarketTick }
+  | { type: 'error'; code: 'unauthorized' | 'not_found' | 'bad_request'; message: string };

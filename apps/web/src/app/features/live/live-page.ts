@@ -6,6 +6,7 @@ import {
   OnInit,
   PLATFORM_ID,
   computed,
+  effect,
   inject,
   output,
   signal,
@@ -14,13 +15,14 @@ import { FormsModule } from '@angular/forms';
 import { firstValueFrom, Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
-import type { Instrument } from '@chartanalyzer/shared';
+import type { Instrument, MarketTick } from '@chartanalyzer/shared';
 import { AuthService } from '../../core/auth.service';
 import { AnalysisResult } from '../analyze/analysis-result';
 import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
 import { LiveChart, type ChartOverlays, type LiveCandle } from '../../shared/live-chart/live-chart';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import { LiveService, type LiveAnalysisHandle } from './live.service';
+import { MarketStreamService } from './market-stream.service';
 import { HttpClient } from '@angular/common/http';
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -52,6 +54,24 @@ const INTRADAY_REFRESH_MS = 30_000;
 const DAILY_REFRESH_MS = 5 * 60_000;
 const INTRADAY_MAX_LOOKBACK_DAYS = 7;
 
+/**
+ * The intraday poll cadence once the live socket is delivering ticks. The
+ * poll is no longer what moves the chart's right-hand edge — ticks do that —
+ * so it drops back to its remaining job: picking up candles after they close,
+ * and correcting the streamed candle against the provider's own numbers.
+ * The daily cadence is already slow enough to need no streaming variant.
+ */
+const STREAMING_INTRADAY_REFRESH_MS = 2 * 60_000;
+
+/**
+ * Floor on how often a candle rollover may trigger an out-of-band refetch.
+ * A rollover is the one moment the timer above is too slow to hide — the
+ * streamed price has moved into a candle this page does not have yet — so it
+ * fetches immediately instead of waiting, and this keeps that from becoming a
+ * per-tick request if the bucket maths ever disagrees with the provider's.
+ */
+const ROLLOVER_REFETCH_MIN_GAP_MS = 5_000;
+
 type AnalyzeState = 'idle' | 'starting' | 'processing' | 'complete' | 'failed' | 'quota_exceeded';
 
 /**
@@ -73,6 +93,7 @@ export class LivePage implements OnInit, OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly live = inject(LiveService);
   private readonly chartCapture = inject(ChartCaptureService);
+  private readonly stream = inject(MarketStreamService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
@@ -90,17 +111,35 @@ export class LivePage implements OnInit, OnDestroy {
   protected readonly lookbackDays = signal<number>(90);
   protected readonly candles = signal<LiveCandle[]>([]);
   protected readonly timeframeLabel = signal<string | null>(null);
+  protected readonly intervalMinutes = signal(0);
   protected readonly loadingChart = signal(false);
   protected readonly chartError = signal<string | null>(null);
   protected readonly lastRefreshedAt = signal<string | null>(null);
+
+  /**
+   * Last price from the live socket, kept apart from the candles because a
+   * tick can arrive for a candle this page has not fetched yet — the readout
+   * should still move in that gap even though the chart cannot.
+   */
+  private readonly streamPrice = signal<number | null>(null);
+  /** True while the socket is confirmed subscribed to the shown instrument. */
+  protected readonly streaming = this.stream.streaming;
 
   protected readonly analyzeState = signal<AnalyzeState>('idle');
   protected readonly analyzeError = signal<string | null>(null);
   protected readonly row = signal<AnalysisRow | null>(null);
   protected readonly patterns = signal<AnalysisPattern[]>([]);
 
-  /** The latest close, shown as the live price next to the symbol. */
+  /**
+   * The live price shown next to the symbol: a streamed tick when one has
+   * arrived for this instrument, otherwise the latest close from the polled
+   * candles. Falling back rather than requiring the stream is deliberate —
+   * outside market hours, and whenever the socket is unavailable, this shows
+   * exactly what it showed before streaming existed.
+   */
   protected readonly lastPrice = computed(() => {
+    const streamed = this.streamPrice();
+    if (streamed !== null) return streamed;
     const candles = this.candles();
     return candles.length > 0 ? candles[candles.length - 1].close : null;
   });
@@ -125,9 +164,26 @@ export class LivePage implements OnInit, OnDestroy {
   private readonly querySubject = new Subject<string>();
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private pending: LiveAnalysisHandle | null = null;
+  /** Releases the socket's subscription for the current instrument. */
+  private stopStream: (() => void) | null = null;
+  private lastRolloverFetchAt = 0;
   /** Guards against a slow fetch for an abandoned symbol/window painting over
    *  the current one. Incremented on every user-initiated chart change. */
   private requestSeq = 0;
+
+  constructor() {
+    // The poll cadence depends on whether ticks are arriving, and that can
+    // flip at any time (socket connects, drops, reconnects). Re-arming the
+    // timer from an effect keeps the two in step without the socket needing
+    // to know a timer exists.
+    effect(() => {
+      const streaming = this.stream.streaming();
+      void streaming;
+      if (!this.isBrowser || !this.instrument()) return;
+      this.stopRefreshing();
+      this.startRefreshing();
+    });
+  }
 
   ngOnInit(): void {
     this.querySubject
@@ -151,6 +207,7 @@ export class LivePage implements OnInit, OnDestroy {
 
   private teardown(): void {
     this.stopRefreshing();
+    this.stopStreaming();
     this.pending?.cancel();
     this.pending = null;
   }
@@ -212,6 +269,7 @@ export class LivePage implements OnInit, OnDestroy {
     await this.fetchWindow(instrument.id, this.lookbackDays());
     this.loadingChart.set(false);
     this.startRefreshing();
+    this.startStreaming(instrument.id);
   }
 
   private async fetchWindow(instrumentId: string, lookbackDays: number): Promise<void> {
@@ -226,14 +284,18 @@ export class LivePage implements OnInit, OnDestroy {
     this.chartError.set(null);
     this.candles.set(result.window.candles);
     this.timeframeLabel.set(result.window.timeframeLabel);
+    this.intervalMinutes.set(result.window.intervalMinutes);
     this.lastRefreshedAt.set(new Date().toISOString());
   }
 
   private startRefreshing(): void {
     // No timers during SSR, and none while the tab is hidden — see refresh().
     if (!this.isBrowser || !this.instrument()) return;
-    const interval =
-      this.lookbackDays() <= INTRADAY_MAX_LOOKBACK_DAYS ? INTRADAY_REFRESH_MS : DAILY_REFRESH_MS;
+    const intraday = this.lookbackDays() <= INTRADAY_MAX_LOOKBACK_DAYS;
+    const intradayInterval = this.stream.streaming()
+      ? STREAMING_INTRADAY_REFRESH_MS
+      : INTRADAY_REFRESH_MS;
+    const interval = intraday ? intradayInterval : DAILY_REFRESH_MS;
     this.refreshTimer = setInterval(() => void this.refresh(), interval);
   }
 
@@ -251,6 +313,74 @@ export class LivePage implements OnInit, OnDestroy {
     // provider's rate limit. The next visible tick catches up.
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
     await this.fetchWindow(instrument.id, this.lookbackDays());
+  }
+
+  /**
+   * Points the live socket at `instrumentId`. Only the price side of the view
+   * depends on this: if the socket never connects, everything here keeps
+   * working off the REST poll.
+   */
+  private startStreaming(instrumentId: string): void {
+    this.stopStreaming();
+    if (!this.isBrowser) return;
+    this.stopStream = this.stream.watchInstrument(instrumentId, (tick) => this.applyTick(tick));
+  }
+
+  private stopStreaming(): void {
+    this.stopStream?.();
+    this.stopStream = null;
+    this.streamPrice.set(null);
+  }
+
+  /**
+   * Folds one streamed price into the view: the price readout always, and the
+   * candle currently forming when the tick actually belongs to it.
+   *
+   * The bucket check is the point. A tick past the last candle's interval
+   * belongs to a candle this page has not been given, and inventing one from a
+   * single price would put a candle on the chart — and into the image the
+   * model reads — that no exchange ever printed. That tick moves the readout
+   * and nothing else; the next poll brings the real candle.
+   */
+  private applyTick(tick: MarketTick): void {
+    if (!Number.isFinite(tick.price)) return;
+    this.streamPrice.set(tick.price);
+
+    const candles = this.candles();
+    const last = candles[candles.length - 1];
+    const intervalMs = this.intervalMinutes() * 60_000;
+    if (!last || intervalMs <= 0) return;
+
+    const openedAt = Date.parse(last.timestamp);
+    if (Number.isNaN(openedAt)) return;
+    // Out-of-order and late ticks are both possible on a reconnect.
+    if (tick.time < openedAt) return;
+    if (tick.time >= openedAt + intervalMs) {
+      // The price has moved into a candle that has not been fetched. Ask for
+      // it now rather than letting the chart sit frozen until the next timer
+      // tick — that gap was the whole of the pause at every interval
+      // boundary, and it is the moment a live chart most needs to move.
+      this.requestRolloverRefetch();
+      return;
+    }
+
+    this.candles.set([
+      ...candles.slice(0, -1),
+      {
+        ...last,
+        close: tick.price,
+        high: Math.max(last.high, tick.price),
+        low: Math.min(last.low, tick.price),
+      },
+    ]);
+  }
+
+  /** Fetches the newly-opened candle, at most once per gap. */
+  private requestRolloverRefetch(): void {
+    const now = Date.now();
+    if (now - this.lastRolloverFetchAt < ROLLOVER_REFETCH_MIN_GAP_MS) return;
+    this.lastRolloverFetchAt = now;
+    void this.refresh();
   }
 
   private resetAnalysis(): void {

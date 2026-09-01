@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import express from "express";
 import { env } from "./lib/env.js";
 import { logger } from "./lib/logger.js";
@@ -7,6 +8,7 @@ import { billingRouter } from "./routes/billing.route.js";
 import { healthRouter } from "./routes/health.route.js";
 import { instrumentsRouter } from "./routes/instruments.route.js";
 import { internalRouter } from "./routes/internal.route.js";
+import { attachMarketStream } from "./routes/market-stream.route.js";
 import { marketRouter } from "./routes/market.route.js";
 import { meRouter } from "./routes/me.route.js";
 import { watchlistRouter } from "./routes/watchlist.route.js";
@@ -30,7 +32,12 @@ app.use(internalRouter);
 app.use(marketRouter);
 app.use(watchlistRouter);
 
-app.listen(env.port, () => {
+// An explicit http.Server rather than app.listen(): the live market stream
+// needs the underlying server to hook WebSocket upgrades onto.
+const server = createServer(app);
+attachMarketStream(server);
+
+server.listen(env.port, () => {
   logger.info(`api listening on port ${env.port}`);
 });
 

@@ -31,7 +31,7 @@ function candleOn(date: string): Candle {
 
 describe("candleSpecFor", () => {
   it("uses intraday candles for windows too short to have daily ones", () => {
-    expect(candleSpecFor(1)).toMatchObject({ unit: "minutes", interval: 5 });
+    expect(candleSpecFor(1)).toMatchObject({ unit: "minutes", interval: 1 });
     expect(candleSpecFor(7)).toMatchObject({ unit: "minutes", interval: 30 });
   });
 

@@ -14,6 +14,29 @@ declare global {
 const BEARER_PREFIX = "Bearer ";
 
 /**
+ * Verifies a Supabase access token and returns the profile id it identifies,
+ * or null when it is missing/invalid/expired.
+ *
+ * Split out of requireAuth because the live market-data socket needs the same
+ * verification without an Express request: a browser cannot set headers on a
+ * WebSocket handshake, so it authenticates with a message instead. Both paths
+ * must decide "who is this" identically, so they share this one function.
+ */
+export async function verifyAccessToken(token: string): Promise<string | null> {
+  if (!token) return null;
+  try {
+    const { data, error } = await supabaseAuth.auth.getClaims(token);
+    if (error || !data?.claims?.sub) return null;
+    return data.claims.sub;
+  } catch (cause) {
+    // getClaims can throw rather than return an error (e.g. JWKS fetch failure).
+    logger.error("jwt verification threw", { cause: String(cause) });
+    return null;
+  }
+}
+
+
+/**
  * Verifies the caller's Supabase JWT and pins their identity onto the request.
  *
  * This is cryptographic validation and identity extraction only — it deliberately
@@ -37,20 +60,12 @@ export async function requireAuth(
     return;
   }
 
-  try {
-    const { data, error } = await supabaseAuth.auth.getClaims(token);
-    if (error || !data?.claims?.sub) {
-      res.status(401).json({ error: "Invalid or expired token" });
-      return;
-    }
-    req.profileId = data.claims.sub;
-  } catch (cause) {
-    // getClaims can throw rather than return an error (e.g. JWKS fetch failure);
-    // never let that surface as a 500.
-    logger.error("jwt verification threw", { cause: String(cause) });
+  const profileId = await verifyAccessToken(token);
+  if (!profileId) {
     res.status(401).json({ error: "Invalid or expired token" });
     return;
   }
+  req.profileId = profileId;
 
   next();
 }

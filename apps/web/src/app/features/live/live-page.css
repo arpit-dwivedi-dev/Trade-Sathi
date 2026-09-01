@@ -116,3 +116,33 @@
   flex-wrap: wrap;
   color: var(--down);
 }
+
+/* Streaming indicator next to the live price. Present only while the socket
+   is actually delivering ticks, so its absence is meaningful: the price shown
+   is the last polled close, not a live one. */
+.live-tick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--up);
+}
+
+.live-tick-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--up);
+  animation: live-tick-pulse 2s ease-in-out infinite;
+}
+
+@keyframes live-tick-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-tick-dot {
+    animation: none;
+  }
+}

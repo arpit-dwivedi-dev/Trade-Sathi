@@ -33,7 +33,10 @@ export interface CandleSpec {
  * months, so nothing beyond a week asks for it.
  */
 export function candleSpecFor(lookbackDays: number): CandleSpec {
-  if (lookbackDays <= 1) return { unit: "minutes", interval: 5, label: "5m" };
+  // 1-minute for the single-day window: this is the one people watch a live
+  // price on, and a 5-minute candle only visibly moves a few times an hour —
+  // the streamed price was updating a bar that looked static.
+  if (lookbackDays <= 1) return { unit: "minutes", interval: 1, label: "1m" };
   if (lookbackDays <= 7) return { unit: "minutes", interval: 30, label: "30m" };
   return { unit: "days", interval: 1, label: "1D" };
 }
@@ -102,8 +105,22 @@ export async function fetchInstrumentById(instrumentId: string): Promise<Instrum
  * candle interval they serve, so a cache hit can never hide a closed candle
  * for longer than it takes the next one to form.
  */
-const INTRADAY_TTL_MS = 30_000;
 const DAILY_TTL_MS = 5 * 60_000;
+/**
+ * Intraday entries expire as a fraction of the candle they serve, not on a
+ * fixed timer. A flat 30s was fine for 5-minute candles and far too long for
+ * 1-minute ones: the live view refetches the moment a streamed price crosses
+ * into a new candle, and a stale entry would answer that request with the
+ * candle it already had. Bounded at both ends so a fine granularity cannot
+ * turn into a hot loop against the upstream provider.
+ */
+const INTRADAY_TTL_MIN_MS = 5_000;
+const INTRADAY_TTL_MAX_MS = 30_000;
+
+function intradayTtlMs(intervalMinutes: number): number {
+  const sixth = (intervalMinutes * 60_000) / 6;
+  return Math.min(Math.max(sixth, INTRADAY_TTL_MIN_MS), INTRADAY_TTL_MAX_MS);
+}
 const cache = new Map<string, { candles: Candle[]; fetchedAt: number }>();
 
 /** Test seam: the cache is process-global, which would otherwise leak between tests. */
@@ -116,6 +133,13 @@ export interface CandleWindow {
   spec: CandleSpec;
   /** Granularity and window together, e.g. "1D · 90d" or "5m · 1d". */
   timeframeLabel: string;
+  /**
+   * Length of one candle in minutes. Sent to the client so it can tell
+   * whether a streamed tick still belongs to the last candle it was given
+   * (extend it) or to a candle that has not been fetched yet (leave it to
+   * the next poll) — without duplicating candleSpecFor in the browser.
+   */
+  intervalMinutes: number;
   /** Calendar date of the most recent candle; null when the window is empty. */
   marketDataDate: string | null;
 }
@@ -136,7 +160,7 @@ export async function getCandlesForInstrument(
   const toDate = todayIsoDate();
   const fromDate = subtractDays(toDate, lookbackDays);
   const cacheKey = `${ref.instrumentKey}|${spec.unit}|${spec.interval}|${fromDate}|${toDate}`;
-  const ttl = spec.unit === "minutes" ? INTRADAY_TTL_MS : DAILY_TTL_MS;
+  const ttl = spec.unit === "minutes" ? intradayTtlMs(spec.interval) : DAILY_TTL_MS;
 
   const cached = cache.get(cacheKey);
   let candles: Candle[];
@@ -159,6 +183,7 @@ export async function getCandlesForInstrument(
     candles,
     spec,
     timeframeLabel: `${spec.label} · ${lookbackDays}d`,
+    intervalMinutes: spec.unit === "minutes" ? spec.interval : spec.interval * 24 * 60,
     marketDataDate: last ? last.timestamp.slice(0, 10) : null,
   };
 }

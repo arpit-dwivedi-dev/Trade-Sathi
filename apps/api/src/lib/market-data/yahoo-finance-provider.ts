@@ -68,7 +68,9 @@ function toYahooRange(spanDays: number): string {
   return "1y";
 }
 
-const SUPPORTED_MINUTE_INTERVALS = [5, 15, 30, 60];
+// 1m and 2m are Yahoo's finest intervals and carry the shortest history
+// upstream (a few days); toYahooRange never pairs them with a range past that.
+const SUPPORTED_MINUTE_INTERVALS = [1, 2, 5, 15, 30, 60];
 
 function toYahooInterval(unit: HistoricalCandlesParams["unit"], interval: number): string {
   if (unit === "days" && interval === 1) return "1d";
