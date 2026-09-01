@@ -22,6 +22,22 @@
   border-bottom: 0;
 }
 
+/* toggle and export sit side by side; the toggle takes the leftover width */
+.history-row-head {
+  align-items: center;
+  display: flex;
+}
+
+.history-row-head .trow {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-export {
+  flex: none;
+  margin-right: var(--s4);
+}
+
 /* the row button carries .tr, so it must not add a second border */
 .history-row .trow {
   background: none;
@@ -133,6 +149,17 @@
 
   .history-chevron {
     display: none;
+  }
+
+  /* the export button drops under the card rather than squeezing it */
+  .history-row-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .history-export {
+    align-self: flex-start;
+    margin: 0 var(--s4) var(--s4);
   }
 
   .history-detail {

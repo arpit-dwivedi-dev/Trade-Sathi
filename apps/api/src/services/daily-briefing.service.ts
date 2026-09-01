@@ -1,14 +1,12 @@
-import { renderCandlestickChart } from "./chart-image.service.js";
-import { runVisualAnalysis, AnalysisFailure } from "./ai-analysis.service.js";
 import type { AnalysisAiResult } from "./ai-analysis.service.js";
+import { runInstrumentAnalysis, type ProvidedChart } from "./instrument-analysis.service.js";
+import { todayIsoDate, type InstrumentRef } from "./market-chart.service.js";
 import {
   getEnabledWatchlistItems,
   getWatchlistItemForProfile,
   listProfilesWithEnabledWatchlist,
   type EnabledWatchlistItem,
 } from "./watchlist.service.js";
-import { YahooFinanceMarketDataProvider } from "../lib/market-data/yahoo-finance-provider.js";
-import { MarketDataError, type MarketDataProvider } from "../lib/market-data/types.js";
 import {
   buildDailyBriefingEmail,
   type BriefingItem,
@@ -18,35 +16,7 @@ import { sendEmail } from "../lib/email/resend-client.js";
 import { logger } from "../lib/logger.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 
-// Upper bound on candles drawn, not on candles fetched: the renderer has a
-// fixed 1200px width, and past this the individual candles stop being
-// readable (and so stop being analysable). A longer per-item lookback still
-// widens the window; it just keeps the most recent MAX_CANDLES_FOR_CHART of
-// it. The per-item lookback itself lives in watchlist_items.
-const MAX_CANDLES_FOR_CHART = 250;
-
-/**
- * Candle granularity for a chart window. A one-day or one-week window has too
- * few daily candles to read anything from (one, and about five), so short
- * windows are drawn from intraday candles instead. The thresholds are also
- * bounded by the provider: intraday history upstream goes back days, not
- * months, so nothing beyond a week asks for it.
- */
-function candleSpecFor(lookbackDays: number): {
-  unit: "minutes" | "days";
-  interval: number;
-  label: string;
-} {
-  if (lookbackDays <= 1) return { unit: "minutes", interval: 5, label: "5m" };
-  if (lookbackDays <= 7) return { unit: "minutes", interval: 30, label: "30m" };
-  return { unit: "days", interval: 1, label: "1D" };
-}
-
-const BUCKET = "chart-images";
-
 const IST_OFFSET_MINUTES = 5.5 * 60;
-
-const marketDataProvider: MarketDataProvider = new YahooFinanceMarketDataProvider();
 
 function currentUtcPeriod(): string {
   return new Date().toISOString().slice(0, 7);
@@ -56,49 +26,6 @@ function currentUtcPeriod(): string {
 function currentIstHour(): number {
   const istMs = Date.now() + IST_OFFSET_MINUTES * 60 * 1000;
   return new Date(istMs).getUTCHours();
-}
-
-function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function subtractDays(isoDate: string, days: number): string {
-  const d = new Date(`${isoDate}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
-/**
- * Stores a generated watchlist chart so the user can see the exact image the
- * analysis was read from, the same way they can for an uploaded screenshot.
- *
- * The leading path segment MUST be the profile id: the chart-images bucket's
- * SELECT policy authorises a read by matching `(storage.foldername(name))[1]`
- * against auth.uid(). A key that starts with anything else uploads fine (the
- * service role bypasses RLS on write) and is then unreadable by the only
- * person meant to see it.
- *
- * A failure is logged and swallowed, deliberately: the AI result is already
- * complete and useful, and discarding it — along with the quota unit and the
- * provider spend behind it — over a missing picture would be a worse outcome.
- * The row keeps the key either way, so a failed store surfaces as an image
- * that will not load rather than as a silently different kind of analysis.
- */
-async function storeWatchlistChart(imageKey: string, imageBuffer: Buffer): Promise<void> {
-  // upsert: the scheduled job and an Analyze Now run on the same instrument
-  // and the same market-data date derive the identical key. Without this the
-  // second one fails on a duplicate object for what is genuinely the same
-  // chart.
-  const { error } = await supabaseAdmin.storage
-    .from(BUCKET)
-    .upload(imageKey, imageBuffer, { contentType: "image/png", upsert: true });
-
-  if (error) {
-    logger.error("watchlist chart image upload failed", {
-      imageKey,
-      cause: String(error),
-    });
-  }
 }
 
 type EntitlementOutcome = "consumed" | "no_subscription" | "quota_exhausted";
@@ -145,156 +72,49 @@ interface ProcessedItem {
 }
 
 /**
- * Runs one watchlist item through: Yahoo Finance candles -> chart image -> the
- * SAME Visual AI pipeline used by manual uploads -> a new stored analysis row.
- * Returns null (having already released the quota unit it consumed) if
- * anything fails before a valid analysis is durably stored — quota must never
- * be spent on a failed attempt.
+ * Runs one watchlist item through the shared instrument pipeline (candles ->
+ * chart image -> the SAME visual AI call manual uploads use -> a stored
+ * analysis row). Returns null — having already released the Daily Briefing
+ * quota unit its caller consumed — if anything fails before a valid analysis
+ * is durably stored: quota must never be spent on a failed attempt.
+ *
+ * `providedChart` is the chart the requesting browser drew, present only on
+ * the Analyze Now path. The scheduled run has no browser and always leaves
+ * the pipeline to render its own.
  */
 export async function processWatchlistItem(
   profileId: string,
   item: EnabledWatchlistItem,
   period: string,
+  providedChart?: ProvidedChart | null,
 ): Promise<ProcessedItem | null> {
-  const spec = candleSpecFor(item.analysisLookbackDays);
-  let candles;
-  try {
-    const toDate = todayIsoDate();
-    const fromDate = subtractDays(toDate, item.analysisLookbackDays);
-    const fetched = await marketDataProvider.getHistoricalCandles({
-      instrumentKey: item.instrumentKey,
-      unit: spec.unit,
-      interval: spec.interval,
-      toDate,
-      fromDate,
-    });
-    // The provider widens the request to the nearest range its upstream
-    // accepts, so anything older than the window the user asked for is
-    // dropped here rather than quietly drawn.
-    candles = fetched.filter((candle) => candle.timestamp.slice(0, 10) >= fromDate);
-  } catch (cause) {
-    logger.error("watchlist item market-data fetch failed", {
-      profileId,
-      instrumentKey: item.instrumentKey,
-      reason: cause instanceof MarketDataError ? cause.reason : "unknown",
-      cause: String(cause),
-    });
-    await releaseDailyBriefingEntitlement(profileId, period);
-    return null;
-  }
-
-  if (candles.length === 0) {
-    logger.error("watchlist item returned zero candles", {
-      profileId,
-      instrumentKey: item.instrumentKey,
-    });
-    await releaseDailyBriefingEntitlement(profileId, period);
-    return null;
-  }
-
-  const chartCandles = candles.slice(-MAX_CANDLES_FOR_CHART);
-  const lastCandle = chartCandles[chartCandles.length - 1];
-
-  let imageBuffer: Buffer;
-  try {
-    imageBuffer = await renderCandlestickChart(chartCandles, {
-      symbol: item.symbol,
-      name: item.name,
-      exchange: item.exchange,
-      // Granularity and window together, e.g. "1D · 90d" or "5m · 1d".
-      timeframeLabel: `${spec.label} · ${item.analysisLookbackDays}d`,
-    });
-  } catch (cause) {
-    logger.error("chart image generation failed", {
-      profileId,
-      instrumentKey: item.instrumentKey,
-      cause: String(cause),
-    });
-    await releaseDailyBriefingEntitlement(profileId, period);
-    return null;
-  }
-
-  let visual;
-  try {
-    visual = await runVisualAnalysis(imageBuffer, "image/png");
-  } catch (cause) {
-    logger.error("watchlist item AI analysis failed", {
-      profileId,
-      instrumentKey: item.instrumentKey,
-      errorCode: cause instanceof AnalysisFailure ? cause.code : "unknown",
-      cause: String(cause),
-    });
-    await releaseDailyBriefingEntitlement(profileId, period);
-    return null;
-  }
-
-  const marketDataDate = lastCandle.timestamp.slice(0, 10);
-  // The lookback is part of the key: two runs on the same instrument and the
-  // same market-data date but different windows render genuinely different
-  // charts, and a shared key would leave the earlier analysis pointing at the
-  // later run's image.
-  const imageKey = `${profileId}/watchlist-daily/${item.instrumentId}/${marketDataDate}-${item.analysisLookbackDays}d.png`;
-  await storeWatchlistChart(imageKey, imageBuffer);
-
-  const { data: insertedRow, error: insertError } = await supabaseAdmin
-    .from("analyses")
-    .insert({
-    profile_id: profileId,
-    source_type: "upload", // schema requires a value; not meaningful for this source — see note below
-    source: "watchlist_daily",
-    instrument_id: item.instrumentId,
-    market_data_date: marketDataDate,
-    image_key: imageKey,
-    symbol_raw: visual.result.symbol,
+  const ref: InstrumentRef = {
+    instrumentId: item.instrumentId,
+    instrumentKey: item.instrumentKey,
+    exchange: item.exchange,
     symbol: item.symbol,
-    asset_class: visual.result.asset_class,
-    timeframe: visual.result.timeframe,
-    trend: visual.result.trend,
-    volatility: visual.result.volatility,
-    volume_reading: visual.result.volume,
-    sentiment: visual.result.sentiment,
-    support_levels: visual.result.support_levels,
-    resistance_levels: visual.result.resistance_levels,
-    call_direction: visual.result.call.direction,
-    call_confidence: visual.result.call.confidence,
-    call_entry: visual.result.call.entry,
-    call_invalidation: visual.result.call.invalidation,
-    call_target: visual.result.call.target,
-    horizon_candles: visual.result.call.horizon_candles,
-    summary: visual.result.summary,
-    model_id: process.env["AI_MODEL"] ?? "unknown",
-    prompt_version: "v2",
-    input_tokens: visual.inputTokens,
-    output_tokens: visual.outputTokens,
-    latency_ms: visual.latencyMs,
-    status: "complete",
-    analysis_lookback_days: item.analysisLookbackDays,
-    })
-    .select("id")
-    .single<{ id: string }>();
+    name: item.name,
+  };
 
-  if (insertError || !insertedRow) {
-    logger.error("failed to persist watchlist analysis", {
-      profileId,
-      instrumentKey: item.instrumentKey,
-      cause: String(insertError),
-    });
+  const result = await runInstrumentAnalysis(
+    profileId,
+    ref,
+    item.analysisLookbackDays,
+    "watchlist_daily",
+    providedChart,
+  );
+
+  if (!result) {
     await releaseDailyBriefingEntitlement(profileId, period);
     return null;
   }
 
-  // Note on image_key/source_type above: image_key points at a real stored
-  // object, exactly as it does for the manual-upload path — the generated
-  // chart is uploaded above so the user can see the image their analysis was
-  // read from. source_type stays a placeholder required by that column's NOT
-  // NULL constraint; source = 'watchlist_daily' is the real, authoritative
-  // provenance signal — see the analyses-source-column migration.
   return {
     item,
-    analysisId: insertedRow.id,
-    marketDataDate,
-    latestPrice: lastCandle.close,
-    analysis: visual.result,
+    analysisId: result.analysisId,
+    marketDataDate: result.marketDataDate,
+    latestPrice: result.latestPrice,
+    analysis: result.analysis,
   };
 }
 
@@ -548,6 +368,7 @@ export async function analyzeWatchlistItemNow(
   profileId: string,
   watchlistItemId: string,
   force = false,
+  providedChart?: ProvidedChart | null,
 ): Promise<AnalyzeNowResult> {
   const item = await getWatchlistItemForProfile(profileId, watchlistItemId);
   if (!item) return { ok: false, reason: "not_found" };
@@ -608,7 +429,7 @@ export async function analyzeWatchlistItemNow(
   // already logged and compensated (quota release) inside
   // processWatchlistItem itself; settling the run row here is what turns
   // that into something the user can see after a reload.
-  void processWatchlistItem(profileId, item, period)
+  void processWatchlistItem(profileId, item, period, providedChart)
     .then((processed) => settleRun(runRow.id, processed ? "complete" : "failed", processed?.analysisId ?? null))
     .catch(async (cause: unknown) => {
       logger.error("watchlist analyze-now background processing failed", {

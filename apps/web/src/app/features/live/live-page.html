@@ -1,0 +1,117 @@
+<section class="body content-max live">
+  <div class="live-head">
+    <h1 class="live-title">Live chart</h1>
+    <span class="lbl dim">
+      Search any instrument, pick a window, and analyse exactly what's on screen.
+    </span>
+  </div>
+
+  <div class="card live-card">
+    <div class="hd"><span class="lbl-h">Instrument</span></div>
+    <div class="pad live-body">
+      <div class="live-search">
+        <input
+          class="input"
+          type="text"
+          placeholder="Search symbol or company, e.g. RELIANCE"
+          [ngModel]="queryInput()"
+          (ngModelChange)="onQueryChange($event)"
+          name="query"
+          autocomplete="off"
+        />
+
+        @if (searching()) {
+          <p class="dim live-hint">Searching…</p>
+        } @else if (results().length > 0) {
+          <ul class="live-suggestions">
+            @for (result of results(); track result.id) {
+              <li>
+                <button type="button" (click)="selectInstrument(result)">
+                  <span class="num">{{ result.symbol }}</span>
+                  <span class="dim">{{ result.name }}</span>
+                  <span class="live-exchange">{{ result.exchange }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        } @else if (searched()) {
+          <p class="dim live-hint">No instruments found.</p>
+        }
+      </div>
+    </div>
+  </div>
+
+  @if (instrument(); as picked) {
+    <div class="card live-card">
+      <div class="hd live-chart-head">
+        <span class="lbl-h">
+          {{ picked.symbol }}
+          <span class="dim">· {{ picked.exchange }}</span>
+        </span>
+        @if (lastPrice(); as price) {
+          <span class="num live-price">{{ price | number: '1.2-2' }}</span>
+        }
+      </div>
+
+      <div class="pad live-body">
+        <div class="live-windows" role="group" aria-label="Chart window">
+          @for (option of lookbackOptions; track option.days) {
+            <button
+              type="button"
+              class="btn btn-g btn-sm"
+              [attr.aria-pressed]="lookbackDays() === option.days"
+              (click)="selectLookback(option.days)"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+
+        @if (chartError(); as err) {
+          <p class="live-error">{{ err }}</p>
+        } @else if (loadingChart() && candles().length === 0) {
+          <div class="skel live-chart-skel" aria-busy="true"></div>
+        } @else {
+          <app-live-chart
+            [candles]="candles()"
+            [overlays]="overlays()"
+            [timeframeLabel]="timeframeLabel()"
+          />
+        }
+
+        <div class="live-actions">
+          <button
+            type="button"
+            class="btn btn-p"
+            [disabled]="busy() || candles().length === 0"
+            (click)="analyze()"
+          >
+            @if (busy()) {
+              <span class="spin" aria-hidden="true"></span>
+              Analysing…
+            } @else {
+              Analyse this chart
+            }
+          </button>
+
+          @if (lastRefreshedAt(); as refreshed) {
+            <span class="lbl dim">Updated {{ refreshed | date: 'HH:mm:ss' }}</span>
+          }
+        </div>
+
+        @if (analyzeState() === 'quota_exceeded') {
+          <p class="live-error">
+            {{ analyzeError() }}
+            <button type="button" class="btn btn-s btn-sm" (click)="openPlans()">See plans</button>
+          </p>
+        } @else if (analyzeState() === 'failed' && analyzeError()) {
+          <p class="live-error">{{ analyzeError() }}</p>
+        }
+      </div>
+    </div>
+
+    @if (row(); as analysis) {
+      <app-analysis-result [row]="analysis" [patterns]="patterns()" />
+    }
+  }
+</section>

@@ -143,10 +143,12 @@
                     <button
                       type="button"
                       class="btn btn-g btn-sm"
-                      [disabled]="!!runIdFor(item.id)"
+                      [disabled]="isBusy(item.id)"
                       (click)="analyzeNow(item)"
                     >
-                      @if (runIdFor(item.id)) {
+                      @if (preparing()[item.id]) {
+                        <span class="spin" aria-hidden="true"></span> Drawing chart…
+                      } @else if (runIdFor(item.id)) {
                         <span class="spin" aria-hidden="true"></span> Analyzing…
                       } @else {
                         Analyze Now

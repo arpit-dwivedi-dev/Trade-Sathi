@@ -1,68 +1,22 @@
-import { Router, type NextFunction, type Request, type Response } from "express";
-import multer from "multer";
+import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger.js";
+import { handleImageUpload } from "../middleware/image-upload.js";
 import { requireAuth } from "../middleware/auth.js";
 import { processAnalysis } from "../services/ai-analysis.service.js";
 import { createAnalysis } from "../services/analysis.service.js";
 
 export const analysesRouter = Router();
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
-
-const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
-
 const SOURCE_TYPES = ["paste", "upload"];
-
-// Memory storage: the bytes go straight from the request into a Buffer and on
-// into Supabase Storage, so the API never writes uploads to disk. The size
-// limit matches the chart-images bucket's own file_size_limit.
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_FILE_BYTES },
-});
-
-/**
- * Runs multer's single-file parse and converts its failures into 400s here.
- *
- * Multer reports errors — including LIMIT_FILE_SIZE for an oversized file — via
- * an error-first callback rather than a thrown exception, so mounting
- * upload.single('image') directly as middleware would hand those errors to an
- * Express error handler instead of this route. No global error handler exists
- * yet, and this route must not depend on one being added later.
- */
-function handleUpload(req: Request, res: Response, next: NextFunction): void {
-  upload.single("image")(req, res, (err: unknown) => {
-    if (err) {
-      if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-        res.status(400).json({ error: "File exceeds the 5MB limit" });
-        return;
-      }
-      res.status(400).json({ error: "Upload error" });
-      return;
-    }
-    next();
-  });
-}
 
 analysesRouter.post(
   "/api/analyses",
   requireAuth,
-  handleUpload,
+  handleImageUpload,
   async (req: Request, res: Response) => {
     const file = req.file;
     if (!file) {
       res.status(400).json({ error: "Missing image file" });
-      return;
-    }
-
-    // Trust boundary: this MVP validates the client-supplied mimetype only. It
-    // does not inspect file bytes (no magic-byte/signature check), so a client
-    // that lies about Content-Type can get non-image bytes stored under an image
-    // extension. Acceptable for MVP because the bucket is private and nothing
-    // currently executes or publicly serves this content; revisit with a library
-    // like `file-type` before broadening exposure (public URLs, wider sharing…).
-    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      res.status(400).json({ error: "Unsupported image type" });
       return;
     }
 

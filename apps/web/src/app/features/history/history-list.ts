@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 
 import { ChartImage } from '../../shared/chart-image';
 import { AnalysisResult } from '../analyze/analysis-result';
+import { AnalysisPdfService } from './analysis-pdf.service';
 import { HistoryService, type HistoryDetail, type HistoryRow } from './history.service';
 
 /**
@@ -19,6 +20,7 @@ import { HistoryService, type HistoryDetail, type HistoryRow } from './history.s
 })
 export class HistoryList implements OnInit {
   private readonly history = inject(HistoryService);
+  private readonly pdf = inject(AnalysisPdfService);
 
   protected readonly rows = signal<HistoryRow[]>([]);
   protected readonly nextCursor = signal<string | null>(null);
@@ -32,6 +34,10 @@ export class HistoryList implements OnInit {
   protected readonly detail = signal<HistoryDetail | null>(null);
   protected readonly detailLoading = signal(false);
   protected readonly detailError = signal<string | null>(null);
+
+  /** id of the row whose PDF is being generated, or null when none is. */
+  protected readonly exportingId = signal<string | null>(null);
+  protected readonly exportError = signal<string | null>(null);
 
   ngOnInit(): void {
     void this.loadFirstPage();
@@ -99,6 +105,32 @@ export class HistoryList implements OnInit {
       this.detailError.set("Couldn't load this analysis. Try again.");
     } finally {
       if (this.expandedId() === row.id) this.detailLoading.set(false);
+    }
+  }
+
+  /**
+   * Exports one analysis as a PDF. Works from the list row rather than only
+   * from an expanded detail, so it refetches the full row when the expanded
+   * detail is not the one being exported.
+   */
+  protected async exportPdf(row: HistoryRow, event: Event): Promise<void> {
+    // The row is a <button> that toggles the detail; exporting must not also
+    // expand or collapse it.
+    event.stopPropagation();
+    if (this.exportingId()) return;
+
+    this.exportingId.set(row.id);
+    this.exportError.set(null);
+    try {
+      const loaded = this.detail();
+      const detail =
+        loaded && loaded.row.id === row.id ? loaded : await this.history.fetchDetail(row.id);
+      await this.pdf.download(detail.row, detail.patterns);
+    } catch (cause) {
+      console.warn('analysis pdf export failed', cause);
+      this.exportError.set("Couldn't build the PDF. Try again.");
+    } finally {
+      this.exportingId.set(null);
     }
   }
 

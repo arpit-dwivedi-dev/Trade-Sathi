@@ -7,6 +7,8 @@ import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import type { Instrument } from '@chartanalyzer/shared';
 import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
+import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
+import { LiveService } from '../live/live.service';
 
 interface WatchlistItem {
   id: string;
@@ -70,6 +72,8 @@ export class Watchlist implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly supabase = inject(SupabaseClientService);
   private readonly http = inject(HttpClient);
+  private readonly live = inject(LiveService);
+  private readonly chartCapture = inject(ChartCaptureService);
 
   protected readonly items = signal<WatchlistItem[]>([]);
   protected readonly loading = signal(true);
@@ -82,6 +86,12 @@ export class Watchlist implements OnInit {
    * resumed here alongside anything this tab started.
    */
   protected readonly activeRuns = signal<Record<string, string>>({});
+  /**
+   * Items whose chart is being fetched and drawn, before the request is even
+   * sent. Separate from activeRuns because there is no run id yet, and the
+   * row still has to look busy — a capture takes a second or two.
+   */
+  protected readonly preparing = signal<Record<string, boolean>>({});
   /** Pending "you already analysed this" confirmation, keyed by item id. */
   protected readonly duplicateWarning = signal<
     Record<string, { lastAnalysisAt: string; lookbackDays: number }>
@@ -103,6 +113,11 @@ export class Watchlist implements OnInit {
   /** The in-flight run for a row, if any — drives its spinner/disabled state. */
   protected runIdFor(itemId: string): string | undefined {
     return this.activeRuns()[itemId];
+  }
+
+  /** True from the moment Analyze Now is pressed until its run settles. */
+  protected isBusy(itemId: string): boolean {
+    return this.preparing()[itemId] === true || this.activeRuns()[itemId] !== undefined;
   }
 
   protected readonly queryInput = signal('');
@@ -323,9 +338,13 @@ export class Watchlist implements OnInit {
    *
    * `force` re-runs a chart the user has already analysed recently, after
    * they have confirmed the duplicate warning below.
+   *
+   * The chart itself is drawn here, in the browser, and posted with the
+   * request — the same thing the live chart view does — so the model reads
+   * the chart this app renders rather than a separate server-side picture.
    */
   protected async analyzeNow(item: WatchlistItem, force = false): Promise<void> {
-    if (this.runIdFor(item.id)) return;
+    if (this.isBusy(item.id)) return;
     this.duplicateWarning.update((warnings) => {
       const rest = { ...warnings };
       delete rest[item.id];
@@ -340,6 +359,24 @@ export class Watchlist implements OnInit {
     const token = await this.auth.getAccessToken();
     if (!token) return;
 
+    this.preparing.update((rows) => ({ ...rows, [item.id]: true }));
+    let chart: Blob | null;
+    try {
+      chart = await this.captureChart(item);
+    } finally {
+      this.preparing.update((rows) => {
+        const rest = { ...rows };
+        delete rest[item.id];
+        return rest;
+      });
+    }
+
+    // Sent as multipart, and deliberately without an explicit Content-Type:
+    // the browser has to set it itself so the multipart boundary matches.
+    const form = new FormData();
+    form.append('force', String(force));
+    if (chart) form.append('image', chart, 'chart.png');
+
     try {
       // The API kicks off the fetch/chart/AI pipeline in the background and
       // responds as soon as its fast checks pass (202) — the pipeline itself
@@ -347,11 +384,9 @@ export class Watchlist implements OnInit {
       // request open. It records the run in watchlist_analysis_runs (readable
       // under RLS) and we poll that row rather than waiting on this call.
       const accepted = await firstValueFrom(
-        this.http.post<{ runId: string }>(
-          `/api/watchlist/${item.id}/analyze-now`,
-          { force },
-          { headers: { Authorization: `Bearer ${token}` } },
-        ),
+        this.http.post<{ runId: string }>(`/api/watchlist/${item.id}/analyze-now`, form, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       );
       this.activeRuns.update((runs) => ({ ...runs, [item.id]: accepted.runId }));
       await this.pollRun(item.id, accepted.runId);
@@ -379,6 +414,30 @@ export class Watchlist implements OnInit {
       }
       this.analyzeResult.update((results) => ({ ...results, [item.id]: message }));
     }
+  }
+
+  /**
+   * Fetches this row's window and renders it with the same chart component
+   * the live view uses, off-screen, returning the PNG to post.
+   *
+   * Null on any failure — a legacy row with no resolved instrument, market
+   * data that will not load, a browser that refuses the canvas export. The
+   * API then renders the chart itself, exactly as the scheduled daily
+   * briefing does, so the analysis still happens.
+   */
+  private async captureChart(item: WatchlistItem): Promise<Blob | null> {
+    const instrumentId = item.instrument_id;
+    if (!instrumentId) return null;
+
+    const result = await this.live.fetchCandles(instrumentId, item.analysis_lookback_days);
+    if (!result.ok) return null;
+
+    return this.chartCapture.capture(result.window.candles, {
+      symbol: result.window.instrument.symbol,
+      name: result.window.instrument.name,
+      exchange: result.window.instrument.exchange,
+      timeframeLabel: result.window.timeframeLabel,
+    });
   }
 
   protected dismissDuplicate(itemId: string): void {

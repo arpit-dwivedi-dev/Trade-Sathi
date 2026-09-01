@@ -16,12 +16,12 @@ export type CreateAnalysisResult =
 
 /** Which entitlement check_and_consume_entitlement actually spent, so the
  *  compensation path can give back the same one. */
-type EntitlementSource = "quota" | "credit";
+export type EntitlementSource = "quota" | "credit";
 
 /** The current UTC year-month, in the same 'YYYY-MM' shape that
  *  check_and_increment_usage computes internally via
  *  to_char(now() at time zone 'UTC', 'YYYY-MM'). */
-function currentUtcPeriod(): string {
+export function currentUtcPeriod(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
@@ -66,7 +66,7 @@ async function refundCredit(profileId: string): Promise<void> {
  * (the user loses money) or a quota unit into a minted credit (the user gains
  * one) — neither errors, both corrupt the entitlement balance.
  */
-async function releaseEntitlement(
+export async function releaseEntitlement(
   profileId: string,
   source: EntitlementSource,
   period: string,
@@ -76,6 +76,24 @@ async function releaseEntitlement(
   } else {
     await refundCredit(profileId);
   }
+}
+
+/**
+ * The atomic entitlement gate for a user-initiated analysis: monthly quota
+ * first, then a one-off credit. Returns which one was spent, or null when the
+ * user has neither left. Every caller that gets a non-null result owns a
+ * compensating releaseEntitlement on any failure before the analysis is
+ * durably stored.
+ */
+export async function consumeAnalysisEntitlement(
+  profileId: string,
+): Promise<EntitlementSource | null> {
+  const { data, error } = await supabaseAdmin.rpc("check_and_consume_entitlement", {
+    p_profile_id: profileId,
+  });
+  if (error) throw error;
+  if (data === "denied") return null;
+  return data === "credit" ? "credit" : "quota";
 }
 
 /**
@@ -101,18 +119,10 @@ export async function createAnalysis(
 
   // (a) Atomic entitlement gate: monthly quota first, then a one-off credit.
   // Everything after this point has consumed exactly one of the two.
-  const { data: entitlement, error: entitlementError } = await supabaseAdmin.rpc(
-    "check_and_consume_entitlement",
-    { p_profile_id: profileId },
-  );
-  if (entitlementError) {
-    throw entitlementError;
-  }
-  if (entitlement === "denied") {
+  const entitlementSource = await consumeAnalysisEntitlement(profileId);
+  if (!entitlementSource) {
     return { ok: false, reason: "quota_exceeded" };
   }
-  const entitlementSource: EntitlementSource =
-    entitlement === "credit" ? "credit" : "quota";
 
   // (b) For future dedupe/caching. Nothing reads it yet.
   const imageHash = createHash("sha256").update(file.buffer).digest("hex");

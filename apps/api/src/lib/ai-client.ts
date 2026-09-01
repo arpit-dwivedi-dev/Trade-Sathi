@@ -6,7 +6,8 @@ import { env } from "./env.js";
  *
  * The `openai` SDK is used purely as an OpenAI-compatible Chat Completions HTTP
  * client — the configured provider is not necessarily OpenAI (currently
- * DeepSeek). No business logic belongs in this module.
+ * Google Gemini, via its OpenAI-compatible endpoint). No business logic
+ * belongs in this module.
  */
 export const aiClient = new OpenAI({
   baseURL: env.aiBaseUrl,

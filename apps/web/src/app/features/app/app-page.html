@@ -45,6 +45,8 @@
       <div class="content-max tabs-inner">
         <button type="button" class="tab" (click)="select('analyze')"
                 [attr.aria-current]="tab() === 'analyze' ? 'page' : null">Analyze</button>
+        <button type="button" class="tab" (click)="select('live')"
+                [attr.aria-current]="tab() === 'live' ? 'page' : null">Live</button>
         <button type="button" class="tab" (click)="select('history')"
                 [attr.aria-current]="tab() === 'history' ? 'page' : null">History</button>
         <button type="button" class="tab" (click)="select('watchlist')"
@@ -59,6 +61,13 @@
          refetch that picks up analyses finished on the other tab. -->
     <div [hidden]="tab() !== 'analyze'">
       <app-analyze-page (plansRequested)="openPlans()" />
+    </div>
+
+    <!-- Kept mounted while hidden, like Analyze: a live analysis takes 20-30s
+         and its poll must survive a glance at another tab. Its refresh timer
+         idles on its own while the browser tab is in the background. -->
+    <div [hidden]="tab() !== 'live'">
+      <app-live-page (plansRequested)="openPlans()" />
     </div>
 
     @if (tab() === 'history') {

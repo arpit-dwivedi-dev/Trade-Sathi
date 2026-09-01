@@ -47,6 +47,9 @@
 
       @for (row of rows(); track row.id) {
         <div class="history-row">
+          <!-- the export control is a sibling of the toggle, not a child: a
+               button cannot legally nest inside another button. -->
+          <div class="history-row-head">
           <button
             type="button"
             class="tr trow"
@@ -72,6 +75,20 @@
               </svg>
             </span>
           </button>
+
+          <button
+            type="button"
+            class="btn btn-s history-export"
+            [disabled]="exportingId() !== null"
+            [attr.aria-label]="'Download PDF for ' + (row.symbol_raw ?? 'this analysis')"
+            (click)="exportPdf(row, $event)"
+          >
+            @if (exportingId() === row.id) {
+              <span class="spin" aria-hidden="true"></span>
+            }
+            {{ exportingId() === row.id ? 'Building…' : 'PDF' }}
+          </button>
+          </div>
 
           @if (expandedId() === row.id) {
             <div class="history-detail">
@@ -100,6 +117,10 @@
 
     @if (error()) {
       <p class="err" role="alert">{{ error() }}</p>
+    }
+
+    @if (exportError()) {
+      <p class="err" role="alert">{{ exportError() }}</p>
     }
 
     @if (nextCursor()) {

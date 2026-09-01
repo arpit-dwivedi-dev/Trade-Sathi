@@ -7,6 +7,7 @@ import { billingRouter } from "./routes/billing.route.js";
 import { healthRouter } from "./routes/health.route.js";
 import { instrumentsRouter } from "./routes/instruments.route.js";
 import { internalRouter } from "./routes/internal.route.js";
+import { marketRouter } from "./routes/market.route.js";
 import { meRouter } from "./routes/me.route.js";
 import { watchlistRouter } from "./routes/watchlist.route.js";
 import { webhooksRouter } from "./routes/webhooks.route.js";
@@ -26,6 +27,7 @@ app.use(analysesRouter);
 app.use(billingRouter);
 app.use(instrumentsRouter);
 app.use(internalRouter);
+app.use(marketRouter);
 app.use(watchlistRouter);
 
 app.listen(env.port, () => {

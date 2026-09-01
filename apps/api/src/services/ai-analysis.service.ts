@@ -129,7 +129,7 @@ export async function runVisualAnalysis(
     ],
   };
 
-  // DeepSeek's JSON mode can occasionally return empty content, so an empty
+  // A provider's JSON mode can occasionally return empty content, so an empty
   // or unparseable response is retried exactly once — one retry, not a loop.
   let parsed: unknown;
   let inputTokens = 0;

@@ -1,0 +1,118 @@
+.live {
+  display: grid;
+  gap: var(--s6);
+}
+
+.live-head {
+  display: grid;
+  gap: var(--s1);
+}
+
+.live-title {
+  margin: 0;
+  font-family: var(--fh);
+}
+
+.live-card {
+  overflow: visible;
+}
+
+.live-body {
+  display: grid;
+  gap: var(--s4);
+}
+
+/* Anchors the absolutely positioned suggestion list below the input. */
+.live-search {
+  position: relative;
+}
+
+.live-hint {
+  margin: var(--s2) 0 0;
+}
+
+.live-suggestions {
+  position: absolute;
+  z-index: 2;
+  inset-inline: 0;
+  margin: var(--s1) 0 0;
+  padding: var(--s1);
+  list-style: none;
+  display: grid;
+  gap: var(--s1);
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-hi);
+}
+
+.live-suggestions button {
+  width: 100%;
+  display: flex;
+  gap: var(--s2);
+  align-items: baseline;
+  padding: var(--s2) var(--s3);
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  text-align: start;
+  cursor: pointer;
+  color: var(--tx);
+}
+
+.live-suggestions button:hover,
+.live-suggestions button:focus-visible {
+  background: var(--surf-3);
+}
+
+.live-exchange {
+  margin-inline-start: auto;
+  color: var(--tx-3);
+  font-size: 0.8rem;
+}
+
+.live-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.live-price {
+  font-size: 1.1rem;
+}
+
+.live-windows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.live-windows button[aria-pressed='true'] {
+  border-color: var(--acc-line);
+  background: var(--acc-soft);
+  color: var(--acc-tx);
+}
+
+.live-chart-skel {
+  height: 420px;
+  border-radius: var(--r-md);
+}
+
+.live-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.live-error {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  color: var(--down);
+}

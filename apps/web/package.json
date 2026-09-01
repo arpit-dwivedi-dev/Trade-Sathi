@@ -23,6 +23,8 @@
     "@chartanalyzer/shared": "workspace:*",
     "@supabase/supabase-js": "^2.112.4",
     "express": "^5.1.0",
+    "jspdf": "^4.2.1",
+    "lightweight-charts": "^5.2.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

@@ -46,7 +46,7 @@ const YAHOO_EXCHANGE_SUFFIX: Record<string, string> = {
   BSE: ".BO",
 };
 
-function toYahooSymbol(exchange: string, symbol: string): string | null {
+export function toYahooSymbol(exchange: string, symbol: string): string | null {
   const suffix = YAHOO_EXCHANGE_SUFFIX[exchange.toUpperCase()];
   return suffix ? `${symbol}${suffix}` : null;
 }
