@@ -25,6 +25,7 @@
               }
             ],
             "styles": [
+              "node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
               "src/styles.css"
             ],
             "server": "src/main.server.ts",
@@ -78,7 +79,10 @@
           },
           "defaultConfiguration": "development",
           "options": {
-            "proxyConfig": "proxy.conf.json"
+            "proxyConfig": "proxy.conf.json",
+            "prebundle": {
+              "exclude": ["@chartanalyzer/shared"]
+            }
           }
         },
         "test": {

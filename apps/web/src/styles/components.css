@@ -106,11 +106,17 @@
   width: 100%;
 }
 
-.nav-item svg {
+.nav-item svg,
+.nav-item mat-icon {
   flex: none;
   height: 17px;
   opacity: 0.85;
   width: 17px;
+}
+
+.nav-item mat-icon {
+  font-size: 17px;
+  line-height: 17px;
 }
 
 .nav-item:hover {
@@ -124,7 +130,8 @@
   font-weight: 600;
 }
 
-.nav-item[aria-current='page'] svg {
+.nav-item[aria-current='page'] svg,
+.nav-item[aria-current='page'] mat-icon {
   opacity: 1;
 }
 
@@ -233,9 +240,9 @@
 }
 
 /* Opens the nav drawer. Only ever visible once the rail collapses. Qualified
-   with .btn because .btn sets its own display further down the file, and an
-   unqualified selector would lose to it on source order. */
-.btn.nav-toggle {
+   with the element type so this outranks Material's own .mat-mdc-icon-button
+   display rule, which carries the same class-selector specificity. */
+button.nav-toggle {
   display: none;
 }
 
@@ -1202,7 +1209,7 @@ select.input {
     z-index: 50;
   }
 
-  .btn.nav-toggle {
+  button.nav-toggle {
     display: inline-flex;
   }
 

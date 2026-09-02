@@ -1,6 +1,8 @@
 import { Component, DestroyRef, OnInit, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 
 import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingPage } from '../billing/billing-page';
@@ -17,11 +19,11 @@ import { ThemeService } from '../../core/theme.service';
 type Tab = 'analyze' | 'live' | 'workspace' | 'history' | 'watchlist' | 'logs' | 'billing';
 
 const TABS: readonly Tab[] = [
-  'analyze',
   'live',
+  'analyze',
   'workspace',
-  'history',
   'watchlist',
+  'history',
   'logs',
   'billing',
 ];
@@ -38,11 +40,11 @@ const TAB_ALIASES: Readonly<Record<string, Tab>> = {
 };
 
 const TAB_TITLES: Readonly<Record<Tab, string>> = {
-  analyze: 'Analyze',
-  live: 'Live chart',
-  workspace: 'Manual Analysis',
-  history: 'Your analyses',
-  watchlist: 'Watchlist',
+  analyze: 'Chart Image Analysis',
+  live: 'Live Chart Analysis',
+  workspace: 'Manual Chart Analysis',
+  history: 'Analysis History',
+  watchlist: 'Watch List',
   logs: 'Logs',
   billing: 'Billing',
 };
@@ -60,6 +62,8 @@ function parseTab(value: string | null): Tab {
     HistoryList,
     LivePage,
     LogsPage,
+    MatButtonModule,
+    MatIconModule,
     PlansOverlay,
     RouterLink,
     Watchlist,
