@@ -131,49 +131,6 @@
   margin-inline-start: auto;
 }
 
-/* Same segmented-control pattern as the Live tab's window picker
-   (live-page.css) — duplicated rather than shared, see the workspace's
-   scope notes on why this screen doesn't import from that feature. */
-.seg {
-  background: var(--surf-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-}
-
-.seg-btn {
-  background: none;
-  border: 0;
-  border-radius: 6px;
-  color: var(--tx-2);
-  cursor: pointer;
-  font-family: var(--fh);
-  font-size: var(--t-xs);
-  font-weight: 500;
-  min-height: 26px;
-  padding: 0 var(--s3);
-  white-space: nowrap;
-}
-
-.seg-btn:hover {
-  color: var(--tx);
-}
-
-.seg-btn[aria-pressed='true'] {
-  background: var(--surf);
-  box-shadow: var(--sh-1);
-  color: var(--tx);
-  font-weight: 600;
-}
-
-:root[data-theme='dark'] .seg-btn[aria-pressed='true'] {
-  background: var(--surf-2);
-  box-shadow: none;
-  outline: 1px solid var(--line-strong);
-}
-
 .live-tick {
   align-items: center;
   color: var(--up);

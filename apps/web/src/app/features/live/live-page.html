@@ -102,18 +102,12 @@
 
       <div class="live-body">
         <div class="live-toolbar">
-          <div class="seg" role="group" aria-label="Chart window">
+          <mat-button-toggle-group aria-label="Chart window" [value]="lookbackDays()"
+                                    (change)="selectLookback($event.value)">
             @for (option of lookbackOptions; track option.days) {
-              <button
-                type="button"
-                class="seg-btn"
-                [attr.aria-pressed]="lookbackDays() === option.days"
-                (click)="selectLookback(option.days)"
-              >
-                {{ option.label }}
-              </button>
+              <mat-button-toggle [value]="option.days">{{ option.label }}</mat-button-toggle>
             }
-          </div>
+          </mat-button-toggle-group>
 
           <button
             mat-flat-button
