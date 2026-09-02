@@ -1,12 +1,31 @@
 export const SHARED_PLACEHOLDER = true;
 
-/** A row from public.instruments — the canonical NSE/BSE symbol identity used by the watchlist. */
+/** A row from public.instruments — the canonical symbol identity used by the watchlist. */
 export interface Instrument {
   id: string;
   exchange: string;
   symbol: string;
   name: string;
   instrumentType: string;
+}
+
+/**
+ * Stock markets instrument search can be scoped to. NSE/BSE are backed by
+ * the imported instrument catalogue; NASDAQ/NYSE are resolved on demand
+ * through Yahoo Finance's own symbol search — see
+ * apps/api/src/services/instruments.service.ts.
+ */
+export const MARKETS = [
+  { code: 'NSE', label: 'NSE (India)' },
+  { code: 'BSE', label: 'BSE (India)' },
+  { code: 'NASDAQ', label: 'NASDAQ (US)' },
+  { code: 'NYSE', label: 'NYSE (US)' },
+] as const;
+
+export type MarketCode = (typeof MARKETS)[number]['code'];
+
+export function isMarketCode(value: string): value is MarketCode {
+  return MARKETS.some((m) => m.code === value);
 }
 
 /**
@@ -113,3 +132,71 @@ export type MarketStreamServerMessage =
   | { type: 'subscribed'; instrumentId: string }
   | { type: 'tick'; tick: MarketTick }
   | { type: 'error'; code: 'unauthorized' | 'not_found' | 'bad_request'; message: string };
+
+/**
+ * A single question on a profile survey (public.surveys.questions).
+ * 'text' renders as a free-text input; 'single_choice' renders `options` as
+ * radio buttons; 'multi_choice' renders them as checkboxes and the answer is
+ * the selected options joined with ", " (SurveyAnswers stays a flat
+ * Record<string, string> either way — one more answer type was not worth a
+ * richer value shape). Kept intentionally small — nothing here branches on
+ * question type beyond how it renders.
+ */
+export interface SurveyQuestion {
+  id: string;
+  prompt: string;
+  type: 'text' | 'single_choice' | 'multi_choice';
+  options?: string[];
+}
+
+/** A row from public.surveys, as returned by GET /api/survey. */
+export interface SurveyDefinition {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  questions: SurveyQuestion[];
+}
+
+/**
+ * The Account page's view of "is there a survey to fill in right now, and has
+ * this user already done it". `survey` is null once every active survey has
+ * been completed — there is nothing left to prompt for.
+ */
+export interface SurveyStatus {
+  survey: SurveyDefinition | null;
+  completed: boolean;
+}
+
+/** Answers keyed by SurveyQuestion.id, submitted to POST /api/survey/:id/responses. */
+export type SurveyAnswers = Record<string, string>;
+
+/** Result of submitting a survey response — mirrors submit_survey_response()'s return values. */
+export type SurveySubmitOutcome = 'applied' | 'duplicate' | 'survey_not_found';
+
+/**
+ * The Account page's editable profile, as returned by GET /api/me/profile.
+ * Deliberately just contact/identity fields — trading behaviour (markets,
+ * trader type, platform) lives in the survey, not here, so this never grows a
+ * field the survey already asks for.
+ */
+export interface ProfileDetails {
+  fullName: string | null;
+  phoneNumber: string | null;
+  profession: string | null;
+  location: string | null;
+  email: string;
+  creditBalance: number;
+  memberSince: string;
+}
+
+/**
+ * Fields PATCH /api/me/profile accepts, all optional — only the ones present
+ * are updated. An empty string clears a field; an absent key leaves it alone.
+ */
+export interface ProfileUpdatePayload {
+  fullName?: string;
+  phoneNumber?: string;
+  profession?: string;
+  location?: string;
+}

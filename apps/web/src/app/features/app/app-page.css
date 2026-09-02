@@ -1,77 +1,15 @@
-.shell {
-  background: var(--ground);
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.bar-inner {
-  align-items: center;
-  display: flex;
-  gap: var(--s4);
-  height: 100%;
-  justify-content: space-between;
-}
-
-.tabs-inner {
-  display: flex;
-  height: 100%;
-}
-
-.bar-end {
-  align-items: center;
-  display: flex;
-  gap: var(--s2);
-  min-width: 0;
-}
-
-/* Separates the commercial control from the account controls, so the header
-   reads as two groups rather than one row of five equal buttons. */
-.bar-rule {
-  background: var(--line);
-  height: 20px;
-  margin-inline: var(--s1);
-  width: 1px;
-}
-
-.who {
-  align-items: center;
-  display: flex;
-  gap: var(--s2);
-  min-width: 0;
-  padding-left: var(--s1);
-}
-
-.who-mark {
-  align-items: center;
-  background: var(--surf-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  color: var(--tx-2);
-  display: flex;
-  flex: none;
-  font-size: var(--t-xs);
-  font-weight: 600;
-  height: 26px;
-  justify-content: center;
-  text-transform: uppercase;
-  width: 26px;
-}
-
-.who-email {
-  color: var(--tx-3);
-  font-size: var(--t-xs);
-  max-width: 200px;
-}
-
+/* The pre-session state renders as the only child of the .shell grid, so it
+   has to span both tracks — otherwise it is laid out inside the 248px nav
+   column and sits off to the left of an empty page. */
 .shell-loading {
   align-items: center;
   color: var(--tx-3);
   display: flex;
-  flex: 1;
   flex-direction: column;
   gap: var(--s3);
+  grid-column: 1 / -1;
   justify-content: center;
+  min-height: 100vh;
   padding: var(--s16);
 }
 
@@ -85,17 +23,4 @@
   gap: var(--s2);
   justify-content: center;
   padding: var(--s16) var(--s6);
-}
-
-@media (max-width: 860px) {
-  .who-email {
-    display: none;
-  }
-}
-
-@media (max-width: 520px) {
-  .bar-rule,
-  .who {
-    display: none;
-  }
 }

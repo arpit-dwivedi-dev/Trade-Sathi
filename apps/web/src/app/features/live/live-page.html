@@ -1,13 +1,30 @@
 <section class="body content-max live">
   <div class="page-head">
-    <h1 class="page-title">Live chart</h1>
-    <p class="page-sub">
-      Search any instrument, pick a window, and analyse exactly what's on screen.
-    </p>
+    <div>
+      <h1 class="page-title">Live chart</h1>
+      <p class="page-sub">
+        Search any instrument, pick a window, and analyse exactly what's on screen.
+      </p>
+    </div>
+    <button type="button" class="btn btn-s btn-sm" (click)="requestManualAnalysis()">
+      Manual Analysis
+    </button>
   </div>
 
   <!-- A bare search bar rather than a card with an "Instrument" header: the
        field is the whole control, and a chrome box around it said nothing. -->
+  <div class="live-search-row">
+    <select
+      class="input live-market-select"
+      [ngModel]="market()"
+      (ngModelChange)="onMarketChange($event)"
+      name="market"
+      aria-label="Stock market"
+    >
+      @for (m of markets; track m.code) {
+        <option [value]="m.code">{{ m.label }}</option>
+      }
+    </select>
   <div class="live-search">
     <span class="live-search-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -55,6 +72,7 @@
     } @else if (searched() && !searching()) {
       <p class="live-hint">No instruments found.</p>
     }
+  </div>
   </div>
 
   @if (instrument(); as picked) {

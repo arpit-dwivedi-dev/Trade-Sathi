@@ -1,23 +1,138 @@
-<main class="shell">
+<main class="shell" [class.shell-nav-open]="navOpen()" [class.shell-nav-collapsed]="navCollapsed()">
   @if (user(); as currentUser) {
-    <header class="bar">
-      <div class="content-max bar-inner">
+    <!-- Closes the drawer by tapping away from it. Present in the DOM only as
+         a plain div — CSS gives it a box exclusively while the rail is
+         off-canvas, so it can never swallow a click on the desktop layout. -->
+    <div class="nav-scrim" (click)="closeNav()" aria-hidden="true"></div>
+
+    <aside class="nav" aria-label="Sections">
+      <div class="nav-head">
         <span class="brand">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
-            <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
-            <path d="M16 6h5v5" />
-          </svg>
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
+              <path d="M16 6h5v5" />
+            </svg>
+          </span>
           <b>Chart</b><span>Analyzer</span>
         </span>
+      </div>
 
-        <div class="bar-end">
-          <button type="button" class="btn btn-p btn-sm" (click)="openPlans()">
-            {{ billingLabel() }}
-          </button>
+      <div class="nav-body">
+        <span class="nav-lbl">Workspace</span>
 
-          <span class="bar-rule" aria-hidden="true"></span>
+        <button type="button" class="nav-item" (click)="select('analyze')"
+                [attr.aria-current]="tab() === 'analyze' ? 'page' : null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M3 15.5 8 11l3.5 3.5L15 11l6 5.5" />
+            <circle cx="8.5" cy="8.5" r="1.2" />
+          </svg>
+          Analyze
+        </button>
 
+        <button type="button" class="nav-item" (click)="select('live')"
+                [attr.aria-current]="tab() === 'live' ? 'page' : null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 3v18h18" />
+            <path d="M7 15l3.5-4 3 2.5L21 6" />
+          </svg>
+          Live chart
+        </button>
+
+        <button type="button" class="nav-item" (click)="select('workspace')"
+                [attr.aria-current]="tab() === 'workspace' ? 'page' : null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M8 4v16M3 9h5" />
+            <path d="m12.5 15 2-4 1.6 2.4L18.5 10" />
+          </svg>
+          Manual Analysis
+        </button>
+
+        <button type="button" class="nav-item" (click)="select('history')"
+                [attr.aria-current]="tab() === 'history' ? 'page' : null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3.5 2" />
+          </svg>
+          History
+        </button>
+
+        <button type="button" class="nav-item" (click)="select('watchlist')"
+                [attr.aria-current]="tab() === 'watchlist' ? 'page' : null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m12 4 2.4 5 5.6.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.6-.8z" />
+          </svg>
+          Watchlist
+        </button>
+
+        <span class="nav-lbl">Activity</span>
+
+        <button type="button" class="nav-item" (click)="select('logs')"
+                [attr.aria-current]="tab() === 'logs' ? 'page' : null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 6h13M8 12h13M8 18h13" />
+            <path d="M3 6h.01M3 12h.01M3 18h.01" />
+          </svg>
+          Logs
+        </button>
+
+        <button type="button" class="nav-item" (click)="select('billing')"
+                [attr.aria-current]="tab() === 'billing' ? 'page' : null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2.5" y="5" width="19" height="14" rx="2" />
+            <path d="M2.5 10h19" />
+            <path d="M6.5 14.5h3" />
+          </svg>
+          Billing
+        </button>
+
+        <a class="nav-item" routerLink="/account">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.6" />
+            <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+          </svg>
+          Account
+        </a>
+      </div>
+
+      <div class="nav-foot">
+        <button type="button" class="btn btn-p btn-sm nav-cta" (click)="openBilling()">
+          {{ billingLabel() }}
+        </button>
+
+        <!-- Identity, not a control: the initial gives the rail an anchor when
+             the address is too long to show in full. -->
+        <span class="who">
+          <span class="who-mark" aria-hidden="true">{{ (currentUser.email ?? '?').charAt(0) }}</span>
+          <span class="who-email trunc">{{ currentUser.email }}</span>
+        </span>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <button type="button" class="btn btn-g btn-sm btn-icon nav-toggle" (click)="toggleNav()"
+                title="Sections" aria-label="Sections">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
+        <h1 class="topbar-title trunc">{{ pageTitle() }}</h1>
+
+        <div class="topbar-end">
           <button type="button" class="btn btn-g btn-sm btn-icon" (click)="toggleTheme()"
                   [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                   [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
@@ -33,13 +148,6 @@
             }
           </button>
 
-          <!-- Identity, not a control: the initial gives the header an anchor
-               on narrow viewports, where the address itself is hidden. -->
-          <span class="who">
-            <span class="who-mark" aria-hidden="true">{{ (currentUser.email ?? '?').charAt(0) }}</span>
-            <span class="who-email trunc">{{ currentUser.email }}</span>
-          </span>
-
           <button type="button" class="btn btn-g btn-sm btn-icon" (click)="signOut()"
                   title="Sign out" aria-label="Sign out">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -49,31 +157,14 @@
             </svg>
           </button>
         </div>
-      </div>
-    </header>
-
-    <nav class="tabs">
-      <div class="content-max tabs-inner">
-        <button type="button" class="tab" (click)="select('analyze')"
-                [attr.aria-current]="tab() === 'analyze' ? 'page' : null">Analyze</button>
-        <button type="button" class="tab" (click)="select('live')"
-                [attr.aria-current]="tab() === 'live' ? 'page' : null">Live</button>
-        <button type="button" class="tab" (click)="select('history')"
-                [attr.aria-current]="tab() === 'history' ? 'page' : null">History</button>
-        <button type="button" class="tab" (click)="select('watchlist')"
-                [attr.aria-current]="tab() === 'watchlist' ? 'page' : null">Watchlist</button>
-        <button type="button" class="tab" (click)="select('logs')"
-                [attr.aria-current]="tab() === 'logs' ? 'page' : null">Logs</button>
-        <a class="tab" routerLink="/account">Account</a>
-      </div>
-    </nav>
+      </header>
 
     <!-- Analyze stays mounted while hidden: an in-flight upload/poll must not
          be torn down just because the user glanced at their history. History,
          by contrast, is created on each activation, which is exactly the
          refetch that picks up analyses finished on the other tab. -->
-    <div [hidden]="tab() !== 'analyze'">
-      <app-analyze-page (plansRequested)="openPlans()" />
+    <div class="tab-pane" [hidden]="tab() !== 'analyze'">
+      <app-analyze-page class="tab-pane" (plansRequested)="openPlans()" />
     </div>
 
     <!-- Deferred, then kept mounted while hidden. The defer only decides when
@@ -85,18 +176,36 @@
          tab. Its refresh timer idles on its own while the browser tab is in
          the background. -->
     @defer (when tab() === 'live') {
-      <div [hidden]="tab() !== 'live'">
-        <app-live-page (plansRequested)="openPlans()" />
+      <div class="tab-pane" [hidden]="tab() !== 'live'">
+        <app-live-page
+          class="tab-pane"
+          (plansRequested)="openPlans()"
+          (manualAnalysisRequested)="openWorkspace($event)"
+        />
       </div>
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading the live chart…</p>
+    }
+
+    <!-- Same deferred-then-[hidden] treatment as Live: the chart, drawings and
+         streaming connection all survive a glance at another tab. -->
+    @defer (when tab() === 'workspace') {
+      <div class="tab-pane" [hidden]="tab() !== 'workspace'">
+        <app-workspace-page
+          class="tab-pane"
+          [pendingInstrument]="pendingWorkspaceInstrument()"
+          (toggleSidebar)="toggleNavCollapsed()"
+        />
+      </div>
+    } @loading (after 150ms; minimum 300ms) {
+      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading the workspace…</p>
     }
 
     <!-- Deferred rather than @if'd, but the effect on mounting is the same:
          nothing renders until this tab is activated. -->
     @defer (when tab() === 'history') {
       @if (tab() === 'history') {
-        <app-history-list />
+        <app-history-list class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your history…</p>
@@ -108,7 +217,7 @@
          first visit. -->
     @defer (when tab() === 'watchlist') {
       @if (tab() === 'watchlist') {
-        <app-watchlist />
+        <app-watchlist class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your watchlist…</p>
@@ -118,10 +227,20 @@
          the refetch that picks up whatever ran since the last visit. -->
     @defer (when tab() === 'logs') {
       @if (tab() === 'logs') {
-        <app-logs-page />
+        <app-logs-page class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your logs…</p>
+    }
+
+    <!-- Created on activation: the balances shown here move with every
+         analysis, so a fresh mount per visit is the re-read. -->
+    @defer (when tab() === 'billing') {
+      @if (tab() === 'billing') {
+        <app-billing-page class="tab-pane" />
+      }
+    } @loading (after 150ms; minimum 300ms) {
+      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading billing…</p>
     }
 
     <!-- Mounted only while open, so closing tears the purchase buttons down
@@ -133,6 +252,7 @@
         (creditsAdded)="onCreditsAdded()"
       />
     }
+    </div>
   } @else {
     <!-- Rendered during SSR and before client-side session restoration completes. -->
     <div class="shell-loading">

@@ -1,15 +1,111 @@
-<main class="shell">
-  <header class="bar">
-    <div class="content-max bar-inner">
+<main class="shell" [class.shell-nav-open]="navOpen()">
+  <div class="nav-scrim" (click)="closeNav()" aria-hidden="true"></div>
+
+  <aside class="nav" aria-label="Sections">
+    <div class="nav-head">
       <a class="brand" routerLink="/app">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
-          <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
-          <path d="M16 6h5v5" />
-        </svg>
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
+            <path d="M16 6h5v5" />
+          </svg>
+        </span>
         <b>Chart</b><span>Analyzer</span>
       </a>
-      <div class="bar-end">
+    </div>
+
+    <div class="nav-body">
+      <span class="nav-lbl">Workspace</span>
+
+      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'analyze' }">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M3 15.5 8 11l3.5 3.5L15 11l6 5.5" />
+          <circle cx="8.5" cy="8.5" r="1.2" />
+        </svg>
+        Analyze
+      </a>
+
+      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'live' }">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v18h18" />
+          <path d="M7 15l3.5-4 3 2.5L21 6" />
+        </svg>
+        Live chart
+      </a>
+
+      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'history' }">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3.5 2" />
+        </svg>
+        History
+      </a>
+
+      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'watchlist' }">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m12 4 2.4 5 5.6.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.6-.8z" />
+        </svg>
+        Watchlist
+      </a>
+
+      <span class="nav-lbl">Activity</span>
+
+      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'logs' }">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 6h13M8 12h13M8 18h13" />
+          <path d="M3 6h.01M3 12h.01M3 18h.01" />
+        </svg>
+        Logs
+      </a>
+
+      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'billing' }">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2.5" y="5" width="19" height="14" rx="2" />
+          <path d="M2.5 10h19" />
+          <path d="M6.5 14.5h3" />
+        </svg>
+        Billing
+      </a>
+
+      <span class="nav-item" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="8" r="3.6" />
+          <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+        </svg>
+        Account
+      </span>
+    </div>
+
+    <div class="nav-foot">
+      <span class="who">
+        <span class="who-mark" aria-hidden="true">{{ (user()?.email ?? '?').charAt(0) }}</span>
+        <span class="who-email trunc">{{ user()?.email }}</span>
+      </span>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button type="button" class="btn btn-g btn-sm btn-icon nav-toggle" (click)="toggleNav()"
+              title="Sections" aria-label="Sections">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      <h1 class="topbar-title trunc">Account</h1>
+
+      <div class="topbar-end">
         <button type="button" class="btn btn-g btn-sm btn-icon" (click)="toggleTheme()"
                 [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                 [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
@@ -25,11 +121,6 @@
           }
         </button>
 
-        <span class="who">
-          <span class="who-mark" aria-hidden="true">{{ (user()?.email ?? '?').charAt(0) }}</span>
-          <span class="who-email trunc">{{ user()?.email }}</span>
-        </span>
-
         <button type="button" class="btn btn-g btn-sm btn-icon" (click)="signOut()"
                 title="Sign out" aria-label="Sign out">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -39,251 +130,190 @@
           </svg>
         </button>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <nav class="tabs">
-    <div class="content-max tabs-inner">
-      <a class="tab" routerLink="/app" [queryParams]="{ tab: 'analyze' }">Analyze</a>
-      <a class="tab" routerLink="/app" [queryParams]="{ tab: 'live' }">Live</a>
-      <a class="tab" routerLink="/app" [queryParams]="{ tab: 'history' }">History</a>
-      <a class="tab" routerLink="/app" [queryParams]="{ tab: 'watchlist' }">Watchlist</a>
-      <span class="tab" aria-current="page">Account</span>
-    </div>
-  </nav>
-
-  <div class="body content-max">
+  <div class="body content-max acct">
     <div class="page-head">
-      <h1 class="page-title">Plan &amp; usage</h1>
-      <p class="page-sub">What you're on, what you've used, and how to get more.</p>
+      <h1 class="page-title">Account</h1>
+      <p class="page-sub">Your profile, contact details, and a quick survey.</p>
     </div>
 
-    <div class="account-grid">
-      <div class="account-main">
-        <div class="panel account-panel">
-          @if (loading()) {
-            <p class="account-loading">
-              <span class="spin" aria-hidden="true"></span> Reading your usage…
-            </p>
-          } @else if (quota(); as q) {
-            <div class="account-usage-head">
-              <div class="account-usage-main">
-                <span class="lbl">Analyses used this period</span>
-                <span class="account-usage-figure">
-                  <span class="num account-used">{{ q.used }}</span>
-                  <span class="num account-limit">/ {{ q.limit }}</span>
-                </span>
-              </div>
-              <div class="account-usage-rem">
-                <span class="num account-rem">{{ q.remaining }}</span>
-                <span class="lbl">remaining</span>
-              </div>
-            </div>
-            <div class="meter account-meter"><i [style.width.%]="usedPercent()"></i></div>
-            <div class="account-meter-foot">
-              <span class="lbl account-reset">Resets at the start of next month</span>
-              <!-- Credits are shown beside the meter, never added into it: they
-                   are a separate balance that only starts being spent once the
-                   allowance above is gone, and folding them into "remaining"
-                   would misreport both numbers. -->
-              @if (analysisCredits() > 0) {
-                <span class="lbl account-reserve">
-                  <span class="num">+{{ analysisCredits() }}</span> top-up credits in reserve
-                </span>
-              }
-            </div>
-          } @else {
-            <p class="account-loading">
-              Usage isn't available right now. Your analyses still run — the backend enforces the
-              limit.
-            </p>
+    <div class="acct-grid">
+      <div class="card acct-card">
+        <div class="hd">
+          <span class="lbl-h">Profile</span>
+          @if (profile(); as p) {
+            <span class="chip">{{ p.creditBalance }} credit{{ p.creditBalance === 1 ? '' : 's' }}</span>
           }
         </div>
-
-        <!-- Daily Briefing gets its own meter, never a row on the one above.
-             The two draw on entirely separate counters — usage_counters vs
-             daily_briefing_usage_counters, credit_balance vs
-             daily_briefing_credit_balance — and a briefing run can never spend
-             an analysis allowance or the reverse. One combined figure would
-             claim a shared pool that does not exist. -->
-        @if (!loading() && showBriefing()) {
-          <div class="panel account-panel">
-            @if (briefingUsage(); as b) {
-              <div class="account-usage-head">
-                <div class="account-usage-main">
-                  <span class="lbl">Daily briefings used this period</span>
-                  <span class="account-usage-figure">
-                    <span class="num account-used">{{ b.used }}</span>
-                    <span class="num account-limit">/ {{ b.limit }}</span>
-                  </span>
-                </div>
-                <div class="account-usage-rem">
-                  <span class="num account-rem">{{ b.remaining }}</span>
-                  <span class="lbl">remaining</span>
-                </div>
-              </div>
-              <div class="meter account-meter"><i [style.width.%]="briefingUsedPercent()"></i></div>
-              <div class="account-meter-foot">
-                <span class="lbl account-reset">Resets at the start of next month</span>
-                @if (briefingCredits() > 0) {
-                  <span class="lbl account-reserve">
-                    <span class="num">+{{ briefingCredits() }}</span> top-up briefings in reserve
-                  </span>
-                }
-              </div>
-            } @else {
-              <!-- Credits without a live subscription. There is no allowance to
-                   meter, but the credits are still spendable — the SQL function
-                   serves them with no subscription held — so the balance is
-                   shown on its own rather than the block disappearing. -->
-              <div class="account-usage-head">
-                <div class="account-usage-main">
-                  <span class="lbl">Daily briefings left</span>
-                  <span class="account-usage-figure">
-                    <span class="num account-used">{{ briefingCredits() }}</span>
-                  </span>
-                </div>
-              </div>
-              <span class="lbl account-reset">
-                Top-up briefings, usable without the monthly add-on.
-              </span>
-            }
-          </div>
-        }
-
-        <div class="card account-upsell">
-          <div class="account-upsell-copy">
-            <h2 class="account-h">
-              @if (analysesExhausted()) {
-                You're out of analyses
-              } @else {
-                Need more analyses?
-              }
-            </h2>
-            <p class="account-msg">
-              @if (analysesExhausted()) {
-                This month's allowance is spent and you have no credits left. Top up now to keep
-                analysing, or move to a plan with a larger monthly allowance.
-              } @else {
-                Upgrading raises your monthly allowance, and one-off credits stack on top of it.
-                Payment is handled by Razorpay.
-              }
-            </p>
-          </div>
-
-          <!-- The top-up sits above the plan picker, and outside it. A user
-               already on the top tier has no card left to choose, so the picker
-               alone was a dead end for exactly the people who had paid the
-               most — a pack is the only way to add analyses within a month. -->
-          <div class="account-topup">
-            <app-buy-credits-button (creditsAdded)="onCreditsAdded()" />
-            <span class="lbl account-topup-note">
-              Credits stack on top of your plan and are only spent once your monthly allowance
-              runs out.
+        <div class="pad acct-body">
+          <div class="acct-who">
+            <span class="acct-mark" aria-hidden="true">{{ (user()?.email ?? '?').charAt(0) }}</span>
+            <span class="acct-who-text">
+              <span class="acct-email trunc">{{ user()?.email ?? '—' }}</span>
+              <span class="acct-sub">Signed in with email</span>
             </span>
           </div>
 
-          <app-upgrade-button />
+          <!-- The address is already the heading above; repeating it as a row
+               would say the same thing twice. -->
+          <div class="acct-rows">
+            @if (memberSince(); as since) {
+              <div class="lvl acct-row">
+                <span class="acct-key">Member since</span>
+                <time class="num acct-val" [attr.datetime]="since">
+                  {{ since | date: 'd MMM yyyy' }}
+                </time>
+              </div>
+            }
+            <div class="lvl acct-row">
+              <span class="acct-key">Sign-in method</span>
+              <span class="num acct-val">Email &amp; password</span>
+            </div>
+          </div>
+
+          <div class="acct-form">
+            <div class="field">
+              <label for="acct-full-name">Full name</label>
+              <input class="input" id="acct-full-name" type="text" name="fullName" maxlength="120"
+                     autocomplete="name" placeholder="Your name"
+                     [attr.aria-invalid]="profileError() ? 'true' : null"
+                     [ngModel]="fullName()"
+                     (ngModelChange)="fullName.set($event); profileSaved.set(false)" />
+            </div>
+
+            <div class="acct-field-row">
+              <div class="field">
+                <label for="acct-phone">Phone number</label>
+                <input class="input" id="acct-phone" type="tel" name="phoneNumber" maxlength="20"
+                       autocomplete="tel" placeholder="+91 98765 43210"
+                       [ngModel]="phoneNumber()"
+                       (ngModelChange)="phoneNumber.set($event); profileSaved.set(false)" />
+              </div>
+
+              <div class="field">
+                <label for="acct-profession">Profession</label>
+                <input class="input" id="acct-profession" type="text" name="profession" maxlength="100"
+                       autocomplete="organization-title" placeholder="e.g. Software Engineer"
+                       [ngModel]="profession()"
+                       (ngModelChange)="profession.set($event); profileSaved.set(false)" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="acct-location">Location</label>
+              <input class="input" id="acct-location" type="text" name="location" maxlength="100"
+                     autocomplete="address-level2" placeholder="City, Country"
+                     [ngModel]="location()"
+                     (ngModelChange)="location.set($event); profileSaved.set(false)" />
+            </div>
+          </div>
+
+          @if (profileError(); as message) {
+            <p class="err" role="alert">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.6" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8v5M12 16h.01" />
+              </svg>
+              {{ message }}
+            </p>
+          } @else if (profileSaved()) {
+            <p class="acct-sub">Saved.</p>
+          }
+
+          <!-- Billing is a screen of its own; this page says nothing about plans
+               or balances, it only points at where they live. -->
+          <p class="acct-note">
+            Plans, usage and credits live under
+            <a class="acct-link" routerLink="/app" [queryParams]="{ tab: 'billing' }">Billing</a>.
+          </p>
+        </div>
+
+        <div class="acct-foot acct-foot-split">
+          <button type="button" class="btn btn-p btn-sm" [disabled]="savingProfile()" (click)="saveProfile()">
+            {{ savingProfile() ? 'Saving…' : 'Save changes' }}
+          </button>
+          <button type="button" class="btn btn-s btn-sm" (click)="signOut()">Sign out</button>
         </div>
       </div>
 
-      <div class="account-side">
-        @if (plan(); as p) {
-          <div class="card">
-            <div class="hd">
-              <span class="lbl-h">Current plan</span>
-              <span class="st st-complete">Active</span>
-            </div>
-            <div class="pad account-plan">
-              <span class="account-plan-name">{{ p.name }}</span>
-              <div class="lvl account-plan-row">
-                <span class="account-key">Price</span>
-                <span class="num account-val">{{ priceLabel(p.priceInrPaise) }} / month</span>
-              </div>
-              <div class="lvl account-plan-row">
-                <span class="account-key">Included</span>
-                <span class="num account-val">{{ p.analysesPerMonth }} / month</span>
-              </div>
-              <!-- Free-plan users have no subscriptions row, so no renewal date
-                   exists to show — the plan simply has no billing cycle. -->
-              @if (p.currentPeriodEnd; as ends) {
-                <div class="lvl account-plan-row">
-                  <span class="account-key">Renews</span>
-                  <time class="num account-val" [attr.datetime]="ends">
-                    {{ ends | date: 'd MMM yyyy' }}
-                  </time>
-                </div>
-              }
-            </div>
+      @if (!surveyLoading() && surveyStatus()?.survey; as survey) {
+        <div class="card acct-card">
+          <div class="hd">
+            <span class="lbl-h">{{ survey.title }}</span>
+            <span class="st st-processing">+1 credit</span>
           </div>
-        }
+          <div class="pad acct-body">
+            @if (survey.description) {
+              <p class="meta">{{ survey.description }}</p>
+            }
 
-        <!-- Add-ons get their own card, never a row inside "Current plan".
-             They are separately billed SKUs held alongside the tier, and
-             folding them into the plan card is what let a user hold Daily
-             Briefing without the account screen ever saying so. -->
-        @if (addOns(); as list) {
-          @if (list.length) {
-            <div class="card">
-              <div class="hd"><span class="lbl-h">Add-ons</span></div>
-              <div class="pad account-details">
-                @for (addOn of list; track addOn.key) {
-                  <div class="account-addon">
-                    <div class="lvl account-plan-row">
-                      <span class="account-addon-name">{{ addOn.name }}</span>
-                      <span class="st st-complete">Active</span>
-                    </div>
-                    <div class="lvl account-plan-row">
-                      <span class="account-key">Price</span>
-                      <span class="num account-val">
-                        {{ priceLabel(addOn.amountMinor) }} / month
-                      </span>
-                    </div>
-                    @if (addOn.currentPeriodEnd; as ends) {
-                      <div class="lvl account-plan-row">
-                        <span class="account-key">Renews</span>
-                        <time class="num account-val" [attr.datetime]="ends">
-                          {{ ends | date: 'd MMM yyyy' }}
-                        </time>
-                      </div>
+            @for (question of survey.questions; track question.id) {
+              <div class="field">
+                <label [attr.for]="'q-' + question.id">{{ question.prompt }}</label>
+
+                @if (question.type === 'single_choice') {
+                  <select class="input" [id]="'q-' + question.id"
+                          [ngModel]="answerFor(question.id)"
+                          (ngModelChange)="setAnswer(question.id, $event)">
+                    <option value="" disabled>Choose one…</option>
+                    @for (option of question.options ?? []; track option) {
+                      <option [value]="option">{{ option }}</option>
+                    }
+                  </select>
+                } @else if (question.type === 'multi_choice') {
+                  <div class="acct-check-group" [id]="'q-' + question.id">
+                    @for (option of question.options ?? []; track option) {
+                      <label class="acct-check">
+                        <input type="checkbox" [checked]="isSelected(question.id, option)"
+                               (change)="toggleOption(question.id, option)" />
+                        <span>{{ option }}</span>
+                      </label>
                     }
                   </div>
+                } @else {
+                  <input class="input" type="text" [id]="'q-' + question.id"
+                         [ngModel]="answerFor(question.id)"
+                         (ngModelChange)="setAnswer(question.id, $event)" />
                 }
-
-                <!-- The subscription cannot be bought twice for more quota —
-                     its allowance comes from the plan, not from a count of
-                     subscriptions. Top-up packs are what stack within a
-                     month. -->
-                <div class="account-addon-topup">
-                  <div class="lvl account-plan-row">
-                    <span class="account-key">Top-up credits</span>
-                    <span class="num account-val">{{ briefingCredits() }}</span>
-                  </div>
-                  <app-buy-credits-button
-                    kind="daily_briefing"
-                    (creditsAdded)="onCreditsAdded()"
-                  />
-                </div>
               </div>
-            </div>
-          }
-        }
+            }
 
-        <div class="card">
-          <div class="hd"><span class="lbl-h">Account</span></div>
-          <div class="pad account-details">
-            <div class="lvl">
-              <span class="account-key">Email</span>
-              <span class="num trunc account-val">{{ user()?.email ?? '—' }}</span>
-            </div>
+            @if (surveyError(); as message) {
+              <p class="err" role="alert">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.6" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 8v5M12 16h.01" />
+                </svg>
+                {{ message }}
+              </p>
+            }
+          </div>
+
+          <div class="acct-foot">
+            <button type="button" class="btn btn-p btn-sm" [disabled]="!surveyComplete() || submittingSurvey()"
+                    (click)="submitSurvey()">
+              {{ submittingSurvey() ? 'Submitting…' : 'Submit and earn 1 credit' }}
+            </button>
           </div>
         </div>
-      </div>
+      } @else if (!surveyLoading() && surveyJustEarnedCredit()) {
+        <div class="card acct-card">
+          <div class="hd">
+            <span class="lbl-h">Surveys</span>
+            <span class="st st-complete">Up to date</span>
+          </div>
+          <div class="pad acct-body">
+            <p class="meta">
+              You're all caught up — thanks for completing our surveys. We'll add more here as they
+              come up, each worth another free credit.
+            </p>
+          </div>
+        </div>
+      }
     </div>
-
-    <p class="disc account-disc">
-      ChartAnalyzer produces AI-generated chart analysis. It is not investment advice and not a
-      recommendation to buy or sell any instrument.
-    </p>
+  </div>
   </div>
 </main>

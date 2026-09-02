@@ -41,17 +41,22 @@ interface EnabledWatchlistRow {
  * each one points at.
  */
 
-// Yahoo Finance ticker suffixes per exchange. Only NSE/BSE are supported —
-// the only exchanges this app's instrument search covers today; extend this
-// map rather than guessing a suffix if a new exchange is ever added.
+// Yahoo Finance ticker suffixes per exchange — extend this map rather than
+// guessing a suffix if a new exchange is ever added. US exchanges use Yahoo's
+// bare symbol (empty suffix), which is why lookup uses `in`/`??` below
+// instead of truthiness — an empty string is a valid, deliberate mapping,
+// not a missing one.
 const YAHOO_EXCHANGE_SUFFIX: Record<string, string> = {
   NSE: ".NS",
   BSE: ".BO",
+  NASDAQ: "",
+  NYSE: "",
 };
 
 export function toYahooSymbol(exchange: string, symbol: string): string | null {
-  const suffix = YAHOO_EXCHANGE_SUFFIX[exchange.toUpperCase()];
-  return suffix ? `${symbol}${suffix}` : null;
+  const key = exchange.toUpperCase();
+  if (!(key in YAHOO_EXCHANGE_SUFFIX)) return null;
+  return `${symbol}${YAHOO_EXCHANGE_SUFFIX[key]}`;
 }
 
 /**

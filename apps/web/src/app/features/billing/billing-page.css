@@ -1,0 +1,207 @@
+.bill {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+/* ── summary slab ───────────────────────────────────────── */
+.bill-cells {
+  border-bottom: 1px solid var(--slab-line);
+}
+
+.bill-figure {
+  font-size: var(--t-2xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.bill-note {
+  color: var(--slab-dim);
+  font-size: var(--t-2xs);
+}
+
+.bill-meters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s4) var(--s5) var(--s5);
+}
+
+.bill-meter-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.bill-meter-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+  justify-content: space-between;
+}
+
+/* Inside the slab the accent has to carry on a near-black ground, so the
+   brighter dark-theme value is used on both themes here. */
+.bill-meter {
+  color: var(--acc);
+  height: 6px;
+}
+
+.bill-state {
+  align-items: center;
+  color: var(--slab-dim);
+  display: flex;
+  font-size: var(--t-sm);
+  gap: var(--s2);
+  line-height: 1.55;
+  padding: var(--s5);
+}
+
+/* Already inside the padded meter group — the state replaces a meter there, so
+   it must not pay for the padding twice. */
+.bill-state-flush {
+  padding: 0;
+}
+
+/* ── top-up ─────────────────────────────────────────────── */
+.bill-topup-row {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  justify-content: space-between;
+  padding: var(--s5);
+}
+
+/* Two currencies in one card, ruled apart: they are separate balances that
+   cannot be spent on each other. */
+.bill-topup-row + .bill-topup-row {
+  border-top: 1px solid var(--line-soft);
+}
+
+.bill-topup-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 260px;
+}
+
+.bill-topup-name {
+  font-family: var(--fh);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+/* The balance sits directly above its own buy control, so the number and the
+   thing that changes it read as one unit. */
+.bill-topup-act {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.bill-balance {
+  color: var(--tx-3);
+}
+
+.bill-balance .num {
+  color: var(--tx);
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+
+/* ── cards and rows ─────────────────────────────────────── */
+.bill-current-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.bill-row {
+  font-size: var(--t-xs);
+}
+
+.bill-key {
+  color: var(--tx-2);
+}
+
+.bill-val {
+  color: var(--tx);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* A renewal date belongs to the line above it, so it is set quieter rather than
+   given equal weight in the list. */
+.bill-row-sub .bill-key,
+.bill-row-sub .bill-val {
+  color: var(--tx-3);
+  font-weight: 400;
+}
+
+/* Add-ons are separately billed SKUs held alongside the tier, so each one is
+   ruled off from the plan's own rows rather than reading as part of it. */
+.bill-row-addon {
+  border-top: 1px solid var(--line-soft);
+  margin-top: var(--s2);
+  padding-top: var(--s3);
+}
+
+.bill-msg {
+  color: var(--tx-2);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  max-width: 58ch;
+}
+
+/* ── plans ──────────────────────────────────────────────── */
+.bill-plans {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding-top: var(--s2);
+}
+
+.bill-plans-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bill-h {
+  font-size: var(--t-lg);
+  letter-spacing: -0.017em;
+}
+
+.bill-disc {
+  border-top: 1px solid var(--line-soft);
+  padding-top: var(--s4);
+}
+
+@media (max-width: 700px) {
+  /* Three figures on one row become unreadable narrow columns, so the slab
+     stacks and the hairlines move from the sides to between the rows. */
+  .bill-cells {
+    grid-template-columns: 1fr;
+  }
+
+  .bill-cells .cell {
+    border-left: 0;
+    border-top: 1px solid var(--slab-line);
+  }
+
+  .bill-cells .cell:first-child {
+    border-top: 0;
+  }
+
+  /* Stacked, the balance/button column would sit marooned on the right. */
+  .bill-topup-act {
+    align-items: flex-start;
+  }
+
+  .bill-topup-copy {
+    min-width: 0;
+  }
+}

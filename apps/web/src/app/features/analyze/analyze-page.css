@@ -2,6 +2,16 @@
   padding-top: var(--s5);
 }
 
+/* Idle, this screen is a heading and a drop target and nothing else, so the
+   target is the screen rather than a small box floating in it: it takes the
+   full content measure and enough height to fill the fold. Capped so it can
+   never outgrow the viewport on a short window. */
+.analyze > app-chart-drop {
+  display: block;
+  width: 100%;
+}
+
+
 /* The quota block is one row: icon, copy, and the way out of it — the action
    was previously stranded in a second element below the callout. */
 .analyze-quota {

@@ -1,6 +1,16 @@
-import type { Instrument } from "@chartanalyzer/shared";
+import type { Instrument, MarketCode } from "@chartanalyzer/shared";
 import { logger } from "../lib/logger.js";
+import { searchYahooSymbols } from "../lib/market-data/yahoo-search-provider.js";
 import { supabaseAdmin } from "../lib/supabase.js";
+
+/**
+ * Markets backed by the imported catalogue (searched in-memory below) vs.
+ * ones resolved live through Yahoo Finance search — see
+ * yahoo-search-provider.ts. Extending market coverage means adding a market
+ * to one of these two lists (or the DB import), not touching the search path
+ * itself.
+ */
+const YAHOO_SEARCH_MARKETS = new Set<MarketCode>(["NASDAQ", "NYSE"]);
 
 const MAX_RESULTS = 15;
 
@@ -137,15 +147,16 @@ export function clearInstrumentCache(): void {
 }
 
 /**
- * Searches the in-memory catalogue. Ranks exact symbol matches first, then
- * symbol-prefix matches, then name matches — the same ordering the previous
- * three-query ILIKE version produced, now without touching the database.
+ * Searches the in-memory catalogue, optionally narrowed to one market.
+ * Ranks exact symbol matches first, then symbol-prefix matches, then name
+ * matches — the same ordering the previous three-query ILIKE version
+ * produced, now without touching the database.
  *
  * `%` and `_` need no escaping any more: they were only ever special to
  * ILIKE, and are matched literally here, which is what someone typing them
  * into a search box means.
  */
-export async function searchInstruments(query: string): Promise<Instrument[]> {
+async function searchCatalogue(query: string, market?: MarketCode): Promise<Instrument[]> {
   const q = query.trim().toLowerCase();
   if (!q) return [];
 
@@ -156,6 +167,7 @@ export async function searchInstruments(query: string): Promise<Instrument[]> {
   const byName: Instrument[] = [];
 
   for (const entry of catalogue) {
+    if (market && entry.instrument.exchange !== market) continue;
     if (entry.symbolLower === q) {
       exact.push(entry.instrument);
     } else if (entry.symbolLower.startsWith(q)) {
@@ -168,4 +180,74 @@ export async function searchInstruments(query: string): Promise<Instrument[]> {
   }
 
   return [...exact, ...prefix, ...byName].slice(0, MAX_RESULTS);
+}
+
+interface UpsertRow {
+  id: string;
+  exchange: string;
+  symbol: string;
+  name: string;
+}
+
+/**
+ * Persists Yahoo-search results as real `instruments` rows before returning
+ * them, so a NASDAQ/NYSE pick flows through watchlist/workspace/market-chart
+ * exactly like an NSE/BSE one — every one of those reads an instrument by
+ * its DB id, and a row that only ever existed in a search response would
+ * have no id to be read by. `onConflict` on the existing (exchange, symbol)
+ * unique index makes this idempotent: the same symbol searched twice reuses
+ * its row instead of erroring or duplicating.
+ */
+async function upsertYahooInstruments(
+  results: { exchange: MarketCode; symbol: string; name: string }[],
+): Promise<Instrument[]> {
+  if (results.length === 0) return [];
+
+  const { data, error } = await supabaseAdmin
+    .from("instruments")
+    .upsert(
+      results.map((r) => ({
+        exchange: r.exchange,
+        symbol: r.symbol,
+        name: r.name,
+        instrument_type: "EQUITY",
+      })),
+      { onConflict: "exchange,symbol" },
+    )
+    .select("id, exchange, symbol, name");
+
+  if (error) {
+    logger.error("failed to persist yahoo search results", { cause: error.message });
+    return [];
+  }
+
+  return ((data ?? []) as UpsertRow[]).map((row) => ({
+    id: row.id,
+    exchange: row.exchange,
+    symbol: row.symbol,
+    name: row.name,
+    instrumentType: "EQUITY",
+  }));
+}
+
+/**
+ * Instrument search, optionally scoped to one market. NSE/BSE (and any
+ * future DB-imported market) search the in-memory catalogue; NASDAQ/NYSE
+ * search Yahoo Finance live and persist whatever comes back — see
+ * upsertYahooInstruments. Unscoped search (no market) only ever covers the
+ * catalogue, since there is no live provider to query without knowing which
+ * market to ask.
+ */
+export async function searchInstruments(
+  query: string,
+  market?: MarketCode,
+): Promise<Instrument[]> {
+  if (market && YAHOO_SEARCH_MARKETS.has(market)) {
+    const q = query.trim();
+    if (!q) return [];
+    const results = await searchYahooSymbols(q);
+    return upsertYahooInstruments(results.filter((r) => r.exchange === market));
+  }
+
+  return searchCatalogue(query, market);
 }

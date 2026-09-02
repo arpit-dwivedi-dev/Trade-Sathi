@@ -7,6 +7,7 @@ import {
 } from "../prompts/candle-analysis.js";
 import { APIConnectionTimeoutError, AuthenticationError, RateLimitError } from "openai";
 import { aiProviders, type AiProvider } from "../lib/ai-client.js";
+import { logAppError } from "../lib/error-log.js";
 import { logger } from "../lib/logger.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 
@@ -504,13 +505,21 @@ export async function insertAnalysisPatterns(
  * product decision to revisit, not a bug.
  */
 export async function processAnalysis(analysisId: string): Promise<void> {
+  // Set once the row is loaded, so the failure handler can attribute a
+  // failure that happened after that point. A failure before it (the row
+  // itself not loading) has no owner to tell, and only logs to stdout.
+  let profileId: string | null = null;
+
   try {
     // (a) Load the row.
     const { data: row, error: fetchError } = await supabaseAdmin
       .from("analyses")
-      .select("id, image_key")
+      // profile_id is not used by the pipeline itself — it is here so the
+      // failure handler below can attach the error to the user who is
+      // watching this row, rather than only reaching stdout.
+      .select("id, image_key, profile_id")
       .eq("id", analysisId)
-      .single<{ id: string; image_key: string }>();
+      .single<{ id: string; image_key: string; profile_id: string }>();
 
     if (fetchError || !row) {
       throw new AnalysisFailure(
@@ -518,6 +527,8 @@ export async function processAnalysis(analysisId: string): Promise<void> {
         "Analysis row could not be loaded",
       );
     }
+
+    profileId = row.profile_id;
 
     // (b) Download the stored image and inline it as a base64 data URL.
     const { data: blob, error: downloadError } = await supabaseAdmin.storage
@@ -596,6 +607,13 @@ export async function processAnalysis(analysisId: string): Promise<void> {
       errorCode: failure.code,
       cause: String(cause),
     });
+    // The row is about to be marked 'failed', which tells the client watching
+    // it that this run is over but not what went wrong anywhere it survives —
+    // this is what the Logs tab shows the user afterwards.
+    await logAppError(profileId, "analysis", failure.message, {
+      analysisId,
+      errorCode: failure.code,
+    });
 
     // The whole point of the outer try/catch is preventing an unhandled
     // background rejection, so the failure handler must not be able to reject
@@ -662,12 +680,12 @@ export async function reclaimStrandedAnalyses(): Promise<number> {
   // Served by analyses_status_created_at_idx.
   const { data, error } = await supabaseAdmin
     .from("analyses")
-    .select("id, source")
+    .select("id, source, profile_id")
     .eq("status", "queued")
     .lt("created_at", cutoff)
     .order("created_at", { ascending: true })
     .limit(MAX_RECLAIM_BATCH)
-    .returns<{ id: string; source: string }[]>();
+    .returns<{ id: string; source: string; profile_id: string }[]>();
 
   if (error) {
     logger.error("stranded analysis sweep query failed", { cause: String(error) });
@@ -709,7 +727,17 @@ export async function reclaimStrandedAnalyses(): Promise<number> {
         analysisId: row.id,
         cause: String(markError),
       });
+      continue;
     }
+    // An interrupted run is the one failure a user has no other way to learn
+    // about: nothing was running when it happened, so no request of theirs
+    // ever returned an error.
+    await logAppError(
+      row.profile_id,
+      "analysis",
+      "The analysis was interrupted and could not be completed",
+      { analysisId: row.id, source: row.source },
+    );
   }
 
   for (const row of rerunnable) {

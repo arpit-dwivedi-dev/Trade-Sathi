@@ -1,9 +1,10 @@
 import { REALTIME_SUBSCRIBE_STATES, type SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * Decides *when* to re-check an in-flight analysis, for the two places that
- * wait on one: AnalyzeService.pollAnalysis (an upload, watched by row id) and
- * LiveService.awaitAnalysis (a live run, watched by instrument and start time).
+ * Decides *when* to re-check an in-flight row, for the three places that wait
+ * on one: AnalyzeService.pollAnalysis (an upload, watched by analyses id),
+ * LiveService.awaitAnalysis (a live run, watched by instrument and start time)
+ * and Watchlist.watchRun (an Analyze Now run, watched by run id).
  *
  * It deliberately owns none of the checking. Each caller keeps its own query,
  * its own timeout, and its own idea of what "settled" means, and passes a
@@ -32,7 +33,7 @@ const FALLBACK_INTERVAL_MS = 2_000;
  */
 const SAFETY_NET_INTERVAL_MS = 5_000;
 
-export interface AnalysisWatch {
+export interface RowWatch {
   /** Idempotent: safe to call from a cancel path that may already have run. */
   stop(): void;
 }
@@ -40,19 +41,24 @@ export interface AnalysisWatch {
 /**
  * Starts watching, and runs `check` on the next microtask.
  *
- * `filter` is a PostgREST filter on public.analyses (e.g. `id=eq.<uuid>`).
+ * `table` is a public schema table that must be on the supabase_realtime
+ * publication — a table that is not on it produces no events at all rather
+ * than an error, which degrades silently into the fallback cadence.
+ *
+ * `filter` is a PostgREST filter on that table (e.g. `id=eq.<uuid>`).
  * Realtime applies RLS, so a subscription only ever delivers rows the signed-in
  * user could have selected anyway.
  *
  * `channelName` must be unique per watch — two channels sharing a name on one
  * client collide.
  */
-export function startAnalysisWatch(
+export function startRowWatch(
   client: SupabaseClient,
   channelName: string,
+  table: string,
   filter: string,
   check: () => void,
-): AnalysisWatch {
+): RowWatch {
   let stopped = false;
 
   /** Every path into `check` goes through here, so a stopped watch is inert. */
@@ -80,7 +86,7 @@ export function startAnalysisWatch(
       // (the upload pipeline fills in a row that started as 'queued') are worth
       // waking for, so this listens to everything the filter matches rather
       // than naming one event.
-      { event: '*', schema: 'public', table: 'analyses', filter },
+      { event: '*', schema: 'public', table, filter },
       () => safeCheck(),
     )
     .subscribe((status) => {

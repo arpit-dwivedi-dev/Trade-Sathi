@@ -15,6 +15,7 @@ import {
 } from "./market-chart.service.js";
 import { MarketDataError } from "../lib/market-data/types.js";
 import { extensionForMimeType } from "../middleware/image-upload.js";
+import { logAppError } from "../lib/error-log.js";
 import { logger } from "../lib/logger.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 
@@ -147,6 +148,16 @@ export async function runInstrumentAnalysis(
    */
   const markFailed = async (code: string, message: string): Promise<void> => {
     if (!existingAnalysisId) return;
+    // Recorded for the user before the row is written, so the reason survives
+    // past the moment the client stops watching the row. Best-effort, like
+    // everything else on this path.
+    // Always the live view today: it is the only caller that pre-creates a
+    // row and so the only one that reaches this at all.
+    await logAppError(profileId, "live_run", message, {
+      analysisId: existingAnalysisId,
+      errorCode: code,
+      instrumentKey: ref.instrumentKey,
+    });
     const { error } = await supabaseAdmin
       .from("analyses")
       .update({ status: "failed", error_code: code, error_message: message })

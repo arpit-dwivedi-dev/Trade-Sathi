@@ -10,6 +10,17 @@
   <!-- The add control is a toolbar, not a card: it is one field and one button,
        and a titled panel around it added chrome without adding meaning. -->
   <form class="watchlist-add" (ngSubmit)="add()">
+    <select
+      class="input watchlist-market-select"
+      [ngModel]="market()"
+      (ngModelChange)="onMarketChange($event)"
+      name="market"
+      aria-label="Stock market"
+    >
+      @for (m of markets; track m.code) {
+        <option [value]="m.code">{{ m.label }}</option>
+      }
+    </select>
     <div class="watchlist-search">
       <span class="watchlist-search-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"

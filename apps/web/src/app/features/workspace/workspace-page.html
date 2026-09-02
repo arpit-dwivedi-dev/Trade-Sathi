@@ -1,0 +1,244 @@
+<div class="ws-shell" #shell [class.ws-fullscreen]="isFullscreen()">
+  <header class="ws-topbar">
+    <select
+      class="input ws-market-select"
+      [ngModel]="market()"
+      (ngModelChange)="onMarketChange($event)"
+      name="market"
+      aria-label="Stock market"
+    >
+      @for (m of markets; track m.code) {
+        <option [value]="m.code">{{ m.label }}</option>
+      }
+    </select>
+    <div class="ws-search">
+      <input
+        #search
+        class="input ws-search-input"
+        type="text"
+        placeholder="Search symbol or company"
+        [ngModel]="queryInput()"
+        (ngModelChange)="onQueryChange($event)"
+        (keydown.escape)="dismissResults()"
+        name="query"
+        autocomplete="off"
+        aria-label="Search instruments"
+      />
+      @if (searching()) {
+        <span class="spin ws-search-spin" aria-hidden="true"></span>
+      } @else if (queryInput()) {
+        <button type="button" class="ws-search-clear" (click)="clearQuery(search)" title="Clear search" aria-label="Clear search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      }
+
+      @if (results().length > 0) {
+        <ul class="menu ws-suggestions">
+          @for (result of results(); track result.id) {
+            <li>
+              <button type="button" (click)="selectInstrument(result)">
+                <span class="num">{{ result.symbol }}</span>
+                <span class="trunc ws-suggestion-name">{{ result.name }}</span>
+                <span class="live-exchange">{{ result.exchange }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      } @else if (searched() && !searching()) {
+        <p class="live-hint ws-suggestions">No instruments found.</p>
+      }
+    </div>
+
+    @if (instrument(); as picked) {
+      <span class="ws-ident">
+        <span class="sym">{{ picked.symbol }}</span>
+        <span class="chip">{{ picked.exchange }}</span>
+        @if (lastPrice(); as price) {
+          <span class="num ws-price">{{ price | number: '1.2-2' }}</span>
+        }
+        @if (streaming()) {
+          <span class="live-tick" title="Streaming live prices">
+            <span class="live-tick-dot" aria-hidden="true"></span>
+            Live
+          </span>
+        }
+      </span>
+
+      <div class="seg ws-timeframes" role="group" aria-label="Timeframe">
+        @for (tf of timeframes; track tf.value) {
+          <button type="button" class="seg-btn" [attr.aria-pressed]="timeframe() === tf.value" (click)="selectTimeframe(tf.value)">
+            {{ tf.label }}
+          </button>
+        }
+      </div>
+
+      <app-indicator-menu class="ws-indicators" [active]="activeIndicators()" (activeChange)="onIndicatorsChange($event)" />
+    }
+
+    <span class="ws-topbar-end">
+      <button type="button" class="btn btn-g btn-sm btn-icon" (click)="requestCollapseSidebar()"
+              title="Collapse dashboard sidebar" aria-label="Collapse dashboard sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M9 4v16" />
+          <path d="m14 9-3 3 3 3" />
+        </svg>
+      </button>
+
+      <button type="button" class="btn btn-g btn-sm btn-icon" (click)="toggleFullscreen()"
+              [attr.aria-pressed]="isFullscreen()"
+              [title]="isFullscreen() ? 'Exit full screen' : 'Full screen'"
+              [attr.aria-label]="isFullscreen() ? 'Exit full screen' : 'Full screen'">
+        @if (isFullscreen()) {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 4v3a2 2 0 0 1-2 2H4M20 9h-3a2 2 0 0 1-2-2V4M4 15h3a2 2 0 0 1 2 2v3M15 20v-3a2 2 0 0 1 2-2h3" />
+          </svg>
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M9 20H5a1 1 0 0 1-1-1v-4M15 20h4a1 1 0 0 0 1-1v-4" />
+          </svg>
+        }
+      </button>
+    </span>
+  </header>
+
+  @if (instrument()) {
+    <nav class="ws-tools" aria-label="Drawing tools">
+      @for (t of tools; track t.value) {
+        <button
+          type="button"
+          class="ws-tool-btn"
+          [class.ws-tool-btn-active]="tool() === t.value"
+          [attr.aria-pressed]="tool() === t.value"
+          [title]="t.label"
+          [attr.aria-label]="t.label"
+          (click)="selectTool(t.value)"
+        >
+          @switch (t.value) {
+            @case ('cursor') {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 3l6.5 17 2.3-6.9L21 11z" />
+              </svg>
+            }
+            @case ('trendline') {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="5" cy="19" r="1.6" />
+                <circle cx="19" cy="5" r="1.6" />
+                <path d="M6.2 17.8 17.8 6.2" />
+              </svg>
+            }
+            @case ('horizontal') {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 12h18" />
+                <circle cx="7" cy="12" r="1.6" fill="currentColor" stroke="none" />
+                <circle cx="17" cy="12" r="1.6" fill="currentColor" stroke="none" />
+              </svg>
+            }
+            @case ('fib') {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                <path d="M3 5h18M3 9.5h18M3 14.5h18M3 19h18" opacity=".55" />
+                <path d="M3 9.5h18" opacity="1" />
+              </svg>
+            }
+          }
+        </button>
+      }
+
+      <span class="ws-tool-divider" aria-hidden="true"></span>
+
+      <button type="button" class="ws-tool-btn" title="Clear all drawings" aria-label="Clear all drawings"
+              [disabled]="drawings().length === 0" (click)="clearDrawings()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 12a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l1-12" />
+        </svg>
+      </button>
+    </nav>
+  }
+
+  <main class="ws-chart-area">
+    @if (instrument()) {
+      @if (chartError(); as err) {
+        <p class="err">{{ err }}</p>
+      } @else if (loadingChart() && candles().length === 0) {
+        <div class="skel ws-chart-skel" aria-busy="true"></div>
+      } @else {
+        <app-workspace-chart
+          [candles]="candles()"
+          [activeIndicators]="activeIndicators()"
+          [tool]="tool()"
+          [drawings]="drawings()"
+          (drawingsChange)="onDrawingsChange($event)"
+          (toolConsumed)="onToolConsumed()"
+          (selectedDrawingId)="onSelectDrawing($event)"
+        />
+      }
+    } @else {
+      <div class="ws-placeholder">
+        <span class="ws-placeholder-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18" />
+            <path d="M7 15l3.5-4 3 2.5L21 6" />
+          </svg>
+        </span>
+        <h2>Search for a symbol to start charting</h2>
+        <p>
+          Type a symbol or company name above. Once a chart is open you can switch between six
+          timeframes, draw trend lines, horizontal levels and Fibonacci retracements, and layer on
+          indicators — all saved to this browser as you go.
+        </p>
+        <dl class="ws-placeholder-features">
+          <div>
+            <dt aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                   stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18" /></svg>
+            </dt>
+            <dd>1m to 1D timeframes</dd>
+          </div>
+          <div>
+            <dt aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                   stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="1.6" /><circle cx="19" cy="5" r="1.6" /><path d="M6.2 17.8 17.8 6.2" /></svg>
+            </dt>
+            <dd>Trend lines, S/R &amp; Fibonacci</dd>
+          </div>
+          <div>
+            <dt aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                   stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.5 8.5 11l3.5 3.5L21 6" /><path d="M16 6h5v5" /></svg>
+            </dt>
+            <dd>SMA, EMA, Bollinger, RSI, MACD</dd>
+          </div>
+        </dl>
+      </div>
+    }
+  </main>
+
+  @if (instrument()) {
+    <aside class="ws-side" aria-label="Drawings">
+      <h2 class="ws-side-title">Drawings</h2>
+      @if (drawings().length === 0) {
+        <p class="ws-side-empty">Nothing drawn yet. Pick a tool on the left and click the chart.</p>
+      } @else {
+        <ul class="ws-drawing-list">
+          @for (drawing of drawings(); track drawing.id) {
+            <li [class.ws-drawing-selected]="selectedDrawingId() === drawing.id">
+              <span class="trunc">{{ drawingLabel(drawing) }}</span>
+              <button type="button" class="ws-drawing-delete" (click)="deleteDrawing(drawing.id)" title="Delete" aria-label="Delete drawing">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" aria-hidden="true">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </aside>
+  }
+</div>

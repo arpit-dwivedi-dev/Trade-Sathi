@@ -1,121 +1,194 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import type { ProfileDetails, SurveyAnswers, SurveyStatus } from '@chartanalyzer/shared';
 
-import { AnalyzeService, type QuotaStatus } from '../analyze/analyze.service';
-import { BillingService } from '../billing/billing.service';
-import { BuyCreditsButton } from '../billing/buy-credits-button';
-import { UpgradeButton } from '../billing/upgrade-button';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
+import { ProfileService } from './profile.service';
+
+/** Multi-choice answers are stored as one ", "-joined string — see SurveyQuestion in packages/shared. */
+const MULTI_CHOICE_SEPARATOR = ', ';
+
+function splitMultiChoice(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(MULTI_CHOICE_SEPARATOR)
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0);
+}
 
 /**
- * Account and plan. Read-only by design: it draws on the surfaces that already
- * exist — the session for identity and AnalyzeService.fetchQuota() for this
- * period's usage against the plan allowance, plus BillingService.
- * ensurePlanSummary() for the plan and its add-ons. No new endpoint is introduced — both
- * reads go straight to Supabase under existing RLS policies.
+ * Identity, editable profile details, and the onboarding survey. Billing —
+ * plans, usage, credits — still lives on the Billing tab; this page only adds
+ * the credit balance as a small readout so completing the survey has a
+ * visible payoff right where it happened.
  */
 @Component({
   selector: 'app-account-page',
-  imports: [UpgradeButton, BuyCreditsButton, RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, FormsModule],
   styleUrl: './account-page.css',
   templateUrl: './account-page.html',
 })
 export class AccountPage implements OnInit {
   private readonly auth = inject(AuthService);
-  private readonly analyze = inject(AnalyzeService);
-  private readonly billing = inject(BillingService);
   private readonly router = inject(Router);
   private readonly themeService = inject(ThemeService);
+  private readonly profileService = inject(ProfileService);
 
   protected readonly user = this.auth.user;
   protected readonly theme = this.themeService.theme;
-  protected readonly quota = signal<QuotaStatus | null>(null);
+  /** Drawer state. Only consulted below 900px, where the rail is off-canvas. */
+  protected readonly navOpen = signal(false);
 
-  /**
-   * Read from the shared BillingService cache, not a private copy. This page
-   * embeds the plan picker, and the picker decides which cards are still
-   * purchasable from that same cache — filling a local signal instead left the
-   * cache empty, so the picker had no idea which plan or add-ons the user
-   * already held and offered them all over again.
-   */
-  protected readonly plan = this.billing.currentPlan;
-  protected readonly addOns = computed(() => this.plan()?.addOns ?? []);
-  protected readonly briefingCredits = computed(() => this.plan()?.briefingCreditBalance ?? 0);
-  protected readonly briefingUsage = computed(() => this.plan()?.briefingUsage ?? null);
-  protected readonly analysisCredits = computed(() => this.plan()?.creditBalance ?? 0);
-  protected readonly loading = signal(true);
+  /** Supabase stamps this on the auth user; absent on a session shape without it. */
+  protected readonly memberSince = computed(() => this.user()?.created_at ?? null);
 
-  /**
-   * Whether the briefing block is worth rendering at all. Credits alone are
-   * enough: they are spent with no subscription held, so a user who bought a
-   * pack and let the add-on lapse must still see what they own.
-   */
-  protected readonly showBriefing = computed(
-    () => this.briefingUsage() !== null || this.briefingCredits() > 0,
-  );
+  protected readonly profile = signal<ProfileDetails | null>(null);
+  protected readonly fullName = signal('');
+  protected readonly phoneNumber = signal('');
+  protected readonly profession = signal('');
+  protected readonly location = signal('');
+  protected readonly savingProfile = signal(false);
+  protected readonly profileError = signal<string | null>(null);
+  protected readonly profileSaved = signal(false);
 
-  /**
-   * True once the monthly allowance is spent AND no credits remain — the only
-   * state in which the next manual analysis is actually refused. Kept as one
-   * predicate because the copy and the CTA both hinge on it, and splitting it
-   * let the screen say "you're out" while credits were still being spent.
-   */
-  protected readonly analysesExhausted = computed(() => {
-    const quota = this.quota();
-    return quota !== null && quota.remaining === 0 && this.analysisCredits() === 0;
-  });
+  protected readonly surveyStatus = signal<SurveyStatus | null>(null);
+  protected readonly surveyLoading = signal(true);
+  protected readonly surveyAnswers = signal<SurveyAnswers>({});
+  protected readonly submittingSurvey = signal(false);
+  protected readonly surveyError = signal<string | null>(null);
+  protected readonly surveyJustEarnedCredit = signal(false);
 
   ngOnInit(): void {
-    void this.load();
+    void this.loadProfile();
+    void this.loadSurvey();
+  }
+
+  private async loadProfile(): Promise<void> {
+    const details = await this.profileService.getProfile();
+    this.profile.set(details);
+    this.fullName.set(details?.fullName ?? '');
+    this.phoneNumber.set(details?.phoneNumber ?? '');
+    this.profession.set(details?.profession ?? '');
+    this.location.set(details?.location ?? '');
+  }
+
+  private async loadSurvey(): Promise<void> {
+    this.surveyLoading.set(true);
+    const status = await this.profileService.getSurveyStatus();
+    this.surveyStatus.set(status);
+    this.surveyAnswers.set({});
+    this.surveyLoading.set(false);
+  }
+
+  protected setAnswer(questionId: string, value: string): void {
+    this.surveyAnswers.update((answers) => ({ ...answers, [questionId]: value }));
   }
 
   /**
-   * A top-up only shows up in the balance once the webhook has captured it, so
-   * re-read rather than optimistically incrementing — the same reason the
-   * purchase flow polls instead of trusting Razorpay's client-side callback.
+   * SurveyAnswers is typed as Record<string, string>, but an unanswered
+   * question genuinely has no entry — indexing it is `undefined` at runtime
+   * despite what the type says. Going through this method (rather than
+   * `surveyAnswers()[id]` in the template) is what keeps that `undefined`
+   * from reaching `[ngModel]`: on a <select> an undefined value leaves every
+   * <option> unselected, including the "Choose one…" placeholder, so the
+   * control rendered visibly blank instead of showing it.
    */
-  protected onCreditsAdded(): void {
-    void this.billing.refreshPlanSummary();
+  protected answerFor(questionId: string): string {
+    return this.surveyAnswers()[questionId] ?? '';
+  }
+
+  protected selectedOptions(questionId: string): string[] {
+    return splitMultiChoice(this.surveyAnswers()[questionId]);
+  }
+
+  protected isSelected(questionId: string, option: string): boolean {
+    return this.selectedOptions(questionId).includes(option);
+  }
+
+  protected toggleOption(questionId: string, option: string): void {
+    const current = this.selectedOptions(questionId);
+    const next = current.includes(option)
+      ? current.filter((o) => o !== option)
+      : [...current, option];
+    this.setAnswer(questionId, next.join(MULTI_CHOICE_SEPARATOR));
+  }
+
+  protected readonly surveyComplete = computed(() => {
+    const survey = this.surveyStatus()?.survey;
+    if (!survey) return false;
+    const answers = this.surveyAnswers();
+    return survey.questions.every((q) => (answers[q.id] ?? '').trim().length > 0);
+  });
+
+  protected async saveProfile(): Promise<void> {
+    const trimmedName = this.fullName().trim();
+    if (!trimmedName) {
+      this.profileError.set('Please enter a name.');
+      return;
+    }
+
+    this.savingProfile.set(true);
+    this.profileError.set(null);
+    this.profileSaved.set(false);
+
+    const updates = {
+      fullName: trimmedName,
+      phoneNumber: this.phoneNumber().trim(),
+      profession: this.profession().trim(),
+      location: this.location().trim(),
+    };
+    const result = await this.profileService.updateProfile(updates);
+    this.savingProfile.set(false);
+
+    if (result.ok) {
+      this.profile.update((p) => (p ? { ...p, ...updates } : p));
+      this.profileSaved.set(true);
+    } else {
+      this.profileError.set(result.message);
+    }
+  }
+
+  protected async submitSurvey(): Promise<void> {
+    const survey = this.surveyStatus()?.survey;
+    if (!survey || !this.surveyComplete()) return;
+
+    this.submittingSurvey.set(true);
+    this.surveyError.set(null);
+
+    const result = await this.profileService.submitSurvey(survey.id, this.surveyAnswers());
+    this.submittingSurvey.set(false);
+
+    if (!result.ok) {
+      this.surveyError.set(result.message);
+      return;
+    }
+
+    if (result.outcome === 'applied') {
+      this.surveyJustEarnedCredit.set(true);
+      this.profile.update((p) => (p ? { ...p, creditBalance: p.creditBalance + 1 } : p));
+    }
+
+    // Re-fetch: a new survey may already be waiting, or this really was the
+    // last one — either way the backend, not local state, decides what's next.
+    await this.loadSurvey();
+  }
+
+  protected toggleNav(): void {
+    this.navOpen.update((open) => !open);
+  }
+
+  protected closeNav(): void {
+    this.navOpen.set(false);
   }
 
   protected toggleTheme(): void {
     this.themeService.toggle();
   }
 
-  /** Paise -> "₹499" / "₹0". Money is integer minor units end to end. */
-  protected priceLabel(paise: number): string {
-    return `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
-  }
-
-  protected usedPercent(): number {
-    const quota = this.quota();
-    if (!quota || quota.limit <= 0) return 0;
-    return Math.min(100, Math.round((quota.used / quota.limit) * 100));
-  }
-
-  protected briefingUsedPercent(): number {
-    const usage = this.briefingUsage();
-    if (!usage || usage.limit <= 0) return 0;
-    return Math.min(100, Math.round((usage.used / usage.limit) * 100));
-  }
-
   protected async signOut(): Promise<void> {
     await this.auth.signOut();
     await this.router.navigateByUrl('/login');
-  }
-
-  private async load(): Promise<void> {
-    this.loading.set(true);
-    const [quota] = await Promise.all([
-      this.analyze.fetchQuota(),
-      // ensure, not fetch: this both fills the shared cache the picker reads
-      // and reuses it if another surface (the nav's upgrade entry point) has
-      // already loaded it.
-      this.billing.ensurePlanSummary(),
-    ]);
-    this.quota.set(quota);
-    this.loading.set(false);
   }
 }

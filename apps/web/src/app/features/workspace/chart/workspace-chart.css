@@ -1,0 +1,15 @@
+:host {
+  display: block;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+}
+
+/* The library sizes its canvas from this element, so it needs a real height —
+   :host fills the workspace grid cell, and this fills :host. */
+.ws-chart-canvas {
+  background: var(--surf);
+  cursor: crosshair;
+  height: 100%;
+  width: 100%;
+}

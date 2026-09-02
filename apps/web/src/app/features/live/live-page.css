@@ -4,9 +4,31 @@
   gap: var(--s5);
 }
 
+/* Overrides the global .page-head's column stack so the "Manual Analysis"
+   link sits beside the title instead of below the subtitle. */
+.live .page-head {
+  align-items: flex-start;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  justify-content: space-between;
+}
+
 /* ── search ─────────────────────────────────────────────
    Anchors the absolutely positioned suggestion list. */
+.live-search-row {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--s3);
+}
+
+.live-market-select {
+  flex: 0 0 auto;
+  width: auto;
+}
+
 .live-search {
+  flex: 1;
   max-width: 560px;
   position: relative;
 }

@@ -1,302 +1,215 @@
-.shell {
-  background: var(--ground);
+.acct {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-}
-
-.bar-inner {
-  align-items: center;
-  display: flex;
   gap: var(--s4);
-  height: 100%;
-  justify-content: space-between;
 }
 
-.tabs-inner {
-  display: flex;
-  height: 100%;
+/* Trims the page's usual bottom breathing room (64px, sized for a long
+   scrollable list) down to what a two-card form actually needs — on a
+   typical laptop viewport the profile and survey cards otherwise fit above
+   the fold, and 64px of dead space at the bottom was the difference between
+   that and a needless scroll. */
+.body.acct {
+  padding-block-end: var(--s6);
 }
 
-.bar-end {
-  align-items: center;
-  display: flex;
-  gap: var(--s2);
-  min-width: 0;
-}
-
-.who {
-  align-items: center;
-  display: flex;
-  gap: var(--s2);
-  min-width: 0;
-  padding-left: var(--s1);
-}
-
-.who-mark {
-  align-items: center;
-  background: var(--surf-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  color: var(--tx-2);
-  display: flex;
-  flex: none;
-  font-size: var(--t-xs);
-  font-weight: 600;
-  height: 26px;
-  justify-content: center;
-  text-transform: uppercase;
-  width: 26px;
-}
-
-.who-email {
-  color: var(--tx-3);
-  font-size: var(--t-xs);
-  max-width: 200px;
-}
-
-/* The current tab here is a <span>, not a link, so it needs the same marker
-   .tab[aria-current] gives the button and anchor forms. */
-.tabs span.tab[aria-current='page'] {
-  color: var(--tx);
-  font-weight: 600;
-}
-
-.tabs span.tab[aria-current='page']::after {
-  background: var(--acc);
-}
-
-/* ── layout ─────────────────────────────────────────────── */
-.account-grid {
-  align-items: start;
+/* Two cards side by side once there is room for both at a comfortable
+   measure; auto-fit collapses to one column itself below ~720px, so no
+   separate breakpoint is needed for the stacked mobile case. Side by side
+   also keeps total page height to the taller of the two cards instead of
+   their sum — the main lever for fitting both above the fold.
+   `min(360px, 100%)` rather than a bare 360px: at a narrow enough viewport
+   (a phone, or the page zoomed in) a hard 360px floor would force the track
+   wider than the container and cause horizontal overflow — capping it at
+   100% lets the track shrink with the page instead.
+   No align-items override: the default `stretch` is what makes both cards
+   the same height below. */
+.acct-grid {
   display: grid;
   gap: var(--s5);
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
 }
 
-.account-main,
-.account-side {
+/* Stretched to the grid row's full height (the taller of the two cards) and
+   laid out as a column with the footer pinned to the bottom via acct-body's
+   flex-grow below — so Profile and the survey end at the same line instead
+   of whichever has less content trailing off short. */
+.acct-card {
+  container-name: acct-card;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
-  gap: var(--s5);
+  /* Lets the card shrink below its content's intrinsic width instead of
+     overflowing its grid track — the classic grid-blowout fix, needed here
+     because a long email or phone number would otherwise force the column
+     wider than minmax() allows. */
+  min-width: 0;
 }
 
-/* ── usage panel ────────────────────────────────────────── */
-.account-panel {
+.acct-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: var(--s4);
+}
+
+/* The editable fields, grouped a little tighter than the sections around
+   them (acct-who / acct-rows / this) so the form reads as one unit. */
+.acct-form {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
-  padding: var(--s6);
 }
 
-.account-loading {
+/* Phone + profession side by side — two short fields sharing one line uses
+   the card's width instead of leaving it half-empty. */
+.acct-field-row {
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: 1fr 1fr;
+}
+
+/* The identity block: the initial gives the card an anchor when the address is
+   too long to read at a glance. */
+.acct-who {
   align-items: center;
-  color: var(--slab-dim);
   display: flex;
-  font-size: var(--t-sm);
-  gap: var(--s2);
-  line-height: 1.55;
+  gap: var(--s3);
+  min-width: 0;
 }
 
-.account-usage-head {
-  align-items: flex-end;
+.acct-mark {
+  align-items: center;
+  background: var(--acc-soft);
+  border: 1px solid var(--acc-line);
+  border-radius: var(--r-pill);
+  color: var(--acc-tx);
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--s4);
-  justify-content: space-between;
-}
-
-.account-usage-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-}
-
-.account-usage-figure {
-  align-items: baseline;
-  display: flex;
-  gap: 6px;
-}
-
-.account-used {
-  font-size: var(--t-4xl);
+  flex: none;
+  font-family: var(--fh);
+  font-size: var(--t-md);
   font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  height: 40px;
+  justify-content: center;
+  text-transform: uppercase;
+  width: 40px;
 }
 
-.account-limit {
-  color: var(--slab-dim);
-  font-size: var(--t-lg);
-}
-
-.account-usage-rem {
-  align-items: flex-end;
+.acct-who-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.account-rem {
-  font-size: var(--t-2xl);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.account-meter {
-  color: var(--acc-tx);
-  height: 6px;
-}
-
-:root[data-theme='dark'] .account-meter {
-  color: var(--acc);
-}
-
-.account-reset {
-  color: var(--slab-dim);
-}
-
-/* ── upsell ─────────────────────────────────────────────── */
-.account-upsell {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s4);
-  padding: var(--s5);
-}
-
-.account-upsell-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.account-h {
-  font-size: var(--t-lg);
-  letter-spacing: -0.017em;
-}
-
-.account-msg {
-  color: var(--tx-2);
-  font-size: var(--t-sm);
-  line-height: 1.55;
-  max-width: 60ch;
-}
-
-/* ── side cards ─────────────────────────────────────────── */
-.account-plan {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-}
-
-.account-plan-name {
+.acct-email {
   font-family: var(--fh);
-  font-size: var(--t-xl);
+  font-size: var(--t-base);
   font-weight: 600;
-  letter-spacing: -0.02em;
-  padding-bottom: 6px;
+  letter-spacing: -0.015em;
 }
 
-.account-plan-row,
-.account-details .lvl {
-  font-size: var(--t-xs);
-}
-
-.account-key {
+.acct-sub {
   color: var(--tx-3);
+  font-size: var(--t-2xs);
 }
 
-.account-val {
-  color: var(--tx);
-  max-width: 220px;
-  text-align: right;
-}
-
-.account-details {
+.acct-rows {
+  border-top: 1px solid var(--line-soft);
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
-}
-
-.account-disc {
-  border-top: 1px solid var(--line-soft);
+  gap: var(--s3);
   padding-top: var(--s4);
 }
 
-@media (max-width: 900px) {
-  .account-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .who-email {
-    display: none;
-  }
+.acct-row {
+  font-size: var(--t-xs);
 }
 
-@media (max-width: 520px) {
-  .who {
-    display: none;
-  }
-
-  .account-used {
-    font-size: var(--t-3xl);
-  }
+.acct-key {
+  color: var(--tx-3);
 }
 
-/* Separates stacked add-on blocks inside the one card, so two of them don't
-   read as a single list of rows. */
-.account-addon + .account-addon {
-  border-top: 1px solid var(--line);
-  margin-top: var(--s3);
-  padding-top: var(--s3);
+.acct-val {
+  color: var(--tx);
+  max-width: 260px;
+  text-align: right;
 }
 
-.account-addon-name {
-  font-family: var(--fh);
-  font-size: var(--t-sm);
-  font-weight: 600;
+.acct-note {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
+  line-height: 1.55;
 }
 
-/* The top-up sits under the add-on list, separated: it tops the add-on up, it
-   is not another add-on. */
-.account-addon-topup {
-  border-top: 1px solid var(--line);
-  display: grid;
-  gap: var(--s2);
-  margin-top: var(--s3);
-  padding-top: var(--s3);
+.acct-link {
+  color: var(--acc-tx);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-/* Meter footnotes sit on one line and wrap together, so the reserve balance
-   reads as a qualifier on the meter above rather than a separate stat. */
-.account-meter-foot {
+/* Sign out closes the card rather than floating under it: it acts on the
+   identity shown above, so it belongs to the same box. */
+.acct-foot {
+  border-top: 1px solid var(--line-soft);
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--s2) var(--s4);
+  justify-content: flex-end;
+  padding: var(--s3) var(--s5);
+}
+
+/* Save and Sign out are unrelated actions on the same card — pinning them to
+   opposite ends keeps Save from reading as if it applies to sign-out too. */
+.acct-foot-split {
   justify-content: space-between;
 }
 
-.account-reserve {
-  color: var(--tx-2);
-}
-
-.account-reserve .num {
-  color: var(--tx);
-  font-weight: 600;
-}
-
-/* Separated from the plan picker below it: topping up and switching tiers are
-   two different purchases, and running them together read as one form. */
-.account-topup {
-  border-bottom: 1px solid var(--line);
-  display: grid;
+/* A multi-choice question's options, rendered as chip-shaped checkboxes
+   rather than a stacked list — several short options read faster as a row
+   that wraps than as one item per line. */
+.acct-check-group {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--s2);
-  justify-items: start;
-  padding-bottom: var(--s4);
 }
 
-.account-topup-note {
-  color: var(--slab-dim);
-  line-height: 1.55;
+.acct-check {
+  align-items: center;
+  background: var(--surf);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: var(--t-sm);
+  gap: 6px;
+  padding: 6px var(--s3) 6px var(--s2);
+  transition: border-color var(--dur-subtle) var(--ease-move), background var(--dur-subtle) var(--ease-move);
+}
+
+:root[data-theme='dark'] .acct-check {
+  background: var(--surf-2);
+}
+
+.acct-check:has(:checked) {
+  background: var(--acc-soft);
+  border-color: var(--acc);
+  color: var(--acc-tx);
+}
+
+.acct-check input {
+  accent-color: var(--acc);
+  margin: 0;
+}
+
+/* Two short fields on one line only pays off once the *card* is wide enough
+   for both to keep a real typing width — below that they are cramped rather
+   than compact. A container query rather than a viewport media query: the
+   card's own width is what matters, not the viewport's — the same viewport
+   can put this card at 360px (two columns) or over 700px (one, full-width)
+   depending on whether the survey card is also present, and a viewport query
+   can't tell those apart. It also keeps this correct at any zoom level,
+   where a viewport-width query drifts as the CSS pixel viewport shrinks. */
+@container acct-card (max-width: 420px) {
+  .acct-field-row {
+    grid-template-columns: 1fr;
+  }
 }

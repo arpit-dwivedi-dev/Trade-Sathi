@@ -1,3 +1,30 @@
+/* The row grid is shared by two different parents: the header and the loading
+   placeholders are direct children of .tbl and get the full width, while a
+   data row's grid lives in a button that sits beside the export control. The
+   export column is therefore a fixed width, reserved as trailing padding on
+   the full-width rows, so all eight columns line up down the table. Fixing it
+   also stops the row reflowing when the label swaps to "Building…". */
+/* Pinned to exactly the viewport below the sticky topbar, rather than the
+   page's natural flow height: .tbl used to cap itself at 70vh but the title,
+   count and filter row above it were extra on top of that, so the section as
+   a whole still ran taller than one screen and the outer page picked up a
+   few pixels of its own scroll. Fixing the section's height and letting .tbl
+   flex to fill what's left makes the table the only thing that scrolls. */
+.history {
+  --hist-export: 108px;
+  height: calc(100vh - var(--top-h));
+}
+
+.history .tbl {
+  flex: 1;
+  max-height: none;
+  min-height: 0;
+}
+
+.history .tbl > .tr {
+  padding-right: calc(var(--s5) + var(--hist-export) + var(--s4));
+}
+
 .history-head {
   align-items: flex-end;
   display: flex;
@@ -34,10 +61,16 @@
   background: var(--surf-2);
 }
 
-/* toggle and export sit side by side; the toggle takes the leftover width */
+/* toggle and export sit side by side; the toggle takes the leftover width.
+   min-width matches .tbl's --tr-min-w: this flex row sits between .tbl and
+   the .trow button, and a block child normally takes its parent's content
+   width regardless of its own children — without this floor here, the row
+   would shrink to fit .tbl's visible width (via .trow's min-width: 0 below)
+   instead of triggering .tbl's horizontal scroll like the header row does. */
 .history-row-head {
   align-items: center;
   display: flex;
+  min-width: var(--tr-min-w, auto);
   transition: background var(--dur-subtle) var(--ease-move);
 }
 
@@ -51,6 +84,7 @@
 .history-export {
   flex: none;
   margin-right: var(--s4);
+  width: var(--hist-export);
   opacity: 0.7;
   transition: opacity var(--dur-subtle) var(--ease-move);
 }
@@ -169,7 +203,13 @@
 }
 
 .history-more {
-  align-self: flex-start;
+  align-items: center;
+  color: var(--tx-3);
+  display: flex;
+  font-size: var(--t-sm);
+  gap: var(--s2);
+  justify-content: center;
+  padding: var(--s4) var(--s5);
 }
 
 @media (max-width: 900px) {
@@ -184,6 +224,16 @@
     grid-template-columns: minmax(0, 1fr) auto auto;
     padding: var(--s4);
     row-gap: 6px;
+  }
+
+  /* the export button is stacked under the card here, so nothing is beside
+     the grid to reserve width for */
+  .history .tbl > .tr {
+    padding-right: var(--s4);
+  }
+
+  .history-export {
+    width: auto;
   }
 
   .tr-h {
@@ -255,7 +305,7 @@
 
 .history-filter-on {
   background: var(--surf-3);
-  border-color: var(--line-strong, var(--line));
+  border-color: var(--line-strong);
   color: var(--tx);
   font-weight: 600;
 }
@@ -303,7 +353,7 @@
    so they are the one worth picking out of a scanned column. */
 .history-src-watchlist_daily {
   border-color: color-mix(in srgb, var(--acc) 40%, var(--line));
-  color: var(--acc-tx, var(--acc));
+  color: var(--acc-tx);
 }
 
 .history-mailed {

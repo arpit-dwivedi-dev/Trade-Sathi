@@ -73,7 +73,7 @@
       </p>
     </div>
   } @else {
-    <div class="tbl">
+    <div class="tbl" (scroll)="onTableScroll($event)">
       <div class="tr tr-h">
         <span>Analyzed</span><span>Symbol</span><span>Asset</span><span>TF</span>
         <span>Trend</span><span>Direction</span><span>Status</span><span></span>
@@ -180,6 +180,12 @@
           }
         </div>
       }
+
+      @if (loadingMore()) {
+        <div class="history-more">
+          <span class="spin" aria-hidden="true"></span> Loading more…
+        </div>
+      }
     </div>
 
     @if (error()) {
@@ -188,16 +194,6 @@
 
     @if (exportError()) {
       <p class="err" role="alert">{{ exportError() }}</p>
-    }
-
-    @if (nextCursor()) {
-      <button type="button" class="btn btn-s history-more" (click)="loadMore()"
-              [disabled]="loadingMore()">
-        @if (loadingMore()) {
-          <span class="spin" aria-hidden="true"></span>
-        }
-        {{ loadingMore() ? 'Loading…' : 'Load more' }}
-      </button>
     }
   }
 </section>

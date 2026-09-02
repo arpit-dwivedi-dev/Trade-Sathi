@@ -1,9 +1,15 @@
+/* Idle, the Analyze screen is a heading and this control and nothing else, so
+   it is sized to be the screen rather than a short box floating at the top of
+   one. Capped against the viewport so a short window never has to scroll to
+   reach the button inside it. */
 .drop-zone {
   align-items: center;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: var(--s3);
+  justify-content: center;
+  min-height: min(420px, 52vh);
   padding: var(--s12) var(--s6);
   text-align: center;
 }
@@ -86,6 +92,7 @@
 
 @media (max-width: 640px) {
   .drop-zone {
+    min-height: 0;
     padding: var(--s8) var(--s4);
   }
 

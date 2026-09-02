@@ -76,7 +76,7 @@
         <ul class="logs-list logs-list-errors">
           @for (row of errorLog(); track row.id) {
             <li class="logs-row logs-row-error">
-              <span class="chip logs-category">{{ row.category }}</span>
+              <span class="chip logs-category">{{ categoryLabel(row.category) }}</span>
               <span class="logs-message">{{ row.message }}</span>
               <span class="logs-date">{{ formatTimestamp(row.created_at) }}</span>
             </li>

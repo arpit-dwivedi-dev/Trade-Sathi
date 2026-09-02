@@ -21,9 +21,11 @@ vi.mock("../lib/market-data/yahoo-finance-provider.js", async (importOriginal) =
 const {
   candleSpecFor,
   clearCandleCache,
+  explicitCandleSpec,
   getCandlesForInstrument,
   getQuoteForInstrument,
   subtractDays,
+  WORKSPACE_INTERVALS,
 } = await import("./market-chart.service.js");
 
 const ref = {
@@ -47,6 +49,19 @@ describe("candleSpecFor", () => {
   it("uses daily candles beyond a week", () => {
     expect(candleSpecFor(8)).toMatchObject({ unit: "days", interval: 1 });
     expect(candleSpecFor(365)).toMatchObject({ unit: "days", interval: 1 });
+  });
+});
+
+describe("explicitCandleSpec", () => {
+  it("maps every workspace timeframe to a valid spec", () => {
+    expect(WORKSPACE_INTERVALS.map(explicitCandleSpec)).toEqual([
+      { unit: "minutes", interval: 1, label: "1m" },
+      { unit: "minutes", interval: 5, label: "5m" },
+      { unit: "minutes", interval: 15, label: "15m" },
+      { unit: "minutes", interval: 30, label: "30m" },
+      { unit: "minutes", interval: 60, label: "1H" },
+      { unit: "days", interval: 1, label: "1D" },
+    ]);
   });
 });
 
@@ -135,6 +150,17 @@ describe("getCandlesForInstrument", () => {
 
     expect(retried.candles).toHaveLength(1);
     expect(getHistoricalCandles).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses an explicit spec instead of deriving one from lookbackDays", async () => {
+    getHistoricalCandles.mockResolvedValue([candleOn(new Date().toISOString().slice(0, 10))]);
+
+    // candleSpecFor(5) would derive 30m; the explicit spec overrides that.
+    const window = await getCandlesForInstrument(ref, 5, explicitCandleSpec("15m"));
+
+    expect(window.spec).toEqual({ unit: "minutes", interval: 15, label: "15m" });
+    expect(window.timeframeLabel).toBe("15m · 5d");
+    expect(window.intervalMinutes).toBe(15);
   });
 });
 
