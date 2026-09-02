@@ -135,51 +135,184 @@
   <div class="body content-max acct">
     <div class="page-head">
       <h1 class="page-title">Account</h1>
-      <p class="page-sub">Your sign-in details.</p>
+      <p class="page-sub">Your profile, contact details, and a quick survey.</p>
     </div>
 
-    <div class="card acct-card">
-      <div class="hd">
-        <span class="lbl-h">Profile</span>
-        <span class="st st-complete">Signed in</span>
-      </div>
-      <div class="pad acct-body">
-        <div class="acct-who">
-          <span class="acct-mark" aria-hidden="true">{{ (user()?.email ?? '?').charAt(0) }}</span>
-          <span class="acct-who-text">
-            <span class="acct-email trunc">{{ user()?.email ?? '—' }}</span>
-            <span class="acct-sub">Signed in with email</span>
-          </span>
+    <div class="acct-grid">
+      <div class="card acct-card">
+        <div class="hd">
+          <span class="lbl-h">Profile</span>
+          @if (profile(); as p) {
+            <span class="chip">{{ p.creditBalance }} credit{{ p.creditBalance === 1 ? '' : 's' }}</span>
+          }
+        </div>
+        <div class="pad acct-body">
+          <div class="acct-who">
+            <span class="acct-mark" aria-hidden="true">{{ (user()?.email ?? '?').charAt(0) }}</span>
+            <span class="acct-who-text">
+              <span class="acct-email trunc">{{ user()?.email ?? '—' }}</span>
+              <span class="acct-sub">Signed in with email</span>
+            </span>
+          </div>
+
+          <!-- The address is already the heading above; repeating it as a row
+               would say the same thing twice. -->
+          <div class="acct-rows">
+            @if (memberSince(); as since) {
+              <div class="lvl acct-row">
+                <span class="acct-key">Member since</span>
+                <time class="num acct-val" [attr.datetime]="since">
+                  {{ since | date: 'd MMM yyyy' }}
+                </time>
+              </div>
+            }
+            <div class="lvl acct-row">
+              <span class="acct-key">Sign-in method</span>
+              <span class="num acct-val">Email &amp; password</span>
+            </div>
+          </div>
+
+          <div class="acct-form">
+            <div class="field">
+              <label for="acct-full-name">Full name</label>
+              <input class="input" id="acct-full-name" type="text" name="fullName" maxlength="120"
+                     autocomplete="name" placeholder="Your name"
+                     [attr.aria-invalid]="profileError() ? 'true' : null"
+                     [ngModel]="fullName()"
+                     (ngModelChange)="fullName.set($event); profileSaved.set(false)" />
+            </div>
+
+            <div class="acct-field-row">
+              <div class="field">
+                <label for="acct-phone">Phone number</label>
+                <input class="input" id="acct-phone" type="tel" name="phoneNumber" maxlength="20"
+                       autocomplete="tel" placeholder="+91 98765 43210"
+                       [ngModel]="phoneNumber()"
+                       (ngModelChange)="phoneNumber.set($event); profileSaved.set(false)" />
+              </div>
+
+              <div class="field">
+                <label for="acct-profession">Profession</label>
+                <input class="input" id="acct-profession" type="text" name="profession" maxlength="100"
+                       autocomplete="organization-title" placeholder="e.g. Software Engineer"
+                       [ngModel]="profession()"
+                       (ngModelChange)="profession.set($event); profileSaved.set(false)" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="acct-location">Location</label>
+              <input class="input" id="acct-location" type="text" name="location" maxlength="100"
+                     autocomplete="address-level2" placeholder="City, Country"
+                     [ngModel]="location()"
+                     (ngModelChange)="location.set($event); profileSaved.set(false)" />
+            </div>
+          </div>
+
+          @if (profileError(); as message) {
+            <p class="err" role="alert">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.6" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8v5M12 16h.01" />
+              </svg>
+              {{ message }}
+            </p>
+          } @else if (profileSaved()) {
+            <p class="acct-sub">Saved.</p>
+          }
+
+          <!-- Billing is a screen of its own; this page says nothing about plans
+               or balances, it only points at where they live. -->
+          <p class="acct-note">
+            Plans, usage and credits live under
+            <a class="acct-link" routerLink="/app" [queryParams]="{ tab: 'billing' }">Billing</a>.
+          </p>
         </div>
 
-        <!-- The address is already the heading above; repeating it as a row
-             would say the same thing twice. -->
-        <div class="acct-rows">
-          @if (memberSince(); as since) {
-            <div class="lvl acct-row">
-              <span class="acct-key">Member since</span>
-              <time class="num acct-val" [attr.datetime]="since">
-                {{ since | date: 'd MMM yyyy' }}
-              </time>
-            </div>
-          }
-          <div class="lvl acct-row">
-            <span class="acct-key">Sign-in method</span>
-            <span class="num acct-val">Email &amp; password</span>
+        <div class="acct-foot acct-foot-split">
+          <button type="button" class="btn btn-p btn-sm" [disabled]="savingProfile()" (click)="saveProfile()">
+            {{ savingProfile() ? 'Saving…' : 'Save changes' }}
+          </button>
+          <button type="button" class="btn btn-s btn-sm" (click)="signOut()">Sign out</button>
+        </div>
+      </div>
+
+      @if (!surveyLoading() && surveyStatus()?.survey; as survey) {
+        <div class="card acct-card">
+          <div class="hd">
+            <span class="lbl-h">{{ survey.title }}</span>
+            <span class="st st-processing">+1 credit</span>
+          </div>
+          <div class="pad acct-body">
+            @if (survey.description) {
+              <p class="meta">{{ survey.description }}</p>
+            }
+
+            @for (question of survey.questions; track question.id) {
+              <div class="field">
+                <label [attr.for]="'q-' + question.id">{{ question.prompt }}</label>
+
+                @if (question.type === 'single_choice') {
+                  <select class="input" [id]="'q-' + question.id"
+                          [ngModel]="surveyAnswers()[question.id]"
+                          (ngModelChange)="setAnswer(question.id, $event)">
+                    <option value="" disabled>Choose one…</option>
+                    @for (option of question.options ?? []; track option) {
+                      <option [value]="option">{{ option }}</option>
+                    }
+                  </select>
+                } @else if (question.type === 'multi_choice') {
+                  <div class="acct-check-group" [id]="'q-' + question.id">
+                    @for (option of question.options ?? []; track option) {
+                      <label class="acct-check">
+                        <input type="checkbox" [checked]="isSelected(question.id, option)"
+                               (change)="toggleOption(question.id, option)" />
+                        <span>{{ option }}</span>
+                      </label>
+                    }
+                  </div>
+                } @else {
+                  <input class="input" type="text" [id]="'q-' + question.id"
+                         [ngModel]="surveyAnswers()[question.id]"
+                         (ngModelChange)="setAnswer(question.id, $event)" />
+                }
+              </div>
+            }
+
+            @if (surveyError(); as message) {
+              <p class="err" role="alert">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.6" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 8v5M12 16h.01" />
+                </svg>
+                {{ message }}
+              </p>
+            }
+          </div>
+
+          <div class="acct-foot">
+            <button type="button" class="btn btn-p btn-sm" [disabled]="!surveyComplete() || submittingSurvey()"
+                    (click)="submitSurvey()">
+              {{ submittingSurvey() ? 'Submitting…' : 'Submit and earn 1 credit' }}
+            </button>
           </div>
         </div>
-
-        <!-- Billing is a screen of its own; this page says nothing about plans
-             or balances, it only points at where they live. -->
-        <p class="acct-note">
-          Plans, usage and credits live under
-          <a class="acct-link" routerLink="/app" [queryParams]="{ tab: 'billing' }">Billing</a>.
-        </p>
-      </div>
-
-      <div class="acct-foot">
-        <button type="button" class="btn btn-s btn-sm" (click)="signOut()">Sign out</button>
-      </div>
+      } @else if (!surveyLoading() && surveyJustEarnedCredit()) {
+        <div class="card acct-card">
+          <div class="hd">
+            <span class="lbl-h">Surveys</span>
+            <span class="st st-complete">Up to date</span>
+          </div>
+          <div class="pad acct-body">
+            <p class="meta">
+              You're all caught up — thanks for completing our surveys. We'll add more here as they
+              come up, each worth another free credit.
+            </p>
+          </div>
+        </div>
+      }
     </div>
   </div>
   </div>

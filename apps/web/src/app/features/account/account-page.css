@@ -1,19 +1,50 @@
 .acct {
   display: flex;
   flex-direction: column;
-  gap: var(--s5);
+  gap: var(--s4);
 }
 
-/* Narrower than the app's full measure: this page holds one card of key-value
-   rows, and stretching it to the grid width left the values marooned. */
-.acct-card {
-  max-width: 560px;
+/* Trims the page's usual bottom breathing room (64px, sized for a long
+   scrollable list) down to what a two-card form actually needs — on a
+   typical laptop viewport the profile and survey cards otherwise fit above
+   the fold, and 64px of dead space at the bottom was the difference between
+   that and a needless scroll. */
+.body.acct {
+  padding-block-end: var(--s6);
+}
+
+/* Two cards side by side once there is room for both at a comfortable
+   measure; auto-fit collapses to one column itself below ~720px, so no
+   separate breakpoint is needed for the stacked mobile case. Side by side
+   also keeps total page height to the taller of the two cards instead of
+   their sum — the main lever for fitting both above the fold. */
+.acct-grid {
+  align-items: start;
+  display: grid;
+  gap: var(--s5);
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
 }
 
 .acct-body {
   display: flex;
   flex-direction: column;
-  gap: var(--s5);
+  gap: var(--s4);
+}
+
+/* The editable fields, grouped a little tighter than the sections around
+   them (acct-who / acct-rows / this) so the form reads as one unit. */
+.acct-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+/* Phone + profession side by side — two short fields sharing one line uses
+   the card's width instead of leaving it half-empty. */
+.acct-field-row {
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: 1fr 1fr;
 }
 
 /* The identity block: the initial gives the card an anchor when the address is
@@ -102,4 +133,56 @@
   display: flex;
   justify-content: flex-end;
   padding: var(--s3) var(--s5);
+}
+
+/* Save and Sign out are unrelated actions on the same card — pinning them to
+   opposite ends keeps Save from reading as if it applies to sign-out too. */
+.acct-foot-split {
+  justify-content: space-between;
+}
+
+/* A multi-choice question's options, rendered as chip-shaped checkboxes
+   rather than a stacked list — several short options read faster as a row
+   that wraps than as one item per line. */
+.acct-check-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.acct-check {
+  align-items: center;
+  background: var(--surf);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: var(--t-sm);
+  gap: 6px;
+  padding: 6px var(--s3) 6px var(--s2);
+  transition: border-color var(--dur-subtle) var(--ease-move), background var(--dur-subtle) var(--ease-move);
+}
+
+:root[data-theme='dark'] .acct-check {
+  background: var(--surf-2);
+}
+
+.acct-check:has(:checked) {
+  background: var(--acc-soft);
+  border-color: var(--acc);
+  color: var(--acc-tx);
+}
+
+.acct-check input {
+  accent-color: var(--acc);
+  margin: 0;
+}
+
+/* Two short fields on one line only pays off once a column is wide enough
+   for both to keep a real typing width — below that they are cramped rather
+   than compact. */
+@media (max-width: 460px) {
+  .acct-field-row {
+    grid-template-columns: 1fr;
+  }
 }
