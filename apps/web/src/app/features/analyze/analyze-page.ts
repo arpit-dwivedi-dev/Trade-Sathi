@@ -1,4 +1,8 @@
 import { Component, OnDestroy, OnInit, inject, output, signal } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { AnalysisResult } from './analysis-result';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
@@ -20,7 +24,14 @@ type AnalyzeState =
  */
 @Component({
   selector: 'app-analyze-page',
-  imports: [ChartDrop, AnalysisResult],
+  imports: [
+    ChartDrop,
+    AnalysisResult,
+    MatButtonModule,
+    MatCardModule,
+    MatIconModule,
+    MatProgressBarModule,
+  ],
   styleUrl: './analyze-page.css',
   templateUrl: './analyze-page.html',
 })

@@ -1,5 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { AnalyzeService, type QuotaStatus } from '../analyze/analyze.service';
 import { BillingService } from './billing.service';
@@ -17,7 +20,14 @@ import { UpgradeButton } from './upgrade-button';
  */
 @Component({
   selector: 'app-billing-page',
-  imports: [BuyCreditsButton, UpgradeButton, DatePipe],
+  imports: [
+    BuyCreditsButton,
+    UpgradeButton,
+    DatePipe,
+    MatCardModule,
+    MatProgressBarModule,
+    MatProgressSpinnerModule,
+  ],
   styleUrl: './billing-page.css',
   templateUrl: './billing-page.html',
 })

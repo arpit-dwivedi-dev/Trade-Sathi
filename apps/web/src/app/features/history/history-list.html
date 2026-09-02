@@ -52,12 +52,12 @@
       }
     </div>
   } @else if (error() && rows().length === 0) {
-    <div class="card pad history-empty" role="alert">
+    <mat-card class="history-empty" role="alert">
       <span class="st st-failed">Couldn't load</span>
       <p class="history-msg">{{ error() }}</p>
-    </div>
+    </mat-card>
   } @else if (rows().length === 0) {
-    <div class="card history-empty history-empty-first">
+    <mat-card class="history-empty history-empty-first">
       <span class="history-empty-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
              stroke-linecap="round" stroke-linejoin="round">
@@ -71,7 +71,7 @@
         Upload your first chart on the Analyze tab. Every run is saved here with its symbol,
         timeframe and readings.
       </p>
-    </div>
+    </mat-card>
   } @else {
     <div class="tbl" (scroll)="onTableScroll($event)">
       <div class="tr tr-h">

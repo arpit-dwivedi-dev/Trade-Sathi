@@ -44,8 +44,10 @@
 /* Inside the slab the accent has to carry on a near-black ground, so the
    brighter dark-theme value is used on both themes here. */
 .bill-meter {
-  color: var(--acc);
-  height: 6px;
+  --mat-progress-bar-active-indicator-color: var(--acc);
+  --mat-progress-bar-track-color: color-mix(in srgb, var(--acc) 18%, transparent);
+  --mat-progress-bar-active-indicator-height: 6px;
+  --mat-progress-bar-track-height: 6px;
 }
 
 .bill-state {

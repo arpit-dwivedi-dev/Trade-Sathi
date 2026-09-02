@@ -6,7 +6,7 @@
         Search any instrument, pick a window, and analyse exactly what's on screen.
       </p>
     </div>
-    <button type="button" class="btn btn-s btn-sm" (click)="requestManualAnalysis()">
+    <button mat-stroked-button (click)="requestManualAnalysis()">
       Manual Analysis
     </button>
   </div>
@@ -76,11 +76,13 @@
   </div>
 
   @if (instrument(); as picked) {
-    <div class="card live-card">
+    <mat-card class="live-card">
       <div class="hd live-chart-head">
         <span class="live-ident">
           <span class="sym live-sym">{{ picked.symbol }}</span>
-          <span class="chip">{{ picked.exchange }}</span>
+          <mat-chip-set aria-label="Exchange">
+            <mat-chip>{{ picked.exchange }}</mat-chip>
+          </mat-chip-set>
         </span>
 
         <span class="live-quote">
@@ -114,13 +116,13 @@
           </div>
 
           <button
-            type="button"
-            class="btn btn-p"
+            mat-flat-button
+            color="primary"
             [disabled]="busy() || candles().length === 0"
             (click)="analyze()"
           >
             @if (busy()) {
-              <span class="spin" aria-hidden="true"></span>
+              <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
               Analysing…
             } @else {
               Analyse this chart
@@ -144,7 +146,7 @@
              chart changes underneath it. This says what is still running. -->
         @if (runningFor(); as running) {
           <div class="note live-note" style="--tone: var(--acc)">
-            <span class="spin" aria-hidden="true"></span>
+            <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
             <span>
               Analysing <b>{{ running.symbol }}</b> on the
               {{ windowLabel(running.lookbackDays) }} chart. You can keep looking around —
@@ -156,7 +158,7 @@
         @if (analyzeState() === 'quota_exceeded') {
           <div class="note live-note" style="--tone: var(--warn)">
             <span>{{ analyzeError() }}</span>
-            <button type="button" class="btn btn-s btn-sm" (click)="openPlans()">See plans</button>
+            <button mat-stroked-button (click)="openPlans()">See plans</button>
           </div>
         } @else if (analyzeState() === 'failed' && analyzeError()) {
           <p class="err live-error">{{ analyzeError() }}</p>
@@ -169,13 +171,13 @@
             <span>
               Your <b>{{ done.symbol }}</b> analysis finished. Open the History tab to read it.
             </span>
-            <button type="button" class="btn btn-g btn-sm" (click)="dismissFinishedElsewhere()">
+            <button mat-button (click)="dismissFinishedElsewhere()">
               Dismiss
             </button>
           </div>
         }
       </div>
-    </div>
+    </mat-card>
 
     @if (resultApplies() && row(); as analysis) {
       <!-- The levels are only drawn on the chart while the window matches, so
@@ -192,7 +194,7 @@
   } @else {
     <!-- Nothing picked yet: say what the screen will do rather than leaving a
          search field floating over an empty page. -->
-    <div class="card live-placeholder">
+    <mat-card class="live-placeholder">
       <span class="live-placeholder-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
              stroke-linecap="round" stroke-linejoin="round">
@@ -205,6 +207,6 @@
         Search above for a symbol or company. The chart you land on is the exact image the model
         reads — no separate screenshot needed.
       </p>
-    </div>
+    </mat-card>
   }
 </section>

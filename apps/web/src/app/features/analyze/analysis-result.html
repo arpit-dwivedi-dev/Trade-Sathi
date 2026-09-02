@@ -1,14 +1,16 @@
 @if (failed()) {
-  <section class="card pad result-failed" role="alert">
-    <div class="result-failed-head">
-      <span class="st st-failed">Failed</span>
-      <h2 class="result-failed-title">Analysis failed</h2>
-    </div>
-    <p class="result-msg">{{ failureMessage() }}</p>
-    <!-- Still worth showing: it lets the user see what they actually sent
-         before deciding whether to retake the screenshot and retry. -->
-    <app-chart-image [imageKey]="row().image_key" [label]="row().symbol_raw" />
-  </section>
+  <mat-card role="alert">
+    <mat-card-content class="result-failed">
+      <div class="result-failed-head">
+        <span class="st st-failed">Failed</span>
+        <h2 class="result-failed-title">Analysis failed</h2>
+      </div>
+      <p class="result-msg">{{ failureMessage() }}</p>
+      <!-- Still worth showing: it lets the user see what they actually sent
+           before deciding whether to retake the screenshot and retry. -->
+      <app-chart-image [imageKey]="row().image_key" [label]="row().symbol_raw" />
+    </mat-card-content>
+  </mat-card>
 } @else {
   <section class="result">
     <!-- metadata header — symbol · asset_class · timeframe · source_type -->
@@ -18,15 +20,15 @@
           <h2 class="sym result-sym trunc" translate="no">
             {{ row().symbol ?? row().symbol_raw ?? 'Unknown symbol' }}
           </h2>
-          <span class="result-chips">
+          <mat-chip-set class="result-chips" aria-label="Analysis metadata">
             @if (row().asset_class; as asset) {
-              <span class="chip" translate="no">{{ asset }}</span>
+              <mat-chip translate="no">{{ asset }}</mat-chip>
             }
             @if (row().timeframe; as tf) {
-              <span class="chip" translate="no">{{ tf }}</span>
+              <mat-chip translate="no">{{ tf }}</mat-chip>
             }
-            <span class="chip">{{ sourceLabel() }}</span>
-          </span>
+            <mat-chip>{{ sourceLabel() }}</mat-chip>
+          </mat-chip-set>
         </div>
         @if (readFromImage() && row().symbol_raw; as raw) {
           <p class="result-raw">
@@ -82,9 +84,11 @@
                         {{ row().call_confidence! * 100 | number: '1.0-0' }}%
                       </span>
                     </div>
-                    <div class="meter d-{{ direction }}">
-                      <i [style.width.%]="row().call_confidence! * 100"></i>
-                    </div>
+                    <mat-progress-bar
+                      class="result-conf-meter d-{{ direction }}"
+                      mode="determinate"
+                      [value]="row().call_confidence! * 100"
+                    />
                   }
                 </div>
 
@@ -137,7 +141,7 @@
           @if (patterns().length) {
             <div class="result-patterns">
               @for (pattern of patterns(); track pattern.id) {
-                <div class="card result-pattern">
+                <mat-card class="result-pattern">
                   <div class="result-pattern-head">
                     <b class="result-pattern-key">{{ pattern.pattern_key }}</b>
                     @if (pattern.confidence !== null) {
@@ -149,7 +153,7 @@
                   @if (pattern.pattern_note) {
                     <p class="result-msg">{{ pattern.pattern_note }}</p>
                   }
-                </div>
+                </mat-card>
               }
             </div>
           } @else {
@@ -164,7 +168,7 @@
           <div class="result-block-head">
             <h3 class="result-h">Support &amp; resistance</h3>
           </div>
-          <div class="card">
+          <mat-card>
             <div class="result-levels">
               <div class="result-levels-group">
                 <span class="lbl result-lbl-down">Resistance</span>
@@ -194,7 +198,7 @@
                 }
               </div>
             </div>
-          </div>
+          </mat-card>
           <p class="disc">
             @if (readFromImage()) {
               Levels are the model's reading of the image, not exchange data.
@@ -209,12 +213,14 @@
           <div class="result-block-head">
             <h3 class="result-h">At a glance</h3>
           </div>
-          <div class="card pad result-glance">
-            <div class="lvl"><span class="result-key">Asset class</span><span class="num result-val">{{ row().asset_class ?? '—' }}</span></div>
-            <div class="lvl"><span class="result-key">Timeframe</span><span class="num result-val">{{ row().timeframe ?? '—' }}</span></div>
-            <div class="lvl"><span class="result-key">Source</span><span class="num result-val">{{ sourceLabel() }}</span></div>
-            <div class="lvl"><span class="result-key">Analyzed</span><span class="num result-val">{{ row().created_at | date: 'd MMM, HH:mm' }}</span></div>
-          </div>
+          <mat-card>
+            <mat-card-content class="result-glance">
+              <div class="lvl"><span class="result-key">Asset class</span><span class="num result-val">{{ row().asset_class ?? '—' }}</span></div>
+              <div class="lvl"><span class="result-key">Timeframe</span><span class="num result-val">{{ row().timeframe ?? '—' }}</span></div>
+              <div class="lvl"><span class="result-key">Source</span><span class="num result-val">{{ sourceLabel() }}</span></div>
+              <div class="lvl"><span class="result-key">Analyzed</span><span class="num result-val">{{ row().created_at | date: 'd MMM, HH:mm' }}</span></div>
+            </mat-card-content>
+          </mat-card>
         </section>
       </aside>
     </div>

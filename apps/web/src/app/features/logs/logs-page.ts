@@ -1,4 +1,7 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import { AuthService } from '../../core/auth.service';
@@ -59,6 +62,7 @@ const ROW_LIMIT = 20;
  */
 @Component({
   selector: 'app-logs-page',
+  imports: [MatCardModule, MatChipsModule, MatProgressSpinnerModule],
   templateUrl: './logs-page.html',
   styleUrl: './logs-page.css',
 })

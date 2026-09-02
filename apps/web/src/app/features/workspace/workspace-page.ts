@@ -17,6 +17,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { MatChipsModule } from '@angular/material/chips';
 import { Subject, firstValueFrom } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
@@ -104,7 +105,7 @@ export interface PendingInstrument {
  */
 @Component({
   selector: 'app-workspace-page',
-  imports: [DecimalPipe, FormsModule, IndicatorMenu, WorkspaceChart],
+  imports: [DecimalPipe, FormsModule, IndicatorMenu, MatChipsModule, WorkspaceChart],
   templateUrl: './workspace-page.html',
   styleUrl: './workspace-page.css',
 })

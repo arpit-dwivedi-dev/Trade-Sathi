@@ -17,7 +17,7 @@
 }
 
 .billing-msg .ico,
-.billing-msg .spin {
+.billing-msg mat-progress-spinner {
   flex-shrink: 0;
 }
 

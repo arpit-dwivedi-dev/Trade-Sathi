@@ -13,7 +13,7 @@
        check two places to answer one question. -->
   <div class="panel bill-slab">
     @if (loading()) {
-      <p class="bill-state"><span class="spin" aria-hidden="true"></span> Reading your usage…</p>
+      <p class="bill-state"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Reading your usage…</p>
     } @else {
       <div class="cells bill-cells">
         <div class="cell">
@@ -54,7 +54,7 @@
               <span class="lbl">{{ q.used }} of {{ q.limit }} analyses used</span>
               <span class="dim bill-note">Resets at the start of next month</span>
             </div>
-            <div class="meter bill-meter"><i [style.width.%]="usedPercent()"></i></div>
+            <mat-progress-bar class="bill-meter" mode="determinate" [value]="usedPercent()" />
           </div>
         } @else {
           <p class="bill-state bill-state-flush">
@@ -81,7 +81,7 @@
                 }
               </span>
             </div>
-            <div class="meter bill-meter"><i [style.width.%]="briefingUsedPercent()"></i></div>
+            <mat-progress-bar class="bill-meter" mode="determinate" [value]="briefingUsedPercent()" />
           </div>
         }
       </div>
@@ -90,7 +90,7 @@
 
   <!-- One top-up card, both currencies. They were two cards with two identical
        primary buttons, which read as one purchase offered twice. -->
-  <div class="card bill-topup">
+  <mat-card class="bill-topup">
     <div class="hd">
       <span class="lbl-h">Top up</span>
       @if (analysesExhausted()) {
@@ -138,7 +138,7 @@
         </div>
       </div>
     }
-  </div>
+  </mat-card>
 
   <div class="bill-plans">
     <div class="bill-plans-head">
@@ -155,12 +155,12 @@
   <!-- What is currently billed, listed after the things that change it: this is
        a receipt, not a control. -->
   @if (!loading() && plan(); as p) {
-    <div class="card bill-current">
+    <mat-card class="bill-current">
       <div class="hd">
         <span class="lbl-h">What you're billed for</span>
         <span class="st st-complete">Active</span>
       </div>
-      <div class="pad bill-current-body">
+      <mat-card-content class="bill-current-body">
         <div class="lvl bill-row">
           <span class="bill-key">{{ p.name }}</span>
           <span class="num bill-val">
@@ -190,8 +190,8 @@
             </div>
           }
         }
-      </div>
-    </div>
+      </mat-card-content>
+    </mat-card>
   }
 
   <p class="disc bill-disc">

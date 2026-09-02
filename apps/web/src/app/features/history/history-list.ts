@@ -1,4 +1,5 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { MatCardModule } from '@angular/material/card';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import { AuthService } from '../../core/auth.service';
@@ -22,7 +23,7 @@ import {
  */
 @Component({
   selector: 'app-history-list',
-  imports: [AnalysisResult, ChartImage],
+  imports: [AnalysisResult, ChartImage, MatCardModule],
   templateUrl: './history-list.html',
   styleUrl: './history-list.css',
 })

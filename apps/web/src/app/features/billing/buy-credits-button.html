@@ -1,14 +1,14 @@
 @switch (state()) {
   @case ('idle') {
-    <button type="button" class="btn btn-p" (click)="onBuyClick()">
+    <button mat-flat-button color="primary" (click)="onBuyClick()">
       {{ buyLabel() }}
     </button>
   }
   @case ('ordering') {
-    <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Starting your purchase…</p>
+    <p class="billing-msg"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Starting your purchase…</p>
   }
   @case ('loading_checkout') {
-    <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Opening the payment window…</p>
+    <p class="billing-msg"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Opening the payment window…</p>
   }
   @case ('checkout_open') {
     <p class="billing-msg">
@@ -17,7 +17,7 @@
     </p>
   }
   @case ('confirming') {
-    <p class="billing-msg"><span class="spin" aria-hidden="true"></span> Confirming your payment…</p>
+    <p class="billing-msg"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Confirming your payment…</p>
   }
   @case ('success') {
     <p class="billing-msg billing-ok">

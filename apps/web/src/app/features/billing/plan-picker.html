@@ -1,7 +1,7 @@
 @if (error()) {
   <p class="err" role="alert">{{ error() }}</p>
 } @else if (plans() === null) {
-  <p class="plan-loading"><span class="spin" aria-hidden="true"></span> Loading plans…</p>
+  <p class="plan-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading plans…</p>
 } @else {
   <!-- Two sections, not one list. A monthly tier is the slot the user occupies;
        an add-on stacks on top of whichever tier that is. Rendering them as one
@@ -10,11 +10,11 @@
   <section class="plan-group">
     <h3 class="plan-group-h">Monthly plans</h3>
     <p class="plan-group-sub">Your analysis allowance. You're on one of these at a time.</p>
-    <ul class="plan-list">
+    <div class="plan-list">
       @for (plan of manualPlans(); track plan.key) {
         <ng-container [ngTemplateOutlet]="card" [ngTemplateOutletContext]="{ $implicit: plan }" />
       }
-    </ul>
+    </div>
   </section>
 
   @if (addOnPlans().length) {
@@ -24,17 +24,17 @@
         Billed separately and kept alongside your plan — subscribing here doesn't change the plan
         you're on.
       </p>
-      <ul class="plan-list">
+      <div class="plan-list">
         @for (plan of addOnPlans(); track plan.key) {
           <ng-container [ngTemplateOutlet]="card" [ngTemplateOutletContext]="{ $implicit: plan }" />
         }
-      </ul>
+      </div>
     </section>
   }
 }
 
 <ng-template #card let-plan>
-  <li class="card plan-card" [class.plan-card-current]="isCurrent(plan)">
+  <mat-card class="plan-card" [class.plan-card-current]="isCurrent(plan)">
     <div class="plan-head">
       <span class="plan-name">{{ plan.name }}</span>
       @if (isCurrent(plan)) {
@@ -55,9 +55,9 @@
     </p>
 
     @if (isChoosable(plan)) {
-      <button type="button" class="btn btn-p plan-choose" (click)="onChoose(plan)">
+      <button mat-flat-button color="primary" class="plan-choose" (click)="onChoose(plan)">
         Choose {{ plan.name }}
       </button>
     }
-  </li>
+  </mat-card>
 </ng-template>

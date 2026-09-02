@@ -1,5 +1,8 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, computed, effect, input } from '@angular/core';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { ChartImage } from '../../shared/chart-image';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
@@ -30,7 +33,7 @@ const FAILURE_COPY: Record<string, string> = {
  */
 @Component({
   selector: 'app-analysis-result',
-  imports: [ChartImage, DatePipe, DecimalPipe],
+  imports: [ChartImage, DatePipe, DecimalPipe, MatCardModule, MatChipsModule, MatProgressBarModule],
   templateUrl: './analysis-result.html',
   styleUrl: './analysis-result.css',
 })

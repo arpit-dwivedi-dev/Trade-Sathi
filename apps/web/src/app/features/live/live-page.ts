@@ -13,6 +13,10 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { firstValueFrom, Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
@@ -93,7 +97,17 @@ interface AnalysisTarget {
  */
 @Component({
   selector: 'app-live-page',
-  imports: [AnalysisResult, DatePipe, DecimalPipe, FormsModule, LiveChart],
+  imports: [
+    AnalysisResult,
+    DatePipe,
+    DecimalPipe,
+    FormsModule,
+    LiveChart,
+    MatButtonModule,
+    MatCardModule,
+    MatChipsModule,
+    MatProgressSpinnerModule,
+  ],
   templateUrl: './live-page.html',
   styleUrl: './live-page.css',
 })

@@ -55,7 +55,9 @@
     @if (instrument(); as picked) {
       <span class="ws-ident">
         <span class="sym">{{ picked.symbol }}</span>
-        <span class="chip">{{ picked.exchange }}</span>
+        <mat-chip-set aria-label="Exchange">
+          <mat-chip>{{ picked.exchange }}</mat-chip>
+        </mat-chip-set>
         @if (lastPrice(); as price) {
           <span class="num ws-price">{{ price | number: '1.2-2' }}</span>
         }

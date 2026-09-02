@@ -265,6 +265,16 @@
   font-weight: 600;
 }
 
+/* Takes its fill from the same currentColor the .d-{{direction}} class sets
+   on this same element (up/down/flat), so the bar reads as part of the
+   directional call rather than a generic loading indicator. */
+.result-conf-meter {
+  --mat-progress-bar-active-indicator-color: currentColor;
+  --mat-progress-bar-track-color: color-mix(in srgb, currentColor 18%, transparent);
+  --mat-progress-bar-active-indicator-height: 6px;
+  --mat-progress-bar-track-height: 6px;
+}
+
 .result-cells {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
