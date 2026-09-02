@@ -13,7 +13,7 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "dev:web"],
       "port": 4200,
-      "autoPort": false
+      "autoPort": true
     }
   ]
 }

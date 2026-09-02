@@ -1,226 +1,105 @@
-/* ── layout ─────────────────────────────────────────────── */
-.account-grid {
-  align-items: start;
-  display: grid;
-  gap: var(--s5);
-  grid-template-columns: minmax(0, 1fr) 340px;
-}
-
-.account-main,
-.account-side {
+.acct {
   display: flex;
   flex-direction: column;
   gap: var(--s5);
 }
 
-/* ── usage panel ────────────────────────────────────────── */
-.account-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s4);
-  padding: var(--s6);
+/* Narrower than the app's full measure: this page holds one card of key-value
+   rows, and stretching it to the grid width left the values marooned. */
+.acct-card {
+  max-width: 560px;
 }
 
-.account-loading {
+.acct-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+/* The identity block: the initial gives the card an anchor when the address is
+   too long to read at a glance. */
+.acct-who {
   align-items: center;
-  color: var(--slab-dim);
   display: flex;
-  font-size: var(--t-sm);
-  gap: var(--s2);
-  line-height: 1.55;
+  gap: var(--s3);
+  min-width: 0;
 }
 
-.account-usage-head {
-  align-items: flex-end;
+.acct-mark {
+  align-items: center;
+  background: var(--acc-soft);
+  border: 1px solid var(--acc-line);
+  border-radius: var(--r-pill);
+  color: var(--acc-tx);
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--s4);
-  justify-content: space-between;
-}
-
-.account-usage-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-}
-
-.account-usage-figure {
-  align-items: baseline;
-  display: flex;
-  gap: 6px;
-}
-
-.account-used {
-  font-size: var(--t-4xl);
+  flex: none;
+  font-family: var(--fh);
+  font-size: var(--t-md);
   font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  height: 40px;
+  justify-content: center;
+  text-transform: uppercase;
+  width: 40px;
 }
 
-.account-limit {
-  color: var(--slab-dim);
-  font-size: var(--t-lg);
-}
-
-.account-usage-rem {
-  align-items: flex-end;
+.acct-who-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.account-rem {
-  font-size: var(--t-2xl);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.account-meter {
-  color: var(--acc-tx);
-  height: 6px;
-}
-
-:root[data-theme='dark'] .account-meter {
-  color: var(--acc);
-}
-
-.account-reset {
-  color: var(--slab-dim);
-}
-
-/* ── upsell ─────────────────────────────────────────────── */
-.account-upsell {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s4);
-  padding: var(--s5);
-}
-
-.account-upsell-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.account-h {
-  font-size: var(--t-lg);
-  letter-spacing: -0.017em;
-}
-
-.account-msg {
-  color: var(--tx-2);
-  font-size: var(--t-sm);
-  line-height: 1.55;
-  max-width: 60ch;
-}
-
-/* ── side cards ─────────────────────────────────────────── */
-.account-plan {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-}
-
-.account-plan-name {
+.acct-email {
   font-family: var(--fh);
-  font-size: var(--t-xl);
+  font-size: var(--t-base);
   font-weight: 600;
-  letter-spacing: -0.02em;
-  padding-bottom: 6px;
+  letter-spacing: -0.015em;
 }
 
-.account-plan-row,
-.account-details .lvl {
-  font-size: var(--t-xs);
-}
-
-.account-key {
+.acct-sub {
   color: var(--tx-3);
+  font-size: var(--t-2xs);
 }
 
-.account-val {
-  color: var(--tx);
-  max-width: 220px;
-  text-align: right;
-}
-
-.account-details {
+.acct-rows {
+  border-top: 1px solid var(--line-soft);
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
-}
-
-.account-disc {
-  border-top: 1px solid var(--line-soft);
+  gap: var(--s3);
   padding-top: var(--s4);
 }
 
-@media (max-width: 900px) {
-  .account-grid {
-    grid-template-columns: 1fr;
-  }
+.acct-row {
+  font-size: var(--t-xs);
 }
 
-@media (max-width: 520px) {
-  .account-used {
-    font-size: var(--t-3xl);
-  }
+.acct-key {
+  color: var(--tx-3);
 }
 
-/* Separates stacked add-on blocks inside the one card, so two of them don't
-   read as a single list of rows. */
-.account-addon + .account-addon {
-  border-top: 1px solid var(--line);
-  margin-top: var(--s3);
-  padding-top: var(--s3);
-}
-
-.account-addon-name {
-  font-family: var(--fh);
-  font-size: var(--t-sm);
-  font-weight: 600;
-}
-
-/* The top-up sits under the add-on list, separated: it tops the add-on up, it
-   is not another add-on. */
-.account-addon-topup {
-  border-top: 1px solid var(--line);
-  display: grid;
-  gap: var(--s2);
-  margin-top: var(--s3);
-  padding-top: var(--s3);
-}
-
-/* Meter footnotes sit on one line and wrap together, so the reserve balance
-   reads as a qualifier on the meter above rather than a separate stat. */
-.account-meter-foot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s2) var(--s4);
-  justify-content: space-between;
-}
-
-.account-reserve {
-  color: var(--tx-2);
-}
-
-.account-reserve .num {
+.acct-val {
   color: var(--tx);
-  font-weight: 600;
+  max-width: 260px;
+  text-align: right;
 }
 
-/* Separated from the plan picker below it: topping up and switching tiers are
-   two different purchases, and running them together read as one form. */
-.account-topup {
-  border-bottom: 1px solid var(--line);
-  display: grid;
-  gap: var(--s2);
-  justify-items: start;
-  padding-bottom: var(--s4);
-}
-
-.account-topup-note {
-  color: var(--slab-dim);
+.acct-note {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
   line-height: 1.55;
+}
+
+.acct-link {
+  color: var(--acc-tx);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Sign out closes the card rather than floating under it: it acts on the
+   identity shown above, so it belongs to the same box. */
+.acct-foot {
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--s3) var(--s5);
 }

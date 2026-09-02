@@ -780,14 +780,28 @@
    7. Table
    ════════════════════════════════════════════════════════ */
 
+/* Bounded to a viewport-relative height with its own vertical scrollbar: a
+   long result list used to grow .tbl taller than the screen and hand its
+   scroll to the page itself, so the sidebar/header scrolled away with it.
+   Capping the height here keeps the page frame fixed and puts the scroll
+   where the data is. */
 .tbl {
+  --tr-min-w: 820px;
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--sh-1);
-  overflow: hidden;
+  max-height: 70vh;
+  overflow: auto;
 }
 
+/* Fixed-width columns (104/60/112/20px) plus three flexible ones: below
+   ~820px those flexible columns would squeeze to nothing and the row text
+   would overlap itself as the viewport resizes. min-width (via the --tr-min-w
+   custom property, so a row nested inside a flex wrapper — see history's
+   .history-row-head — can pick up the same floor) holds the row at its
+   natural size instead, so .tbl scrolls horizontally rather than reflowing
+   unstably. */
 .tr {
   align-items: center;
   border-bottom: 1px solid var(--line-soft);
@@ -796,6 +810,7 @@
   grid-template-columns:
     104px minmax(0, 1.5fr) minmax(0, 1fr) 60px
     minmax(0, 1fr) minmax(0, 1fr) 112px 20px;
+  min-width: var(--tr-min-w);
   padding: var(--s3) var(--s5);
 }
 
@@ -811,6 +826,9 @@
   font-size: var(--t-2xs);
   font-weight: 600;
   letter-spacing: 0.05em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
   padding: var(--s3) var(--s5);
   text-transform: uppercase;
 }

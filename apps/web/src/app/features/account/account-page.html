@@ -65,6 +65,16 @@
         Logs
       </a>
 
+      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'billing' }">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2.5" y="5" width="19" height="14" rx="2" />
+          <path d="M2.5 10h19" />
+          <path d="M6.5 14.5h3" />
+        </svg>
+        Billing
+      </a>
+
       <span class="nav-item" aria-current="page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -93,7 +103,7 @@
         </svg>
       </button>
 
-      <h1 class="topbar-title trunc">Plan &amp; usage</h1>
+      <h1 class="topbar-title trunc">Account</h1>
 
       <div class="topbar-end">
         <button type="button" class="btn btn-g btn-sm btn-icon" (click)="toggleTheme()"
@@ -122,239 +132,55 @@
       </div>
     </header>
 
-  <div class="body content-max">
+  <div class="body content-max acct">
     <div class="page-head">
-      <h1 class="page-title">Plan &amp; usage</h1>
-      <p class="page-sub">What you're on, what you've used, and how to get more.</p>
+      <h1 class="page-title">Account</h1>
+      <p class="page-sub">Your sign-in details.</p>
     </div>
 
-    <div class="account-grid">
-      <div class="account-main">
-        <div class="panel account-panel">
-          @if (loading()) {
-            <p class="account-loading">
-              <span class="spin" aria-hidden="true"></span> Reading your usage…
-            </p>
-          } @else if (quota(); as q) {
-            <div class="account-usage-head">
-              <div class="account-usage-main">
-                <span class="lbl">Analyses used this period</span>
-                <span class="account-usage-figure">
-                  <span class="num account-used">{{ q.used }}</span>
-                  <span class="num account-limit">/ {{ q.limit }}</span>
-                </span>
-              </div>
-              <div class="account-usage-rem">
-                <span class="num account-rem">{{ q.remaining }}</span>
-                <span class="lbl">remaining</span>
-              </div>
+    <div class="card acct-card">
+      <div class="hd">
+        <span class="lbl-h">Profile</span>
+        <span class="st st-complete">Signed in</span>
+      </div>
+      <div class="pad acct-body">
+        <div class="acct-who">
+          <span class="acct-mark" aria-hidden="true">{{ (user()?.email ?? '?').charAt(0) }}</span>
+          <span class="acct-who-text">
+            <span class="acct-email trunc">{{ user()?.email ?? '—' }}</span>
+            <span class="acct-sub">Signed in with email</span>
+          </span>
+        </div>
+
+        <!-- The address is already the heading above; repeating it as a row
+             would say the same thing twice. -->
+        <div class="acct-rows">
+          @if (memberSince(); as since) {
+            <div class="lvl acct-row">
+              <span class="acct-key">Member since</span>
+              <time class="num acct-val" [attr.datetime]="since">
+                {{ since | date: 'd MMM yyyy' }}
+              </time>
             </div>
-            <div class="meter account-meter"><i [style.width.%]="usedPercent()"></i></div>
-            <div class="account-meter-foot">
-              <span class="lbl account-reset">Resets at the start of next month</span>
-              <!-- Credits are shown beside the meter, never added into it: they
-                   are a separate balance that only starts being spent once the
-                   allowance above is gone, and folding them into "remaining"
-                   would misreport both numbers. -->
-              @if (analysisCredits() > 0) {
-                <span class="lbl account-reserve">
-                  <span class="num">+{{ analysisCredits() }}</span> top-up credits in reserve
-                </span>
-              }
-            </div>
-          } @else {
-            <p class="account-loading">
-              Usage isn't available right now. Your analyses still run — the backend enforces the
-              limit.
-            </p>
           }
+          <div class="lvl acct-row">
+            <span class="acct-key">Sign-in method</span>
+            <span class="num acct-val">Email &amp; password</span>
+          </div>
         </div>
 
-        <!-- Daily Briefing gets its own meter, never a row on the one above.
-             The two draw on entirely separate counters — usage_counters vs
-             daily_briefing_usage_counters, credit_balance vs
-             daily_briefing_credit_balance — and a briefing run can never spend
-             an analysis allowance or the reverse. One combined figure would
-             claim a shared pool that does not exist. -->
-        @if (!loading() && showBriefing()) {
-          <div class="panel account-panel">
-            @if (briefingUsage(); as b) {
-              <div class="account-usage-head">
-                <div class="account-usage-main">
-                  <span class="lbl">Daily briefings used this period</span>
-                  <span class="account-usage-figure">
-                    <span class="num account-used">{{ b.used }}</span>
-                    <span class="num account-limit">/ {{ b.limit }}</span>
-                  </span>
-                </div>
-                <div class="account-usage-rem">
-                  <span class="num account-rem">{{ b.remaining }}</span>
-                  <span class="lbl">remaining</span>
-                </div>
-              </div>
-              <div class="meter account-meter"><i [style.width.%]="briefingUsedPercent()"></i></div>
-              <div class="account-meter-foot">
-                <span class="lbl account-reset">Resets at the start of next month</span>
-                @if (briefingCredits() > 0) {
-                  <span class="lbl account-reserve">
-                    <span class="num">+{{ briefingCredits() }}</span> top-up briefings in reserve
-                  </span>
-                }
-              </div>
-            } @else {
-              <!-- Credits without a live subscription. There is no allowance to
-                   meter, but the credits are still spendable — the SQL function
-                   serves them with no subscription held — so the balance is
-                   shown on its own rather than the block disappearing. -->
-              <div class="account-usage-head">
-                <div class="account-usage-main">
-                  <span class="lbl">Daily briefings left</span>
-                  <span class="account-usage-figure">
-                    <span class="num account-used">{{ briefingCredits() }}</span>
-                  </span>
-                </div>
-              </div>
-              <span class="lbl account-reset">
-                Top-up briefings, usable without the monthly add-on.
-              </span>
-            }
-          </div>
-        }
-
-        <div class="card account-upsell">
-          <div class="account-upsell-copy">
-            <h2 class="account-h">
-              @if (analysesExhausted()) {
-                You're out of analyses
-              } @else {
-                Need more analyses?
-              }
-            </h2>
-            <p class="account-msg">
-              @if (analysesExhausted()) {
-                This month's allowance is spent and you have no credits left. Top up now to keep
-                analysing, or move to a plan with a larger monthly allowance.
-              } @else {
-                Upgrading raises your monthly allowance, and one-off credits stack on top of it.
-                Payment is handled by Razorpay.
-              }
-            </p>
-          </div>
-
-          <!-- The top-up sits above the plan picker, and outside it. A user
-               already on the top tier has no card left to choose, so the picker
-               alone was a dead end for exactly the people who had paid the
-               most — a pack is the only way to add analyses within a month. -->
-          <div class="account-topup">
-            <app-buy-credits-button (creditsAdded)="onCreditsAdded()" />
-            <span class="lbl account-topup-note">
-              Credits stack on top of your plan and are only spent once your monthly allowance
-              runs out.
-            </span>
-          </div>
-
-          <app-upgrade-button />
-        </div>
+        <!-- Billing is a screen of its own; this page says nothing about plans
+             or balances, it only points at where they live. -->
+        <p class="acct-note">
+          Plans, usage and credits live under
+          <a class="acct-link" routerLink="/app" [queryParams]="{ tab: 'billing' }">Billing</a>.
+        </p>
       </div>
 
-      <div class="account-side">
-        @if (plan(); as p) {
-          <div class="card">
-            <div class="hd">
-              <span class="lbl-h">Current plan</span>
-              <span class="st st-complete">Active</span>
-            </div>
-            <div class="pad account-plan">
-              <span class="account-plan-name">{{ p.name }}</span>
-              <div class="lvl account-plan-row">
-                <span class="account-key">Price</span>
-                <span class="num account-val">{{ priceLabel(p.priceInrPaise) }} / month</span>
-              </div>
-              <div class="lvl account-plan-row">
-                <span class="account-key">Included</span>
-                <span class="num account-val">{{ p.analysesPerMonth }} / month</span>
-              </div>
-              <!-- Free-plan users have no subscriptions row, so no renewal date
-                   exists to show — the plan simply has no billing cycle. -->
-              @if (p.currentPeriodEnd; as ends) {
-                <div class="lvl account-plan-row">
-                  <span class="account-key">Renews</span>
-                  <time class="num account-val" [attr.datetime]="ends">
-                    {{ ends | date: 'd MMM yyyy' }}
-                  </time>
-                </div>
-              }
-            </div>
-          </div>
-        }
-
-        <!-- Add-ons get their own card, never a row inside "Current plan".
-             They are separately billed SKUs held alongside the tier, and
-             folding them into the plan card is what let a user hold Daily
-             Briefing without the account screen ever saying so. -->
-        @if (addOns(); as list) {
-          @if (list.length) {
-            <div class="card">
-              <div class="hd"><span class="lbl-h">Add-ons</span></div>
-              <div class="pad account-details">
-                @for (addOn of list; track addOn.key) {
-                  <div class="account-addon">
-                    <div class="lvl account-plan-row">
-                      <span class="account-addon-name">{{ addOn.name }}</span>
-                      <span class="st st-complete">Active</span>
-                    </div>
-                    <div class="lvl account-plan-row">
-                      <span class="account-key">Price</span>
-                      <span class="num account-val">
-                        {{ priceLabel(addOn.amountMinor) }} / month
-                      </span>
-                    </div>
-                    @if (addOn.currentPeriodEnd; as ends) {
-                      <div class="lvl account-plan-row">
-                        <span class="account-key">Renews</span>
-                        <time class="num account-val" [attr.datetime]="ends">
-                          {{ ends | date: 'd MMM yyyy' }}
-                        </time>
-                      </div>
-                    }
-                  </div>
-                }
-
-                <!-- The subscription cannot be bought twice for more quota —
-                     its allowance comes from the plan, not from a count of
-                     subscriptions. Top-up packs are what stack within a
-                     month. -->
-                <div class="account-addon-topup">
-                  <div class="lvl account-plan-row">
-                    <span class="account-key">Top-up credits</span>
-                    <span class="num account-val">{{ briefingCredits() }}</span>
-                  </div>
-                  <app-buy-credits-button
-                    kind="daily_briefing"
-                    (creditsAdded)="onCreditsAdded()"
-                  />
-                </div>
-              </div>
-            </div>
-          }
-        }
-
-        <div class="card">
-          <div class="hd"><span class="lbl-h">Account</span></div>
-          <div class="pad account-details">
-            <div class="lvl">
-              <span class="account-key">Email</span>
-              <span class="num trunc account-val">{{ user()?.email ?? '—' }}</span>
-            </div>
-          </div>
-        </div>
+      <div class="acct-foot">
+        <button type="button" class="btn btn-s btn-sm" (click)="signOut()">Sign out</button>
       </div>
     </div>
-
-    <p class="disc account-disc">
-      ChartAnalyzer produces AI-generated chart analysis. It is not investment advice and not a
-      recommendation to buy or sell any instrument.
-    </p>
   </div>
   </div>
 </main>

@@ -1,0 +1,201 @@
+<section class="body content-max bill">
+  <div class="page-head">
+    <h1 class="page-title">Billing</h1>
+    <p class="page-sub">
+      Your plan, what's left this period, and the two ways to get more — a bigger monthly
+      allowance, or credits that stack on top of it.
+    </p>
+  </div>
+
+  <!-- The one summary slab. Plan, allowance and reserve sit in a single
+       instrument panel because they are read together: "what am I on, and how
+       much of it is left". Splitting them across cards is what made a user
+       check two places to answer one question. -->
+  <div class="panel bill-slab">
+    @if (loading()) {
+      <p class="bill-state"><span class="spin" aria-hidden="true"></span> Reading your usage…</p>
+    } @else {
+      <div class="cells bill-cells">
+        <div class="cell">
+          <span class="lbl">Current plan</span>
+          <b class="num bill-figure">{{ plan()?.name ?? '—' }}</b>
+          @if (plan(); as p) {
+            <span class="dim bill-note">
+              {{ priceLabel(p.priceInrPaise) }}{{ p.priceInrPaise > 0 ? ' / month' : '' }}
+            </span>
+          }
+        </div>
+
+        <div class="cell">
+          <span class="lbl">Analyses left</span>
+          @if (quota(); as q) {
+            <b class="num bill-figure">{{ q.remaining }}</b>
+            <span class="dim bill-note">of {{ q.limit }} this month</span>
+          } @else {
+            <b class="num bill-figure">—</b>
+            <span class="dim bill-note">usage unavailable</span>
+          }
+        </div>
+
+        <!-- Credits are a balance beside the allowance, never added into it:
+             they are only spent once the allowance above is gone, and folding
+             them into "remaining" would misreport both numbers. -->
+        <div class="cell">
+          <span class="lbl">Top-up credits</span>
+          <b class="num bill-figure">{{ analysisCredits() }}</b>
+          <span class="dim bill-note">spent after the allowance</span>
+        </div>
+      </div>
+
+      <div class="bill-meters">
+        @if (quota(); as q) {
+          <div class="bill-meter-block">
+            <div class="bill-meter-head">
+              <span class="lbl">{{ q.used }} of {{ q.limit }} analyses used</span>
+              <span class="dim bill-note">Resets at the start of next month</span>
+            </div>
+            <div class="meter bill-meter"><i [style.width.%]="usedPercent()"></i></div>
+          </div>
+        } @else {
+          <p class="bill-state bill-state-flush">
+            Usage isn't available right now. Your analyses still run — the backend enforces the
+            limit.
+          </p>
+        }
+
+        <!-- Daily Briefing keeps its own meter, never a row on the one above.
+             The two draw on entirely separate counters — usage_counters vs
+             daily_briefing_usage_counters, credit_balance vs
+             daily_briefing_credit_balance — and a briefing run can never spend
+             an analysis allowance or the reverse. One combined figure would
+             claim a shared pool that does not exist. -->
+        @if (briefingUsage(); as b) {
+          <div class="bill-meter-block">
+            <div class="bill-meter-head">
+              <span class="lbl">{{ b.used }} of {{ b.limit }} daily briefings used</span>
+              <span class="dim bill-note">
+                @if (briefingCredits() > 0) {
+                  +{{ briefingCredits() }} in reserve
+                } @else {
+                  Resets at the start of next month
+                }
+              </span>
+            </div>
+            <div class="meter bill-meter"><i [style.width.%]="briefingUsedPercent()"></i></div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- One top-up card, both currencies. They were two cards with two identical
+       primary buttons, which read as one purchase offered twice. -->
+  <div class="card bill-topup">
+    <div class="hd">
+      <span class="lbl-h">Top up</span>
+      @if (analysesExhausted()) {
+        <span class="st st-failed">No analyses left</span>
+      }
+    </div>
+
+    <div class="bill-topup-row">
+      <div class="bill-topup-copy">
+        <span class="bill-topup-name">Analysis credits</span>
+        <p class="bill-msg">
+          @if (analysesExhausted()) {
+            This month's allowance is spent and you have no credits left. Top up to keep
+            analysing, or move to a larger plan below.
+          } @else {
+            One-off credits for manual analyses. They stack on top of your plan and are only
+            spent once the monthly allowance runs out.
+          }
+        </p>
+      </div>
+      <div class="bill-topup-act">
+        <span class="lbl bill-balance">
+          <b class="num">{{ analysisCredits() }}</b> in reserve
+        </span>
+        <app-buy-credits-button (creditsAdded)="onCreditsAdded()" />
+      </div>
+    </div>
+
+    <!-- Credits without a live subscription still belong here: they are spent
+         with no add-on held — the SQL function serves them either way — so a
+         user who let the add-on lapse must still see and be able to buy them. -->
+    @if (!loading() && showBriefing()) {
+      <div class="bill-topup-row">
+        <div class="bill-topup-copy">
+          <span class="bill-topup-name">Daily briefing credits</span>
+          <p class="bill-msg">
+            One-off briefings for your watchlist, usable with or without the monthly add-on.
+          </p>
+        </div>
+        <div class="bill-topup-act">
+          <span class="lbl bill-balance">
+            <b class="num">{{ briefingCredits() }}</b> in reserve
+          </span>
+          <app-buy-credits-button kind="daily_briefing" (creditsAdded)="onCreditsAdded()" />
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="bill-plans">
+    <div class="bill-plans-head">
+      <h2 class="bill-h">Plans &amp; add-ons</h2>
+      <p class="bill-msg">
+        A plan sets your monthly allowance; add-ons are billed alongside it. Payment is handled by
+        Razorpay.
+      </p>
+    </div>
+
+    <app-upgrade-button (upgraded)="onUpgraded()" />
+  </div>
+
+  <!-- What is currently billed, listed after the things that change it: this is
+       a receipt, not a control. -->
+  @if (!loading() && plan(); as p) {
+    <div class="card bill-current">
+      <div class="hd">
+        <span class="lbl-h">What you're billed for</span>
+        <span class="st st-complete">Active</span>
+      </div>
+      <div class="pad bill-current-body">
+        <div class="lvl bill-row">
+          <span class="bill-key">{{ p.name }}</span>
+          <span class="num bill-val">
+            {{ priceLabel(p.priceInrPaise) }}{{ p.priceInrPaise > 0 ? ' / month' : '' }}
+          </span>
+        </div>
+        <!-- Free-plan users have no subscriptions row, so no renewal date
+             exists to show — the plan simply has no billing cycle. -->
+        @if (p.currentPeriodEnd; as ends) {
+          <div class="lvl bill-row bill-row-sub">
+            <span class="bill-key">Renews</span>
+            <time class="num bill-val" [attr.datetime]="ends">{{ ends | date: 'd MMM yyyy' }}</time>
+          </div>
+        }
+
+        @for (addOn of addOns(); track addOn.key) {
+          <div class="lvl bill-row bill-row-addon">
+            <span class="bill-key">{{ addOn.name }}</span>
+            <span class="num bill-val">{{ priceLabel(addOn.amountMinor) }} / month</span>
+          </div>
+          @if (addOn.currentPeriodEnd; as ends) {
+            <div class="lvl bill-row bill-row-sub">
+              <span class="bill-key">Renews</span>
+              <time class="num bill-val" [attr.datetime]="ends">
+                {{ ends | date: 'd MMM yyyy' }}
+              </time>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
+
+  <p class="disc bill-disc">
+    ChartAnalyzer produces AI-generated chart analysis. It is not investment advice and not a
+    recommendation to buy or sell any instrument.
+  </p>
+</section>

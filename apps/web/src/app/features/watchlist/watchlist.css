@@ -119,9 +119,12 @@
 
 /* The list became a table once each row carried its own settings (chart
    window, run time) alongside its actions — pills could not hold that
-   without wrapping unreadably. */
+   without wrapping unreadably. Capped to a viewport-relative height with its
+   own scrollbar (both axes) so a long watchlist scrolls inside the table
+   instead of handing its scroll to the page. */
 .watchlist-table-wrap {
-  overflow-x: auto;
+  max-height: 70vh;
+  overflow: auto;
 }
 
 .watchlist-table {
@@ -132,6 +135,9 @@
 
 .watchlist-table th {
   background: var(--surf-2);
+  position: sticky;
+  top: 0;
+  z-index: 1;
   border-bottom: 1px solid var(--line);
   color: var(--tx-3);
   font-family: var(--fh);

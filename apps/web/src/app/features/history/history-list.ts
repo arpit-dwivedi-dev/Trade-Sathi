@@ -203,6 +203,18 @@ export class HistoryList implements OnInit, OnDestroy {
     return row.emailed_at !== null;
   }
 
+  /**
+   * Fires on every scroll of the table's own scrollbox (see .tbl's
+   * max-height/overflow in components.css). Requests the next page once the
+   * user is within one row's height of the bottom, so the list keeps filling
+   * itself instead of stopping on a "Load more" button.
+   */
+  protected onTableScroll(event: Event): void {
+    const el = event.target as HTMLElement;
+    const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (remaining < 120) void this.loadMore();
+  }
+
   protected async loadMore(): Promise<void> {
     const cursor = this.nextCursor();
     if (!cursor || this.loadingMore()) return;

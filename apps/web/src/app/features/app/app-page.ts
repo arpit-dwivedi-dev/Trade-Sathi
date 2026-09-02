@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AnalyzePage } from '../analyze/analyze-page';
+import { BillingPage } from '../billing/billing-page';
 import { BillingService } from '../billing/billing.service';
 import { PlansOverlay } from '../billing/plans-overlay';
 import { HistoryList } from '../history/history-list';
@@ -12,9 +13,20 @@ import { Watchlist } from '../watchlist/watchlist';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 
-type Tab = 'analyze' | 'live' | 'history' | 'watchlist' | 'logs';
+type Tab = 'analyze' | 'live' | 'history' | 'watchlist' | 'logs' | 'billing';
 
-const TABS: readonly Tab[] = ['analyze', 'live', 'history', 'watchlist', 'logs'];
+const TABS: readonly Tab[] = ['analyze', 'live', 'history', 'watchlist', 'logs', 'billing'];
+
+/**
+ * Plans and credits used to be two tabs. They are one screen now — a plan and a
+ * credit pack answer the same question — but the old URLs are kept pointing at
+ * it so a bookmark or an in-app link written against them still lands somewhere
+ * real rather than silently falling back to Analyze.
+ */
+const TAB_ALIASES: Readonly<Record<string, Tab>> = {
+  pricing: 'billing',
+  credits: 'billing',
+};
 
 const TAB_TITLES: Readonly<Record<Tab, string>> = {
   analyze: 'Analyze',
@@ -22,15 +34,26 @@ const TAB_TITLES: Readonly<Record<Tab, string>> = {
   history: 'Your analyses',
   watchlist: 'Watchlist',
   logs: 'Logs',
+  billing: 'Billing',
 };
 
 function parseTab(value: string | null): Tab {
-  return TABS.includes(value as Tab) ? (value as Tab) : 'analyze';
+  if (TABS.includes(value as Tab)) return value as Tab;
+  return (value !== null ? TAB_ALIASES[value] : undefined) ?? 'analyze';
 }
 
 @Component({
   selector: 'app-app-page',
-  imports: [AnalyzePage, HistoryList, LivePage, LogsPage, PlansOverlay, RouterLink, Watchlist],
+  imports: [
+    AnalyzePage,
+    BillingPage,
+    HistoryList,
+    LivePage,
+    LogsPage,
+    PlansOverlay,
+    RouterLink,
+    Watchlist,
+  ],
   styleUrl: './app-page.css',
   templateUrl: './app-page.html',
 })
@@ -95,6 +118,15 @@ export class AppPage implements OnInit {
 
   protected closeNav(): void {
     this.navOpen.set(false);
+  }
+
+  /**
+   * The rail's billing CTA. Routes to the Billing tab rather than opening the
+   * overlay — the overlay stays for the in-flow prompt raised by Analyze and
+   * Live, where leaving the screen would lose an in-flight run.
+   */
+  protected openBilling(): void {
+    this.select('billing');
   }
 
   protected openPlans(): void {

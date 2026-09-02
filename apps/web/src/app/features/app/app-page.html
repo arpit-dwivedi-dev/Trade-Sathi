@@ -74,6 +74,17 @@
           Logs
         </button>
 
+        <button type="button" class="nav-item" (click)="select('billing')"
+                [attr.aria-current]="tab() === 'billing' ? 'page' : null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2.5" y="5" width="19" height="14" rx="2" />
+            <path d="M2.5 10h19" />
+            <path d="M6.5 14.5h3" />
+          </svg>
+          Billing
+        </button>
+
         <a class="nav-item" routerLink="/account">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -85,7 +96,7 @@
       </div>
 
       <div class="nav-foot">
-        <button type="button" class="btn btn-p btn-sm nav-cta" (click)="openPlans()">
+        <button type="button" class="btn btn-p btn-sm nav-cta" (click)="openBilling()">
           {{ billingLabel() }}
         </button>
 
@@ -191,6 +202,16 @@
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your logs…</p>
+    }
+
+    <!-- Created on activation: the balances shown here move with every
+         analysis, so a fresh mount per visit is the re-read. -->
+    @defer (when tab() === 'billing') {
+      @if (tab() === 'billing') {
+        <app-billing-page />
+      }
+    } @loading (after 150ms; minimum 300ms) {
+      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading billing…</p>
     }
 
     <!-- Mounted only while open, so closing tears the purchase buttons down
