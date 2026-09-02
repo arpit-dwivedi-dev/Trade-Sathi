@@ -895,17 +895,6 @@ button.nav-toggle {
   text-transform: uppercase;
 }
 
-.trow {
-  cursor: pointer;
-  text-align: left;
-  transition: background var(--dur-subtle) var(--ease-move);
-  width: 100%;
-}
-
-.trow:hover {
-  background: var(--surf-2);
-}
-
 /* A ticker. Monospaced so a column of symbols aligns, and tracked open a
    little because uppercase mono sets tight. */
 .sym {

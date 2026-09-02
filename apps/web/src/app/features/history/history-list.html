@@ -18,19 +18,12 @@
   <!-- Provenance filter. Uploads, live runs and briefings were one
        undifferentiated list, so a user who wanted "what did my briefing send
        me" had to open rows one at a time to find out. -->
-  <div class="history-filters" role="group" aria-label="Filter by source">
+  <mat-button-toggle-group class="history-filters" aria-label="Filter by source"
+                            [value]="sourceFilter()" (change)="selectSource($event.value)">
     @for (filter of sourceFilters; track filter.value) {
-      <button
-        type="button"
-        class="btn btn-g btn-sm history-filter"
-        [class.history-filter-on]="sourceFilter() === filter.value"
-        [attr.aria-pressed]="sourceFilter() === filter.value"
-        (click)="selectSource(filter.value)"
-      >
-        {{ filter.label }}
-      </button>
+      <mat-button-toggle [value]="filter.value">{{ filter.label }}</mat-button-toggle>
     }
-  </div>
+  </mat-button-toggle-group>
 
   @if (loading()) {
     <div class="tbl" aria-busy="true">
@@ -73,30 +66,18 @@
       </p>
     </mat-card>
   } @else {
-    <div class="tbl" (scroll)="onTableScroll($event)">
-      <div class="tr tr-h">
-        <span>Analyzed</span><span>Symbol</span><span>Asset</span><span>TF</span>
-        <span>Trend</span><span>Direction</span><span>Status</span><span></span>
-      </div>
+    <div class="history-table-wrap" (scroll)="onTableScroll($event)">
+      <table mat-table [dataSource]="tableRows()" multiTemplateDataRows class="history-table">
+        <ng-container matColumnDef="analyzed">
+          <th mat-header-cell *matHeaderCellDef>Analyzed</th>
+          <td mat-cell *matCellDef="let row" class="num">
+            {{ relativeDate(row.created_at) }}
+          </td>
+        </ng-container>
 
-      @for (row of rows(); track row.id) {
-        <div class="history-row" [class.history-row-open]="expandedId() === row.id">
-          <!-- the export control is a sibling of the toggle, not a child: a
-               button cannot legally nest inside another button. -->
-          <div class="history-row-head">
-          <button
-            type="button"
-            class="tr trow"
-            [attr.aria-expanded]="expandedId() === row.id"
-            (click)="toggle(row)"
-          >
-            <span class="num history-age">{{ relativeDate(row.created_at) }}</span>
-            <!-- title carries the provenance rather than a ninth column: the
-                 row's grid is addressed by nth-child, so its cell count is
-                 load-bearing. -->
-            <!-- The chips live INSIDE the symbol cell rather than in a column
-                 of their own: this row's grid is addressed by nth-child, so
-                 adding a cell would silently reflow every rule that follows. -->
+        <ng-container matColumnDef="symbol">
+          <th mat-header-cell *matHeaderCellDef>Symbol</th>
+          <td mat-cell *matCellDef="let row">
             <span class="sym trunc" translate="no"
                   [class.history-unknown]="!displaySymbol(row)"
                   [attr.title]="(displaySymbol(row) ?? 'Symbol not detected') + ' · from ' + sourceLabel(row)">
@@ -116,51 +97,76 @@
                 }
               </span>
             </span>
-            <span class="history-cell">{{ row.asset_class ?? '—' }}</span>
-            <span class="num history-tf">{{ row.timeframe ?? '—' }}</span>
-            <span class="history-cell">{{ row.trend ?? '—' }}</span>
-            <span>
-              @if (row.call_direction; as direction) {
-                <span class="dir d-{{ direction }} history-dir">{{ direction }}</span>
-              } @else {
-                <span class="history-cell">—</span>
-              }
-            </span>
-            <!-- queued/processing here is not a bug: an analysis submitted from
-                 another tab or session can still be in flight. -->
-            <span><span class="st st-{{ row.status }}">{{ row.status }}</span></span>
-            <span class="history-chevron" [class.history-chevron-open]="expandedId() === row.id" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 6l6 6-6 6" />
-              </svg>
-            </span>
-          </button>
+          </td>
+        </ng-container>
 
-          <button
-            type="button"
-            class="btn btn-g btn-sm history-export"
-            [disabled]="exportingId() !== null"
-            [attr.aria-label]="'Download PDF for ' + (displaySymbol(row) ?? 'this analysis')"
-            (click)="exportPdf(row, $event)"
-          >
-            @if (exportingId() === row.id) {
-              <span class="spin" aria-hidden="true"></span>
+        <ng-container matColumnDef="asset">
+          <th mat-header-cell *matHeaderCellDef>Asset</th>
+          <td mat-cell *matCellDef="let row" class="history-cell">
+            {{ row.asset_class ?? '—' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="tf">
+          <th mat-header-cell *matHeaderCellDef>TF</th>
+          <td mat-cell *matCellDef="let row" class="num">
+            {{ row.timeframe ?? '—' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="trend">
+          <th mat-header-cell *matHeaderCellDef>Trend</th>
+          <td mat-cell *matCellDef="let row" class="history-cell">
+            {{ row.trend ?? '—' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="direction">
+          <th mat-header-cell *matHeaderCellDef>Direction</th>
+          <td mat-cell *matCellDef="let row">
+            @if (row.call_direction; as direction) {
+              <span class="dir d-{{ direction }} history-dir">{{ direction }}</span>
             } @else {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 3v11" />
-                <path d="M8 11l4 4 4-4" />
-                <path d="M4 20h16" />
-              </svg>
+              <span class="history-cell">—</span>
             }
-            {{ exportingId() === row.id ? 'Building…' : 'PDF' }}
-          </button>
-          </div>
+          </td>
+        </ng-container>
 
-          @if (expandedId() === row.id) {
+        <!-- queued/processing here is not a bug: an analysis submitted from
+             another tab or session can still be in flight. -->
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="st st-{{ row.status }}">{{ row.status }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let row">
+            <button
+              mat-icon-button
+              [disabled]="exportingId() !== null"
+              [attr.aria-label]="'Download PDF for ' + (displaySymbol(row) ?? 'this analysis')"
+              (click)="exportPdf(row, $event)"
+            >
+              @if (exportingId() === row.id) {
+                <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
+              } @else {
+                <mat-icon aria-hidden="true">download</mat-icon>
+              }
+            </button>
+            <span class="history-chevron" [class.history-chevron-open]="expandedId() === row.id" aria-hidden="true">
+              <mat-icon aria-hidden="true">chevron_right</mat-icon>
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="expandedDetail">
+          <td mat-cell *matCellDef="let row" [attr.colspan]="columns.length" class="history-detail-cell">
             <div class="history-detail">
               @if (detailLoading()) {
-                <p class="history-msg"><span class="spin" aria-hidden="true"></span> Loading the full report…</p>
+                <p class="history-msg"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading the full report…</p>
               } @else if (detailError()) {
                 <p class="err" role="alert">{{ detailError() }}</p>
               } @else if (detail(); as loaded) {
@@ -177,13 +183,27 @@
                 }
               }
             </div>
-          }
-        </div>
-      }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: columns"
+          class="history-row"
+          [class.history-row-open]="expandedId() === row.id"
+          [attr.aria-expanded]="expandedId() === row.id"
+          tabindex="0"
+          (click)="toggle(row)"
+          (keydown.enter)="toggle(row)"
+          (keydown.space)="$event.preventDefault(); toggle(row)"
+        ></tr>
+        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']; when: isExpandedRow" class="history-detail-row"></tr>
+      </table>
 
       @if (loadingMore()) {
         <div class="history-more">
-          <span class="spin" aria-hidden="true"></span> Loading more…
+          <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading more…
         </div>
       }
     </div>

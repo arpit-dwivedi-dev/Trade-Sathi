@@ -1,5 +1,10 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTableModule } from '@angular/material/table';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import { AuthService } from '../../core/auth.service';
@@ -23,7 +28,16 @@ import {
  */
 @Component({
   selector: 'app-history-list',
-  imports: [AnalysisResult, ChartImage, MatCardModule],
+  imports: [
+    AnalysisResult,
+    ChartImage,
+    MatButtonModule,
+    MatButtonToggleModule,
+    MatCardModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    MatTableModule,
+  ],
   templateUrl: './history-list.html',
   styleUrl: './history-list.css',
 })
@@ -32,6 +46,8 @@ export class HistoryList implements OnInit, OnDestroy {
   private readonly pdf = inject(AnalysisPdfService);
   private readonly supabase = inject(SupabaseClientService);
   private readonly auth = inject(AuthService);
+
+  protected readonly columns = ['analyzed', 'symbol', 'asset', 'tf', 'trend', 'direction', 'status', 'actions'];
 
   protected readonly rows = signal<HistoryRow[]>([]);
   protected readonly nextCursor = signal<string | null>(null);
@@ -42,6 +58,23 @@ export class HistoryList implements OnInit, OnDestroy {
 
   /** id of the row whose detail is expanded, or null when all are collapsed. */
   protected readonly expandedId = signal<string | null>(null);
+  /** matRowDef's `when` predicate for the expandedDetail row — only the
+   *  currently-open row's detail row exists in the DOM at all. */
+  protected readonly isExpandedRow = (_index: number, row: HistoryRow): boolean =>
+    row.id === this.expandedId();
+
+  /**
+   * CdkTable only re-evaluates matRowDef's `when` predicates when the bound
+   * [dataSource] reference itself changes — toggling expandedId doesn't
+   * touch `rows`, so binding [dataSource] to `rows()` directly would flip
+   * the chevron with no expanded row ever actually appearing. Reading
+   * expandedId() here and returning a fresh array is what makes the table
+   * notice and re-render on every toggle.
+   */
+  protected readonly tableRows = computed(() => {
+    this.expandedId();
+    return [...this.rows()];
+  });
   protected readonly detail = signal<HistoryDetail | null>(null);
   protected readonly detailLoading = signal(false);
   protected readonly detailError = signal<string | null>(null);

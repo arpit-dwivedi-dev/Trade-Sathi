@@ -1,28 +1,90 @@
-/* The row grid is shared by two different parents: the header and the loading
-   placeholders are direct children of .tbl and get the full width, while a
-   data row's grid lives in a button that sits beside the export control. The
-   export column is therefore a fixed width, reserved as trailing padding on
-   the full-width rows, so all eight columns line up down the table. Fixing it
-   also stops the row reflowing when the label swaps to "Building…". */
 /* Pinned to exactly the viewport below the sticky topbar, rather than the
-   page's natural flow height: .tbl used to cap itself at 70vh but the title,
-   count and filter row above it were extra on top of that, so the section as
-   a whole still ran taller than one screen and the outer page picked up a
-   few pixels of its own scroll. Fixing the section's height and letting .tbl
+   page's natural flow height: the title, count and filter row above the
+   table are extra on top of it, so without this the section as a whole ran
+   taller than one screen and the outer page picked up a few pixels of its
+   own scroll. Fixing the section's height and letting the table wrapper
    flex to fill what's left makes the table the only thing that scrolls. */
 .history {
-  --hist-export: 108px;
   height: calc(100vh - var(--top-h));
 }
 
+/* The loading skeleton (still the hand-rolled .tbl/.tr grid — mat-table
+   only exists once real rows are being rendered) gets the same column
+   proportions as the real table below so the swap from skeleton to data
+   doesn't jump. */
 .history .tbl {
   flex: 1;
   max-height: none;
   min-height: 0;
 }
 
-.history .tbl > .tr {
-  padding-right: calc(var(--s5) + var(--hist-export) + var(--s4));
+.history-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.history-table {
+  min-width: 640px;
+  width: 100%;
+}
+
+.mat-column-analyzed {
+  flex: 0 0 104px;
+}
+
+.mat-column-symbol {
+  flex: 1.5 1 0;
+  min-width: 0;
+}
+
+.mat-column-asset,
+.mat-column-trend {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.mat-column-tf {
+  flex: 0 0 60px;
+}
+
+.mat-column-direction {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.mat-column-status {
+  flex: 0 0 112px;
+}
+
+.mat-column-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--s1);
+  justify-content: flex-end;
+}
+
+.history-row {
+  cursor: pointer;
+  transition: background var(--dur-subtle) var(--ease-move);
+}
+
+.history-row:hover,
+.history-row:focus-visible {
+  background: var(--surf-2);
+}
+
+.history-row-open {
+  background: var(--surf-2);
+}
+
+.history-detail-row {
+  height: auto;
+}
+
+.history-detail-cell {
+  padding: 0 !important;
 }
 
 .history-head {
@@ -47,68 +109,6 @@
   font-weight: 600;
 }
 
-.history-row {
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.history-row:last-child {
-  border-bottom: 0;
-}
-
-/* An open row keeps its own tint so the expanded report stays visibly attached
-   to the row that opened it. */
-.history-row-open .history-row-head {
-  background: var(--surf-2);
-}
-
-/* toggle and export sit side by side; the toggle takes the leftover width.
-   min-width matches .tbl's --tr-min-w: this flex row sits between .tbl and
-   the .trow button, and a block child normally takes its parent's content
-   width regardless of its own children — without this floor here, the row
-   would shrink to fit .tbl's visible width (via .trow's min-width: 0 below)
-   instead of triggering .tbl's horizontal scroll like the header row does. */
-.history-row-head {
-  align-items: center;
-  display: flex;
-  min-width: var(--tr-min-w, auto);
-  transition: background var(--dur-subtle) var(--ease-move);
-}
-
-.history-row-head .trow {
-  flex: 1;
-  min-width: 0;
-}
-
-/* Quiet until the row is hovered or the control is focused — a download button
-   on every row should not compete with the data in it. */
-.history-export {
-  flex: none;
-  margin-right: var(--s4);
-  width: var(--hist-export);
-  opacity: 0.7;
-  transition: opacity var(--dur-subtle) var(--ease-move);
-}
-
-.history-row:hover .history-export,
-.history-export:focus-visible,
-.history-row-open .history-export {
-  opacity: 1;
-}
-
-/* the row button carries .tr, so it must not add a second border */
-.history-row .trow {
-  background: none;
-  border: 0;
-  border-bottom: 0;
-  color: inherit;
-  font: inherit;
-}
-
-.history-age {
-  color: var(--tx-2);
-  font-size: var(--t-xs);
-}
-
 .history-cell {
   color: var(--tx-2);
   font-size: var(--t-sm);
@@ -117,11 +117,6 @@
 
 .history-dir {
   font-size: var(--t-sm);
-}
-
-.history-tf {
-  color: var(--tx-2);
-  font-size: var(--t-xs);
 }
 
 .history-unknown {
@@ -135,22 +130,38 @@
   justify-content: flex-end;
 }
 
-.history-chevron svg {
-  height: 14px;
+.history-chevron mat-icon {
+  height: 18px;
   transition: transform var(--dur-subtle) var(--ease-move);
-  width: 14px;
+  width: 18px;
 }
 
-.history-chevron-open svg {
+.history-chevron-open mat-icon {
   transform: rotate(90deg);
 }
 
 /* The expanded report is inset on a recessed ground so it reads as contained
-   by its row rather than as the next row along. */
+   by its row rather than as the next row along. Fades and settles in — this
+   is content genuinely entering the page (matRowDef's `when` predicate keeps
+   it out of the DOM entirely until expanded), not just a style toggle. */
 .history-detail {
+  animation: history-detail-in var(--dur-screen) var(--ease-enter);
   background: var(--surf-2);
   border-top: 1px solid var(--line);
   padding: var(--s6);
+}
+
+@keyframes history-detail-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-detail {
+    animation: none;
+  }
 }
 
 .history-msg {
@@ -213,75 +224,19 @@
 }
 
 @media (max-width: 900px) {
-  /* Seven columns become one card per analysis — no sideways scrolling.
-     Reflowing them into two anonymous columns produced an unlabelled jumble
-     (the header row that named them is gone here), so each cell is placed
-     explicitly instead, and the three secondary readings step aside: asset
-     class, trend and the column header's own chevron all live one tap away in
-     the expanded report. What is left is what a row is actually scanned for —
-     which symbol, on what timeframe, how it went, and which way it called. */
+  /* The loading skeleton still uses the hand-rolled .tr grid (see the note
+     near .history-table-wrap above), so it gets its own narrow-screen
+     collapse; the real table below it scrolls horizontally instead of
+     reflowing — .history-table's min-width handles that with no extra rule
+     needed here. */
   .tr {
     grid-template-columns: minmax(0, 1fr) auto auto;
     padding: var(--s4);
     row-gap: 6px;
   }
 
-  /* the export button is stacked under the card here, so nothing is beside
-     the grid to reserve width for */
-  .history .tbl > .tr {
-    padding-right: var(--s4);
-  }
-
-  .history-export {
-    width: auto;
-  }
-
   .tr-h {
     display: none;
-  }
-
-  /* symbol · timeframe · status */
-  .history-row .trow .sym {
-    font-size: var(--t-md);
-    grid-area: 1 / 1;
-  }
-
-  .history-row .trow > .history-tf {
-    align-self: center;
-    grid-area: 1 / 2;
-  }
-
-  .history-row .trow > span:nth-child(7) {
-    grid-area: 1 / 3;
-    justify-self: end;
-  }
-
-  /* when · direction */
-  .history-row .trow > .history-age {
-    grid-area: 2 / 1;
-  }
-
-  .history-row .trow > span:nth-child(6) {
-    grid-area: 2 / 2 / 3 / 4;
-    justify-self: end;
-  }
-
-  .history-row .trow > span:nth-child(3),
-  .history-row .trow > span:nth-child(5),
-  .history-chevron {
-    display: none;
-  }
-
-  /* the export button drops under the card rather than squeezing it */
-  .history-row-head {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .history-export {
-    align-self: flex-start;
-    margin: 0 var(--s4) var(--s3);
-    opacity: 1;
   }
 
   .history-detail {
@@ -297,22 +252,11 @@
 
 /* ── source filter ──────────────────────────────────────── */
 .history-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s2);
   margin-bottom: var(--s4);
 }
 
-.history-filter-on {
-  background: var(--surf-3);
-  border-color: var(--line-strong);
-  color: var(--tx);
-  font-weight: 600;
-}
-
 /* ── provenance chips inside the symbol cell ────────────── */
-/* The cell becomes a two-line stack: ticker, then its tags. Kept to the cell
-   so the row's nth-child grid is untouched. */
+/* The cell becomes a two-line stack: ticker, then its tags. */
 .sym:has(.history-tags) {
   align-items: flex-start;
   display: flex;
