@@ -11,6 +11,11 @@
   gap: var(--s3);
 }
 
+.watchlist-market-select {
+  flex: 0 0 auto;
+  width: auto;
+}
+
 /* Anchors the suggestion dropdown, and caps the field so it does not run the
    full width of a wide viewport for a six-character ticker. */
 .watchlist-search {

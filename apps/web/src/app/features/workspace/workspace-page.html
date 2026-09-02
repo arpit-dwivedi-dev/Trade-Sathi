@@ -1,5 +1,16 @@
 <div class="ws-shell" #shell [class.ws-fullscreen]="isFullscreen()">
   <header class="ws-topbar">
+    <select
+      class="input ws-market-select"
+      [ngModel]="market()"
+      (ngModelChange)="onMarketChange($event)"
+      name="market"
+      aria-label="Stock market"
+    >
+      @for (m of markets; track m.code) {
+        <option [value]="m.code">{{ m.label }}</option>
+      }
+    </select>
     <div class="ws-search">
       <input
         #search

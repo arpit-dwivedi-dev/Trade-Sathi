@@ -7,7 +7,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { firstValueFrom, Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
-import type { Instrument } from '@chartanalyzer/shared';
+import { MARKETS, type Instrument, type MarketCode } from '@chartanalyzer/shared';
 import { AuthService } from '../../core/auth.service';
 import { startRowWatch, type RowWatch } from '../../core/row-watch';
 import { SupabaseClientService } from '../../core/supabase-client';
@@ -209,6 +209,8 @@ export class Watchlist implements OnInit, OnDestroy {
     );
   }
 
+  protected readonly markets = MARKETS;
+  protected readonly market = signal<MarketCode>('NSE');
   protected readonly queryInput = signal('');
   protected readonly results = signal<Instrument[]>([]);
   protected readonly searching = signal(false);
@@ -271,13 +273,36 @@ export class Watchlist implements OnInit, OnDestroy {
     this.querySubject.next(trimmed);
   }
 
+  /**
+   * Switching markets invalidates whatever was typed for the previous one.
+   * Re-runs the search directly rather than through querySubject: that
+   * pipeline's distinctUntilChanged would swallow an unchanged query string,
+   * which is exactly the case here (same text, different market).
+   */
+  protected onMarketChange(value: MarketCode): void {
+    this.market.set(value);
+    this.selected.set(null);
+    const trimmed = this.queryInput().trim();
+    if (trimmed.length < MIN_QUERY_LENGTH) {
+      this.results.set([]);
+      this.searched.set(false);
+      return;
+    }
+    this.searching.set(true);
+    void this.search(trimmed).then((instruments) => {
+      this.results.set(instruments);
+      this.searching.set(false);
+      this.searched.set(true);
+    });
+  }
+
   private async search(query: string): Promise<Instrument[]> {
     const token = await this.auth.getAccessToken();
     if (!token) return [];
     try {
       const response = await firstValueFrom(
         this.http.get<{ instruments: Instrument[] }>('/api/instruments/search', {
-          params: { q: query },
+          params: { q: query, market: this.market() },
           headers: { Authorization: `Bearer ${token}` },
         }),
       );

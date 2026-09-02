@@ -1,12 +1,31 @@
 export const SHARED_PLACEHOLDER = true;
 
-/** A row from public.instruments — the canonical NSE/BSE symbol identity used by the watchlist. */
+/** A row from public.instruments — the canonical symbol identity used by the watchlist. */
 export interface Instrument {
   id: string;
   exchange: string;
   symbol: string;
   name: string;
   instrumentType: string;
+}
+
+/**
+ * Stock markets instrument search can be scoped to. NSE/BSE are backed by
+ * the imported instrument catalogue; NASDAQ/NYSE are resolved on demand
+ * through Yahoo Finance's own symbol search — see
+ * apps/api/src/services/instruments.service.ts.
+ */
+export const MARKETS = [
+  { code: 'NSE', label: 'NSE (India)' },
+  { code: 'BSE', label: 'BSE (India)' },
+  { code: 'NASDAQ', label: 'NASDAQ (US)' },
+  { code: 'NYSE', label: 'NYSE (US)' },
+] as const;
+
+export type MarketCode = (typeof MARKETS)[number]['code'];
+
+export function isMarketCode(value: string): value is MarketCode {
+  return MARKETS.some((m) => m.code === value);
 }
 
 /**

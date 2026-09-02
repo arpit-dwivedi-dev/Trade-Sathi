@@ -16,7 +16,19 @@
 
 /* ── search ─────────────────────────────────────────────
    Anchors the absolutely positioned suggestion list. */
+.live-search-row {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--s3);
+}
+
+.live-market-select {
+  flex: 0 0 auto;
+  width: auto;
+}
+
 .live-search {
+  flex: 1;
   max-width: 560px;
   position: relative;
 }

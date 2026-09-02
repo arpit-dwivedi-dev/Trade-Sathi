@@ -60,6 +60,11 @@
   margin-inline-start: auto;
 }
 
+.ws-market-select {
+  flex: 0 0 auto;
+  width: auto;
+}
+
 .ws-search {
   max-width: 320px;
   position: relative;

@@ -1,3 +1,4 @@
+import { isMarketCode } from "@chartanalyzer/shared";
 import { Router } from "express";
 import { asyncRoute } from "../lib/async-route.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -15,8 +16,15 @@ instrumentsRouter.get(
       return;
     }
 
+    const marketParam = req.query["market"];
+    if (typeof marketParam === "string" && !isMarketCode(marketParam)) {
+      res.status(400).json({ error: "Unknown market" });
+      return;
+    }
+    const market = typeof marketParam === "string" ? marketParam : undefined;
+
     try {
-      const instruments = await searchInstruments(q);
+      const instruments = await searchInstruments(q, market);
       res.json({ instruments });
     } catch {
       res.status(500).json({ error: "Instrument search failed" });
