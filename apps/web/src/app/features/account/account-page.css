@@ -61,6 +61,11 @@
   gap: var(--s4);
 }
 
+.acct-form mat-form-field,
+.field mat-form-field {
+  width: 100%;
+}
+
 /* Phone + profession side by side — two short fields sharing one line uses
    the card's width instead of leaving it half-empty. */
 .acct-field-row {

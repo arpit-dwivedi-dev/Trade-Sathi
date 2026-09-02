@@ -1,6 +1,8 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
@@ -21,7 +23,14 @@ const RESEND_COOLDOWN_SECONDS = 30;
 
 @Component({
   selector: 'app-auth-page',
-  imports: [FormsModule, RouterLink, MatButtonModule, MatProgressSpinnerModule],
+  imports: [
+    FormsModule,
+    RouterLink,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatProgressSpinnerModule,
+  ],
   styleUrl: './auth-page.css',
   templateUrl: './auth-page.html',
 })

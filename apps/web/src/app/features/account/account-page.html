@@ -18,69 +18,45 @@
     <div class="nav-body">
       <span class="nav-lbl">Workspace</span>
 
-      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'analyze' }">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="16" rx="2" />
-          <path d="M3 15.5 8 11l3.5 3.5L15 11l6 5.5" />
-          <circle cx="8.5" cy="8.5" r="1.2" />
-        </svg>
-        Analyze
-      </a>
-
       <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'live' }">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 3v18h18" />
-          <path d="M7 15l3.5-4 3 2.5L21 6" />
-        </svg>
-        Live chart
+        <mat-icon aria-hidden="true">monitoring</mat-icon>
+        Live Chart Analysis
       </a>
 
-      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'history' }">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 7v5l3.5 2" />
-        </svg>
-        History
+      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'analyze' }">
+        <mat-icon aria-hidden="true">image_search</mat-icon>
+        Chart Image Analysis
+      </a>
+
+      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'workspace' }">
+        <mat-icon aria-hidden="true">candlestick_chart</mat-icon>
+        Manual Chart Analysis
       </a>
 
       <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'watchlist' }">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="m12 4 2.4 5 5.6.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.6-.8z" />
-        </svg>
-        Watchlist
+        <mat-icon aria-hidden="true">visibility</mat-icon>
+        Watch List
+      </a>
+
+      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'history' }">
+        <mat-icon aria-hidden="true">history</mat-icon>
+        Analysis History
       </a>
 
       <span class="nav-lbl">Activity</span>
 
       <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'logs' }">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M8 6h13M8 12h13M8 18h13" />
-          <path d="M3 6h.01M3 12h.01M3 18h.01" />
-        </svg>
+        <mat-icon aria-hidden="true">list_alt</mat-icon>
         Logs
       </a>
 
       <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'billing' }">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="2.5" y="5" width="19" height="14" rx="2" />
-          <path d="M2.5 10h19" />
-          <path d="M6.5 14.5h3" />
-        </svg>
+        <mat-icon aria-hidden="true">credit_card</mat-icon>
         Billing
       </a>
 
       <span class="nav-item" aria-current="page">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="8" r="3.6" />
-          <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
-        </svg>
+        <mat-icon aria-hidden="true">person</mat-icon>
         Account
       </span>
     </div>
@@ -95,39 +71,22 @@
 
   <div class="main">
     <header class="topbar">
-      <button type="button" class="btn btn-g btn-sm btn-icon nav-toggle" (click)="toggleNav()"
+      <button mat-icon-button class="nav-toggle" (click)="toggleNav()"
               title="Sections" aria-label="Sections">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-             stroke-linecap="round" aria-hidden="true">
-          <path d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
+        <mat-icon aria-hidden="true">menu</mat-icon>
       </button>
 
       <h1 class="topbar-title trunc">Account</h1>
 
       <div class="topbar-end">
-        <button type="button" class="btn btn-g btn-sm btn-icon" (click)="toggleTheme()"
+        <button mat-icon-button (click)="toggleTheme()"
                 [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                 [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
-          @if (theme() === 'dark') {
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-            </svg>
-          } @else {
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          }
+          <mat-icon aria-hidden="true">{{ theme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
         </button>
 
-        <button type="button" class="btn btn-g btn-sm btn-icon" (click)="signOut()"
-                title="Sign out" aria-label="Sign out">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <path d="M16 17l5-5-5-5" />
-            <path d="M21 12H9" />
-          </svg>
+        <button mat-icon-button (click)="signOut()" title="Sign out" aria-label="Sign out">
+          <mat-icon aria-hidden="true">logout</mat-icon>
         </button>
       </div>
     </header>
@@ -139,7 +98,7 @@
     </div>
 
     <div class="acct-grid">
-      <div class="card acct-card">
+      <mat-card class="acct-card">
         <div class="hd">
           <span class="lbl-h">Profile</span>
           @if (profile(); as p) {
@@ -148,7 +107,7 @@
             </mat-chip-set>
           }
         </div>
-        <div class="pad acct-body">
+        <mat-card-content class="acct-body">
           <div class="acct-who">
             <span class="acct-mark" aria-hidden="true">{{ (user()?.email ?? '?').charAt(0) }}</span>
             <span class="acct-who-text">
@@ -175,40 +134,40 @@
           </div>
 
           <div class="acct-form">
-            <div class="field">
-              <label for="acct-full-name">Full name</label>
-              <input class="input" id="acct-full-name" type="text" name="fullName" maxlength="120"
+            <mat-form-field appearance="outline">
+              <mat-label>Full name</mat-label>
+              <input matInput id="acct-full-name" type="text" name="fullName" maxlength="120"
                      autocomplete="name" placeholder="Your name"
                      [attr.aria-invalid]="profileError() ? 'true' : null"
                      [ngModel]="fullName()"
                      (ngModelChange)="fullName.set($event); profileSaved.set(false)" />
-            </div>
+            </mat-form-field>
 
             <div class="acct-field-row">
-              <div class="field">
-                <label for="acct-phone">Phone number</label>
-                <input class="input" id="acct-phone" type="tel" name="phoneNumber" maxlength="20"
+              <mat-form-field appearance="outline">
+                <mat-label>Phone number</mat-label>
+                <input matInput id="acct-phone" type="tel" name="phoneNumber" maxlength="20"
                        autocomplete="tel" placeholder="+91 98765 43210"
                        [ngModel]="phoneNumber()"
                        (ngModelChange)="phoneNumber.set($event); profileSaved.set(false)" />
-              </div>
+              </mat-form-field>
 
-              <div class="field">
-                <label for="acct-profession">Profession</label>
-                <input class="input" id="acct-profession" type="text" name="profession" maxlength="100"
+              <mat-form-field appearance="outline">
+                <mat-label>Profession</mat-label>
+                <input matInput id="acct-profession" type="text" name="profession" maxlength="100"
                        autocomplete="organization-title" placeholder="e.g. Software Engineer"
                        [ngModel]="profession()"
                        (ngModelChange)="profession.set($event); profileSaved.set(false)" />
-              </div>
+              </mat-form-field>
             </div>
 
-            <div class="field">
-              <label for="acct-location">Location</label>
-              <input class="input" id="acct-location" type="text" name="location" maxlength="100"
+            <mat-form-field appearance="outline">
+              <mat-label>Location</mat-label>
+              <input matInput id="acct-location" type="text" name="location" maxlength="100"
                      autocomplete="address-level2" placeholder="City, Country"
                      [ngModel]="location()"
                      (ngModelChange)="location.set($event); profileSaved.set(false)" />
-            </div>
+            </mat-form-field>
           </div>
 
           @if (profileError(); as message) {
@@ -230,23 +189,23 @@
             Plans, usage and credits live under
             <a class="acct-link" routerLink="/app" [queryParams]="{ tab: 'billing' }">Billing</a>.
           </p>
-        </div>
+        </mat-card-content>
 
         <div class="acct-foot acct-foot-split">
-          <button type="button" class="btn btn-p btn-sm" [disabled]="savingProfile()" (click)="saveProfile()">
+          <button mat-flat-button color="primary" [disabled]="savingProfile()" (click)="saveProfile()">
             {{ savingProfile() ? 'Saving…' : 'Save changes' }}
           </button>
-          <button type="button" class="btn btn-s btn-sm" (click)="signOut()">Sign out</button>
+          <button mat-stroked-button (click)="signOut()">Sign out</button>
         </div>
-      </div>
+      </mat-card>
 
       @if (!surveyLoading() && surveyStatus()?.survey; as survey) {
-        <div class="card acct-card">
+        <mat-card class="acct-card">
           <div class="hd">
             <span class="lbl-h">{{ survey.title }}</span>
             <span class="st st-processing">+1 credit</span>
           </div>
-          <div class="pad acct-body">
+          <mat-card-content class="acct-body">
             @if (survey.description) {
               <p class="meta">{{ survey.description }}</p>
             }
@@ -256,28 +215,30 @@
                 <label [attr.for]="'q-' + question.id">{{ question.prompt }}</label>
 
                 @if (question.type === 'single_choice') {
-                  <select class="input" [id]="'q-' + question.id"
-                          [ngModel]="answerFor(question.id)"
-                          (ngModelChange)="setAnswer(question.id, $event)">
-                    <option value="" disabled>Choose one…</option>
-                    @for (option of question.options ?? []; track option) {
-                      <option [value]="option">{{ option }}</option>
-                    }
-                  </select>
+                  <mat-form-field appearance="outline" class="acct-select">
+                    <mat-select [id]="'q-' + question.id"
+                                [ngModel]="answerFor(question.id)"
+                                (ngModelChange)="setAnswer(question.id, $event)">
+                      @for (option of question.options ?? []; track option) {
+                        <mat-option [value]="option">{{ option }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
                 } @else if (question.type === 'multi_choice') {
                   <div class="acct-check-group" [id]="'q-' + question.id">
                     @for (option of question.options ?? []; track option) {
-                      <label class="acct-check">
-                        <input type="checkbox" [checked]="isSelected(question.id, option)"
-                               (change)="toggleOption(question.id, option)" />
-                        <span>{{ option }}</span>
-                      </label>
+                      <mat-checkbox [checked]="isSelected(question.id, option)"
+                                     (change)="toggleOption(question.id, option)">
+                        {{ option }}
+                      </mat-checkbox>
                     }
                   </div>
                 } @else {
-                  <input class="input" type="text" [id]="'q-' + question.id"
-                         [ngModel]="answerFor(question.id)"
-                         (ngModelChange)="setAnswer(question.id, $event)" />
+                  <mat-form-field appearance="outline">
+                    <input matInput type="text" [id]="'q-' + question.id"
+                           [ngModel]="answerFor(question.id)"
+                           (ngModelChange)="setAnswer(question.id, $event)" />
+                  </mat-form-field>
                 }
               </div>
             }
@@ -292,28 +253,28 @@
                 {{ message }}
               </p>
             }
-          </div>
+          </mat-card-content>
 
           <div class="acct-foot">
-            <button type="button" class="btn btn-p btn-sm" [disabled]="!surveyComplete() || submittingSurvey()"
+            <button mat-flat-button color="primary" [disabled]="!surveyComplete() || submittingSurvey()"
                     (click)="submitSurvey()">
               {{ submittingSurvey() ? 'Submitting…' : 'Submit and earn 1 credit' }}
             </button>
           </div>
-        </div>
+        </mat-card>
       } @else if (!surveyLoading() && surveyJustEarnedCredit()) {
-        <div class="card acct-card">
+        <mat-card class="acct-card">
           <div class="hd">
             <span class="lbl-h">Surveys</span>
             <span class="st st-complete">Up to date</span>
           </div>
-          <div class="pad acct-body">
+          <mat-card-content class="acct-body">
             <p class="meta">
               You're all caught up — thanks for completing our surveys. We'll add more here as they
               come up, each worth another free credit.
             </p>
-          </div>
-        </div>
+          </mat-card-content>
+        </mat-card>
       }
     </div>
   </div>

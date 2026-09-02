@@ -22,33 +22,33 @@
 
     <form (ngSubmit)="submit()" class="auth-form">
       @if (mode() === 'otp') {
-        <div class="field">
-          <label for="auth-otp">6-digit code</label>
-          <input class="input auth-otp" id="auth-otp" type="text" name="otp" required
+        <mat-form-field appearance="outline">
+          <mat-label>6-digit code</mat-label>
+          <input matInput class="auth-otp" id="auth-otp" type="text" name="otp" required
                  inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code"
                  placeholder="000000"
                  [attr.aria-invalid]="error() ? 'true' : null"
                  [attr.aria-describedby]="error() ? 'auth-error' : null"
                  [ngModel]="otp()" (ngModelChange)="otp.set($event)" />
-        </div>
+        </mat-form-field>
       } @else {
-        <div class="field">
-          <label for="auth-email">Email</label>
-          <input class="input" id="auth-email" type="email" name="email" required
+        <mat-form-field appearance="outline">
+          <mat-label>Email</mat-label>
+          <input matInput id="auth-email" type="email" name="email" required
                  autocomplete="email" inputmode="email" spellcheck="false"
                  placeholder="you@example.com"
                  [attr.aria-invalid]="error() ? 'true' : null"
                  [ngModel]="email()" (ngModelChange)="email.set($event)" />
-        </div>
+        </mat-form-field>
 
-        <div class="field">
-          <label for="auth-password">Password</label>
-          <input class="input" id="auth-password" type="password" name="password" required
+        <mat-form-field appearance="outline">
+          <mat-label>Password</mat-label>
+          <input matInput id="auth-password" type="password" name="password" required
                  [autocomplete]="mode() === 'signup' ? 'new-password' : 'current-password'"
                  [attr.aria-invalid]="error() ? 'true' : null"
                  [attr.aria-describedby]="error() ? 'auth-error' : null"
                  [ngModel]="password()" (ngModelChange)="password.set($event)" />
-        </div>
+        </mat-form-field>
       }
 
       @if (error(); as message) {

@@ -65,6 +65,10 @@
   gap: var(--s4);
 }
 
+.auth-form mat-form-field {
+  width: 100%;
+}
+
 .auth-submit {
   margin-top: var(--s1);
   width: 100%;
