@@ -60,59 +60,13 @@
   margin-inline-start: auto;
 }
 
-.ws-market-select {
-  flex: 0 0 auto;
-  width: auto;
-}
-
+/* Wraps app-symbol-search's own market-select + search-input row; that
+   component's internal CSS already caps the search field itself at 560px,
+   so this just keeps the combined control from stretching the full topbar
+   width now that the two controls are one flex item instead of two. */
 .ws-search {
-  max-width: 320px;
-  position: relative;
-  width: 100%;
-}
-
-.ws-search-input {
-  min-height: 34px;
-}
-
-.ws-search-spin {
-  color: var(--tx-3);
-  position: absolute;
-  right: var(--s3);
-  top: 10px;
-}
-
-.ws-search-clear {
-  align-items: center;
-  background: none;
-  border: 0;
-  border-radius: var(--r-sm);
-  color: var(--tx-3);
-  cursor: pointer;
-  display: flex;
-  height: 22px;
-  justify-content: center;
-  padding: 0;
-  position: absolute;
-  right: 6px;
-  top: 6px;
-  width: 22px;
-}
-
-.ws-search-clear:hover {
-  background: var(--surf-3);
-  color: var(--tx);
-}
-
-.ws-suggestions {
-  top: 100%;
-}
-
-.ws-suggestion-name {
-  color: var(--tx-2);
-  flex: 1;
-  font-size: var(--t-xs);
-  min-width: 0;
+  flex: 1 1 auto;
+  max-width: 620px;
 }
 
 .ws-ident {
@@ -161,12 +115,6 @@
   .live-tick-dot {
     animation: none;
   }
-}
-
-.live-exchange,
-.live-hint {
-  color: var(--tx-3);
-  font-size: var(--t-2xs);
 }
 
 /* ── tool rail ───────────────────────────────────────── */

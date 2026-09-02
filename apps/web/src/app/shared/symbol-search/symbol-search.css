@@ -1,0 +1,118 @@
+/* A real box (not display:contents) so a parent can size/position this
+   component from the outside via a class on the host tag itself — e.g.
+   workspace-page.css's .ws-search sets max-width and position:relative on
+   exactly this element. */
+:host {
+  display: block;
+  width: 100%;
+}
+
+.symbol-search-row {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--s3);
+  width: 100%;
+}
+
+/* mat-select needs a mat-form-field host to render correctly, but is kept
+   as small/unadorned as the outline appearance allows — the search input
+   beside it stays bare on purpose (see .symbol-search below). */
+.symbol-search-market {
+  flex: 0 0 auto;
+  width: 11rem;
+}
+
+.symbol-search-market .mat-mdc-text-field-wrapper {
+  padding-bottom: 0;
+}
+
+/* Deliberately not a mat-form-field: this is a bare search bar, not a
+   labelled field — the icon and clear/spinner controls are absolutely
+   positioned over a plain .input the same way the app's other bare inputs
+   are, and [matAutocomplete] attaches its panel to the input directly. */
+.symbol-search {
+  flex: 1;
+  max-width: 560px;
+  position: relative;
+}
+
+.symbol-search-icon {
+  align-items: center;
+  color: var(--tx-3);
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: 38px;
+}
+
+.symbol-search-icon svg {
+  height: 16px;
+  width: 16px;
+}
+
+.symbol-search-input {
+  min-height: 40px;
+  padding-left: 38px;
+}
+
+.symbol-search-spin {
+  color: var(--tx-3);
+  position: absolute;
+  right: var(--s3);
+  top: 12px;
+}
+
+/* Occupies the same slot as the spinner — only one of the two is ever shown. */
+.symbol-search-clear {
+  position: absolute;
+  right: 4px;
+  top: 2px;
+}
+
+.symbol-search-row-content {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+  width: 100%;
+}
+
+.symbol-search-sym {
+  flex: none;
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+.symbol-search-name {
+  color: var(--tx-2);
+  flex: 1;
+  font-size: var(--t-xs);
+  min-width: 0;
+}
+
+.symbol-search-exchange {
+  color: var(--tx-3);
+  flex: none;
+  font-size: var(--t-3xs);
+  letter-spacing: 0.04em;
+  margin-inline-start: auto;
+  text-transform: uppercase;
+}
+
+@media (max-width: 640px) {
+  .symbol-search-row {
+    flex-wrap: wrap;
+  }
+
+  .symbol-search-market {
+    width: 100%;
+  }
+
+  .symbol-search {
+    max-width: none;
+    width: 100%;
+  }
+}

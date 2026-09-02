@@ -11,29 +11,20 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { firstValueFrom, Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
-
-import { MARKETS, type Instrument, type MarketCode, type MarketTick } from '@chartanalyzer/shared';
-import { AuthService } from '../../core/auth.service';
+import { type Instrument, type MarketTick } from '@chartanalyzer/shared';
 import { AnalysisResult } from '../analyze/analysis-result';
 import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
 import { LiveChart, type ChartOverlays, type LiveCandle } from '../../shared/live-chart/live-chart';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import { AnalyzeService, type PollHandle } from '../analyze/analyze.service';
+import { SymbolSearch } from '../../shared/symbol-search/symbol-search';
 import { LiveService } from './live.service';
 import { MarketStreamService } from './market-stream.service';
-import { HttpClient } from '@angular/common/http';
-
-const SEARCH_DEBOUNCE_MS = 300;
-const MIN_QUERY_LENGTH = 2;
 
 /**
  * Chart windows offered here, in days — the same shortlist the watchlist
@@ -102,20 +93,18 @@ interface AnalysisTarget {
     AnalysisResult,
     DatePipe,
     DecimalPipe,
-    FormsModule,
     LiveChart,
     MatButtonModule,
     MatButtonToggleModule,
     MatCardModule,
     MatChipsModule,
     MatProgressSpinnerModule,
+    SymbolSearch,
   ],
   templateUrl: './live-page.html',
   styleUrl: './live-page.css',
 })
 export class LivePage implements OnInit, OnDestroy {
-  private readonly auth = inject(AuthService);
-  private readonly http = inject(HttpClient);
   private readonly live = inject(LiveService);
   // The one implementation of "watch an analyses row until it settles",
   // shared with the upload flow rather than reimplemented here.
@@ -135,13 +124,6 @@ export class LivePage implements OnInit, OnDestroy {
   readonly manualAnalysisRequested = output<string | undefined>();
 
   protected readonly lookbackOptions = LOOKBACK_OPTIONS;
-
-  protected readonly markets = MARKETS;
-  protected readonly market = signal<MarketCode>('NSE');
-  protected readonly queryInput = signal('');
-  protected readonly results = signal<Instrument[]>([]);
-  protected readonly searching = signal(false);
-  protected readonly searched = signal(false);
   protected readonly instrument = signal<Instrument | null>(null);
 
   protected readonly lookbackDays = signal<number>(1);
@@ -224,7 +206,6 @@ export class LivePage implements OnInit, OnDestroy {
     () => this.analyzeState() === 'starting' || this.analyzeState() === 'processing',
   );
 
-  private readonly querySubject = new Subject<string>();
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private pending: PollHandle | null = null;
   /** Releases the socket's subscription for the current instrument. */
@@ -248,19 +229,6 @@ export class LivePage implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.querySubject
-      .pipe(
-        debounceTime(SEARCH_DEBOUNCE_MS),
-        distinctUntilChanged(),
-        switchMap((q) => this.search(q)),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe((instruments) => {
-        this.results.set(instruments);
-        this.searching.set(false);
-        this.searched.set(true);
-      });
-
     // refresh() declines to poll a backgrounded tab, so coming back to one
     // meant looking at candles as old as the last interval — up to five minutes
     // on a daily window — until the next tick. Catch up on return instead.
@@ -291,86 +259,8 @@ export class LivePage implements OnInit, OnDestroy {
     this.pending = null;
   }
 
-  protected onQueryChange(value: string): void {
-    this.queryInput.set(value);
-    const trimmed = value.trim();
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      this.results.set([]);
-      this.searching.set(false);
-      this.searched.set(false);
-      return;
-    }
-    this.searching.set(true);
-    this.querySubject.next(trimmed);
-  }
-
-  /**
-   * Switching markets invalidates whatever was typed for the previous one.
-   * Re-runs the search directly rather than through querySubject: that
-   * pipeline's distinctUntilChanged would swallow an unchanged query string,
-   * which is exactly the case here (same text, different market).
-   */
-  protected onMarketChange(value: MarketCode): void {
-    this.market.set(value);
-    const trimmed = this.queryInput().trim();
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      this.results.set([]);
-      this.searched.set(false);
-      return;
-    }
-    this.searching.set(true);
-    void this.search(trimmed).then((instruments) => {
-      this.results.set(instruments);
-      this.searching.set(false);
-      this.searched.set(true);
-    });
-  }
-
-  private async search(query: string): Promise<Instrument[]> {
-    const token = await this.auth.getAccessToken();
-    if (!token) return [];
-    try {
-      const response = await firstValueFrom(
-        this.http.get<{ instruments: Instrument[] }>('/api/instruments/search', {
-          params: { q: query, market: this.market() },
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      );
-      return response.instruments;
-    } catch {
-      return [];
-    }
-  }
-
-  /**
-   * Dismisses the suggestion list without choosing anything.
-   *
-   * The list had no way out other than picking a row or emptying the field: it
-   * covered the chart underneath it until one of those happened.
-   */
-  protected dismissResults(): void {
-    this.results.set([]);
-    this.searched.set(false);
-  }
-
-  /**
-   * Empties the search box and returns focus to it.
-   *
-   * Selecting an instrument replaces the query with "SYM — Name", so searching
-   * again meant selecting all that text and deleting it by hand first. The
-   * chart itself is deliberately left alone — clearing the box is a step
-   * towards a new search, not a request to throw away what is on screen.
-   */
-  protected clearQuery(input: HTMLInputElement): void {
-    this.onQueryChange('');
-    input.focus();
-  }
-
-  protected selectInstrument(instrument: Instrument): void {
+  protected onInstrumentSelected(instrument: Instrument): void {
     this.instrument.set(instrument);
-    this.queryInput.set(`${instrument.symbol} — ${instrument.name}`);
-    this.results.set([]);
-    this.searched.set(false);
     this.clearResult();
     void this.reload();
   }

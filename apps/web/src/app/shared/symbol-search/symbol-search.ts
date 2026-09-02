@@ -1,0 +1,191 @@
+import { HttpClient } from '@angular/common/http';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
+import { Subject, firstValueFrom } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+
+import { MARKETS, type Instrument, type MarketCode } from '@chartanalyzer/shared';
+import { AuthService } from '../../core/auth.service';
+
+const SEARCH_DEBOUNCE_MS = 300;
+const MIN_QUERY_LENGTH = 2;
+
+/**
+ * Market + typeahead symbol search, shared by Live, Workspace and (once its
+ * table migration lands) Watchlist — the three previously reimplemented this
+ * identically down to the constant names. Owns the market filter and the
+ * debounced /api/instruments/search call; a parent only ever sees a chosen
+ * instrument via (instrumentSelected). What happens after selection (reload a
+ * chart, stage a pending watchlist add, ...) is deliberately left to the
+ * parent, since the three call sites each do something different with it.
+ */
+@Component({
+  selector: 'app-symbol-search',
+  imports: [
+    FormsModule,
+    MatAutocompleteModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    MatSelectModule,
+  ],
+  templateUrl: './symbol-search.html',
+  styleUrl: './symbol-search.css',
+})
+export class SymbolSearch {
+  private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  readonly instrumentSelected = output<Instrument>();
+  readonly placeholder = input('Search symbol or company, e.g. RELIANCE');
+
+  protected readonly markets = MARKETS;
+  protected readonly market = signal<MarketCode>('NSE');
+  protected readonly queryInput = signal('');
+  protected readonly results = signal<Instrument[]>([]);
+  protected readonly searching = signal(false);
+  protected readonly searched = signal(false);
+
+  private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('search');
+  private readonly querySubject = new Subject<string>();
+
+  constructor() {
+    this.querySubject
+      .pipe(
+        debounceTime(SEARCH_DEBOUNCE_MS),
+        distinctUntilChanged(),
+        switchMap((q) => this.search(q)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((instruments) => {
+        this.results.set(instruments);
+        this.searching.set(false);
+        this.searched.set(true);
+      });
+  }
+
+  protected onQueryChange(value: string): void {
+    // mat-autocomplete's trigger writes the selected option's value (a whole
+    // Instrument, per the [value] binding in the template) back through the
+    // same control on selection, which fires this same handler — genuine
+    // typing is the only case this method exists for, so anything else is
+    // ignored; onOptionSelected already owns the post-selection state.
+    if (typeof value !== 'string') return;
+
+    this.queryInput.set(value);
+    const trimmed = value.trim();
+    if (trimmed.length < MIN_QUERY_LENGTH) {
+      this.results.set([]);
+      this.searching.set(false);
+      this.searched.set(false);
+      return;
+    }
+    this.searching.set(true);
+    this.querySubject.next(trimmed);
+  }
+
+  /**
+   * Switching markets invalidates whatever was typed for the previous one.
+   * Re-runs the search directly rather than through querySubject: that
+   * pipeline's distinctUntilChanged would swallow an unchanged query string,
+   * which is exactly the case here (same text, different market).
+   */
+  protected onMarketChange(value: MarketCode): void {
+    this.market.set(value);
+    const trimmed = this.queryInput().trim();
+    if (trimmed.length < MIN_QUERY_LENGTH) {
+      this.results.set([]);
+      this.searched.set(false);
+      return;
+    }
+    this.searching.set(true);
+    void this.search(trimmed).then((instruments) => {
+      this.results.set(instruments);
+      this.searching.set(false);
+      this.searched.set(true);
+    });
+  }
+
+  private async search(query: string): Promise<Instrument[]> {
+    const token = await this.auth.getAccessToken();
+    if (!token) return [];
+    try {
+      const response = await firstValueFrom(
+        this.http.get<{ instruments: Instrument[] }>('/api/instruments/search', {
+          params: { q: query, market: this.market() },
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      );
+      return response.instruments;
+    } catch {
+      return [];
+    }
+  }
+
+  /** Dismisses the suggestion list without choosing anything. */
+  protected dismissResults(): void {
+    this.results.set([]);
+    this.searched.set(false);
+  }
+
+  /** Empties the search box and returns focus to it. */
+  protected clearQuery(): void {
+    this.onQueryChange('');
+    this.searchInput()?.nativeElement.focus();
+  }
+
+  protected onOptionSelected(instrument: Instrument): void {
+    this.queryInput.set(`${instrument.symbol} — ${instrument.name}`);
+    this.results.set([]);
+    this.searched.set(false);
+    this.instrumentSelected.emit(instrument);
+  }
+
+  /**
+   * Lets a parent reset the box after consuming a selection — e.g. watchlist
+   * clearing the field once an instrument has been added.
+   */
+  clear(): void {
+    this.queryInput.set('');
+    this.results.set([]);
+    this.searched.set(false);
+  }
+
+  /**
+   * Lets a parent move focus into the search box — e.g. on mount, when it's
+   * the one control that matters before an instrument is picked.
+   */
+  focus(): void {
+    this.searchInput()?.nativeElement.focus();
+  }
+
+  /**
+   * Sets the displayed text without running a search — for a parent that
+   * opens an instrument some other way (e.g. handed off from another tab)
+   * and wants the box to read "SYM — Name" the same way an actual search
+   * selection would leave it.
+   */
+  setDisplayText(text: string): void {
+    this.queryInput.set(text);
+    this.results.set([]);
+    this.searched.set(false);
+  }
+}

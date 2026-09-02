@@ -1,5 +1,4 @@
 import { DecimalPipe, isPlatformBrowser } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
@@ -15,28 +14,21 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
-import { Subject, firstValueFrom } from 'rxjs';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
-import { MARKETS, type MarketCode, type MarketTick } from '@chartanalyzer/shared';
-import { AuthService } from '../../core/auth.service';
+import { type MarketTick } from '@chartanalyzer/shared';
 import { LiveService, type WorkspaceInterval } from '../live/live.service';
 import { MarketStreamService } from '../live/market-stream.service';
 import type { LiveCandle } from '../../shared/live-chart/live-chart';
+import { SymbolSearch } from '../../shared/symbol-search/symbol-search';
 import { WorkspaceChart } from './chart/workspace-chart';
 import { loadDrawings, saveDrawings } from './drawing/drawing-store';
 import type { Drawing, DrawTool } from './drawing/drawing.types';
 import { IndicatorMenu, type IndicatorKind } from './indicators/indicator-menu';
 import { loadIndicators, saveIndicators } from './indicators/indicator-store';
-
-const SEARCH_DEBOUNCE_MS = 300;
-const MIN_QUERY_LENGTH = 2;
 
 /** The instrument shape both a search result and a candle-window response carry — see LiveService.fetchCandles. */
 interface WorkspaceInstrument {
@@ -110,20 +102,18 @@ export interface PendingInstrument {
   selector: 'app-workspace-page',
   imports: [
     DecimalPipe,
-    FormsModule,
     IndicatorMenu,
     MatButtonModule,
     MatButtonToggleModule,
     MatChipsModule,
     MatIconModule,
+    SymbolSearch,
     WorkspaceChart,
   ],
   templateUrl: './workspace-page.html',
   styleUrl: './workspace-page.css',
 })
 export class WorkspacePage implements OnInit, OnDestroy {
-  private readonly auth = inject(AuthService);
-  private readonly http = inject(HttpClient);
   private readonly live = inject(LiveService);
   private readonly stream = inject(MarketStreamService);
   private readonly destroyRef = inject(DestroyRef);
@@ -138,16 +128,10 @@ export class WorkspacePage implements OnInit, OnDestroy {
   protected readonly tools = TOOLS;
 
   private readonly shellHost = viewChild<ElementRef<HTMLDivElement>>('shell');
-  private readonly searchHost = viewChild<ElementRef<HTMLInputElement>>('search');
+  private readonly symbolSearch = viewChild(SymbolSearch);
   /** True while this screen (not the whole document) is Fullscreen-API-fullscreen. */
   protected readonly isFullscreen = signal(false);
 
-  protected readonly markets = MARKETS;
-  protected readonly market = signal<MarketCode>('NSE');
-  protected readonly queryInput = signal('');
-  protected readonly results = signal<WorkspaceInstrument[]>([]);
-  protected readonly searching = signal(false);
-  protected readonly searched = signal(false);
   protected readonly instrument = signal<WorkspaceInstrument | null>(null);
 
   protected readonly timeframe = signal<WorkspaceInterval>(DEFAULT_TIMEFRAME);
@@ -171,7 +155,6 @@ export class WorkspacePage implements OnInit, OnDestroy {
     return candles.length > 0 ? candles[candles.length - 1].close : null;
   });
 
-  private readonly querySubject = new Subject<string>();
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private stopStream: (() => void) | null = null;
   private lastRolloverFetchAt = 0;
@@ -204,24 +187,11 @@ export class WorkspacePage implements OnInit, OnDestroy {
     // reason to focus it, having no instrument, actually changes).
     effect(() => {
       if (this.instrument() || !this.isBrowser) return;
-      this.searchHost()?.nativeElement.focus();
+      this.symbolSearch()?.focus();
     });
   }
 
   ngOnInit(): void {
-    this.querySubject
-      .pipe(
-        debounceTime(SEARCH_DEBOUNCE_MS),
-        distinctUntilChanged(),
-        switchMap((q) => this.search(q)),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe((instruments) => {
-        this.results.set(instruments);
-        this.searching.set(false);
-        this.searched.set(true);
-      });
-
     if (this.isBrowser) {
       document.addEventListener('visibilitychange', this.onVisibilityChange);
       document.addEventListener('fullscreenchange', this.onFullscreenChange);
@@ -281,72 +251,8 @@ export class WorkspacePage implements OnInit, OnDestroy {
     this.toggleSidebar.emit();
   }
 
-  protected onQueryChange(value: string): void {
-    this.queryInput.set(value);
-    const trimmed = value.trim();
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      this.results.set([]);
-      this.searching.set(false);
-      this.searched.set(false);
-      return;
-    }
-    this.searching.set(true);
-    this.querySubject.next(trimmed);
-  }
-
-  /**
-   * Switching markets invalidates whatever was typed for the previous one.
-   * Re-runs the search directly rather than through querySubject: that
-   * pipeline's distinctUntilChanged would swallow an unchanged query string,
-   * which is exactly the case here (same text, different market).
-   */
-  protected onMarketChange(value: MarketCode): void {
-    this.market.set(value);
-    const trimmed = this.queryInput().trim();
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      this.results.set([]);
-      this.searched.set(false);
-      return;
-    }
-    this.searching.set(true);
-    void this.search(trimmed).then((instruments) => {
-      this.results.set(instruments);
-      this.searching.set(false);
-      this.searched.set(true);
-    });
-  }
-
-  private async search(query: string): Promise<WorkspaceInstrument[]> {
-    const token = await this.auth.getAccessToken();
-    if (!token) return [];
-    try {
-      const response = await firstValueFrom(
-        this.http.get<{ instruments: WorkspaceInstrument[] }>('/api/instruments/search', {
-          params: { q: query, market: this.market() },
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      );
-      return response.instruments;
-    } catch {
-      return [];
-    }
-  }
-
-  protected dismissResults(): void {
-    this.results.set([]);
-    this.searched.set(false);
-  }
-
-  protected clearQuery(input: HTMLInputElement): void {
-    this.onQueryChange('');
-    input.focus();
-  }
-
   protected selectInstrument(instrument: WorkspaceInstrument): void {
     this.instrument.set(instrument);
-    this.queryInput.set(`${instrument.symbol} — ${instrument.name}`);
-    this.results.set([]);
-    this.searched.set(false);
     void this.reload();
   }
 
@@ -361,7 +267,9 @@ export class WorkspacePage implements OnInit, OnDestroy {
       return;
     }
     this.instrument.set(result.window.instrument);
-    this.queryInput.set(`${result.window.instrument.symbol} — ${result.window.instrument.name}`);
+    this.symbolSearch()?.setDisplayText(
+      `${result.window.instrument.symbol} — ${result.window.instrument.name}`,
+    );
     this.applyWindow(result.window.candles, result.window.intervalMinutes);
     this.loadDrawingsAndIndicators();
     this.startRefreshing();

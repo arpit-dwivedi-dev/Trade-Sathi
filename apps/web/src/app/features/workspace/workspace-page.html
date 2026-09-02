@@ -1,56 +1,10 @@
 <div class="ws-shell" #shell [class.ws-fullscreen]="isFullscreen()">
   <header class="ws-topbar">
-    <select
-      class="input ws-market-select"
-      [ngModel]="market()"
-      (ngModelChange)="onMarketChange($event)"
-      name="market"
-      aria-label="Stock market"
-    >
-      @for (m of markets; track m.code) {
-        <option [value]="m.code">{{ m.label }}</option>
-      }
-    </select>
-    <div class="ws-search">
-      <input
-        #search
-        class="input ws-search-input"
-        type="text"
-        placeholder="Search symbol or company"
-        [ngModel]="queryInput()"
-        (ngModelChange)="onQueryChange($event)"
-        (keydown.escape)="dismissResults()"
-        name="query"
-        autocomplete="off"
-        aria-label="Search instruments"
-      />
-      @if (searching()) {
-        <span class="spin ws-search-spin" aria-hidden="true"></span>
-      } @else if (queryInput()) {
-        <button type="button" class="ws-search-clear" (click)="clearQuery(search)" title="Clear search" aria-label="Clear search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
-      }
-
-      @if (results().length > 0) {
-        <ul class="menu ws-suggestions">
-          @for (result of results(); track result.id) {
-            <li>
-              <button type="button" (click)="selectInstrument(result)">
-                <span class="num">{{ result.symbol }}</span>
-                <span class="trunc ws-suggestion-name">{{ result.name }}</span>
-                <span class="live-exchange">{{ result.exchange }}</span>
-              </button>
-            </li>
-          }
-        </ul>
-      } @else if (searched() && !searching()) {
-        <p class="live-hint ws-suggestions">No instruments found.</p>
-      }
-    </div>
+    <app-symbol-search
+      class="ws-search"
+      placeholder="Search symbol or company"
+      (instrumentSelected)="selectInstrument($event)"
+    />
 
     @if (instrument(); as picked) {
       <span class="ws-ident">
