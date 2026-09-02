@@ -1,12 +1,14 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 
 import { AuthService } from '../../core/auth.service';
 
 @Component({
   selector: 'app-forgot-password-page',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, MatButtonModule, MatProgressSpinnerModule],
   styleUrl: './auth-page.css',
   templateUrl: './forgot-password-page.html',
 })

@@ -1,5 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../core/auth.service';
@@ -7,7 +9,7 @@ import { SupabaseClientService } from '../../core/supabase-client';
 
 @Component({
   selector: 'app-reset-password-page',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, MatButtonModule, MatProgressSpinnerModule],
   styleUrl: './auth-page.css',
   templateUrl: './reset-password-page.html',
 })

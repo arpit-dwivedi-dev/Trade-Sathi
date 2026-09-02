@@ -65,9 +65,9 @@
         <p class="auth-notice" role="status">{{ message }}</p>
       }
 
-      <button type="submit" class="btn btn-p btn-lg auth-submit" [disabled]="busy()">
+      <button mat-flat-button color="primary" type="submit" class="auth-submit" [disabled]="busy()">
         @if (busy()) {
-          <span class="spin" aria-hidden="true"></span>
+          <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
         }
         {{ busy() ? 'Working…' : mode() === 'signup' ? 'Create account' : mode() === 'otp' ? 'Verify' : 'Sign in' }}
       </button>
@@ -75,12 +75,10 @@
 
     <div class="auth-foot">
       @if (mode() === 'otp') {
-        <button type="button" class="btn btn-g btn-sm"
-                [disabled]="busy() || resendIn() > 0" (click)="resendOtp()">
+        <button mat-button [disabled]="busy() || resendIn() > 0" (click)="resendOtp()">
           {{ resendIn() > 0 ? 'Resend in ' + resendIn() + 's' : 'Resend code' }}
         </button>
-        <button type="button" class="btn btn-g btn-sm" [disabled]="busy()"
-                (click)="useDifferentEmail()">
+        <button mat-button [disabled]="busy()" (click)="useDifferentEmail()">
           Use a different email
         </button>
       } @else {
@@ -89,7 +87,7 @@
         } @else {
           <span></span>
         }
-        <button type="button" class="btn btn-g btn-sm" (click)="toggleMode()">
+        <button mat-button (click)="toggleMode()">
           {{ mode() === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
         </button>
       }

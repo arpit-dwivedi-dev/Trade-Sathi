@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatChipsModule } from '@angular/material/chips';
 import { Router, RouterLink } from '@angular/router';
 import type { ProfileDetails, SurveyAnswers, SurveyStatus } from '@chartanalyzer/shared';
 
@@ -26,7 +27,7 @@ function splitMultiChoice(value: string | undefined): string[] {
  */
 @Component({
   selector: 'app-account-page',
-  imports: [RouterLink, DatePipe, FormsModule],
+  imports: [RouterLink, DatePipe, FormsModule, MatChipsModule],
   styleUrl: './account-page.css',
   templateUrl: './account-page.html',
 })

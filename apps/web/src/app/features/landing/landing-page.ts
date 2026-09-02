@@ -1,4 +1,6 @@
 import { Component, inject } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 
 import { ThemeService } from '../../core/theme.service';
@@ -9,7 +11,7 @@ import { ThemeService } from '../../core/theme.service';
  */
 @Component({
   selector: 'app-landing-page',
-  imports: [RouterLink],
+  imports: [RouterLink, MatButtonModule, MatIconModule],
   styleUrl: './landing-page.css',
   templateUrl: './landing-page.html',
 })

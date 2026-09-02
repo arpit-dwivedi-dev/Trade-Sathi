@@ -12,22 +12,13 @@
         <b>Chart</b><span>Analyzer</span>
       </span>
       <nav class="landing-nav">
-        <button type="button" class="btn btn-g btn-sm btn-icon" (click)="toggleTheme()"
+        <button mat-icon-button (click)="toggleTheme()"
                 [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                 [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
-          @if (theme() === 'dark') {
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-            </svg>
-          } @else {
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          }
+          <mat-icon aria-hidden="true">{{ theme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
         </button>
         <a class="landing-link" routerLink="/login">Sign in</a>
-        <a class="btn btn-p btn-sm" routerLink="/login">Create account</a>
+        <a mat-flat-button color="primary" routerLink="/login">Create account</a>
       </nav>
     </div>
   </header>
@@ -46,7 +37,7 @@
           Seconds, not a second opinion you have to chase.
         </p>
         <div class="landing-actions">
-          <a class="btn btn-p btn-lg" routerLink="/login">Analyze a chart</a>
+          <a mat-flat-button color="primary" routerLink="/login">Analyze a chart</a>
           <span class="landing-actions-note">
             <span class="kbd">Ctrl</span><span class="kbd">V</span>
             <span>or drop a PNG, JPG or WEBP</span>
@@ -196,7 +187,7 @@
         <h2 class="landing-h2">Read your first chart</h2>
         <p class="landing-section-sub">Create an account and start on the free plan.</p>
       </div>
-      <a class="btn btn-p btn-lg" routerLink="/login">Get started</a>
+      <a mat-flat-button color="primary" routerLink="/login">Get started</a>
     </div>
   </section>
 
