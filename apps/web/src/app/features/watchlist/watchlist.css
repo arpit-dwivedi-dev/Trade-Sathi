@@ -11,100 +11,9 @@
   gap: var(--s3);
 }
 
-.watchlist-market-select {
-  flex: 0 0 auto;
-  width: auto;
-}
-
-/* Anchors the suggestion dropdown, and caps the field so it does not run the
-   full width of a wide viewport for a six-character ticker. */
-.watchlist-search {
+.watchlist-add app-symbol-search {
   flex: 1;
-  max-width: 520px;
-  position: relative;
-}
-
-.watchlist-search-icon {
-  align-items: center;
-  color: var(--tx-3);
-  display: flex;
-  height: 38px;
-  justify-content: center;
-  left: 0;
-  pointer-events: none;
-  position: absolute;
-  top: 0;
-  width: 36px;
-}
-
-.watchlist-search-icon svg {
-  height: 16px;
-  width: 16px;
-}
-
-.watchlist-search-input {
-  padding-left: 36px;
-}
-
-.watchlist-search-spin {
-  color: var(--tx-3);
-  position: absolute;
-  right: var(--s3);
-  top: 13px;
-}
-
-/* Occupies the same slot as the spinner — only one of the two is ever shown. */
-.watchlist-search-clear {
-  align-items: center;
-  background: none;
-  border: 0;
-  border-radius: var(--r-sm);
-  color: var(--tx-3);
-  cursor: pointer;
-  display: flex;
-  height: 24px;
-  justify-content: center;
-  padding: 0;
-  position: absolute;
-  right: var(--s2);
-  top: 8px;
-  width: 24px;
-}
-
-.watchlist-search-clear:hover {
-  background: var(--surf-2);
-  color: var(--tx);
-}
-
-.watchlist-suggestions {
-  top: 100%;
-}
-
-.watchlist-suggestion-sym {
-  flex: none;
-  font-size: var(--t-sm);
-  font-weight: 600;
-}
-
-.watchlist-suggestion-name {
-  color: var(--tx-2);
-  font-size: var(--t-xs);
-  min-width: 0;
-}
-
-.watchlist-exchange {
-  color: var(--tx-3);
-  flex: none;
-  font-size: var(--t-3xs);
-  letter-spacing: 0.04em;
-  margin-inline-start: auto;
-  text-transform: uppercase;
-}
-
-.watchlist-hint {
-  color: var(--tx-3);
-  font-size: var(--t-sm);
-  padding-top: 6px;
+  max-width: 620px;
 }
 
 /* ── list ───────────────────────────────────────────────── */
@@ -133,52 +42,38 @@
 }
 
 .watchlist-table {
-  border-collapse: collapse;
-  min-width: 680px;
+  min-width: 760px;
   width: 100%;
 }
 
-.watchlist-table th {
-  background: var(--surf-2);
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  border-bottom: 1px solid var(--line);
-  color: var(--tx-3);
-  font-family: var(--fh);
-  font-size: var(--t-2xs);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  padding: var(--s2) var(--s3);
-  text-align: left;
-  text-transform: uppercase;
-  white-space: nowrap;
+.mat-column-symbol {
+  flex: 1.4 1 0;
+  min-width: 0;
+  position: relative;
 }
 
-.watchlist-table th:first-child {
-  padding-left: var(--s5);
+.mat-column-window {
+  flex: 1 1 0;
+  min-width: 190px;
+  position: relative;
 }
 
-.watchlist-table th:last-child {
-  padding-right: var(--s5);
+.mat-column-runAt {
+  flex: 0 0 150px;
+  position: relative;
 }
 
-.watchlist-table td {
-  border-bottom: 1px solid var(--line-soft);
-  padding: var(--s3);
-  vertical-align: middle;
+.mat-column-dailyBriefing {
+  flex: 0 0 108px;
+  position: relative;
 }
 
-.watchlist-table td:first-child {
-  padding-left: var(--s5);
-}
-
-.watchlist-table td:last-child {
-  padding-right: var(--s5);
-}
-
-.watchlist-table tbody tr:last-child td {
-  border-bottom: none;
+.mat-column-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--s2);
+  justify-content: flex-end;
 }
 
 /* ── busy-row overlay ─────────────────────────────────────
@@ -236,10 +131,18 @@
   white-space: nowrap;
 }
 
-.watchlist-select {
+/* Compacted below Material's default field height so a row of these reads as
+   a table row, not a stack of form fields. */
+.watchlist-select-field,
+.watchlist-days-field,
+.watchlist-time-field {
+  --mat-form-field-container-height: 40px;
+  --mat-form-field-container-vertical-padding: 8px;
   font-size: var(--t-xs);
-  min-height: 32px;
-  min-width: 116px;
+}
+
+.watchlist-select-field {
+  width: 160px;
 }
 
 .watchlist-custom {
@@ -248,162 +151,33 @@
   gap: var(--s2);
 }
 
-.watchlist-days-input {
-  font-size: var(--t-xs);
-  min-height: 32px;
+.watchlist-days-field {
   width: 72px;
 }
 
 .watchlist-unit {
   color: var(--tx-3);
   font-size: var(--t-xs);
+  white-space: nowrap;
 }
 
 /* ── run-at time ─────────────────────────────────────────
    A native <input type="time"> rather than an hour-only <select> — see
-   watchlist.ts's setScheduledTime doc comment. Restyled to match the other
-   row controls (.input/.watchlist-select) rather than the browser's default
-   chrome, and kept on one line with its "IST"/"Default" label so this cell's
-   row height matches every other cell in the row. */
+   watchlist.ts's setScheduledTime doc comment. Kept on one line with its
+   "IST"/"Default" label so this cell's row height matches every other cell
+   in the row. */
 .watchlist-time {
   align-items: center;
   display: inline-flex;
   gap: var(--s2);
 }
 
-.watchlist-time-input {
+.watchlist-time-field {
   color-scheme: light dark;
-  font-family: var(--fb);
-  font-size: var(--t-xs);
-  min-height: 32px;
-  min-width: 118px;
-  padding: 0 var(--s2);
-  width: auto;
+  width: 108px;
 }
 
-/* Firefox renders the segments with generous internal spacing by default;
-   Chromium's ::-webkit-datetime-edit gets the same treatment below. */
-.watchlist-time-input::-webkit-datetime-edit {
-  padding: 0;
-}
-
-.watchlist-time-input::-webkit-calendar-picker-indicator {
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  margin-inline-start: var(--s2);
-  opacity: 0.65;
-  padding: 2px;
-}
-
-.watchlist-time-input::-webkit-calendar-picker-indicator:hover {
-  background: var(--surf-2);
-  opacity: 1;
-}
-
-:root[data-theme='dark'] .watchlist-time-input::-webkit-calendar-picker-indicator {
-  filter: invert(1);
-}
-
-/* ── daily-briefing switch ──────────────────────────────
-   The checkbox stays a checkbox — it is only painted as a
-   switch, so the label, keyboard and screen-reader
-   behaviour are the platform's. */
-.switch {
-  align-items: center;
-  cursor: pointer;
-  display: inline-flex;
-  gap: var(--s2);
-}
-
-.switch-input {
-  height: 1px;
-  opacity: 0;
-  position: absolute;
-  width: 1px;
-}
-
-.switch-track {
-  background: var(--line-strong);
-  border-radius: var(--r-pill);
-  display: block;
-  flex: none;
-  height: 18px;
-  position: relative;
-  transition: background var(--dur-subtle) var(--ease-move);
-  width: 32px;
-}
-
-.switch-track::after {
-  /* A raw white rather than a token: the thumb reads as a physical object on
-     a coloured track and must stay light on both themes, and every white in
-     the palette (--surf, --ink-fg, --ink-hi) inverts with the theme. */
-  background: #fff;
-  border-radius: 50%;
-  content: '';
-  height: 14px;
-  left: 2px;
-  position: absolute;
-  top: 2px;
-  transition: translate var(--dur-subtle) var(--ease-move);
-  width: 14px;
-}
-
-.switch-input:checked + .switch-track {
-  background: var(--up);
-}
-
-.switch-input:checked + .switch-track::after {
-  translate: 14px 0;
-}
-
-.switch-input:focus-visible + .switch-track {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.switch-label {
-  color: var(--tx-2);
-  font-size: var(--t-xs);
-  min-width: 2ch;
-}
-
-/* ── row actions ────────────────────────────────────────── */
-/* Not display:flex — a <td> taken out of table layout stops drawing its share
-   of the row rule, which left a visible gap under the last column. */
-.watchlist-actions {
-  text-align: right;
-  white-space: nowrap;
-}
-
-.watchlist-actions > * + * {
-  margin-left: var(--s2);
-}
-
-.watchlist-remove {
-  align-items: center;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--r-sm);
-  color: var(--tx-3);
-  cursor: pointer;
-  display: inline-flex;
-  flex: none;
-  height: 30px;
-  justify-content: center;
-  padding: 0;
-  vertical-align: middle;
-  transition:
-    background var(--dur-subtle) var(--ease-move),
-    color var(--dur-subtle) var(--ease-move);
-  width: 30px;
-}
-
-.watchlist-remove:hover {
-  background: color-mix(in srgb, var(--down) 10%, transparent);
-  color: var(--down);
-}
-
-.watchlist-analyze-row td {
+.watchlist-note-cell {
   padding-top: 0;
 }
 
@@ -435,7 +209,7 @@
     flex-direction: column;
   }
 
-  .watchlist-search {
+  .watchlist-add app-symbol-search {
     max-width: none;
     width: 100%;
   }

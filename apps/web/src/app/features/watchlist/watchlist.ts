@@ -1,17 +1,24 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
+import { Component, OnDestroy, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { firstValueFrom, Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { firstValueFrom } from 'rxjs';
 
-import { MARKETS, type Instrument, type MarketCode } from '@chartanalyzer/shared';
+import { type Instrument } from '@chartanalyzer/shared';
 import { AuthService } from '../../core/auth.service';
 import { startRowWatch, type RowWatch } from '../../core/row-watch';
 import { SupabaseClientService } from '../../core/supabase-client';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
+import { SymbolSearch } from '../../shared/symbol-search/symbol-search';
 import { BillingService } from '../billing/billing.service';
 import { LiveService } from '../live/live.service';
 
@@ -25,9 +32,6 @@ interface WatchlistItem {
   scheduled_minute_ist: number | null;
   instruments: { exchange: string; symbol: string; name: string } | null;
 }
-
-const SEARCH_DEBOUNCE_MS = 300;
-const MIN_QUERY_LENGTH = 2;
 
 /** A recorded Analyze Now run, as stored in watchlist_analysis_runs. */
 /**
@@ -77,18 +81,31 @@ const MAX_LOOKBACK_DAYS = 365;
  */
 @Component({
   selector: 'app-watchlist',
-  imports: [FormsModule, RouterLink],
+  imports: [
+    RouterLink,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatProgressSpinnerModule,
+    MatSelectModule,
+    MatSlideToggleModule,
+    MatTableModule,
+    SymbolSearch,
+  ],
   styleUrl: './watchlist.css',
   templateUrl: './watchlist.html',
 })
 export class Watchlist implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
-  private readonly destroyRef = inject(DestroyRef);
   private readonly supabase = inject(SupabaseClientService);
   private readonly http = inject(HttpClient);
   private readonly live = inject(LiveService);
   private readonly chartCapture = inject(ChartCaptureService);
   protected readonly billing = inject(BillingService);
+
+  protected readonly columns = ['symbol', 'window', 'runAt', 'dailyBriefing', 'actions'];
 
   protected readonly items = signal<WatchlistItem[]>([]);
   protected readonly loading = signal(true);
@@ -137,6 +154,29 @@ export class Watchlist implements OnInit, OnDestroy {
   private readonly runModes = signal<Record<string, RunMode>>({});
   /** Keyed by watchlist item id, so each row's message is independent. */
   protected readonly analyzeResult = signal<Record<string, string>>({});
+
+  /**
+   * matRowDef's `when` predicate for a row's note (remove confirm / duplicate
+   * warning / result message — mutually exclusive, see the template).
+   */
+  protected readonly hasRowNote = (_index: number, item: WatchlistItem): boolean =>
+    this.pendingRemoval() === item.id ||
+    this.duplicateWarning()[item.id] !== undefined ||
+    this.analyzeResult()[item.id] !== undefined;
+
+  /**
+   * CdkTable only re-evaluates matRowDef's `when` predicates when the bound
+   * [dataSource] reference itself changes (see history-list.ts's tableRows
+   * for the full explanation) — none of pendingRemoval/duplicateWarning/
+   * analyzeResult touch `items`, so this is what makes a note row actually
+   * appear/disappear rather than just existing but never rendering.
+   */
+  protected readonly tableRows = computed(() => {
+    this.pendingRemoval();
+    this.duplicateWarning();
+    this.analyzeResult();
+    return [...this.items()];
+  });
 
   /** How far back a settled run is still worth surfacing on load. */
   private static readonly RESUME_WINDOW_MS = 60 * 60 * 1000;
@@ -209,15 +249,8 @@ export class Watchlist implements OnInit, OnDestroy {
     );
   }
 
-  protected readonly markets = MARKETS;
-  protected readonly market = signal<MarketCode>('NSE');
-  protected readonly queryInput = signal('');
-  protected readonly results = signal<Instrument[]>([]);
-  protected readonly searching = signal(false);
-  protected readonly searched = signal(false);
   protected readonly selected = signal<Instrument | null>(null);
-
-  private readonly querySubject = new Subject<string>();
+  private readonly symbolSearch = viewChild(SymbolSearch);
 
   /**
    * The Watchlist tab is unmounted whenever the user looks at another tab.
@@ -244,91 +277,10 @@ export class Watchlist implements OnInit, OnDestroy {
     void this.billing.ensurePlanSummary();
     void this.loadProcessingSlots();
     this.watchBriefingLog();
-
-    this.querySubject
-      .pipe(
-        debounceTime(SEARCH_DEBOUNCE_MS),
-        distinctUntilChanged(),
-        switchMap((q) => this.search(q)),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe((instruments) => {
-        this.results.set(instruments);
-        this.searching.set(false);
-        this.searched.set(true);
-      });
   }
 
-  protected onQueryChange(value: string): void {
-    this.queryInput.set(value);
-    this.selected.set(null);
-    const trimmed = value.trim();
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      this.results.set([]);
-      this.searching.set(false);
-      this.searched.set(false);
-      return;
-    }
-    this.searching.set(true);
-    this.querySubject.next(trimmed);
-  }
-
-  /**
-   * Switching markets invalidates whatever was typed for the previous one.
-   * Re-runs the search directly rather than through querySubject: that
-   * pipeline's distinctUntilChanged would swallow an unchanged query string,
-   * which is exactly the case here (same text, different market).
-   */
-  protected onMarketChange(value: MarketCode): void {
-    this.market.set(value);
-    this.selected.set(null);
-    const trimmed = this.queryInput().trim();
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      this.results.set([]);
-      this.searched.set(false);
-      return;
-    }
-    this.searching.set(true);
-    void this.search(trimmed).then((instruments) => {
-      this.results.set(instruments);
-      this.searching.set(false);
-      this.searched.set(true);
-    });
-  }
-
-  private async search(query: string): Promise<Instrument[]> {
-    const token = await this.auth.getAccessToken();
-    if (!token) return [];
-    try {
-      const response = await firstValueFrom(
-        this.http.get<{ instruments: Instrument[] }>('/api/instruments/search', {
-          params: { q: query, market: this.market() },
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      );
-      return response.instruments;
-    } catch {
-      return [];
-    }
-  }
-
-  /** Dismisses the suggestion list without choosing anything. */
-  protected dismissResults(): void {
-    this.results.set([]);
-    this.searched.set(false);
-  }
-
-  /** Empties the search box and returns focus to it — see LivePage.clearQuery. */
-  protected clearQuery(input: HTMLInputElement): void {
-    this.onQueryChange('');
-    input.focus();
-  }
-
-  protected selectInstrument(instrument: Instrument): void {
+  protected onInstrumentSelected(instrument: Instrument): void {
     this.selected.set(instrument);
-    this.queryInput.set(`${instrument.symbol} — ${instrument.name}`);
-    this.results.set([]);
-    this.searched.set(false);
   }
 
   protected async load(): Promise<void> {
@@ -373,7 +325,7 @@ export class Watchlist implements OnInit, OnDestroy {
       );
       return;
     }
-    this.queryInput.set('');
+    this.symbolSearch()?.clear();
     this.selected.set(null);
     await this.load();
   }
