@@ -86,6 +86,19 @@ export class AccountPage implements OnInit {
     this.surveyAnswers.update((answers) => ({ ...answers, [questionId]: value }));
   }
 
+  /**
+   * SurveyAnswers is typed as Record<string, string>, but an unanswered
+   * question genuinely has no entry — indexing it is `undefined` at runtime
+   * despite what the type says. Going through this method (rather than
+   * `surveyAnswers()[id]` in the template) is what keeps that `undefined`
+   * from reaching `[ngModel]`: on a <select> an undefined value leaves every
+   * <option> unselected, including the "Choose one…" placeholder, so the
+   * control rendered visibly blank instead of showing it.
+   */
+  protected answerFor(questionId: string): string {
+    return this.surveyAnswers()[questionId] ?? '';
+  }
+
   protected selectedOptions(questionId: string): string[] {
     return splitMultiChoice(this.surveyAnswers()[questionId]);
   }

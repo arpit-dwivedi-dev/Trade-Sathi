@@ -17,17 +17,39 @@
    measure; auto-fit collapses to one column itself below ~720px, so no
    separate breakpoint is needed for the stacked mobile case. Side by side
    also keeps total page height to the taller of the two cards instead of
-   their sum — the main lever for fitting both above the fold. */
+   their sum — the main lever for fitting both above the fold.
+   `min(360px, 100%)` rather than a bare 360px: at a narrow enough viewport
+   (a phone, or the page zoomed in) a hard 360px floor would force the track
+   wider than the container and cause horizontal overflow — capping it at
+   100% lets the track shrink with the page instead.
+   No align-items override: the default `stretch` is what makes both cards
+   the same height below. */
 .acct-grid {
-  align-items: start;
   display: grid;
   gap: var(--s5);
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+}
+
+/* Stretched to the grid row's full height (the taller of the two cards) and
+   laid out as a column with the footer pinned to the bottom via acct-body's
+   flex-grow below — so Profile and the survey end at the same line instead
+   of whichever has less content trailing off short. */
+.acct-card {
+  container-name: acct-card;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  /* Lets the card shrink below its content's intrinsic width instead of
+     overflowing its grid track — the classic grid-blowout fix, needed here
+     because a long email or phone number would otherwise force the column
+     wider than minmax() allows. */
+  min-width: 0;
 }
 
 .acct-body {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: var(--s4);
 }
 
@@ -178,10 +200,15 @@
   margin: 0;
 }
 
-/* Two short fields on one line only pays off once a column is wide enough
+/* Two short fields on one line only pays off once the *card* is wide enough
    for both to keep a real typing width — below that they are cramped rather
-   than compact. */
-@media (max-width: 460px) {
+   than compact. A container query rather than a viewport media query: the
+   card's own width is what matters, not the viewport's — the same viewport
+   can put this card at 360px (two columns) or over 700px (one, full-width)
+   depending on whether the survey card is also present, and a viewport query
+   can't tell those apart. It also keeps this correct at any zoom level,
+   where a viewport-width query drifts as the CSS pixel viewport shrinks. */
+@container acct-card (max-width: 420px) {
   .acct-field-row {
     grid-template-columns: 1fr;
   }

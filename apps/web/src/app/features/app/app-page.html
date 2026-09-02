@@ -152,8 +152,8 @@
          be torn down just because the user glanced at their history. History,
          by contrast, is created on each activation, which is exactly the
          refetch that picks up analyses finished on the other tab. -->
-    <div [hidden]="tab() !== 'analyze'">
-      <app-analyze-page (plansRequested)="openPlans()" />
+    <div class="tab-pane" [hidden]="tab() !== 'analyze'">
+      <app-analyze-page class="tab-pane" (plansRequested)="openPlans()" />
     </div>
 
     <!-- Deferred, then kept mounted while hidden. The defer only decides when
@@ -165,8 +165,8 @@
          tab. Its refresh timer idles on its own while the browser tab is in
          the background. -->
     @defer (when tab() === 'live') {
-      <div [hidden]="tab() !== 'live'">
-        <app-live-page (plansRequested)="openPlans()" />
+      <div class="tab-pane" [hidden]="tab() !== 'live'">
+        <app-live-page class="tab-pane" (plansRequested)="openPlans()" />
       </div>
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading the live chart…</p>
@@ -176,7 +176,7 @@
          nothing renders until this tab is activated. -->
     @defer (when tab() === 'history') {
       @if (tab() === 'history') {
-        <app-history-list />
+        <app-history-list class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your history…</p>
@@ -188,7 +188,7 @@
          first visit. -->
     @defer (when tab() === 'watchlist') {
       @if (tab() === 'watchlist') {
-        <app-watchlist />
+        <app-watchlist class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your watchlist…</p>
@@ -198,7 +198,7 @@
          the refetch that picks up whatever ran since the last visit. -->
     @defer (when tab() === 'logs') {
       @if (tab() === 'logs') {
-        <app-logs-page />
+        <app-logs-page class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your logs…</p>
@@ -208,7 +208,7 @@
          analysis, so a fresh mount per visit is the re-read. -->
     @defer (when tab() === 'billing') {
       @if (tab() === 'billing') {
-        <app-billing-page />
+        <app-billing-page class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading billing…</p>

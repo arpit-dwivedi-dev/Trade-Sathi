@@ -255,7 +255,7 @@
 
                 @if (question.type === 'single_choice') {
                   <select class="input" [id]="'q-' + question.id"
-                          [ngModel]="surveyAnswers()[question.id]"
+                          [ngModel]="answerFor(question.id)"
                           (ngModelChange)="setAnswer(question.id, $event)">
                     <option value="" disabled>Choose one…</option>
                     @for (option of question.options ?? []; track option) {
@@ -274,7 +274,7 @@
                   </div>
                 } @else {
                   <input class="input" type="text" [id]="'q-' + question.id"
-                         [ngModel]="surveyAnswers()[question.id]"
+                         [ngModel]="answerFor(question.id)"
                          (ngModelChange)="setAnswer(question.id, $event)" />
                 }
               </div>

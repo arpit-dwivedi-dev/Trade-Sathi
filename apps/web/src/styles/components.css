@@ -9,12 +9,20 @@
    ════════════════════════════════════════════════════════ */
 
 /* The signed-in frame: a fixed nav rail beside a scrolling content column.
-   Shared by the app shell and Account so the two screens are one product. */
+   Shared by the app shell and Account so the two screens are one product.
+   Pinned to exactly one viewport (`height`, not `min-height`) and clipped so
+   the page itself never scrolls — .body below is the only element that does.
+   Previously this was `min-height: 100vh` with nothing clipping it, so a page
+   taller than the viewport grew the whole document and the browser's own
+   scrollbar took over: a single track running the full window height,
+   dragging the topbar and nav along with it instead of leaving them in
+   place. */
 .shell {
   background: var(--ground);
   display: grid;
   grid-template-columns: var(--nav-w) minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* ── nav rail ───────────────────────────────────────────── */
@@ -158,15 +166,23 @@
 }
 
 /* ── content column ─────────────────────────────────────── */
+/* min-height: 0 overrides a grid item's default `auto`, which would otherwise
+   refuse to shrink below its content's height and defeat .shell's own
+   height/overflow clip above — the same fix .body needs below, one level up. */
 .main {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   min-width: 0;
 }
 
 /* A slim header inside the content column rather than across the whole page:
    the nav already owns the left edge, and a bar spanning both would cut the
-   rail off at the top and undo the two-column read. */
+   rail off at the top and undo the two-column read.
+   flex: none holds it at its own height while .body flexes to fill and
+   scrolls the rest — position: sticky is no longer load-bearing now that
+   .shell doesn't scroll (.body does), but it's harmless to leave and cheap
+   insurance if that ever changes back. */
 .topbar {
   align-items: center;
   background: color-mix(in srgb, var(--surf) 82%, transparent);
@@ -217,12 +233,37 @@
 
 /* ── page body ──────────────────────────────────────────── */
 
-/* The vertical rhythm of every page body. */
+/* The vertical rhythm of every page body — and the one place that actually
+   scrolls. .shell clips at exactly one viewport tall and .main can't grow
+   past it, so it's this element's own overflow that takes over: the
+   scrollbar it produces is bounded to this column, starting below .topbar
+   and never running up beside the nav rail the way a whole-document
+   scrollbar used to. */
 .body {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--s6);
+  min-height: 0;
+  overflow-y: auto;
   padding: var(--s6) var(--s6) var(--s16);
+}
+
+/* .body's `flex: 1 1 auto` above only does anything if .body is a *direct*
+   child of .main (the flex column above it) — true for a route that renders
+   its own shell inline, like Account, but not for a tab inside the /app
+   shell: there .main's real children are each tab's own wrapper (a
+   [hidden]-toggle <div>, or the tab component's host element), one level
+   above the .body each tab's template actually declares. Unhandled, that
+   wrapper — sized to its content, not the viewport — was what quietly
+   overflowed past .shell's clip with no scrollbar anywhere to show for it.
+   display: contents removes the wrapper's own box from layout without
+   touching what it renders, so .body ends up a direct flex child of .main
+   either way and picks up the same scrolling behaviour. :not([hidden]) is
+   the guard that keeps this from fighting the [hidden] attribute Analyze and
+   Live use to stay mounted-but-off-screen — hidden stays display: none. */
+.tab-pane:not([hidden]) {
+  display: contents;
 }
 
 /* Keeps content from stretching edge to edge on wide viewports. 1180 rather
