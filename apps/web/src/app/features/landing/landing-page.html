@@ -53,11 +53,13 @@
       <!-- A still of the real output shape rather than an illustration: the
            point of the page is what comes back, so the page shows it. -->
       <div class="landing-preview" aria-hidden="true">
-        <div class="card landing-preview-card">
+        <mat-card class="landing-preview-card">
           <div class="hd landing-preview-hd">
             <span class="landing-preview-sym">
               <span class="sym">RELIANCE</span>
-              <span class="chip">M15</span>
+              <mat-chip-set aria-label="Timeframe">
+                <mat-chip>M15</mat-chip>
+              </mat-chip-set>
             </span>
             <span class="st st-complete">Complete</span>
           </div>
@@ -97,7 +99,7 @@
             <div class="landing-preview-dir">
               <span class="lbl">Scenario</span>
               <span class="dir d-short landing-preview-dir-val">Short</span>
-              <div class="meter d-short"><i style="width: 62%"></i></div>
+              <mat-progress-bar class="landing-preview-meter d-short" mode="determinate" [value]="62" />
               <span class="lbl">62% confidence</span>
             </div>
             <div class="cells landing-preview-cells">
@@ -106,7 +108,7 @@
               <div class="cell"><span class="lbl">Target</span><span class="num">1,388.15</span></div>
             </div>
           </div>
-        </div>
+        </mat-card>
         <p class="landing-preview-cap">Illustrative output. Not a recommendation.</p>
       </div>
     </div>
@@ -123,7 +125,7 @@
 
       <!-- One bordered surface split by hairlines, not three floating cards:
            these are parts of a single report, and the layout says so. -->
-      <div class="card landing-grid">
+      <mat-card class="landing-grid">
         <div class="landing-grid-item">
           <span class="landing-grid-num">01</span>
           <h3 class="landing-h3">Trend, volatility, volume, sentiment</h3>
@@ -146,7 +148,7 @@
             with its own reference levels.
           </p>
         </div>
-      </div>
+      </mat-card>
     </div>
   </section>
 

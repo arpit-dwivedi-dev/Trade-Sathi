@@ -167,11 +167,6 @@
     flex-direction: column;
   }
 
-  .seg {
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
   .live-body {
     padding: var(--s4);
   }

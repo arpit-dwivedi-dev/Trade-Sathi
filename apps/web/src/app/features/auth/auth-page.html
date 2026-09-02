@@ -8,7 +8,7 @@
     <b>Chart</b><span>Analyzer</span>
   </a>
 
-  <div class="card auth-card">
+  <mat-card class="auth-card">
     <div class="auth-head">
       <h1>{{ mode() === 'signup' ? 'Create an account' : mode() === 'otp' ? 'Verify your email' : 'Welcome back' }}</h1>
       @if (mode() === 'signup') {
@@ -92,7 +92,7 @@
         </button>
       }
     </div>
-  </div>
+  </mat-card>
 
   <p class="disc auth-disc">
     ChartAnalyzer produces AI-generated chart analysis. It is not investment advice.

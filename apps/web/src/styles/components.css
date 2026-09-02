@@ -500,34 +500,6 @@ button.nav-toggle {
   width: 15px;
 }
 
-/* Primary: the accent, because in a dashboard the main action should look like
-   the product's own colour rather than like plain ink. */
-.btn-p {
-  background: var(--acc);
-  border: 1px solid var(--acc);
-  box-shadow: var(--sh-1);
-  /* Light theme only — the dark override below swaps to ink for contrast. */
-  color: #fff;
-}
-
-.btn-p:hover:not([disabled]) {
-  background: var(--acc-tx);
-  border-color: var(--acc-tx);
-}
-
-/* On dark the accent is a bright indigo, and white on it lands near 3.4:1 —
-   under AA for label text. Dark ink on the same fill clears 4.6:1, and the
-   lighter hover fill only improves it. */
-:root[data-theme='dark'] .btn-p {
-  color: var(--ink-fg);
-}
-
-:root[data-theme='dark'] .btn-p:hover:not([disabled]) {
-  background: var(--acc-tx);
-  border-color: var(--acc-tx);
-  color: var(--ink-fg);
-}
-
 .btn-s {
   background: var(--surf);
   border: 1px solid var(--line-strong);
@@ -544,59 +516,9 @@ button.nav-toggle {
   background: var(--surf-2);
 }
 
-.btn-g {
-  background: none;
-  border: 1px solid transparent;
-  color: var(--tx-2);
-}
-
-.btn-g:hover:not([disabled]) {
-  background: var(--surf-3);
-  color: var(--tx);
-}
-
-.btn-lg {
-  border-radius: var(--r-md);
-  font-size: var(--t-md);
-  min-height: 44px;
-  padding: 0 var(--s5);
-}
-
-.btn-sm {
-  font-size: var(--t-xs);
-  min-height: 30px;
-  padding: 0 var(--s3);
-}
-
-.btn-sm svg {
-  height: 13px;
-  width: 13px;
-}
-
-.btn-icon {
-  padding: 0;
-  width: 36px;
-}
-
-.btn-sm.btn-icon {
-  width: 30px;
-}
-
-.btn-icon svg {
-  height: 16px;
-  width: 16px;
-}
-
 /* ════════════════════════════════════════════════════════
    4. Surfaces
    ════════════════════════════════════════════════════════ */
-
-.card {
-  background: var(--surf);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  box-shadow: var(--sh-1);
-}
 
 /* A card's own header strip. Aligned on centre, not baseline, so a tag or a
    button sitting opposite the title lines up with it. */
@@ -608,14 +530,6 @@ button.nav-toggle {
   justify-content: space-between;
   min-height: 48px;
   padding: var(--s2) var(--s5);
-}
-
-.pad {
-  padding: var(--s5);
-}
-
-.pad-8 {
-  padding: var(--s6);
 }
 
 /* The one dark analytical slab in the product — the AI scenario and the usage
@@ -792,25 +706,6 @@ button.nav-toggle {
   text-transform: capitalize;
 }
 
-/* A neutral metadata tag: asset class, timeframe, source. */
-.chip {
-  align-items: center;
-  background: var(--surf-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-xs);
-  color: var(--tx-2);
-  display: inline-flex;
-  font-family: var(--fh);
-  font-size: var(--t-2xs);
-  font-weight: 500;
-  gap: var(--s1);
-  letter-spacing: 0.02em;
-  line-height: 1;
-  padding: 4px 7px;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
 /* Takes its fill from currentColor, so a confidence bar inherits the direction
    colour of whatever it sits inside without a modifier class. */
 .meter {
@@ -970,22 +865,6 @@ button.nav-toggle {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--down) 15%, transparent);
 }
 
-/* select is a .input too; it needs the native arrow room and its own caret. */
-select.input {
-  appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--tx-3) 50%),
-    linear-gradient(135deg, var(--tx-3) 50%, transparent 50%);
-  background-position:
-    calc(100% - 14px) calc(50% + 1px),
-    calc(100% - 9px) calc(50% + 1px);
-  background-repeat: no-repeat;
-  background-size:
-    5px 5px,
-    5px 5px;
-  cursor: pointer;
-  padding-right: var(--s8);
-}
-
 .err {
   align-items: center;
   color: var(--down);
@@ -1026,14 +905,6 @@ select.input {
   border-style: solid;
 }
 
-.shot {
-  background: var(--surf-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  overflow: hidden;
-  position: relative;
-}
-
 /* A keycap at the size a key actually is. It reads as an instruction now
    rather than as a hero graphic. */
 .kbd {
@@ -1056,36 +927,6 @@ select.input {
 /* ════════════════════════════════════════════════════════
    10. Feedback
    ════════════════════════════════════════════════════════ */
-
-.prog {
-  background: var(--surf-3);
-  border-radius: var(--r-pill);
-  display: flex;
-  height: 4px;
-  overflow: hidden;
-}
-
-.prog > i {
-  background: var(--acc);
-  border-radius: var(--r-pill);
-  transition: width var(--dur-screen) var(--ease-enter);
-}
-
-.spin {
-  animation: sp 0.7s linear infinite;
-  border: 1.5px solid color-mix(in srgb, currentColor 25%, transparent);
-  border-radius: 50%;
-  border-top-color: currentColor;
-  flex: none;
-  height: 13px;
-  width: 13px;
-}
-
-@keyframes sp {
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 .skel {
   animation: shim 1.4s ease-in-out infinite;
@@ -1125,42 +966,6 @@ select.input {
 .note b {
   color: var(--tx);
   font-weight: 600;
-}
-
-/* A dropdown anchored under a search field. Shared by Live and Watchlist,
-   which is what makes it worth having here. */
-.menu {
-  background: var(--surf);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  box-shadow: var(--sh-3);
-  inset-inline: 0;
-  list-style: none;
-  margin: var(--s1) 0 0;
-  max-height: 288px;
-  overflow-y: auto;
-  padding: var(--s1);
-  position: absolute;
-  z-index: 40;
-}
-
-.menu button {
-  align-items: baseline;
-  background: none;
-  border: 0;
-  border-radius: var(--r-sm);
-  color: var(--tx);
-  cursor: pointer;
-  display: flex;
-  gap: var(--s2);
-  padding: var(--s2) var(--s3);
-  text-align: start;
-  width: 100%;
-}
-
-.menu button:hover,
-.menu button:focus-visible {
-  background: var(--surf-3);
 }
 
 /* ════════════════════════════════════════════════════════
@@ -1239,11 +1044,6 @@ select.input {
     grid-template-columns: 1fr 1fr;
   }
 
-  .pad,
-  .pad-8 {
-    padding: var(--s4);
-  }
-
   .hd {
     padding-inline: var(--s4);
   }
@@ -1255,9 +1055,5 @@ select.input {
   /* Touch targets grow; the visual weight does not. */
   .btn {
     min-height: 40px;
-  }
-
-  .btn-sm {
-    min-height: 34px;
   }
 }

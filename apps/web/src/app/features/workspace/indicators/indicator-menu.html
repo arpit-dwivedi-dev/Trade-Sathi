@@ -1,19 +1,16 @@
 <div class="ind-menu">
   <button
     type="button"
-    class="btn btn-g btn-sm"
+    mat-stroked-button
     [matMenuTriggerFor]="indicatorMenu"
+    [matBadge]="active().size"
+    [matBadgeHidden]="active().size === 0"
+    matBadgeSize="small"
+    matBadgeOverlap="false"
     aria-haspopup="true"
   >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
-      <path d="M16 6h5v5" />
-    </svg>
+    <mat-icon aria-hidden="true">stacked_line_chart</mat-icon>
     Indicators
-    @if (active().size > 0) {
-      <span class="chip ind-count">{{ active().size }}</span>
-    }
   </button>
 
   <mat-menu #indicatorMenu="matMenu" xPosition="before">

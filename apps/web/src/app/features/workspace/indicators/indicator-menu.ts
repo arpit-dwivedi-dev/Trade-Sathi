@@ -1,4 +1,6 @@
 import { Component, input, output } from '@angular/core';
+import { MatBadgeModule } from '@angular/material/badge';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 
@@ -26,7 +28,7 @@ export const INDICATOR_OPTIONS: readonly IndicatorOption[] = [
 
 @Component({
   selector: 'app-indicator-menu',
-  imports: [MatIconModule, MatMenuModule],
+  imports: [MatBadgeModule, MatButtonModule, MatIconModule, MatMenuModule],
   templateUrl: './indicator-menu.html',
   styleUrl: './indicator-menu.css',
 })

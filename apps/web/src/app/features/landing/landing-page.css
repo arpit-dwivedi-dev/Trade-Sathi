@@ -250,6 +250,13 @@
   line-height: 1.1;
 }
 
+.landing-preview-meter {
+  --mat-progress-bar-active-indicator-color: currentColor;
+  --mat-progress-bar-track-color: color-mix(in srgb, currentColor 18%, transparent);
+  --mat-progress-bar-active-indicator-height: 6px;
+  --mat-progress-bar-track-height: 6px;
+}
+
 .landing-preview-cells .cell {
   padding: var(--s3) var(--s4);
 }

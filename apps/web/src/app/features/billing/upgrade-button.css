@@ -1,19 +1,15 @@
-/* A status callout, not a plain line of text: the tint and the left rule carry
-   the state before the copy is read. Shared with the credits button, which
-   renders the same set of states. */
+/* A status callout, built on the shared .note (background/border tinted from
+   --tone — see components.css) rather than reimplementing that from scratch.
+   Only the left accent rule, tighter padding and entrance animation are added
+   here. Shared with the credits button via the same styleUrl, which renders
+   the same set of states. */
 .billing-msg {
   align-items: center;
   animation: billing-msg-in 160ms var(--ease-enter);
-  background: var(--surf-2);
-  border: 1px solid var(--line);
-  border-left: 2px solid var(--tx-3);
+  border-left-width: 2px;
+  border-left-color: var(--tone, var(--tx-3));
   border-radius: var(--r-sm);
-  color: var(--tx-2);
-  display: flex;
-  font-size: var(--t-sm);
-  gap: var(--s3);
-  line-height: 1.5;
-  padding: var(--s3) var(--s4);
+  padding-block: var(--s3);
 }
 
 .billing-msg .ico,
@@ -26,24 +22,18 @@
   width: 17px;
 }
 
-.billing-ok {
-  background: color-mix(in srgb, var(--up) 8%, var(--surf));
-  border-color: color-mix(in srgb, var(--up) 24%, var(--line));
-  border-left-color: var(--up);
+/* The neutral .note tone (background/border tint only) doesn't color its own
+   text — these three states want the stronger, fully-colored treatment the
+   old bespoke classes had, so that part stays as a small modifier. */
+.billing-msg-ok {
   color: var(--up);
 }
 
-.billing-warn {
-  background: color-mix(in srgb, var(--warn) 8%, var(--surf));
-  border-color: color-mix(in srgb, var(--warn) 24%, var(--line));
-  border-left-color: var(--warn);
+.billing-msg-warn {
   color: var(--warn);
 }
 
-.billing-error {
-  background: color-mix(in srgb, var(--down) 8%, var(--surf));
-  border-color: color-mix(in srgb, var(--down) 24%, var(--line));
-  border-left-color: var(--down);
+.billing-msg-error {
   color: var(--down);
 }
 

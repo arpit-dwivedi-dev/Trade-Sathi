@@ -14,6 +14,7 @@ import {
 import { A11yModule } from '@angular/cdk/a11y';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { BillingService } from './billing.service';
 import { BuyCreditsButton } from './buy-credits-button';
@@ -44,7 +45,14 @@ import { UpgradeButton } from './upgrade-button';
  */
 @Component({
   selector: 'app-plans-overlay',
-  imports: [A11yModule, MatButtonModule, MatIconModule, UpgradeButton, BuyCreditsButton],
+  imports: [
+    A11yModule,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    UpgradeButton,
+    BuyCreditsButton,
+  ],
   styleUrl: './plans-overlay.css',
   templateUrl: './plans-overlay.html',
 })

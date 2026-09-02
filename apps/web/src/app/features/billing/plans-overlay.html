@@ -14,7 +14,7 @@
       <div class="plans-title-block">
         <h2 id="plans-title" class="plans-title">Plans &amp; credits</h2>
         @if (loading()) {
-          <span class="plans-sub"><span class="spin" aria-hidden="true"></span> Loading your plan…</span>
+          <span class="plans-sub"><mat-progress-spinner mode="indeterminate" diameter="14" aria-hidden="true" /> Loading your plan…</span>
         } @else {
           <span class="plans-sub">
             You're on <b>{{ planLabel() }}</b>
