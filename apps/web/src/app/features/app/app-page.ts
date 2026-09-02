@@ -10,12 +10,21 @@ import { HistoryList } from '../history/history-list';
 import { LivePage } from '../live/live-page';
 import { LogsPage } from '../logs/logs-page';
 import { Watchlist } from '../watchlist/watchlist';
+import { WorkspacePage, type PendingInstrument } from '../workspace/workspace-page';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 
-type Tab = 'analyze' | 'live' | 'history' | 'watchlist' | 'logs' | 'billing';
+type Tab = 'analyze' | 'live' | 'workspace' | 'history' | 'watchlist' | 'logs' | 'billing';
 
-const TABS: readonly Tab[] = ['analyze', 'live', 'history', 'watchlist', 'logs', 'billing'];
+const TABS: readonly Tab[] = [
+  'analyze',
+  'live',
+  'workspace',
+  'history',
+  'watchlist',
+  'logs',
+  'billing',
+];
 
 /**
  * Plans and credits used to be two tabs. They are one screen now — a plan and a
@@ -31,6 +40,7 @@ const TAB_ALIASES: Readonly<Record<string, Tab>> = {
 const TAB_TITLES: Readonly<Record<Tab, string>> = {
   analyze: 'Analyze',
   live: 'Live chart',
+  workspace: 'Manual Analysis',
   history: 'Your analyses',
   watchlist: 'Watchlist',
   logs: 'Logs',
@@ -53,6 +63,7 @@ function parseTab(value: string | null): Tab {
     PlansOverlay,
     RouterLink,
     Watchlist,
+    WorkspacePage,
   ],
   styleUrl: './app-page.css',
   templateUrl: './app-page.html',
@@ -71,8 +82,26 @@ export class AppPage implements OnInit {
   protected readonly plansOpen = signal(false);
   /** Drawer state. Only consulted below 900px, where the rail is off-canvas. */
   protected readonly navOpen = signal(false);
+  /**
+   * Desktop-only collapse, distinct from navOpen above (that one is the
+   * off-canvas mobile drawer). The rail hides itself outright below 900px
+   * already, so this only has anything to do above it — the workspace tab is
+   * the one screen cramped enough on desktop to want the space back, and it's
+   * the only place the control to flip this is shown.
+   */
+  protected readonly navCollapsed = signal(false);
   /** The shared cached read; the overlay and the picker use this same value. */
   protected readonly currentPlanKey = this.billing.currentPlanKey;
+
+  /**
+   * Hands an instrument off to the workspace tab from wherever "Manual
+   * Analysis" was pressed (see openWorkspace). A plain instrumentId signal
+   * wouldn't re-fire the workspace's effect for the same symbol pressed
+   * twice in a row; wrapping it with a bumped counter makes every request a
+   * new object by reference, so the effect always sees a change.
+   */
+  protected readonly pendingWorkspaceInstrument = signal<PendingInstrument | null>(null);
+  private workspaceRequestSeq = 0;
 
   /**
    * AnalyzePage stays mounted for the life of the shell (it is hidden, not
@@ -120,6 +149,24 @@ export class AppPage implements OnInit {
     this.navOpen.set(false);
   }
 
+  /** The workspace topbar's own "Collapse sidebar" control — see navCollapsed. */
+  protected toggleNavCollapsed(): void {
+    this.navCollapsed.update((collapsed) => !collapsed);
+  }
+
+  /**
+   * Opens the workspace tab, optionally on a specific instrument — the Live
+   * tab's "Manual Analysis" button calls this with the symbol already on
+   * screen there, so the handoff lands on the same chart instead of an empty
+   * search box.
+   */
+  protected openWorkspace(instrumentId?: string): void {
+    if (instrumentId !== undefined && instrumentId !== '') {
+      this.pendingWorkspaceInstrument.set({ instrumentId, requestId: ++this.workspaceRequestSeq });
+    }
+    this.select('workspace');
+  }
+
   /**
    * The rail's billing CTA. Routes to the Billing tab rather than opening the
    * overlay — the overlay stays for the in-flow prompt raised by Analyze and
@@ -156,6 +203,12 @@ export class AppPage implements OnInit {
    */
   protected select(tab: Tab): void {
     this.navOpen.set(false);
+    // Collapsing the rail is only offered from the workspace tab itself, so
+    // leaving it with no way back to expand the rail would strand a user who
+    // collapsed it there and then picked a different tab from... nowhere,
+    // since the rail is what they'd use to do that. Leaving is the moment to
+    // put it back.
+    if (tab !== 'workspace') this.navCollapsed.set(false);
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { tab },

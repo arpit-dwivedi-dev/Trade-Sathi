@@ -44,6 +44,29 @@ export function candleSpecFor(lookbackDays: number): CandleSpec {
   return { unit: "days", interval: 1, label: "1D" };
 }
 
+/**
+ * Timeframes the manual charting workspace lets a user pick directly, rather
+ * than have derived from a lookback window the way candleSpecFor does above.
+ * Bounded to the granularities the Yahoo provider actually supports (see
+ * SUPPORTED_MINUTE_INTERVALS in yahoo-finance-provider.ts).
+ */
+export const WORKSPACE_INTERVALS = ["1m", "5m", "15m", "30m", "60m", "1d"] as const;
+export type WorkspaceInterval = (typeof WORKSPACE_INTERVALS)[number];
+
+const WORKSPACE_INTERVAL_SPECS: Record<WorkspaceInterval, CandleSpec> = {
+  "1m": { unit: "minutes", interval: 1, label: "1m" },
+  "5m": { unit: "minutes", interval: 5, label: "5m" },
+  "15m": { unit: "minutes", interval: 15, label: "15m" },
+  "30m": { unit: "minutes", interval: 30, label: "30m" },
+  "60m": { unit: "minutes", interval: 60, label: "1H" },
+  "1d": { unit: "days", interval: 1, label: "1D" },
+};
+
+/** The explicit-timeframe counterpart to candleSpecFor, for the workspace view. */
+export function explicitCandleSpec(interval: WorkspaceInterval): CandleSpec {
+  return WORKSPACE_INTERVAL_SPECS[interval];
+}
+
 export function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -246,8 +269,9 @@ export interface CandleWindow {
 export async function getCandlesForInstrument(
   ref: InstrumentRef,
   lookbackDays: number,
+  explicitSpec?: CandleSpec,
 ): Promise<CandleWindow> {
-  const spec = candleSpecFor(lookbackDays);
+  const spec = explicitSpec ?? candleSpecFor(lookbackDays);
   const toDate = todayIsoDate();
   const fromDate = subtractDays(toDate, lookbackDays);
   const params = {

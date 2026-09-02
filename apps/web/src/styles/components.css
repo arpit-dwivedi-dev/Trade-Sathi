@@ -25,6 +25,20 @@
   overflow: hidden;
 }
 
+/* Desktop-only rail collapse — distinct from the mobile drawer below, which
+   already hides the rail by default under 900px (so this has nothing to add
+   there). Currently only reachable from the workspace tab's own "Collapse
+   sidebar" control, for the one screen cramped enough to want the space
+   back; AppPage.select() re-expands it on leaving that tab so it can never
+   be left stuck collapsed with no visible way to undo it. */
+.shell-nav-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.shell-nav-collapsed .nav {
+  display: none;
+}
+
 /* ── nav rail ───────────────────────────────────────────── */
 .nav {
   background: var(--surf);

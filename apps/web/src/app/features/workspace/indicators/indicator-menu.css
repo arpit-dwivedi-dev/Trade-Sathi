@@ -1,0 +1,61 @@
+.ind-menu {
+  position: relative;
+}
+
+.ind-count {
+  background: var(--acc);
+  color: #fff;
+  font-size: var(--t-3xs);
+  min-width: 16px;
+  padding: 1px 5px;
+}
+
+.ind-scrim {
+  inset: 0;
+  position: fixed;
+  z-index: 39;
+}
+
+/* The global .menu sets `inset-inline: 0` (left: 0 AND right: 0). Left it
+   unset here and the box would be over-constrained (left + right + width all
+   given), which CSS resolves by silently dropping `right` — so the menu
+   anchored to `left: 0` and grew rightward off the edge of the screen instead
+   of hugging the button it opens from. `left: auto` is what breaks the tie. */
+.ind-list {
+  left: auto;
+  max-width: calc(100vw - 24px);
+  min-width: 240px;
+  right: 0;
+  top: calc(100% + 6px);
+  width: max-content;
+}
+
+.ind-list button {
+  align-items: center;
+}
+
+.ind-check {
+  border: 1.5px solid var(--line-strong);
+  border-radius: 4px;
+  flex: none;
+  height: 14px;
+  width: 14px;
+}
+
+.ind-check-on {
+  background: var(--acc);
+  border-color: var(--acc);
+}
+
+.ind-label {
+  flex: 1;
+  font-size: var(--t-sm);
+}
+
+.ind-pane {
+  color: var(--tx-3);
+  flex: none;
+  font-size: var(--t-3xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

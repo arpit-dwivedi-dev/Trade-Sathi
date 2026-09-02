@@ -6,9 +6,12 @@ import { handleImageUpload } from "../middleware/image-upload.js";
 import { requireAuth } from "../middleware/auth.js";
 import { analyzeInstrumentLive } from "../services/live-analysis.service.js";
 import {
+  explicitCandleSpec,
   fetchInstrumentById,
   getCandlesForInstrument,
   getQuoteForInstrument,
+  WORKSPACE_INTERVALS,
+  type WorkspaceInterval,
 } from "../services/market-chart.service.js";
 
 /**
@@ -27,6 +30,12 @@ function parseLookbackDays(raw: unknown): number | null {
   if (!Number.isInteger(value)) return null;
   if (value < MIN_LOOKBACK_DAYS || value > MAX_LOOKBACK_DAYS) return null;
   return value;
+}
+
+/** Explicit timeframe for the manual charting workspace; absent for the Live tab's derived-from-lookback behaviour. */
+function parseInterval(raw: unknown): WorkspaceInterval | null {
+  if (typeof raw !== "string") return null;
+  return (WORKSPACE_INTERVALS as readonly string[]).includes(raw) ? (raw as WorkspaceInterval) : null;
 }
 
 /** Upstream failures are the provider's, not the caller's: 502, not 500. */
@@ -51,9 +60,13 @@ marketRouter.get(
     const instrumentId =
       typeof req.query["instrumentId"] === "string" ? req.query["instrumentId"] : "";
     const lookbackDays = parseLookbackDays(req.query["lookbackDays"]);
+    const hasInterval = req.query["interval"] !== undefined;
+    const interval = parseInterval(req.query["interval"]);
 
-    if (!instrumentId || lookbackDays === null) {
-      res.status(400).json({ error: "instrumentId and lookbackDays (1-365) are required" });
+    if (!instrumentId || lookbackDays === null || (hasInterval && interval === null)) {
+      res.status(400).json({
+        error: `instrumentId and lookbackDays (1-365) are required; interval, if given, must be one of ${WORKSPACE_INTERVALS.join("/")}`,
+      });
       return;
     }
 
@@ -64,7 +77,11 @@ marketRouter.get(
         return;
       }
 
-      const window = await getCandlesForInstrument(ref, lookbackDays);
+      const window = await getCandlesForInstrument(
+        ref,
+        lookbackDays,
+        interval ? explicitCandleSpec(interval) : undefined,
+      );
       res.json({
         instrument: {
           id: ref.instrumentId,

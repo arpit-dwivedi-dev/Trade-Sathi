@@ -1,0 +1,452 @@
+/* A tab inside the dashboard shell (see .tab-pane's `display: contents` in
+   components.css), not its own route — this is what makes :host the direct
+   flex child of .main that a tab-pane always is, sized exactly like every
+   other tab's own root. A TradingView-style toolbar/rail/panel layout still
+   gets a fixed-height, non-scrolling area of its own below the shell's
+   topbar; it just no longer takes the *whole* dashboard away to get it —
+   Full screen (see toggleFullscreen) is the opt-in for that. */
+:host {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ws-shell {
+  background: var(--ground);
+  display: grid;
+  grid-template-areas: 'top top top' 'tools chart side';
+  grid-template-columns: 52px 1fr minmax(220px, 260px);
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* The Fullscreen API sizes its target to the screen on its own in most
+   browsers, but a couple leave sizing to the page — explicit here so the
+   shell never renders smaller than the screen it was asked to fill. */
+.ws-shell:fullscreen {
+  height: 100vh;
+  width: 100vw;
+}
+
+/* No instrument yet: the tools rail and side panel aren't rendered, so
+   collapse their reserved columns — otherwise the placeholder centers
+   inside the leftover middle column instead of the whole shell. */
+.ws-shell:has(.ws-placeholder) {
+  grid-template-areas: 'top' 'chart';
+  grid-template-columns: 1fr;
+}
+
+/* ── top bar ─────────────────────────────────────────── */
+.ws-topbar {
+  align-items: center;
+  background: var(--surf);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  grid-area: top;
+  padding: var(--s3) var(--s4);
+}
+
+/* Collapse/full-screen controls — always at the far end of the bar, whether
+   or not an instrument is picked yet (the @if block above them may not have
+   rendered anything). */
+.ws-topbar-end {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+  margin-inline-start: auto;
+}
+
+.ws-search {
+  max-width: 320px;
+  position: relative;
+  width: 100%;
+}
+
+.ws-search-input {
+  min-height: 34px;
+}
+
+.ws-search-spin {
+  color: var(--tx-3);
+  position: absolute;
+  right: var(--s3);
+  top: 10px;
+}
+
+.ws-search-clear {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  color: var(--tx-3);
+  cursor: pointer;
+  display: flex;
+  height: 22px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 22px;
+}
+
+.ws-search-clear:hover {
+  background: var(--surf-3);
+  color: var(--tx);
+}
+
+.ws-suggestions {
+  top: 100%;
+}
+
+.ws-suggestion-name {
+  color: var(--tx-2);
+  flex: 1;
+  font-size: var(--t-xs);
+  min-width: 0;
+}
+
+.ws-ident {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+}
+
+.ws-price {
+  font-family: var(--fm);
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+
+.ws-timeframes {
+  margin-inline-start: auto;
+}
+
+/* Same segmented-control pattern as the Live tab's window picker
+   (live-page.css) — duplicated rather than shared, see the workspace's
+   scope notes on why this screen doesn't import from that feature. */
+.seg {
+  background: var(--surf-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+}
+
+.seg-btn {
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: var(--tx-2);
+  cursor: pointer;
+  font-family: var(--fh);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  min-height: 26px;
+  padding: 0 var(--s3);
+  white-space: nowrap;
+}
+
+.seg-btn:hover {
+  color: var(--tx);
+}
+
+.seg-btn[aria-pressed='true'] {
+  background: var(--surf);
+  box-shadow: var(--sh-1);
+  color: var(--tx);
+  font-weight: 600;
+}
+
+:root[data-theme='dark'] .seg-btn[aria-pressed='true'] {
+  background: var(--surf-2);
+  box-shadow: none;
+  outline: 1px solid var(--line-strong);
+}
+
+.live-tick {
+  align-items: center;
+  color: var(--up);
+  display: inline-flex;
+  font-size: var(--t-2xs);
+  font-weight: 500;
+  gap: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.live-tick-dot {
+  animation: ws-tick-pulse 2.4s ease-in-out infinite;
+  background: var(--up);
+  border-radius: 50%;
+  height: 6px;
+  width: 6px;
+}
+
+@keyframes ws-tick-pulse {
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--up) 22%, transparent);
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-tick-dot {
+    animation: none;
+  }
+}
+
+.live-exchange,
+.live-hint {
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
+}
+
+/* ── tool rail ───────────────────────────────────────── */
+.ws-tools {
+  align-items: center;
+  background: var(--surf);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  grid-area: tools;
+  overflow-y: auto;
+  padding: var(--s3) var(--s2);
+}
+
+.ws-tool-btn {
+  align-items: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--tx-2);
+  cursor: pointer;
+  display: flex;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.ws-tool-btn svg {
+  height: 17px;
+  width: 17px;
+}
+
+.ws-tool-btn:hover:not([disabled]) {
+  background: var(--surf-3);
+  color: var(--tx);
+}
+
+.ws-tool-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.ws-tool-btn-active {
+  background: var(--acc-soft);
+  border-color: var(--acc-line);
+  color: var(--acc);
+}
+
+.ws-tool-divider {
+  background: var(--line);
+  height: 1px;
+  margin: var(--s1) 4px;
+  width: 24px;
+}
+
+/* ── chart area ──────────────────────────────────────── */
+.ws-chart-area {
+  grid-area: chart;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: var(--s3);
+}
+
+.ws-chart-skel {
+  border-radius: var(--r-md);
+  height: 100%;
+}
+
+.ws-placeholder {
+  align-items: center;
+  color: var(--tx-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  height: 100%;
+  justify-content: center;
+  padding: var(--s6);
+  text-align: center;
+}
+
+.ws-placeholder-icon {
+  align-items: center;
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  color: var(--tx-3);
+  display: flex;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.ws-placeholder-icon svg {
+  height: 22px;
+  width: 22px;
+}
+
+.ws-placeholder h2 {
+  color: var(--tx);
+  font-size: var(--t-xl);
+  letter-spacing: -0.02em;
+}
+
+.ws-placeholder p {
+  font-size: var(--t-sm);
+  line-height: 1.6;
+  max-width: 52ch;
+}
+
+/* The three-item "what you get" summary — a plain <dl> read as a row of
+   icon + label pairs rather than a definition list. */
+.ws-placeholder-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s5);
+  justify-content: center;
+  margin-block-start: var(--s2);
+}
+
+.ws-placeholder-features > div {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+}
+
+.ws-placeholder-features dt {
+  align-items: center;
+  color: var(--acc);
+  display: flex;
+}
+
+.ws-placeholder-features dt svg {
+  height: 16px;
+  width: 16px;
+}
+
+.ws-placeholder-features dd {
+  color: var(--tx-2);
+  font-size: var(--t-xs);
+  margin: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .ws-placeholder-features {
+    flex-direction: column;
+    gap: var(--s3);
+  }
+}
+
+/* ── side panel ──────────────────────────────────────── */
+.ws-side {
+  background: var(--surf);
+  border-left: 1px solid var(--line);
+  grid-area: side;
+  overflow-y: auto;
+  padding: var(--s4);
+}
+
+.ws-side-title {
+  color: var(--tx);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-block-end: var(--s3);
+  text-transform: uppercase;
+}
+
+.ws-side-empty {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+}
+
+.ws-drawing-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  list-style: none;
+}
+
+.ws-drawing-list li {
+  align-items: center;
+  border-radius: var(--r-sm);
+  display: flex;
+  font-size: var(--t-xs);
+  gap: var(--s2);
+  justify-content: space-between;
+  padding: var(--s2) var(--s2);
+}
+
+.ws-drawing-list li:hover {
+  background: var(--surf-3);
+}
+
+.ws-drawing-selected {
+  background: var(--acc-soft);
+}
+
+.ws-drawing-delete {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: var(--r-xs);
+  color: var(--tx-3);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 20px;
+  justify-content: center;
+  padding: 0;
+  width: 20px;
+}
+
+.ws-drawing-delete:hover {
+  background: var(--surf-2);
+  color: var(--down);
+}
+
+/* ── responsive ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .ws-shell {
+    grid-template-areas: 'top top' 'tools chart' 'side side';
+    grid-template-columns: 44px 1fr;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .ws-side {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    max-height: 180px;
+  }
+
+  .ws-search {
+    max-width: none;
+    order: 3;
+    width: 100%;
+  }
+
+  .ws-timeframes {
+    margin-inline-start: 0;
+  }
+}

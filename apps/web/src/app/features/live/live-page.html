@@ -1,9 +1,14 @@
 <section class="body content-max live">
   <div class="page-head">
-    <h1 class="page-title">Live chart</h1>
-    <p class="page-sub">
-      Search any instrument, pick a window, and analyse exactly what's on screen.
-    </p>
+    <div>
+      <h1 class="page-title">Live chart</h1>
+      <p class="page-sub">
+        Search any instrument, pick a window, and analyse exactly what's on screen.
+      </p>
+    </div>
+    <button type="button" class="btn btn-s btn-sm" (click)="requestManualAnalysis()">
+      Manual Analysis
+    </button>
   </div>
 
   <!-- A bare search bar rather than a card with an "Instrument" header: the

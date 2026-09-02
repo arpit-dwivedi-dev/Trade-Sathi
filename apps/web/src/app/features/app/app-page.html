@@ -1,4 +1,4 @@
-<main class="shell" [class.shell-nav-open]="navOpen()">
+<main class="shell" [class.shell-nav-open]="navOpen()" [class.shell-nav-collapsed]="navCollapsed()">
   @if (user(); as currentUser) {
     <!-- Closes the drawer by tapping away from it. Present in the DOM only as
          a plain div — CSS gives it a box exclusively while the rail is
@@ -41,6 +41,17 @@
             <path d="M7 15l3.5-4 3 2.5L21 6" />
           </svg>
           Live chart
+        </button>
+
+        <button type="button" class="nav-item" (click)="select('workspace')"
+                [attr.aria-current]="tab() === 'workspace' ? 'page' : null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M8 4v16M3 9h5" />
+            <path d="m12.5 15 2-4 1.6 2.4L18.5 10" />
+          </svg>
+          Manual Analysis
         </button>
 
         <button type="button" class="nav-item" (click)="select('history')"
@@ -166,10 +177,28 @@
          the background. -->
     @defer (when tab() === 'live') {
       <div class="tab-pane" [hidden]="tab() !== 'live'">
-        <app-live-page class="tab-pane" (plansRequested)="openPlans()" />
+        <app-live-page
+          class="tab-pane"
+          (plansRequested)="openPlans()"
+          (manualAnalysisRequested)="openWorkspace($event)"
+        />
       </div>
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading the live chart…</p>
+    }
+
+    <!-- Same deferred-then-[hidden] treatment as Live: the chart, drawings and
+         streaming connection all survive a glance at another tab. -->
+    @defer (when tab() === 'workspace') {
+      <div class="tab-pane" [hidden]="tab() !== 'workspace'">
+        <app-workspace-page
+          class="tab-pane"
+          [pendingInstrument]="pendingWorkspaceInstrument()"
+          (toggleSidebar)="toggleNavCollapsed()"
+        />
+      </div>
+    } @loading (after 150ms; minimum 300ms) {
+      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading the workspace…</p>
     }
 
     <!-- Deferred rather than @if'd, but the effect on mounting is the same:

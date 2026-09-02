@@ -5,6 +5,14 @@ import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import type { LiveCandle } from '../../shared/live-chart/live-chart';
 
+/**
+ * Explicit candle timeframes the API accepts on top of the lookback-derived
+ * default — see WORKSPACE_INTERVALS in apps/api's market-chart.service. Used
+ * by the manual analysis workspace, which lets the user pick a timeframe
+ * directly rather than have one derived from a lookback window.
+ */
+export type WorkspaceInterval = '1m' | '5m' | '15m' | '30m' | '60m' | '1d';
+
 export interface CandleWindowResponse {
   instrument: { id: string; symbol: string; name: string; exchange: string };
   timeframeLabel: string;
@@ -36,14 +44,21 @@ export class LiveService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
 
-  async fetchCandles(instrumentId: string, lookbackDays: number): Promise<CandlesResult> {
+  async fetchCandles(
+    instrumentId: string,
+    lookbackDays: number,
+    interval?: WorkspaceInterval,
+  ): Promise<CandlesResult> {
     const token = await this.auth.getAccessToken();
     if (!token) return { ok: false, message: 'You are not signed in.' };
+
+    const params: Record<string, string> = { instrumentId, lookbackDays: String(lookbackDays) };
+    if (interval) params['interval'] = interval;
 
     try {
       const window = await firstValueFrom(
         this.http.get<CandleWindowResponse>('/api/market/candles', {
-          params: { instrumentId, lookbackDays: String(lookbackDays) },
+          params,
           headers: { Authorization: `Bearer ${token}` },
         }),
       );

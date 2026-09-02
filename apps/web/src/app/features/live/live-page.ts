@@ -111,6 +111,12 @@ export class LivePage implements OnInit, OnDestroy {
 
   /** Raised when the user needs to buy more analyses — the shell opens plans. */
   readonly plansRequested = output<void>();
+  /**
+   * Raised by "Manual Analysis" — carries the instrument on screen here (if
+   * any) so the workspace tab opens on the same chart instead of an empty
+   * search box. The shell owns switching tabs; this screen only asks.
+   */
+  readonly manualAnalysisRequested = output<string | undefined>();
 
   protected readonly lookbackOptions = LOOKBACK_OPTIONS;
 
@@ -588,5 +594,9 @@ export class LivePage implements OnInit, OnDestroy {
 
   protected openPlans(): void {
     this.plansRequested.emit();
+  }
+
+  protected requestManualAnalysis(): void {
+    this.manualAnalysisRequested.emit(this.instrument()?.id);
   }
 }
