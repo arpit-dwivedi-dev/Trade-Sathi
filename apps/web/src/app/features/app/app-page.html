@@ -134,7 +134,7 @@
         />
       </div>
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading the live chart…</p>
+      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading the live chart…</p>
     }
 
     <!-- Same deferred-then-[hidden] treatment as Live: the chart, drawings and
@@ -148,7 +148,7 @@
         />
       </div>
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading the workspace…</p>
+      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading the workspace…</p>
     }
 
     <!-- Deferred rather than @if'd, but the effect on mounting is the same:
@@ -158,7 +158,7 @@
         <app-history-list class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your history…</p>
+      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your history…</p>
     }
 
     <!-- Created on activation, like History: a fresh mount is the refetch that
@@ -170,7 +170,7 @@
         <app-watchlist class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your watchlist…</p>
+      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your watchlist…</p>
     }
 
     <!-- Created on activation, like History and Watchlist: a fresh mount is
@@ -180,7 +180,7 @@
         <app-logs-page class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading your logs…</p>
+      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your logs…</p>
     }
 
     <!-- Created on activation: the balances shown here move with every
@@ -190,7 +190,7 @@
         <app-billing-page class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><span class="spin" aria-hidden="true"></span> Loading billing…</p>
+      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading billing…</p>
     }
 
     <!-- Mounted only while open, so closing tears the purchase buttons down
@@ -206,7 +206,7 @@
   } @else {
     <!-- Rendered during SSR and before client-side session restoration completes. -->
     <div class="shell-loading">
-      <span class="spin" aria-hidden="true"></span>
+      <mat-progress-spinner mode="indeterminate" diameter="28" aria-hidden="true" />
       <p class="lbl">Loading</p>
     </div>
   }

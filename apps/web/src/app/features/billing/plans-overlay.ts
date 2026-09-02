@@ -11,6 +11,9 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { A11yModule } from '@angular/cdk/a11y';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 
 import { BillingService } from './billing.service';
 import { BuyCreditsButton } from './buy-credits-button';
@@ -34,11 +37,14 @@ import { UpgradeButton } from './upgrade-button';
  * opens above us, which is what the purchase flow needs.
  *
  * The cost of leaving the top layer is that the focus trap and Esc handling
- * <dialog> provided for free are now ours: Esc is handled below.
+ * <dialog> provided for free are now ours: Esc is handled below, and the
+ * focus trap comes from cdkTrapFocus (@angular/cdk/a11y) — a standalone
+ * directive with no CDK Overlay/z-index involvement, so it doesn't touch the
+ * stacking approach above.
  */
 @Component({
   selector: 'app-plans-overlay',
-  imports: [UpgradeButton, BuyCreditsButton],
+  imports: [A11yModule, MatButtonModule, MatIconModule, UpgradeButton, BuyCreditsButton],
   styleUrl: './plans-overlay.css',
   templateUrl: './plans-overlay.html',
 })

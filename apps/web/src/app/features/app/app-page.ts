@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingPage } from '../billing/billing-page';
@@ -64,6 +65,7 @@ function parseTab(value: string | null): Tab {
     LogsPage,
     MatButtonModule,
     MatIconModule,
+    MatProgressSpinnerModule,
     PlansOverlay,
     RouterLink,
     Watchlist,

@@ -2,8 +2,7 @@
   <button
     type="button"
     class="btn btn-g btn-sm"
-    (click)="toggleMenu()"
-    [attr.aria-expanded]="open()"
+    [matMenuTriggerFor]="indicatorMenu"
     aria-haspopup="true"
   >
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
@@ -17,20 +16,13 @@
     }
   </button>
 
-  @if (open()) {
-    <!-- Closes the menu by tapping away from it. -->
-    <div class="ind-scrim" (click)="closeMenu()" aria-hidden="true"></div>
-
-    <ul class="menu ind-list">
-      @for (option of options; track option.kind) {
-        <li>
-          <button type="button" (click)="toggle(option.kind)" [attr.aria-pressed]="isActive(option.kind)">
-            <span class="ind-check" [class.ind-check-on]="isActive(option.kind)" aria-hidden="true"></span>
-            <span class="ind-label">{{ option.label }}</span>
-            <span class="ind-pane">{{ option.pane === 'sub' ? 'panel' : 'overlay' }}</span>
-          </button>
-        </li>
-      }
-    </ul>
-  }
+  <mat-menu #indicatorMenu="matMenu" xPosition="before">
+    @for (option of options; track option.kind) {
+      <button mat-menu-item (click)="toggle($event, option.kind)" [attr.aria-pressed]="isActive(option.kind)">
+        <mat-icon aria-hidden="true">{{ isActive(option.kind) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        <span class="ind-label">{{ option.label }}</span>
+        <span class="ind-pane">{{ option.pane === 'sub' ? 'panel' : 'overlay' }}</span>
+      </button>
+    }
+  </mat-menu>
 </div>

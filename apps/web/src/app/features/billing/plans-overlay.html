@@ -2,9 +2,14 @@
      above Razorpay Checkout and make paying impossible. -->
 <div class="plans-scrim" (click)="onBackdropClick($event)">
   <!-- tabindex="-1" so the panel can take focus on open without becoming a
-       tab stop of its own afterwards. -->
+       tab stop of its own afterwards. cdkTrapFocus keeps Tab cycling inside
+       the panel — see the component header comment for why this is a
+       standalone a11y directive rather than MatDialog/CDK Overlay. No
+       cdkTrapFocusAutoCapture: the constructor's afterNextRender already
+       focuses the panel itself on open, and auto-capture would fight it by
+       moving focus to the first tabbable descendant instead. -->
   <div #panel class="plans-panel" role="dialog" aria-modal="true" tabindex="-1"
-       aria-labelledby="plans-title">
+       aria-labelledby="plans-title" cdkTrapFocus>
     <header class="plans-bar">
       <div class="plans-title-block">
         <h2 id="plans-title" class="plans-title">Plans &amp; credits</h2>
@@ -20,13 +25,11 @@
       <!-- Disabled, not hidden, while a payment is being confirmed: the control
            staying visibly present and inert explains itself better than a
            button that vanishes mid-flow. -->
-      <button type="button" class="btn btn-g btn-sm btn-icon" (click)="close()"
+      <button mat-icon-button (click)="close()"
               [disabled]="purchaseInFlight()"
               [attr.title]="purchaseInFlight() ? 'Hold on — confirming your payment' : 'Close'"
               aria-label="Close">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 6l12 12M18 6L6 18" />
-        </svg>
+        <mat-icon aria-hidden="true">close</mat-icon>
       </button>
     </header>
 

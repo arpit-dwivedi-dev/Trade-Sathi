@@ -1,4 +1,6 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, input, output } from '@angular/core';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 
 /**
  * The fixed indicator set the workspace offers, each with its standard
@@ -24,29 +26,27 @@ export const INDICATOR_OPTIONS: readonly IndicatorOption[] = [
 
 @Component({
   selector: 'app-indicator-menu',
+  imports: [MatIconModule, MatMenuModule],
   templateUrl: './indicator-menu.html',
   styleUrl: './indicator-menu.css',
 })
 export class IndicatorMenu {
   protected readonly options = INDICATOR_OPTIONS;
-  protected readonly open = signal(false);
 
   readonly active = input<ReadonlySet<IndicatorKind>>(new Set());
   readonly activeChange = output<ReadonlySet<IndicatorKind>>();
-
-  protected toggleMenu(): void {
-    this.open.update((v) => !v);
-  }
-
-  protected closeMenu(): void {
-    this.open.set(false);
-  }
 
   protected isActive(kind: IndicatorKind): boolean {
     return this.active().has(kind);
   }
 
-  protected toggle(kind: IndicatorKind): void {
+  /**
+   * Stopping propagation keeps the menu open across a toggle — this is a
+   * multi-select checklist, not a list of one-shot actions, so a click
+   * shouldn't dismiss it the way selecting a normal mat-menu-item does.
+   */
+  protected toggle(event: MouseEvent, kind: IndicatorKind): void {
+    event.stopPropagation();
     const next = new Set(this.active());
     if (next.has(kind)) next.delete(kind);
     else next.add(kind);
