@@ -143,14 +143,6 @@
   --sh-3:
     0 4px 8px -2px rgba(24, 24, 20, 0.05),
     0 20px 32px -8px rgba(24, 24, 20, 0.13);
-
-  /* legacy aliases, kept so nothing that still reads them breaks */
-  --shadow: var(--sh-1);
-  --shadow-hi: var(--sh-2);
-  --acc-2: #b45309;
-  --acc-3: #0d8f5b;
-  --acc-deep: var(--slab);
-  --r-sm-legacy: 8px;
 }
 
 :root[data-theme='dark'] {
@@ -199,10 +191,4 @@
   --sh-1: none;
   --sh-2: 0 8px 24px -8px rgba(0, 0, 0, 0.7);
   --sh-3: 0 16px 40px -12px rgba(0, 0, 0, 0.8);
-
-  --shadow: var(--sh-1);
-  --shadow-hi: var(--sh-2);
-  --acc-2: #fbbf24;
-  --acc-3: #34d399;
-  --acc-deep: var(--slab);
 }

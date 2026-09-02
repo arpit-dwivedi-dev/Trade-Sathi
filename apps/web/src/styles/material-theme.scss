@@ -1,0 +1,35 @@
+// Angular Material M3 theme, generated from the app's own accent color
+// (see theme-colors.scss — produced by `ng generate @angular/material:theme-color
+// --primary-color=#4f46e5`, the light-mode --acc value in tokens.css) rather
+// than a stock Material palette.
+//
+// Scoped to the same [data-theme] attribute ThemeService (../app/core/theme.service.ts)
+// already sets on <html> — the same mechanism tokens.css's own dark-mode
+// overrides use (:root[data-theme='dark']) — so Material's --mat-sys-* tokens
+// switch the instant the attribute flips, no extra JS wiring needed.
+@use '@angular/material' as mat;
+@use './theme-colors' as theme;
+
+html {
+  @include mat.theme((
+    color: (
+      primary: theme.$primary-palette,
+      tertiary: theme.$tertiary-palette,
+      theme-type: light,
+    ),
+    // Matches --fb/--fh in tokens.css — kept as a literal font stack (not a
+    // var() reference) since this is evaluated by Sass at build time.
+    typography: 'Inter, system-ui, -apple-system, sans-serif',
+    density: 0,
+  ));
+}
+
+html[data-theme='dark'] {
+  @include mat.theme((
+    color: (
+      primary: theme.$primary-palette,
+      tertiary: theme.$tertiary-palette,
+      theme-type: dark,
+    ),
+  ));
+}
