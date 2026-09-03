@@ -7,15 +7,17 @@ import {
   effect,
   inject,
   input,
+  untracked,
   viewChild,
 } from '@angular/core';
-import { LineStyle, type IPriceLine } from 'lightweight-charts';
 
 import { ThemeService } from '../../core/theme.service';
 import {
   applyCandles,
-  chartOptions,
+  applyPalette,
   createCandleChart,
+  disposeCandleChart,
+  drawLevelOverlays,
   readPalette,
   updateLastCandle,
   type CandleChart,
@@ -30,13 +32,18 @@ import {
 export type { ChartOverlays, LiveCandle };
 
 /**
- * An interactive candlestick chart (TradingView lightweight-charts, Apache-2.0).
+ * An interactive candlestick chart (KLineChart, Apache-2.0).
  *
  * Presentational: it renders whatever candles and overlay levels it is given
- * and owns no fetching. The chart library touches `window`/`document` at
- * construction, so every call into it is guarded to the browser — during SSR
- * this renders an empty container and the client builds the real chart on
- * hydration.
+ * and owns no fetching. The chart library reads `window` at module scope, so
+ * it is imported lazily and only from the browser — during SSR this renders an
+ * empty container and the client builds the real chart on hydration.
+ *
+ * That lazy import is why the chart is reached through `withChart` rather than
+ * held in a field the effects can touch directly: construction is asynchronous,
+ * and effects can fire several times before it finishes. Queuing them onto the
+ * one construction promise keeps them in order without any of them having to
+ * know whether the chart exists yet.
  */
 @Component({
   selector: 'app-live-chart',
@@ -54,7 +61,9 @@ export class LiveChart implements OnDestroy {
 
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('container');
 
+  private chartReady: Promise<CandleChart> | null = null;
   private target: CandleChart | null = null;
+  private destroyed = false;
   /**
    * Identifies the series currently drawn — its length and its end
    * timestamps. Unchanged between two renders means the same candles are on
@@ -62,8 +71,6 @@ export class LiveChart implements OnDestroy {
    * path; anything else is a new window and gets redrawn whole.
    */
   private appliedSignature: string | null = null;
-  private priceLines: IPriceLine[] = [];
-  private resizeObserver: ResizeObserver | null = null;
 
   constructor() {
     // Data and theme are separate effects on purpose: a theme toggle must not
@@ -71,40 +78,36 @@ export class LiveChart implements OnDestroy {
     effect(() => {
       const candles = this.candles();
       if (!this.isBrowser) return;
-      this.ensureChart();
-      if (!this.target) return;
-
-      const signature = seriesSignature(candles);
-      const last = candles[candles.length - 1];
-      if (last && signature === this.appliedSignature) {
-        updateLastCandle(this.target, last, this.palette());
-        return;
-      }
-      applyCandles(this.target, candles, this.palette());
-      this.appliedSignature = signature;
+      this.withChart((target) => {
+        const signature = seriesSignature(candles);
+        const last = candles[candles.length - 1];
+        if (last && signature === this.appliedSignature) {
+          updateLastCandle(target, last);
+          return;
+        }
+        applyCandles(target, candles);
+        this.appliedSignature = signature;
+      });
     });
 
     effect(() => {
       const overlays = this.overlays();
       if (!this.isBrowser) return;
-      this.ensureChart();
-      this.drawOverlays(overlays);
+      this.withChart((target) => drawLevelOverlays(target, overlays, this.palette()));
     });
 
     effect(() => {
       const theme = this.themeService.theme();
-      if (!this.isBrowser || !this.target) return;
+      if (!this.isBrowser) return;
       void theme;
-      this.target.chart.applyOptions(chartOptions(this.palette()));
+      this.withChart((target) => applyPalette(target, this.palette()));
     });
   }
 
   ngOnDestroy(): void {
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
-    this.target?.chart.remove();
+    this.destroyed = true;
+    if (this.target) disposeCandleChart(this.target);
     this.target = null;
-    this.priceLines = [];
   }
 
   /** Colours read from the same CSS tokens the rest of the app uses, so the
@@ -113,49 +116,39 @@ export class LiveChart implements OnDestroy {
     return readPalette(this.host().nativeElement);
   }
 
-  private ensureChart(): void {
-    if (this.target) return;
-    const element = this.host().nativeElement;
-
-    this.target = createCandleChart(element, this.palette(), {
-      width: element.clientWidth,
-      height: element.clientHeight,
-    });
-
-    this.resizeObserver = new ResizeObserver(() => {
-      if (!this.target) return;
-      this.target.chart.resize(element.clientWidth, element.clientHeight);
-    });
-    this.resizeObserver.observe(element);
+  /**
+   * Runs `fn` against the chart, building it first if this is the first call.
+   * Callbacks queue on the one construction promise, so they run in the order
+   * their effects fired, and none of them runs after the component is gone.
+   */
+  private withChart(fn: (target: CandleChart) => void): void {
+    this.chartReady ??= this.createChart();
+    void this.chartReady.then(
+      (target) => {
+        if (!this.destroyed) fn(target);
+      },
+      (cause: unknown) => {
+        console.warn('live chart could not be created', cause);
+      },
+    );
   }
 
-  private drawOverlays(overlays: ChartOverlays | null): void {
-    const series = this.target?.priceSeries;
-    if (!series) return;
+  private async createChart(): Promise<CandleChart> {
+    const element = this.host().nativeElement;
+    const candles = untracked(this.candles);
+    const target = await createCandleChart(element, this.palette(), candles);
 
-    for (const line of this.priceLines) series.removePriceLine(line);
-    this.priceLines = [];
-    if (!overlays) return;
+    // The component can be torn down while the library is still downloading.
+    if (this.destroyed) {
+      disposeCandleChart(target);
+      throw new Error('live chart destroyed before it finished loading');
+    }
 
-    const palette = this.palette();
-    const add = (price: number, title: string, color: string, dashed: boolean): void => {
-      this.priceLines.push(
-        series.createPriceLine({
-          price,
-          color,
-          lineWidth: 1,
-          lineStyle: dashed ? LineStyle.Dashed : LineStyle.Solid,
-          axisLabelVisible: true,
-          title,
-        }),
-      );
-    };
-
-    for (const level of overlays.support) add(level, 'S', palette.up, false);
-    for (const level of overlays.resistance) add(level, 'R', palette.down, false);
-    if (overlays.entry !== null) add(overlays.entry, 'Entry', palette.accent, true);
-    if (overlays.target !== null) add(overlays.target, 'Target', palette.up, true);
-    if (overlays.invalidation !== null) add(overlays.invalidation, 'Stop', palette.down, true);
+    // createCandleChart seeded the feed with these, so the first queued
+    // callback must see them as already drawn rather than reloading.
+    this.target = target;
+    this.appliedSignature = seriesSignature(candles);
+    return target;
   }
 }
 

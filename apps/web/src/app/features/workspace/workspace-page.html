@@ -50,43 +50,34 @@
 
   @if (instrument()) {
     <nav class="ws-tools" aria-label="Drawing tools">
-      @for (t of tools; track t.value) {
+      <button
+        type="button"
+        class="ws-tool-btn"
+        [class.ws-tool-btn-active]="tool() === 'cursor'"
+        [attr.aria-pressed]="tool() === 'cursor'"
+        title="Cursor — select and drag"
+        aria-label="Cursor — select and drag"
+        (click)="selectTool('cursor')"
+      >
+        <mat-icon aria-hidden="true">near_me</mat-icon>
+      </button>
+
+      @for (group of toolGroups; track group.id) {
         <button
           type="button"
           class="ws-tool-btn"
-          [class.ws-tool-btn-active]="tool() === t.value"
-          [attr.aria-pressed]="tool() === t.value"
-          [title]="t.label"
-          [attr.aria-label]="t.label"
-          (click)="selectTool(t.value)"
+          [class.ws-tool-btn-active]="isGroupActive(group)"
+          [attr.aria-pressed]="isGroupActive(group)"
+          [matMenuTriggerFor]="toolMenu"
+          [matMenuTriggerData]="{ group: group }"
+          [title]="groupTooltip(group)"
+          [attr.aria-label]="groupTooltip(group)"
+          aria-haspopup="true"
         >
-          @switch (t.value) {
-            @case ('cursor') {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M5 3l6.5 17 2.3-6.9L21 11z" />
-              </svg>
-            }
-            @case ('trendline') {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="5" cy="19" r="1.6" />
-                <circle cx="19" cy="5" r="1.6" />
-                <path d="M6.2 17.8 17.8 6.2" />
-              </svg>
-            }
-            @case ('horizontal') {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M3 12h18" />
-                <circle cx="7" cy="12" r="1.6" fill="currentColor" stroke="none" />
-                <circle cx="17" cy="12" r="1.6" fill="currentColor" stroke="none" />
-              </svg>
-            }
-            @case ('fib') {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
-                <path d="M3 5h18M3 9.5h18M3 14.5h18M3 19h18" opacity=".55" />
-                <path d="M3 9.5h18" opacity="1" />
-              </svg>
-            }
-          }
+          <mat-icon aria-hidden="true">{{ groupIcon(group) }}</mat-icon>
+          <!-- Corner notch: the rail's only cue that this button opens a list
+               rather than arming a tool outright. -->
+          <span class="ws-tool-more" aria-hidden="true"></span>
         </button>
       }
 
@@ -94,11 +85,40 @@
 
       <button type="button" class="ws-tool-btn" title="Clear all drawings" aria-label="Clear all drawings"
               [disabled]="drawings().length === 0" (click)="clearDrawings()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 12a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l1-12" />
-        </svg>
+        <mat-icon aria-hidden="true">delete</mat-icon>
       </button>
     </nav>
+
+    <!-- One flyout, filled by whichever rail button opened it — the groups
+         differ only in their list of tools. -->
+    <mat-menu #toolMenu="matMenu" xPosition="after" class="tool-panel">
+      <ng-template matMenuContent let-group="group">
+        <div class="tool-top" (click)="$event.stopPropagation()">
+          <span class="tool-top-title">{{ group.label }}</span>
+          <span class="tool-top-sub">Click the chart to place</span>
+        </div>
+        <div class="tool-list">
+          @for (kind of group.tools; track kind) {
+            <button
+              mat-menu-item
+              class="tool-item"
+              [class.tool-item-on]="tool() === kind"
+              (click)="selectTool(kind)"
+              [attr.aria-pressed]="tool() === kind"
+            >
+              <!-- Every part is wrapped in a span on purpose: a bare <mat-icon>
+                   is projected into mat-menu-item's own leading slot, which
+                   would drop the tick on the left instead of the right. -->
+              <span class="tool-glyph" aria-hidden="true"><mat-icon>{{ toolIcon(kind) }}</mat-icon></span>
+              <span class="tool-label">{{ toolLabel(kind) }}</span>
+              @if (tool() === kind) {
+                <span class="tool-check" aria-hidden="true"><mat-icon>check</mat-icon></span>
+              }
+            </button>
+          }
+        </div>
+      </ng-template>
+    </mat-menu>
   }
 
   <main class="ws-chart-area">
@@ -130,8 +150,9 @@
         <h2>Search for a symbol to start charting</h2>
         <p>
           Type a symbol or company name above. Once a chart is open you can switch between six
-          timeframes, draw trend lines, horizontal levels and Fibonacci retracements, and layer on
-          indicators — all saved to this browser as you go.
+          timeframes, draw with sixteen tools — trend lines, rays, channels, Fibonacci
+          retracements, freehand and markers — and layer on any of twenty-six indicators, all
+          saved to this browser as you go.
         </p>
         <dl class="ws-placeholder-features">
           <div>
@@ -153,7 +174,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                    stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.5 8.5 11l3.5 3.5L21 6" /><path d="M16 6h5v5" /></svg>
             </dt>
-            <dd>SMA, EMA, Bollinger, RSI, MACD</dd>
+            <dd>26 indicators</dd>
           </div>
         </dl>
       </div>

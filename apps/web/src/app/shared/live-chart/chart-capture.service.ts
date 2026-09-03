@@ -4,6 +4,7 @@ import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import {
   applyCandles,
   createCandleChart,
+  disposeCandleChart,
   readPalette,
   type ChartPalette,
   type LiveCandle,
@@ -46,6 +47,11 @@ export class ChartCaptureService {
    * no candles, a browser that refuses the canvas export). Callers treat that
    * as "send no image" and the API falls back to its own renderer, so a
    * capture failure costs image fidelity, never the analysis itself.
+   *
+   * The export asks for the overlay layer (`getConvertPictureUrl(true)`) even
+   * though this chart carries none: drawing the analysis levels — or the
+   * user's own trend lines — into the image the model reads is now a few
+   * lines away, where the old library could only ever export bare candles.
    */
   async capture(candles: LiveCandle[], meta: CaptureMeta): Promise<Blob | null> {
     if (!this.isBrowser || candles.length === 0) return null;
@@ -61,22 +67,20 @@ export class ChartCaptureService {
     const palette = readPalette(document.body);
 
     try {
-      const target = createCandleChart(
-        container,
-        palette,
-        { width: CHART_WIDTH, height: CHART_HEIGHT },
-        palette.surface,
-      );
+      const target = await createCandleChart(container, palette, candles);
       try {
-        applyCandles(target, candles, palette);
+        applyCandles(target, candles);
         // The library paints on an animation frame; two frames is one to
         // schedule the paint and one to be sure it landed before we read the
         // canvas back.
         await nextFrame();
         await nextFrame();
-        return await this.compose(target.chart.takeScreenshot(), meta, palette);
+        const chartImage = await loadImage(
+          target.chart.getConvertPictureUrl(true, 'png', palette.surface),
+        );
+        return await this.compose(chartImage, meta, palette);
       } finally {
-        target.chart.remove();
+        disposeCandleChart(target);
       }
     } catch (cause) {
       console.warn('chart capture failed; falling back to the server-rendered chart', cause);
@@ -93,18 +97,18 @@ export class ChartCaptureService {
    * symbol.
    */
   private async compose(
-    screenshot: HTMLCanvasElement,
+    screenshot: HTMLImageElement,
     meta: CaptureMeta,
     palette: ChartPalette,
   ): Promise<Blob | null> {
-    // takeScreenshot renders at the device pixel ratio, so the caption is
-    // scaled to match rather than assuming CSS pixels.
-    const scale = screenshot.width / CHART_WIDTH || 1;
+    // The export renders at the device pixel ratio, so the caption is scaled
+    // to match rather than assuming CSS pixels.
+    const scale = screenshot.naturalWidth / CHART_WIDTH || 1;
     const header = Math.round(HEADER_HEIGHT * scale);
 
     const canvas = document.createElement('canvas');
-    canvas.width = screenshot.width;
-    canvas.height = screenshot.height + header;
+    canvas.width = screenshot.naturalWidth;
+    canvas.height = screenshot.naturalHeight + header;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
@@ -158,5 +162,20 @@ function nextFrame(): Promise<void> {
     };
     const timer = setTimeout(done, FRAME_TIMEOUT_MS);
     requestAnimationFrame(done);
+  });
+}
+
+/**
+ * KLineChart hands back a data URL rather than the canvas it drew on, so the
+ * picture has to be decoded before the caption can be stacked above it. A
+ * data URL is same-origin and already in memory, so this only ever waits on
+ * the decode.
+ */
+function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('chart export could not be decoded'));
+    image.src = dataUrl;
   });
 }

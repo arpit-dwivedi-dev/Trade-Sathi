@@ -18,6 +18,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 
 import { type MarketTick } from '@chartanalyzer/shared';
 import { LiveService, type WorkspaceInterval } from '../live/live.service';
@@ -26,7 +27,15 @@ import type { LiveCandle } from '../../shared/live-chart/live-chart';
 import { SymbolSearch } from '../../shared/symbol-search/symbol-search';
 import { WorkspaceChart } from './chart/workspace-chart';
 import { loadDrawings, saveDrawings } from './drawing/drawing-store';
-import type { Drawing, DrawTool } from './drawing/drawing.types';
+import {
+  DRAWING_ICONS,
+  DRAWING_LABELS,
+  TOOL_GROUPS,
+  type Drawing,
+  type DrawingKind,
+  type DrawTool,
+  type ToolGroup,
+} from './drawing/drawing.types';
 import { IndicatorMenu, type IndicatorKind } from './indicators/indicator-menu';
 import { loadIndicators, saveIndicators } from './indicators/indicator-store';
 
@@ -59,13 +68,6 @@ const INTRADAY_REFRESH_MS = 30_000;
 const DAILY_REFRESH_MS = 5 * 60_000;
 const STREAMING_INTRADAY_REFRESH_MS = 2 * 60_000;
 const ROLLOVER_REFETCH_MIN_GAP_MS = 5_000;
-
-const TOOLS: readonly { value: DrawTool; label: string }[] = [
-  { value: 'cursor', label: 'Cursor' },
-  { value: 'trendline', label: 'Trend line' },
-  { value: 'horizontal', label: 'Horizontal line' },
-  { value: 'fib', label: 'Fibonacci retracement' },
-];
 
 /**
  * An instrument handed off from elsewhere in the shell (the Live tab's
@@ -107,6 +109,7 @@ export interface PendingInstrument {
     MatButtonToggleModule,
     MatChipsModule,
     MatIconModule,
+    MatMenuModule,
     SymbolSearch,
     WorkspaceChart,
   ],
@@ -125,7 +128,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
   readonly toggleSidebar = output<void>();
 
   protected readonly timeframes = TIMEFRAMES;
-  protected readonly tools = TOOLS;
+  protected readonly toolGroups = TOOL_GROUPS;
 
   private readonly shellHost = viewChild<ElementRef<HTMLDivElement>>('shell');
   private readonly symbolSearch = viewChild(SymbolSearch);
@@ -401,6 +404,43 @@ export class WorkspacePage implements OnInit, OnDestroy {
     this.tool.set(this.tool() === next && next !== 'cursor' ? 'cursor' : next);
   }
 
+  /**
+   * matMenuContent hands its context through untyped, so the label lookup
+   * goes through a typed method rather than indexing the record from the
+   * template.
+   */
+  protected toolLabel(kind: DrawingKind): string {
+    return DRAWING_LABELS[kind];
+  }
+
+  /** Same lookup, same reason — the flyout's per-tool glyph. */
+  protected toolIcon(kind: DrawingKind): string {
+    return DRAWING_ICONS[kind];
+  }
+
+  /** Lights up the rail button whose flyout holds the tool now armed. */
+  protected isGroupActive(group: ToolGroup): boolean {
+    const tool = this.tool();
+    return tool !== 'cursor' && group.tools.includes(tool);
+  }
+
+  /**
+   * A rail button holding the armed tool wears that tool's own glyph, so the
+   * rail says which of the sixteen is live without the flyout being open.
+   */
+  protected groupIcon(group: ToolGroup): string {
+    const tool = this.tool();
+    return tool !== 'cursor' && group.tools.includes(tool) ? DRAWING_ICONS[tool] : group.icon;
+  }
+
+  /** The rail button shows the armed tool's group icon, or the group's own. */
+  protected groupTooltip(group: ToolGroup): string {
+    const tool = this.tool();
+    return tool !== 'cursor' && group.tools.includes(tool)
+      ? `${group.label}: ${DRAWING_LABELS[tool]}`
+      : group.label;
+  }
+
   protected onDrawingsChange(next: Drawing[]): void {
     this.drawings.set(next);
     this.persistDrawings(next);
@@ -434,15 +474,16 @@ export class WorkspacePage implements OnInit, OnDestroy {
     saveDrawings(this.isBrowser, instrument.id, this.timeframe(), drawings);
   }
 
+  /**
+   * A level's price is the only thing that distinguishes two of them in the
+   * side panel, so the horizontal kinds carry it; everything else is named by
+   * its tool.
+   */
   protected drawingLabel(drawing: Drawing): string {
-    switch (drawing.kind) {
-      case 'horizontal':
-        return `Horizontal @ ${drawing.price.toFixed(2)}`;
-      case 'trendline':
-        return 'Trend line';
-      case 'fib':
-        return 'Fibonacci retracement';
-    }
+    const label = DRAWING_LABELS[drawing.kind];
+    if (!LEVEL_KINDS.has(drawing.kind)) return label;
+    const level = drawing.points[0]?.value;
+    return level === undefined ? label : `${label} @ ${level.toFixed(2)}`;
   }
 
   // ---- indicators ----
@@ -454,6 +495,15 @@ export class WorkspacePage implements OnInit, OnDestroy {
     saveIndicators(this.isBrowser, instrument.id, this.timeframe(), [...next]);
   }
 }
+
+/** Drawings whose whole meaning is one price, so the side panel prints it. */
+const LEVEL_KINDS = new Set<DrawingKind>([
+  'horizontalStraightLine',
+  'horizontalRayLine',
+  'horizontalSegment',
+  'priceLine',
+  'simpleTag',
+]);
 
 function lookbackDaysFor(timeframe: WorkspaceInterval): number {
   return TIMEFRAMES.find((t) => t.value === timeframe)?.lookbackDays ?? 365;

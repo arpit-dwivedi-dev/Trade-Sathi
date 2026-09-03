@@ -1,8 +1,15 @@
-import type { IndicatorKind } from './indicator-menu';
+import { isIndicatorKind, type IndicatorKind } from './indicator-menu';
 
-/** localStorage-backed active-indicator set, kept per instrument + timeframe — same convention as drawing-store.ts. */
+/**
+ * localStorage-backed active-indicator set, kept per instrument + timeframe —
+ * same convention as drawing-store.ts.
+ *
+ * `v2` because indicators are now identified by KLineChart's own names
+ * ('MA', 'BOLL', 'RSI') rather than the five app-specific slugs the workspace
+ * used to offer.
+ */
 function storageKey(instrumentId: string, timeframe: string): string {
-  return `workspace:indicators:${instrumentId}:${timeframe}`;
+  return `workspace:indicators:v2:${instrumentId}:${timeframe}`;
 }
 
 export function loadIndicators(isBrowser: boolean, instrumentId: string, timeframe: string): IndicatorKind[] {
@@ -11,7 +18,8 @@ export function loadIndicators(isBrowser: boolean, instrumentId: string, timefra
     const raw = localStorage.getItem(storageKey(instrumentId, timeframe));
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as IndicatorKind[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as IndicatorKind[]).filter(isIndicatorKind);
   } catch {
     return [];
   }

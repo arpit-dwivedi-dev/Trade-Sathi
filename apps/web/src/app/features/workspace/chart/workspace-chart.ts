@@ -8,24 +8,18 @@ import {
   inject,
   input,
   output,
+  untracked,
   viewChild,
 } from '@angular/core';
-import {
-  HistogramSeries,
-  LineSeries,
-  LineStyle,
-  type IPaneApi,
-  type IPriceLine,
-  type ISeriesApi,
-  type SeriesType,
-  type Time,
-} from 'lightweight-charts';
+import type { IndicatorCreate, Overlay, Point } from 'klinecharts';
 
 import { ThemeService } from '../../../core/theme.service';
 import {
   applyCandles,
-  chartOptions,
+  applyPalette,
   createCandleChart,
+  disposeCandleChart,
+  drawLevelOverlays,
   readPalette,
   updateLastCandle,
   type CandleChart,
@@ -33,34 +27,44 @@ import {
   type ChartPalette,
   type LiveCandle,
 } from '../../../shared/live-chart/chart-render';
-import { ChartDrawingEngine } from '../drawing/chart-drawing-engine';
-import type { Drawing, DrawTool } from '../drawing/drawing.types';
-import type { IndicatorKind } from '../indicators/indicator-menu';
-import { bollingerBands, ema, macd, rsi, sma } from '../indicators/indicators';
-
-/** Fixed per-indicator colours — distinct from the candle up/down palette and from each other, same in both themes. */
-const INDICATOR_COLORS: Record<IndicatorKind, string> = {
-  sma: '#2563eb',
-  ema: '#f59e0b',
-  bollinger: '#8b5cf6',
-  rsi: '#0ea5e9',
-  macd: '#2563eb',
-};
+import {
+  newDrawingId,
+  type AnchorPoint,
+  type Drawing,
+  type DrawingKind,
+  type DrawTool,
+} from '../drawing/drawing.types';
+import { INDICATOR_KINDS, indicatorPane, type IndicatorKind } from '../indicators/indicator-menu';
 
 const REF_LINE_COLOR = 'rgba(148, 163, 184, 0.6)';
+/** RSI's overbought/oversold guides — drawn as locked overlays on its own pane. */
+const RSI_REF_LEVELS = [70, 30];
+const SUB_PANE_HEIGHT = 100;
 
-interface IndicatorHandle {
-  /** Sub-pane indicators (RSI/MACD) get their own pane; overlay ones (SMA/EMA/Bollinger) sit in pane 0 with the candles. */
-  pane: IPaneApi<Time> | null;
-  series: ISeriesApi<SeriesType, Time>[];
+function indicatorId(kind: IndicatorKind): string {
+  return `ws_ind_${kind}`;
+}
+
+function indicatorPaneId(kind: IndicatorKind): string {
+  return indicatorPane(kind) === 'overlay' ? 'candle_pane' : `ws_pane_${kind}`;
+}
+
+function rsiRefId(level: number): string {
+  return `ws_rsi_ref_${level}`;
 }
 
 /**
  * The manual analysis workspace's chart: reuses the same base candle+volume
  * renderer as the read-only Live tab chart (`shared/live-chart/chart-render`)
  * so the two look identical, then layers on what the workspace adds —
- * indicator series/panes and the pointer-driven drawing tools
- * (see ChartDrawingEngine).
+ * indicators and the drawing tools.
+ *
+ * Both of those are now the chart library's own: KLineChart ships the
+ * indicator maths, the overlay hit testing, dragging and magnet snapping that
+ * this component used to drive by hand. What is left here is the mapping in
+ * both directions — the app's tools and indicator menu onto the library's
+ * names, and the anchors the library reports back onto the app's persisted
+ * drawings.
  */
 @Component({
   selector: 'app-workspace-chart',
@@ -85,12 +89,22 @@ export class WorkspaceChart implements OnDestroy {
 
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('container');
 
+  private chartReady: Promise<CandleChart> | null = null;
   private target: CandleChart | null = null;
+  private destroyed = false;
   private appliedSignature: string | null = null;
-  private priceLines: IPriceLine[] = [];
-  private resizeObserver: ResizeObserver | null = null;
-  private engine: ChartDrawingEngine | null = null;
-  private readonly indicatorState = new Map<IndicatorKind, IndicatorHandle>();
+
+  /** Overlay ids this component has on the chart, mirroring the `drawings` input. */
+  private readonly overlayIds = new Set<string>();
+  /** The overlay being placed right now — on the chart, not yet a drawing. */
+  private pendingOverlayId: string | null = null;
+  /**
+   * Ids currently being removed by this component. KLineChart fires onRemoved
+   * for every removal including our own, and without this the sync that
+   * removed an overlay would be told to remove it again.
+   */
+  private readonly removing = new Set<string>();
+  private readonly activeIndicatorKinds = new Set<IndicatorKind>();
 
   constructor() {
     // Candles and theme are separate effects on purpose — see LiveChart, whose
@@ -99,215 +113,258 @@ export class WorkspaceChart implements OnDestroy {
     effect(() => {
       const candles = this.candles();
       if (!this.isBrowser) return;
-      this.ensureChart();
-      const target = this.target;
-      if (!target) return;
-
-      const signature = seriesSignature(candles);
-      const last = candles[candles.length - 1];
-      if (last && signature === this.appliedSignature) {
-        updateLastCandle(target, last, this.palette());
-      } else {
-        applyCandles(target, candles, this.palette());
+      this.withChart((target) => {
+        const signature = seriesSignature(candles);
+        const last = candles[candles.length - 1];
+        if (last && signature === this.appliedSignature) {
+          updateLastCandle(target, last);
+          return;
+        }
+        applyCandles(target, candles);
         this.appliedSignature = signature;
-      }
-      this.syncIndicators();
+      });
     });
 
     effect(() => {
       const overlays = this.overlays();
       if (!this.isBrowser) return;
-      this.ensureChart();
-      this.drawOverlays(overlays);
+      this.withChart((target) => drawLevelOverlays(target, overlays, this.palette()));
     });
 
     effect(() => {
       const theme = this.themeService.theme();
-      if (!this.isBrowser || !this.target) return;
+      if (!this.isBrowser) return;
       void theme;
-      this.target.chart.applyOptions(chartOptions(this.palette()));
+      this.withChart((target) => applyPalette(target, this.palette()));
+    });
+
+    effect(() => {
+      const active = this.activeIndicators();
+      if (!this.isBrowser) return;
+      this.withChart((target) => this.syncIndicators(target, active));
     });
 
     effect(() => {
       const tool = this.tool();
-      this.engine?.setTool(tool);
+      if (!this.isBrowser) return;
+      this.withChart((target) => this.applyTool(target, tool));
     });
 
     effect(() => {
       const drawings = this.drawings();
-      this.engine?.sync(drawings);
+      if (!this.isBrowser) return;
+      this.withChart((target) => this.syncDrawings(target, drawings));
     });
   }
 
   ngOnDestroy(): void {
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
-    this.engine?.dispose();
-    this.engine = null;
-    for (const handle of this.indicatorState.values()) this.teardownHandle(handle);
-    this.indicatorState.clear();
-    this.target?.chart.remove();
+    this.destroyed = true;
+    if (this.target) disposeCandleChart(this.target);
     this.target = null;
-    this.priceLines = [];
+    this.overlayIds.clear();
+    this.activeIndicatorKinds.clear();
   }
 
   private palette(): ChartPalette {
     return readPalette(this.host().nativeElement);
   }
 
-  private ensureChart(): void {
-    if (this.target) return;
-    const element = this.host().nativeElement;
-
-    this.target = createCandleChart(element, this.palette(), {
-      width: element.clientWidth,
-      height: element.clientHeight,
-    });
-    // The price+volume pane dominates; any indicator sub-panes added later default to a smaller share.
-    this.target.chart.panes()[0]?.setStretchFactor(4);
-
-    this.resizeObserver = new ResizeObserver(() => {
-      if (!this.target) return;
-      this.target.chart.resize(element.clientWidth, element.clientHeight);
-    });
-    this.resizeObserver.observe(element);
-
-    this.engine = new ChartDrawingEngine(this.target.chart, this.target.priceSeries, element, {
-      onDrawingsChange: (drawings) => this.drawingsChange.emit(drawings),
-      onPlaced: () => this.toolConsumed.emit(),
-      onSelect: (id) => this.selectedDrawingId.emit(id),
-    });
-    this.engine.setTool(this.tool());
-    this.engine.sync(this.drawings());
+  /** See LiveChart.withChart — the chart library loads lazily, so every effect queues onto its construction. */
+  private withChart(fn: (target: CandleChart) => void): void {
+    this.chartReady ??= this.createChart();
+    void this.chartReady.then(
+      (target) => {
+        if (!this.destroyed) fn(target);
+      },
+      (cause: unknown) => {
+        console.warn('workspace chart could not be created', cause);
+      },
+    );
   }
 
-  private drawOverlays(overlays: ChartOverlays | null): void {
-    const series = this.target?.priceSeries;
-    if (!series) return;
+  private async createChart(): Promise<CandleChart> {
+    const element = this.host().nativeElement;
+    const candles = untracked(this.candles);
+    const target = await createCandleChart(element, this.palette(), candles);
 
-    for (const line of this.priceLines) series.removePriceLine(line);
-    this.priceLines = [];
-    if (!overlays) return;
+    if (this.destroyed) {
+      disposeCandleChart(target);
+      throw new Error('workspace chart destroyed before it finished loading');
+    }
 
-    const palette = this.palette();
-    const add = (price: number, title: string, color: string, dashed: boolean): void => {
-      this.priceLines.push(
-        series.createPriceLine({
-          price,
-          color,
-          lineWidth: 1,
-          lineStyle: dashed ? LineStyle.Dashed : LineStyle.Solid,
-          axisLabelVisible: true,
-          title,
-        }),
-      );
-    };
-
-    for (const level of overlays.support) add(level, 'S', palette.up, false);
-    for (const level of overlays.resistance) add(level, 'R', palette.down, false);
-    if (overlays.entry !== null) add(overlays.entry, 'Entry', palette.accent, true);
-    if (overlays.target !== null) add(overlays.target, 'Target', palette.up, true);
-    if (overlays.invalidation !== null) add(overlays.invalidation, 'Stop', palette.down, true);
+    this.target = target;
+    this.appliedSignature = seriesSignature(candles);
+    return target;
   }
 
   // ---- indicators ----
 
-  private syncIndicators(): void {
-    const target = this.target;
-    if (!target) return;
-    const active = this.activeIndicators();
-    const candles = this.candles();
-
-    for (const kind of Object.keys(INDICATOR_COLORS) as IndicatorKind[]) {
+  private syncIndicators(target: CandleChart, active: ReadonlySet<IndicatorKind>): void {
+    for (const kind of INDICATOR_KINDS) {
       const wants = active.has(kind);
-      const existing = this.indicatorState.get(kind);
+      const has = this.activeIndicatorKinds.has(kind);
+      if (wants === has) continue;
 
-      if (!wants) {
-        if (existing) {
-          this.teardownHandle(existing);
-          this.indicatorState.delete(kind);
-        }
-        continue;
+      if (wants) {
+        this.createIndicator(target, kind);
+        this.activeIndicatorKinds.add(kind);
+      } else {
+        this.removeIndicator(target, kind);
+        this.activeIndicatorKinds.delete(kind);
       }
-
-      const handle = existing ?? this.createIndicator(target, kind);
-      if (!existing) this.indicatorState.set(kind, handle);
-      this.updateIndicatorData(kind, handle, candles);
     }
   }
 
-  private createIndicator(target: CandleChart, kind: IndicatorKind): IndicatorHandle {
-    const { chart } = target;
-    const color = INDICATOR_COLORS[kind];
-    const baseOptions = { lineWidth: 2 as const, priceLineVisible: false, lastValueVisible: false };
+  private createIndicator(target: CandleChart, kind: IndicatorKind): void {
+    const paneId = indicatorPaneId(kind);
 
-    if (kind === 'sma' || kind === 'ema') {
-      const line = chart.addSeries(LineSeries, { ...baseOptions, color });
-      return { pane: null, series: [line] };
+    // No calcParams: the library's defaults are the conventional periods, and
+    // each indicator prints the ones it used in its own on-chart legend.
+    // Always stacked, because the candle pane already holds the volume
+    // indicator and an unstacked create would replace it.
+    target.chart.createIndicator({ id: indicatorId(kind), name: kind, paneId } satisfies IndicatorCreate, true);
+
+    if (indicatorPane(kind) === 'sub') {
+      target.chart.setPaneOptions({ id: paneId, height: SUB_PANE_HEIGHT });
     }
 
-    if (kind === 'bollinger') {
-      const basis = chart.addSeries(LineSeries, { ...baseOptions, lineWidth: 1, color });
-      const upper = chart.addSeries(LineSeries, { ...baseOptions, lineWidth: 1, color: `${color}99` });
-      const lower = chart.addSeries(LineSeries, { ...baseOptions, lineWidth: 1, color: `${color}99` });
-      return { pane: null, series: [basis, upper, lower] };
+    if (kind === 'RSI') {
+      for (const level of RSI_REF_LEVELS) {
+        target.chart.createOverlay({
+          id: rsiRefId(level),
+          name: 'horizontalStraightLine',
+          paneId,
+          points: [{ value: level }],
+          lock: true,
+          styles: { line: { color: REF_LINE_COLOR, size: 1, style: 'dashed' } },
+        });
+      }
     }
-
-    // rsi / macd: each gets its own sub-pane below the price+volume pane.
-    const pane = chart.addPane();
-    pane.setStretchFactor(1.3);
-    const paneIndex = pane.paneIndex();
-
-    if (kind === 'rsi') {
-      const line = chart.addSeries(LineSeries, { ...baseOptions, color }, paneIndex);
-      const refLine = { color: REF_LINE_COLOR, lineWidth: 1 as const, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: '' };
-      line.createPriceLine({ price: 70, ...refLine });
-      line.createPriceLine({ price: 30, ...refLine });
-      return { pane, series: [line] };
-    }
-
-    const histogram = chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false }, paneIndex);
-    const macdLine = chart.addSeries(LineSeries, { ...baseOptions, color }, paneIndex);
-    const signalLine = chart.addSeries(LineSeries, { ...baseOptions, lineWidth: 1, color: '#f59e0b' }, paneIndex);
-    return { pane, series: [histogram, macdLine, signalLine] };
   }
 
-  private updateIndicatorData(kind: IndicatorKind, handle: IndicatorHandle, candles: LiveCandle[]): void {
-    if (kind === 'sma') {
-      handle.series[0].setData(sma(candles));
-      return;
+  private removeIndicator(target: CandleChart, kind: IndicatorKind): void {
+    if (kind === 'RSI') {
+      for (const level of RSI_REF_LEVELS) target.chart.removeOverlay({ id: rsiRefId(level) });
     }
-    if (kind === 'ema') {
-      handle.series[0].setData(ema(candles));
-      return;
-    }
-    if (kind === 'bollinger') {
-      const points = bollingerBands(candles);
-      handle.series[0].setData(points.map((p) => ({ time: p.time, value: p.basis })));
-      handle.series[1].setData(points.map((p) => ({ time: p.time, value: p.upper })));
-      handle.series[2].setData(points.map((p) => ({ time: p.time, value: p.lower })));
-      return;
-    }
-    if (kind === 'rsi') {
-      handle.series[0].setData(rsi(candles));
-      return;
-    }
-
-    const palette = this.palette();
-    const points = macd(candles);
-    handle.series[0].setData(
-      points.map((p) => ({ time: p.time, value: p.histogram, color: p.histogram >= 0 ? palette.up : palette.down })),
-    );
-    handle.series[1].setData(points.map((p) => ({ time: p.time, value: p.macd })));
-    handle.series[2].setData(points.map((p) => ({ time: p.time, value: p.signal })));
+    // Removing the last indicator on a pane removes the pane too, so the
+    // sub-pane layout needs no separate teardown.
+    target.chart.removeIndicator({ id: indicatorId(kind) });
   }
 
-  private teardownHandle(handle: IndicatorHandle): void {
-    const target = this.target;
-    if (!target) return;
-    for (const series of handle.series) target.chart.removeSeries(series);
-    if (handle.pane) target.chart.removePane(handle.pane.paneIndex());
+  // ---- drawing tools ----
+
+  /**
+   * Starts a placement, or abandons one the user walked away from by picking
+   * a different tool. KLineChart drives the placement itself once the overlay
+   * exists with no points — the clicks, the preview and the anchor snapping
+   * are all its own.
+   */
+  private applyTool(target: CandleChart, tool: DrawTool): void {
+    if (this.pendingOverlayId !== null) {
+      this.removeOverlay(target, this.pendingOverlayId);
+      this.pendingOverlayId = null;
+    }
+    if (tool === 'cursor') return;
+
+    const id = newDrawingId();
+    this.pendingOverlayId = id;
+    target.chart.createOverlay({
+      id,
+      // The tool *is* the library's overlay name — see drawing.types.ts.
+      name: tool,
+      ...this.overlayEvents(tool),
+    });
   }
+
+  private syncDrawings(target: CandleChart, drawings: Drawing[]): void {
+    const wanted = new Set(drawings.map((drawing) => drawing.id));
+
+    for (const id of [...this.overlayIds]) {
+      if (wanted.has(id)) continue;
+      this.removeOverlay(target, id);
+    }
+
+    for (const drawing of drawings) {
+      if (this.overlayIds.has(drawing.id)) continue;
+      target.chart.createOverlay({
+        id: drawing.id,
+        name: drawing.kind,
+        points: drawing.points,
+        ...this.overlayEvents(drawing.kind),
+      });
+      this.overlayIds.add(drawing.id);
+    }
+  }
+
+  private removeOverlay(target: CandleChart, id: string): void {
+    this.removing.add(id);
+    target.chart.removeOverlay({ id });
+    this.removing.delete(id);
+    this.overlayIds.delete(id);
+  }
+
+  private overlayEvents(kind: DrawingKind) {
+    return {
+      onDrawEnd: ({ overlay }: { overlay: Overlay }): void => {
+        this.pendingOverlayId = null;
+        const points = toAnchors(overlay.points);
+        if (points.length === 0) {
+          // An anchor the chart could not resolve to a time and a price —
+          // nothing worth persisting, and leaving it on screen would make a
+          // drawing the side panel does not list.
+          this.withChart((target) => this.removeOverlay(target, overlay.id));
+          this.toolConsumed.emit();
+          return;
+        }
+        this.overlayIds.add(overlay.id);
+        this.emitDrawings({ id: overlay.id, kind, points });
+        this.toolConsumed.emit();
+      },
+      onPressedMoveEnd: ({ overlay }: { overlay: Overlay }): void => {
+        const points = toAnchors(overlay.points);
+        if (points.length === 0) return;
+        this.emitDrawings({ id: overlay.id, kind, points });
+      },
+      onSelected: ({ overlay }: { overlay: Overlay }): void => {
+        this.selectedDrawingId.emit(overlay.id);
+      },
+      onDeselected: (): void => {
+        this.selectedDrawingId.emit(null);
+      },
+      onRemoved: ({ overlay }: { overlay: Overlay }): void => {
+        // Only a removal this component did not ask for — the library's own
+        // delete affordances — has to be reflected back into the drawings.
+        if (this.removing.has(overlay.id)) return;
+        this.overlayIds.delete(overlay.id);
+        this.drawingsChange.emit(this.drawings().filter((drawing) => drawing.id !== overlay.id));
+      },
+    };
+  }
+
+  /** Replaces `drawing` in the current list, or appends it if it is new. */
+  private emitDrawings(drawing: Drawing): void {
+    const current = this.drawings();
+    const known = current.some((existing) => existing.id === drawing.id);
+    const next = known
+      ? current.map((existing) => (existing.id === drawing.id ? drawing : existing))
+      : [...current, drawing];
+    this.drawingsChange.emit(next);
+  }
+}
+
+/**
+ * Converts an overlay's anchors into the persisted shape, or returns an empty
+ * list if any of them is incomplete — a point the chart could not place in
+ * both time and price would restore in the wrong spot, so a partial drawing
+ * is not persisted at all.
+ */
+function toAnchors(points: Array<Partial<Point>>): AnchorPoint[] {
+  const anchors: AnchorPoint[] = [];
+  for (const point of points) {
+    if (typeof point.timestamp !== 'number' || typeof point.value !== 'number') return [];
+    anchors.push({ timestamp: point.timestamp, value: point.value });
+  }
+  return anchors;
 }
 
 /**

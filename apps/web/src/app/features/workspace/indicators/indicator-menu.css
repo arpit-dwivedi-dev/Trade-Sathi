@@ -1,16 +1,91 @@
+/* Only the trigger lives here. The flyout itself is rendered into the CDK
+   overlay container, outside this component, so its styles are in
+   styles/components.css under ".ind-panel" — see the note there. */
 .ind-menu {
-  position: relative;
+  display: inline-flex;
 }
 
-.ind-label {
-  flex: 1;
-  font-size: var(--t-sm);
+/* Deliberately not a mat-button: the topbar already carries Material's own
+   shapes (toggle group, icon buttons) and this control needs to read as the
+   one that opens something — a soft slab with a count and a caret, sized to
+   match the timeframe toggles beside it. */
+.ind-trigger {
+  align-items: center;
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--tx-2);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: inherit;
+  font-size: var(--t-xs);
+  font-weight: 500;
+  gap: var(--s2);
+  height: 34px;
+  padding-inline: var(--s3);
+  transition:
+    background var(--dur-subtle) var(--ease-move),
+    border-color var(--dur-subtle) var(--ease-move),
+    color var(--dur-subtle) var(--ease-move);
 }
 
-.ind-pane {
+.ind-trigger:hover {
+  background: var(--surf-3);
+  border-color: var(--line-strong);
+  color: var(--tx);
+}
+
+.ind-trigger:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Open, or holding a selection — both mean "this control is doing something
+   to the chart right now", so both take the accent. */
+.ind-trigger-on,
+.ind-trigger-open {
+  background: var(--acc-soft);
+  border-color: var(--acc-line);
+  color: var(--acc-tx);
+}
+
+.ind-trigger-icon,
+.ind-trigger-caret {
+  font-size: 18px;
+  height: 18px;
+  width: 18px;
+}
+
+.ind-trigger-caret {
   color: var(--tx-3);
-  flex: none;
+  font-size: 16px;
+  height: 16px;
+  margin-inline-start: -2px;
+  transition: transform var(--dur-subtle) var(--ease-move);
+  width: 16px;
+}
+
+.ind-trigger-open .ind-trigger-caret {
+  color: inherit;
+  transform: rotate(180deg);
+}
+
+.ind-trigger-count {
+  background: var(--acc);
+  border-radius: var(--r-pill);
+  color: #fff;
+  font-family: var(--fm);
   font-size: var(--t-3xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 600;
+  line-height: 1;
+  min-width: 18px;
+  padding: 3px 5px;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ind-trigger,
+  .ind-trigger-caret {
+    transition: none;
+  }
 }

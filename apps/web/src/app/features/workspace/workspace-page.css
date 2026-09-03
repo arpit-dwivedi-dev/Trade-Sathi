@@ -140,17 +140,32 @@
   display: flex;
   height: 36px;
   justify-content: center;
+  position: relative;
+  transition:
+    background var(--dur-subtle) var(--ease-move),
+    color var(--dur-subtle) var(--ease-move),
+    transform var(--dur-subtle) var(--ease-move);
   width: 36px;
 }
 
-.ws-tool-btn svg {
-  height: 17px;
-  width: 17px;
+.ws-tool-btn mat-icon {
+  font-size: 19px;
+  height: 19px;
+  width: 19px;
 }
 
 .ws-tool-btn:hover:not([disabled]) {
   background: var(--surf-3);
   color: var(--tx);
+}
+
+.ws-tool-btn:active:not([disabled]) {
+  transform: scale(0.94);
+}
+
+.ws-tool-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 
 .ws-tool-btn[disabled] {
@@ -162,6 +177,34 @@
   background: var(--acc-soft);
   border-color: var(--acc-line);
   color: var(--acc);
+}
+
+/* A tiny triangle in the bottom-right corner, the convention for "this button
+   holds more behind it" on a tool rail. */
+.ws-tool-more {
+  border-block-end: 4px solid currentColor;
+  border-inline-start: 4px solid transparent;
+  bottom: 3px;
+  color: var(--tx-3);
+  height: 0;
+  inset-inline-end: 3px;
+  position: absolute;
+  width: 0;
+}
+
+.ws-tool-btn:hover .ws-tool-more,
+.ws-tool-btn-active .ws-tool-more {
+  color: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-tool-btn {
+    transition: none;
+  }
+
+  .ws-tool-btn:active:not([disabled]) {
+    transform: none;
+  }
 }
 
 .ws-tool-divider {
