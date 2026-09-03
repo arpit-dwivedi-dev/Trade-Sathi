@@ -1,72 +1,128 @@
-/* Pinned to exactly the viewport below the sticky topbar, rather than the
-   page's natural flow height: the title, count and filter row above the
-   table are extra on top of it, so without this the section as a whole ran
-   taller than one screen and the outer page picked up a few pixels of its
-   own scroll. Fixing the section's height and letting the table wrapper
-   flex to fill what's left makes the table the only thing that scrolls. */
-.history {
-  height: calc(100vh - var(--top-h));
-}
+/* The page itself scrolls — the table does not own a scrollbox of its own.
+   Pinning this section to `calc(100vh - var(--top-h))` and giving the table
+   wrapper `overflow: auto` inside it produced the one thing a data table must
+   never do: the wrapper's bottom edge fell wherever the viewport happened to
+   end, so the last row on screen sat permanently sliced in half against it,
+   with no page scrollbar anywhere to explain why. Letting the list run at its
+   natural height inside .body — the shell's one scrolling column — gives the
+   list a real end instead: scroll down and you reach the last row whole, then
+   the end-of-list line, then the page's own bottom padding. The column
+   headings lose nothing by it; they stay put via matHeaderRowDef's own
+   `sticky: true`, which pins them against .body's scrollport.
 
-/* The loading skeleton (still the hand-rolled .tbl/.tr grid — mat-table
-   only exists once real rows are being rendered) gets the same column
-   proportions as the real table below so the swap from skeleton to data
-   doesn't jump. */
-.history .tbl {
-  flex: 1;
-  max-height: none;
-  min-height: 0;
-}
+   The loading skeleton above the table is still the hand-rolled .tbl/.tr grid
+   (mat-table only exists once real rows are being rendered) and keeps its own
+   max-height — at four rows it never reaches it. */
 
+/* `overflow: clip` rather than `hidden`: both round the corners over the
+   table's own square edges, but `hidden` would make this a scroll container
+   and capture the sticky header, re-creating the clipped-row problem one
+   level down. `clip` does not scroll, so the header keeps sticking to the
+   page. */
 .history-table-wrap {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  overflow: clip;
 }
 
+/* Fixed layout with declared column widths, so the columns do not re-measure
+   themselves every time a page of rows with longer tickers arrives — with
+   `auto` the whole grid shifted under the user mid-scroll. Symbol is the one
+   column left to absorb the slack; min-width keeps the fixed columns from
+   crushing it, and the wrapper scrolls sideways below that (see the
+   narrow-screen block at the bottom). */
 .history-table {
-  min-width: 640px;
+  background: transparent;
+  min-width: 900px;
+  table-layout: fixed;
   width: 100%;
 }
 
+.history-table th.mat-mdc-header-cell {
+  background: var(--surf-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--tx-3);
+  font-family: var(--fh);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The CDK writes `top: 0` inline on every sticky header cell, and a sticky
+   offset resolves against the scroll container's *content* box — which here
+   is .body's own top padding below the topbar, so the header parked 24px low
+   and rows scrolled through the visible band above it. Pulling it up by
+   exactly that padding parks it flush under the topbar, so a row passes out
+   of sight under the header and nowhere else. !important is the only way past
+   the inline style the CDK writes. */
+.history-table th.mat-mdc-header-cell.mat-mdc-table-sticky {
+  top: calc(-1 * var(--s6)) !important;
+}
+
+.history-table td.mat-mdc-cell {
+  border-bottom-color: var(--line-soft);
+  color: var(--tx);
+}
+
 .mat-column-analyzed {
-  flex: 0 0 104px;
+  width: 128px;
 }
 
 .mat-column-symbol {
-  flex: 1.5 1 0;
-  min-width: 0;
+  width: auto;
 }
 
-.mat-column-asset,
-.mat-column-trend {
-  flex: 1 1 0;
-  min-width: 0;
+.mat-column-asset {
+  width: 108px;
 }
 
 .mat-column-tf {
-  flex: 0 0 60px;
+  width: 72px;
+}
+
+.mat-column-trend {
+  width: 112px;
 }
 
 .mat-column-direction {
-  flex: 1 1 0;
-  min-width: 0;
+  width: 124px;
 }
 
 .mat-column-status {
-  flex: 0 0 112px;
+  width: 132px;
 }
 
 .mat-column-actions {
+  width: 92px;
+}
+
+/* The actions cell itself gets nothing beyond its width above. `display:
+   flex` must NOT go on .mat-column-actions: it overrides the `table-cell`
+   display every other cell in the row keeps, which drops this one out of the
+   row's table layout — the browser wraps it in an anonymous cell, it stops
+   stretching to the row's height, and its bottom border lands ~11px above
+   every other cell's. That short, offset divider beside the download/chevron
+   icons is what read as the last column being misaligned. The flex layout
+   lives on this wrapper inside the cell instead. */
+.history-actions {
   align-items: center;
   display: flex;
-  flex: 0 0 auto;
   gap: var(--s1);
   justify-content: flex-end;
 }
 
+/* A single height for every row — 64px clears a ticker with its provenance
+   tags stacked underneath — so the list scans as an even rhythm rather than
+   the ragged one auto-height gave it. It is a floor rather than a cap, which
+   only matters where the symbol column is squeezed narrow enough for a
+   two-chip row to wrap onto a second line. */
 .history-row {
   cursor: pointer;
+  height: 64px;
   transition: background var(--dur-subtle) var(--ease-move);
 }
 
@@ -213,7 +269,10 @@
   height: 12px;
 }
 
-.history-more {
+/* Both live inside the table card, under the last row, so the list visibly
+   ends rather than running off the bottom edge of a box. */
+.history-more,
+.history-end {
   align-items: center;
   color: var(--tx-3);
   display: flex;
@@ -223,12 +282,36 @@
   padding: var(--s4) var(--s5);
 }
 
+.history-end {
+  border-top: 1px solid var(--line-soft);
+  font-size: var(--t-xs);
+}
+
+/* Zero-height marker just past the last row: when it scrolls into view the
+   next page is fetched. Replaces a scroll-offset handler, which had nothing
+   to listen to once the table stopped owning its own scrollbox. */
+.history-sentinel {
+  height: 1px;
+}
+
 @media (max-width: 900px) {
-  /* The loading skeleton still uses the hand-rolled .tr grid (see the note
-     near .history-table-wrap above), so it gets its own narrow-screen
-     collapse; the real table below it scrolls horizontally instead of
-     reflowing — .history-table's min-width handles that with no extra rule
-     needed here. */
+  /* Below the table's 860px floor the wrapper scrolls sideways rather than
+     letting the columns reflow into each other. This does make the wrapper a
+     scroll container, which takes the sticky header with it — an acceptable
+     trade on a phone, where the header would be eating scarce vertical space
+     anyway. */
+  .history-table-wrap {
+    overflow-x: auto;
+  }
+
+  /* Sticking inside the wrapper's own scrollbox now, which has no page
+     padding to compensate for. */
+  .history-table th.mat-mdc-header-cell.mat-mdc-table-sticky {
+    top: 0 !important;
+  }
+
+  /* The loading skeleton still uses the hand-rolled .tr grid, so it gets its
+     own narrow-screen collapse. */
   .tr {
     grid-template-columns: minmax(0, 1fr) auto auto;
     padding: var(--s4);
@@ -251,8 +334,14 @@
 }
 
 /* ── source filter ──────────────────────────────────────── */
+/* A segmented control is sized by its options, not by its container: left at
+   the group's default full width it stretched the whole 1180px column, so
+   four short labels sat in the corner of an otherwise empty bar. The
+   margin-bottom is gone too — .body already spaces its children by --s6, and
+   the two together read as a gap in the page. */
 .history-filters {
-  margin-bottom: var(--s4);
+  width: fit-content;
+  max-width: 100%;
 }
 
 /* ── provenance chips inside the symbol cell ────────────── */

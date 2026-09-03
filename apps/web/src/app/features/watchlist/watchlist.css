@@ -68,10 +68,19 @@
   position: relative;
 }
 
-.mat-column-actions {
+/* The actions cell deliberately carries no rule of its own — it is left as
+   a plain table-cell so auto table layout sizes it. `display: flex` must
+   NOT go here: it overrides the `table-cell` display every other cell in
+   the row keeps, which drops this one out of the row's table layout — the
+   browser wraps it in an anonymous cell, so it stops stretching to the
+   row's height and paints its border at its own content height instead
+   (measured 41px against the row's 52px, and the header cell collapsed to
+   1px against 56px). That left the divider beside the buttons sitting well
+   above every other cell's. The flex layout lives on this wrapper inside
+   the cell instead. */
+.watchlist-actions {
   align-items: center;
   display: flex;
-  flex: 0 0 auto;
   gap: var(--s2);
   justify-content: flex-end;
 }

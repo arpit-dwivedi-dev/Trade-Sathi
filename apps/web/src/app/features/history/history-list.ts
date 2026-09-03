@@ -1,4 +1,14 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
@@ -93,6 +103,16 @@ export class HistoryList implements OnInit, OnDestroy {
     { value: 'watchlist_daily', label: 'Daily briefing' },
   ];
 
+  /**
+   * The zero-height marker rendered just past the last row, only while a next
+   * page exists. Watching it is what drives paging now that the table has no
+   * scrollbox of its own to listen to — and unlike a scroll offset it also
+   * fires when the loaded rows do not yet fill the viewport, so a short first
+   * page keeps filling instead of waiting for a scroll that never comes.
+   */
+  private readonly sentinel = viewChild<ElementRef<HTMLElement>>('loadMoreSentinel');
+  private observer: IntersectionObserver | null = null;
+
   /** id of the row whose PDF is being generated, or null when none is. */
   protected readonly exportingId = signal<string | null>(null);
   protected readonly exportError = signal<string | null>(null);
@@ -110,6 +130,29 @@ export class HistoryList implements OnInit, OnDestroy {
    */
   private static readonly REFRESH_DEBOUNCE_MS = 400;
 
+  constructor() {
+    // Re-runs whenever the sentinel enters or leaves the DOM: it is absent
+    // during loading, on the empty states, and once the last page has been
+    // read, and this tears the observer down with it in every one of those
+    // cases. Guarded for SSR, where there is no IntersectionObserver.
+    effect(() => {
+      const element = this.sentinel()?.nativeElement;
+      this.observer?.disconnect();
+      this.observer = null;
+      if (!element || typeof IntersectionObserver === 'undefined') return;
+
+      this.observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) void this.loadMore();
+        },
+        // Starts the fetch a screenful early, so the next rows are usually
+        // already there by the time the user scrolls to where they go.
+        { rootMargin: '240px' },
+      );
+      this.observer.observe(element);
+    });
+  }
+
   ngOnInit(): void {
     void this.loadFirstPage();
     this.watchAnalyses();
@@ -117,6 +160,8 @@ export class HistoryList implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyed = true;
+    this.observer?.disconnect();
+    this.observer = null;
     if (this.refreshTimer !== null) {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
@@ -237,33 +282,38 @@ export class HistoryList implements OnInit, OnDestroy {
     return row.emailed_at !== null;
   }
 
-  /**
-   * Fires on every scroll of the table's own scrollbox (see .tbl's
-   * max-height/overflow in components.css). Requests the next page once the
-   * user is within one row's height of the bottom, so the list keeps filling
-   * itself instead of stopping on a "Load more" button.
-   */
-  protected onTableScroll(event: Event): void {
-    const el = event.target as HTMLElement;
-    const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (remaining < 120) void this.loadMore();
-  }
-
   protected async loadMore(): Promise<void> {
     const cursor = this.nextCursor();
     if (!cursor || this.loadingMore()) return;
 
     this.loadingMore.set(true);
     this.error.set(null);
+    let loaded = false;
     try {
       const page = await this.history.fetchHistory(cursor, undefined, this.sourceFilter());
       this.rows.update((existing) => [...existing, ...page.rows]);
       this.nextCursor.set(page.nextCursor);
+      loaded = true;
     } catch (cause) {
       console.warn('history page fetch failed', cause);
       this.error.set("Couldn't load more. Try again.");
     } finally {
       this.loadingMore.set(false);
+    }
+
+    // The sentinel does not move out of view just because rows were added
+    // above it — on a tall screen it can still be sitting inside the root
+    // margin, and IntersectionObserver only reports *changes*, so the next
+    // page would never be asked for. Re-observing replays the current
+    // intersection state and keeps the list filling until it either overflows
+    // the viewport or runs out. Only after a page that actually arrived: doing
+    // it after a failure would turn one failed fetch into a retry loop against
+    // whatever is broken.
+    if (!loaded) return;
+    const element = this.sentinel()?.nativeElement;
+    if (element && this.observer) {
+      this.observer.unobserve(element);
+      this.observer.observe(element);
     }
   }
 

@@ -159,39 +159,41 @@
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef><span class="sr-only">Actions</span></th>
             <td mat-cell *matCellDef="let item">
-              <button
-                mat-stroked-button
-                [disabled]="isBusy(item.id)"
-                (click)="analyzeNow(item)"
-              >
-                @if (preparing()[item.id]) {
-                  <mat-progress-spinner mode="indeterminate" diameter="14" aria-hidden="true" /> Drawing chart…
-                } @else if (runIdFor(item.id)) {
-                  <mat-progress-spinner mode="indeterminate" diameter="14" aria-hidden="true" /> Analyzing…
-                } @else {
-                  Analyze now
-                }
-              </button>
-              <!-- Same run, same Daily Briefing entitlement as the button
-                   beside it — the difference is that this one emails the
-                   result with its analysis attached as a PDF. -->
-              <button
-                mat-flat-button
-                color="primary"
-                [disabled]="isBusy(item.id)"
-                (click)="analyzeNow(item, false, 'brief')"
-                title="Run this symbol now and email me the analysis as a PDF"
-              >
-                Brief now
-              </button>
-              <button
-                mat-icon-button
-                [disabled]="isBusy(item.id)"
-                (click)="requestRemove(item.id)"
-                [attr.aria-label]="'Remove ' + displaySymbol(item)"
-              >
-                <mat-icon aria-hidden="true">close</mat-icon>
-              </button>
+              <span class="watchlist-actions">
+                <button
+                  mat-stroked-button
+                  [disabled]="isBusy(item.id)"
+                  (click)="analyzeNow(item)"
+                >
+                  @if (preparing()[item.id]) {
+                    <mat-progress-spinner mode="indeterminate" diameter="14" aria-hidden="true" /> Drawing chart…
+                  } @else if (runIdFor(item.id)) {
+                    <mat-progress-spinner mode="indeterminate" diameter="14" aria-hidden="true" /> Analyzing…
+                  } @else {
+                    Analyze now
+                  }
+                </button>
+                <!-- Same run, same Daily Briefing entitlement as the button
+                     beside it — the difference is that this one emails the
+                     result with its analysis attached as a PDF. -->
+                <button
+                  mat-flat-button
+                  color="primary"
+                  [disabled]="isBusy(item.id)"
+                  (click)="analyzeNow(item, false, 'brief')"
+                  title="Run this symbol now and email me the analysis as a PDF"
+                >
+                  Brief now
+                </button>
+                <button
+                  mat-icon-button
+                  [disabled]="isBusy(item.id)"
+                  (click)="requestRemove(item.id)"
+                  [attr.aria-label]="'Remove ' + displaySymbol(item)"
+                >
+                  <mat-icon aria-hidden="true">close</mat-icon>
+                </button>
+              </span>
             </td>
           </ng-container>
 

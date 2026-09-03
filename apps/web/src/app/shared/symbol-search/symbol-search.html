@@ -1,5 +1,5 @@
 <div class="symbol-search-row">
-  <mat-form-field appearance="outline" class="symbol-search-market">
+  <mat-form-field appearance="outline" class="symbol-search-market" subscriptSizing="dynamic">
     <mat-select [value]="market()" (selectionChange)="onMarketChange($event.value)" aria-label="Stock market">
       @for (m of markets; track m.code) {
         <mat-option [value]="m.code">{{ m.label }}</mat-option>

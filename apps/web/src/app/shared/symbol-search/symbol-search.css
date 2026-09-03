@@ -16,14 +16,22 @@
 
 /* mat-select needs a mat-form-field host to render correctly, but is kept
    as small/unadorned as the outline appearance allows — the search input
-   beside it stays bare on purpose (see .symbol-search below). */
+   beside it stays bare on purpose (see .symbol-search below).
+   The density tokens below (not a rule targeting Material's internal DOM)
+   pull the field down from Material's default 56px to the 40px of the bare
+   .input beside it (see .symbol-search-input): a selector like
+   `.symbol-search-market .mat-mdc-form-field-infix { ... }` written here
+   would never match, since that div renders in Material's own view
+   (ViewEncapsulation.None) and Angular's emulated encapsulation appends
+   this component's content attribute to every compound selector segment,
+   including one Material's template never applies it to. CSS custom
+   properties inherit through the DOM regardless of that attribute scoping,
+   so setting them on the host reaches the internals correctly. */
 .symbol-search-market {
   flex: 0 0 auto;
   width: 11rem;
-}
-
-.symbol-search-market .mat-mdc-text-field-wrapper {
-  padding-bottom: 0;
+  --mat-form-field-container-height: 40px;
+  --mat-form-field-container-vertical-padding: 8px;
 }
 
 /* Deliberately not a mat-form-field: this is a bare search bar, not a
