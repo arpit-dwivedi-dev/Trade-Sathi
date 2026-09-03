@@ -27,13 +27,27 @@ const SEARCH_DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
 
 /**
- * Market + typeahead symbol search, shared by Live, Workspace and (once its
- * table migration lands) Watchlist — the three previously reimplemented this
- * identically down to the constant names. Owns the market filter and the
- * debounced /api/instruments/search call; a parent only ever sees a chosen
- * instrument via (instrumentSelected). What happens after selection (reload a
- * chart, stage a pending watchlist add, ...) is deliberately left to the
- * parent, since the three call sites each do something different with it.
+ * One instrument chosen in the shell's top-bar search, handed to whichever
+ * chart tab is showing. The requestId is what makes the same symbol picked
+ * twice in a row a new value by reference, so the receiving page's effect
+ * still fires — a bare Instrument signal would be seen as unchanged.
+ */
+export interface SymbolSelection {
+  instrument: Instrument;
+  requestId: number;
+}
+
+/**
+ * Market + typeahead symbol search. Owns the market filter and the debounced
+ * /api/instruments/search call; a parent only ever sees a chosen instrument
+ * via (instrumentSelected). What happens after selection (reload a chart,
+ * stage a watchlist add, ...) is deliberately left to the parent, since the
+ * screens that need it each do something different with it.
+ *
+ * There is now one instance for the whole dashboard, in the shell's top bar
+ * (see AppPage) — it used to be re-rendered inside Live, Workspace and
+ * Watchlist, which put three separate search boxes on screen for what is one
+ * question: which symbol are we looking at.
  */
 @Component({
   selector: 'app-symbol-search',
@@ -160,8 +174,8 @@ export class SymbolSearch {
   }
 
   /**
-   * Lets a parent reset the box after consuming a selection — e.g. watchlist
-   * clearing the field once an instrument has been added.
+   * Lets a parent reset the box after consuming a selection — the shell
+   * clears it once the watchlist has added an instrument.
    */
   clear(): void {
     this.queryInput.set('');
@@ -170,18 +184,10 @@ export class SymbolSearch {
   }
 
   /**
-   * Lets a parent move focus into the search box — e.g. on mount, when it's
-   * the one control that matters before an instrument is picked.
-   */
-  focus(): void {
-    this.searchInput()?.nativeElement.focus();
-  }
-
-  /**
-   * Sets the displayed text without running a search — for a parent that
-   * opens an instrument some other way (e.g. handed off from another tab)
-   * and wants the box to read "SYM — Name" the same way an actual search
-   * selection would leave it.
+   * Sets the displayed text without running a search — for the shell handing
+   * an instrument from one tab to another (Live's "Manual Analysis"), which
+   * should leave the box reading "SYM — Name" exactly as a real search
+   * selection would.
    */
   setDisplayText(text: string): void {
     this.queryInput.set(text);

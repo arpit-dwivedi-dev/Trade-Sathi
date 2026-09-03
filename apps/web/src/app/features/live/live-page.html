@@ -1,18 +1,4 @@
 <section class="body content-max live">
-  <div class="page-head">
-    <div>
-      <h1 class="page-title">Live chart</h1>
-      <p class="page-sub">
-        Search any instrument, pick a window, and analyse exactly what's on screen.
-      </p>
-    </div>
-    <button mat-stroked-button (click)="requestManualAnalysis()">
-      Manual Analysis
-    </button>
-  </div>
-
-  <app-symbol-search (instrumentSelected)="onInstrumentSelected($event)" />
-
   @if (instrument(); as picked) {
     <mat-card class="live-card">
       <div class="hd live-chart-head">
@@ -40,26 +26,35 @@
 
       <div class="live-body">
         <div class="live-toolbar">
-          <mat-button-toggle-group aria-label="Chart window" [value]="lookbackDays()"
+          <!-- hideSingleSelectionIndicator: the checkmark is redundant next to
+               the filled selected state, and it only pushes the labels apart. -->
+          <mat-button-toggle-group class="seg" aria-label="Chart window"
+                                    hideSingleSelectionIndicator [value]="lookbackDays()"
                                     (change)="selectLookback($event.value)">
             @for (option of lookbackOptions; track option.days) {
               <mat-button-toggle [value]="option.days">{{ option.label }}</mat-button-toggle>
             }
           </mat-button-toggle-group>
 
-          <button
-            mat-flat-button
-            color="primary"
-            [disabled]="busy() || candles().length === 0"
-            (click)="analyze()"
-          >
-            @if (busy()) {
-              <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
-              Analysing…
-            } @else {
-              Analyse this chart
-            }
-          </button>
+          <span class="live-actions">
+            <button mat-stroked-button (click)="requestManualAnalysis()">
+              Manual Analysis
+            </button>
+
+            <button
+              mat-flat-button
+              color="primary"
+              [disabled]="busy() || candles().length === 0"
+              (click)="analyze()"
+            >
+              @if (busy()) {
+                <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
+                Analysing…
+              } @else {
+                Analyse this chart
+              }
+            </button>
+          </span>
         </div>
 
         @if (chartError(); as err) {
@@ -68,6 +63,7 @@
           <div class="skel live-chart-skel" aria-busy="true"></div>
         } @else {
           <app-live-chart
+            class="live-chart-fill"
             [candles]="candles()"
             [overlays]="overlays()"
             [timeframeLabel]="timeframeLabel()"
@@ -124,8 +120,8 @@
       <app-analysis-result [row]="analysis" [patterns]="patterns()" />
     }
   } @else {
-    <!-- Nothing picked yet: say what the screen will do rather than leaving a
-         search field floating over an empty page. -->
+    <!-- Nothing picked yet: say what the screen will do rather than leaving
+         an empty page under the shell's search bar. -->
     <mat-card class="live-placeholder">
       <span class="live-placeholder-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
@@ -136,7 +132,7 @@
       </span>
       <h2 class="live-placeholder-title">Pick an instrument to begin</h2>
       <p class="live-placeholder-copy">
-        Search above for a symbol or company. The chart you land on is the exact image the model
+        Use the search bar at the top of the page to find a symbol or company. The chart you land on is the exact image the model
         reads — no separate screenshot needed.
       </p>
     </mat-card>

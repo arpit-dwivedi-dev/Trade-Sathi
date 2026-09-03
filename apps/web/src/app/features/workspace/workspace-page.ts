@@ -24,7 +24,7 @@ import { type MarketTick } from '@chartanalyzer/shared';
 import { LiveService, type WorkspaceInterval } from '../live/live.service';
 import { MarketStreamService } from '../live/market-stream.service';
 import type { LiveCandle } from '../../shared/live-chart/live-chart';
-import { SymbolSearch } from '../../shared/symbol-search/symbol-search';
+import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import { WorkspaceChart } from './chart/workspace-chart';
 import { loadDrawings, saveDrawings } from './drawing/drawing-store';
 import {
@@ -70,24 +70,15 @@ const STREAMING_INTRADAY_REFRESH_MS = 2 * 60_000;
 const ROLLOVER_REFETCH_MIN_GAP_MS = 5_000;
 
 /**
- * An instrument handed off from elsewhere in the shell (the Live tab's
- * "Manual Analysis" button) — see AppPage.openWorkspace. requestId exists
- * purely so the same instrument requested twice in a row is still seen as a
- * change: two plain strings equal to the last one would never re-trigger the
- * effect that opens it.
- */
-export interface PendingInstrument {
-  instrumentId: string;
-  requestId: number;
-}
-
-/**
  * The manual analysis workspace: a tab in the dashboard shell (not a
  * separate route) for picking an instrument, switching candle timeframe, and
  * drawing on the chart — separate from the AI "Analyse this chart" pipeline,
  * which this screen does not touch. Reached via the nav rail's own tab entry
  * or the Live tab's "Manual Analysis" button, the latter handing off the
- * symbol already on screen there via `pendingInstrument` (see AppPage).
+ * symbol already on screen there via `selection` (see AppPage).
+ *
+ * The instrument itself is not picked here: the shell's top-bar search owns
+ * that for every chart tab, and hands the choice down through `selection`.
  *
  * Staying a tab rather than its own route is deliberate: the dashboard nav
  * rail stays visible by default so the workspace never opens onto a blank,
@@ -110,7 +101,6 @@ export interface PendingInstrument {
     MatChipsModule,
     MatIconModule,
     MatMenuModule,
-    SymbolSearch,
     WorkspaceChart,
   ],
   templateUrl: './workspace-page.html',
@@ -122,8 +112,12 @@ export class WorkspacePage implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
-  /** Set by AppPage when "Manual Analysis" is pressed elsewhere with a symbol already on screen. */
-  readonly pendingInstrument = input<PendingInstrument | null>(null);
+  /**
+   * The instrument to chart, chosen in the shell's top-bar search (or handed
+   * off by Live's "Manual Analysis" button with the symbol already on screen
+   * there). This screen has no search box of its own.
+   */
+  readonly selection = input<SymbolSelection | null>(null);
   /** Raised by the "Collapse sidebar" control — AppPage owns the rail, this only asks. */
   readonly toggleSidebar = output<void>();
 
@@ -131,7 +125,6 @@ export class WorkspacePage implements OnInit, OnDestroy {
   protected readonly toolGroups = TOOL_GROUPS;
 
   private readonly shellHost = viewChild<ElementRef<HTMLDivElement>>('shell');
-  private readonly symbolSearch = viewChild(SymbolSearch);
   /** True while this screen (not the whole document) is Fullscreen-API-fullscreen. */
   protected readonly isFullscreen = signal(false);
 
@@ -175,22 +168,13 @@ export class WorkspacePage implements OnInit, OnDestroy {
       this.startRefreshing();
     });
 
-    // Opens whatever AppPage hands off, including a second request for the
-    // same symbol — see PendingInstrument's requestId for why that still
+    // Opens whatever the shell hands down, including the same symbol picked
+    // twice in a row — see SymbolSelection's requestId for why that still
     // fires here.
     effect(() => {
-      const pending = this.pendingInstrument();
-      if (!this.isBrowser || !pending) return;
-      void this.openInstrumentId(pending.instrumentId);
-    });
-
-    // Nothing to type into otherwise: the search box is the one control that
-    // matters before an instrument is picked, so it takes focus the moment
-    // that placeholder state is showing (not on every render — only when the
-    // reason to focus it, having no instrument, actually changes).
-    effect(() => {
-      if (this.instrument() || !this.isBrowser) return;
-      this.symbolSearch()?.focus();
+      const selection = this.selection();
+      if (!this.isBrowser || !selection) return;
+      this.openInstrument(selection.instrument);
     });
   }
 
@@ -254,29 +238,15 @@ export class WorkspacePage implements OnInit, OnDestroy {
     this.toggleSidebar.emit();
   }
 
-  protected selectInstrument(instrument: WorkspaceInstrument): void {
+  /**
+   * Charts an instrument handed down from the shell. Same symbol as the one
+   * already open is still honoured — it is how a stale error state or a
+   * dropped stream gets reset.
+   */
+  private openInstrument(instrument: WorkspaceInstrument): void {
     this.instrument.set(instrument);
+    this.chartError.set(null);
     void this.reload();
-  }
-
-  /** Opens directly on an instrument handed off via pendingInstrument, without a search round trip. */
-  private async openInstrumentId(instrumentId: string): Promise<void> {
-    this.loadingChart.set(true);
-    const timeframe = this.timeframe();
-    const result = await this.live.fetchCandles(instrumentId, lookbackDaysFor(timeframe), timeframe);
-    this.loadingChart.set(false);
-    if (!result.ok) {
-      this.chartError.set(result.message);
-      return;
-    }
-    this.instrument.set(result.window.instrument);
-    this.symbolSearch()?.setDisplayText(
-      `${result.window.instrument.symbol} — ${result.window.instrument.name}`,
-    );
-    this.applyWindow(result.window.candles, result.window.intervalMinutes);
-    this.loadDrawingsAndIndicators();
-    this.startRefreshing();
-    this.startStreaming(instrumentId);
   }
 
   protected selectTimeframe(value: WorkspaceInterval): void {

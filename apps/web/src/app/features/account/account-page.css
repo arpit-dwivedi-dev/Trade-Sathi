@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--s4);
+  padding-inline: var(--s4);
 }
 
 /* Trims the page's usual bottom breathing room (64px, sized for a long
@@ -10,7 +11,7 @@
    the fold, and 64px of dead space at the bottom was the difference between
    that and a needless scroll. */
 .body.acct {
-  padding-block-end: var(--s6);
+  padding-block: var(--s4) var(--s6);
 }
 
 /* Two cards side by side once there is room for both at a comfortable

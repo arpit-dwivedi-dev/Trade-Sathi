@@ -8,6 +8,7 @@ import {
   computed,
   effect,
   inject,
+  input,
   output,
   signal,
 } from '@angular/core';
@@ -22,7 +23,7 @@ import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
 import { LiveChart, type ChartOverlays, type LiveCandle } from '../../shared/live-chart/live-chart';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import { AnalyzeService, type PollHandle } from '../analyze/analyze.service';
-import { SymbolSearch } from '../../shared/symbol-search/symbol-search';
+import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import { LiveService } from './live.service';
 import { MarketStreamService } from './market-stream.service';
 
@@ -99,7 +100,6 @@ interface AnalysisTarget {
     MatCardModule,
     MatChipsModule,
     MatProgressSpinnerModule,
-    SymbolSearch,
   ],
   templateUrl: './live-page.html',
   styleUrl: './live-page.css',
@@ -121,7 +121,13 @@ export class LivePage implements OnInit, OnDestroy {
    * any) so the workspace tab opens on the same chart instead of an empty
    * search box. The shell owns switching tabs; this screen only asks.
    */
-  readonly manualAnalysisRequested = output<string | undefined>();
+  readonly manualAnalysisRequested = output<Instrument | null>();
+
+  /**
+   * The instrument to chart, chosen in the shell's top-bar search. This
+   * screen has no search box of its own — see AppPage's topbar.
+   */
+  readonly selection = input<SymbolSelection | null>(null);
 
   protected readonly lookbackOptions = LOOKBACK_OPTIONS;
   protected readonly instrument = signal<Instrument | null>(null);
@@ -226,6 +232,15 @@ export class LivePage implements OnInit, OnDestroy {
       if (!this.isBrowser || !this.instrument()) return;
       this.startRefreshing();
     });
+
+    // Charts whatever the shell hands down, including the same symbol picked
+    // twice in a row — see SymbolSelection's requestId for why that still
+    // fires here.
+    effect(() => {
+      const selection = this.selection();
+      if (!this.isBrowser || !selection) return;
+      this.openInstrument(selection.instrument);
+    });
   }
 
   ngOnInit(): void {
@@ -259,8 +274,9 @@ export class LivePage implements OnInit, OnDestroy {
     this.pending = null;
   }
 
-  protected onInstrumentSelected(instrument: Instrument): void {
+  private openInstrument(instrument: Instrument): void {
     this.instrument.set(instrument);
+    this.chartError.set(null);
     this.clearResult();
     void this.reload();
   }
@@ -527,6 +543,6 @@ export class LivePage implements OnInit, OnDestroy {
   }
 
   protected requestManualAnalysis(): void {
-    this.manualAnalysisRequested.emit(this.instrument()?.id);
+    this.manualAnalysisRequested.emit(this.instrument());
   }
 }

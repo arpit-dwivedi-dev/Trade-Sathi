@@ -7,6 +7,14 @@
   width: 100%;
 }
 
+/* :host's display above outranks the attribute's own UA rule, so a parent
+   binding [hidden] on this tag would otherwise have no effect — the shell's
+   top bar keeps the search mounted (and its typed text intact) across tabs
+   and hides it on the tabs that have no chart. */
+:host([hidden]) {
+  display: none;
+}
+
 .symbol-search-row {
   align-items: flex-start;
   display: flex;

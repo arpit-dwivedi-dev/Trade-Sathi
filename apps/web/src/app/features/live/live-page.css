@@ -1,21 +1,24 @@
+/* This is the shell's .body (see components.css), so it is already the
+   scrolling flex column sized to the space under the topbar. Tighter padding
+   than the default page body and no max-width: a chart is the one thing on
+   this screen and it reads better the more room it gets. */
 .live {
   display: flex;
   flex-direction: column;
-  gap: var(--s5);
-}
-
-/* Overrides the global .page-head's column stack so the "Manual Analysis"
-   link sits beside the title instead of below the subtitle. */
-.live .page-head {
-  align-items: flex-start;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: var(--s3);
-  justify-content: space-between;
+  gap: var(--s4);
+  padding: var(--s4) var(--s4) var(--s4);
 }
 
 /* ── chart card ─────────────────────────────────────────── */
+
+/* Takes every row the viewport has left. When an analysis result is rendered
+   underneath, the card gives way down to its min-height and .body scrolls —
+   so a tall result is reachable without the chart ever being squeezed flat. */
 .live-card {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 360px;
   overflow: visible;
 }
 
@@ -55,9 +58,26 @@
 
 .live-body {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--s4);
-  padding: var(--s4) var(--s5) var(--s5);
+  gap: var(--s3);
+  min-height: 0;
+  padding: var(--s3) var(--s4) var(--s4);
+}
+
+/* The chart — and the skeleton standing in for it — is the one element that
+   absorbs the card's spare height; every note and toolbar around it keeps its
+   natural size. */
+.live-chart-fill {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Kept together at the trailing edge so the primary action never moves. */
+.live-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
 }
 
 /* Window selector on the left, the one primary action on the right — so the
@@ -72,7 +92,8 @@
 
 .live-chart-skel {
   border-radius: var(--r-md);
-  height: 420px;
+  flex: 1 1 auto;
+  min-height: 240px;
 }
 
 .live-error {
@@ -122,9 +143,11 @@
 .live-placeholder {
   align-items: center;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--s3);
-  padding: var(--s16) var(--s8);
+  justify-content: center;
+  padding: var(--s8);
   text-align: center;
 }
 
@@ -158,13 +181,26 @@
 }
 
 @media (max-width: 640px) {
+  /* Narrow screens go back to scrolling rather than fitting: a chart squeezed
+     into what is left of a short viewport is worse than one you scroll to. */
+  .live-card {
+    flex: none;
+  }
+
+  .live-chart-fill,
   .live-chart-skel {
+    flex: none;
     height: 300px;
   }
 
   .live-toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .live-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .live-body {

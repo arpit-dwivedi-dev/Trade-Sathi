@@ -1,11 +1,5 @@
 <div class="ws-shell" #shell [class.ws-fullscreen]="isFullscreen()">
   <header class="ws-topbar">
-    <app-symbol-search
-      class="ws-search"
-      placeholder="Search symbol or company"
-      (instrumentSelected)="selectInstrument($event)"
-    />
-
     @if (instrument(); as picked) {
       <span class="ws-ident">
         <span class="sym">{{ picked.symbol }}</span>
@@ -23,7 +17,10 @@
         }
       </span>
 
-      <mat-button-toggle-group class="ws-timeframes" aria-label="Timeframe" [value]="timeframe()"
+      <!-- hideSingleSelectionIndicator: the checkmark is redundant next to the
+           filled selected state, and it only pushes the short labels apart. -->
+      <mat-button-toggle-group class="seg ws-timeframes" aria-label="Timeframe"
+                                hideSingleSelectionIndicator [value]="timeframe()"
                                 (change)="selectTimeframe($event.value)">
         @for (tf of timeframes; track tf.value) {
           <mat-button-toggle [value]="tf.value">{{ tf.label }}</mat-button-toggle>
@@ -149,10 +146,10 @@
         </span>
         <h2>Search for a symbol to start charting</h2>
         <p>
-          Type a symbol or company name above. Once a chart is open you can switch between six
-          timeframes, draw with sixteen tools — trend lines, rays, channels, Fibonacci
-          retracements, freehand and markers — and layer on any of twenty-six indicators, all
-          saved to this browser as you go.
+          Type a symbol or company name in the search box at the top of the page. Once a chart
+          is open you can switch between six timeframes, draw with sixteen tools — trend lines,
+          rays, channels, Fibonacci retracements, freehand and markers — and layer on any of
+          twenty-six indicators, all saved to this browser as you go.
         </p>
         <dl class="ws-placeholder-features">
           <div>

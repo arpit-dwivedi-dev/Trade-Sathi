@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
+import type { Instrument } from '@chartanalyzer/shared';
 import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingPage } from '../billing/billing-page';
 import { BillingService } from '../billing/billing.service';
@@ -13,11 +14,20 @@ import { HistoryList } from '../history/history-list';
 import { LivePage } from '../live/live-page';
 import { LogsPage } from '../logs/logs-page';
 import { Watchlist } from '../watchlist/watchlist';
-import { WorkspacePage, type PendingInstrument } from '../workspace/workspace-page';
+import { WorkspacePage } from '../workspace/workspace-page';
+import { SymbolSearch, type SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 
 type Tab = 'analyze' | 'live' | 'workspace' | 'history' | 'watchlist' | 'logs' | 'billing';
+
+/**
+ * The tabs whose content is a chart of one instrument, and so the tabs the
+ * top bar's symbol search applies to. Everywhere else it is hidden (rather
+ * than torn down — see the template) so a chart tab returns to the symbol
+ * still written in the box.
+ */
+const SEARCHABLE_TABS: readonly Tab[] = ['live', 'workspace', 'watchlist'];
 
 const TABS: readonly Tab[] = [
   'live',
@@ -68,6 +78,7 @@ function parseTab(value: string | null): Tab {
     MatProgressSpinnerModule,
     PlansOverlay,
     RouterLink,
+    SymbolSearch,
     Watchlist,
     WorkspacePage,
   ],
@@ -100,14 +111,21 @@ export class AppPage implements OnInit {
   protected readonly currentPlanKey = this.billing.currentPlanKey;
 
   /**
-   * Hands an instrument off to the workspace tab from wherever "Manual
-   * Analysis" was pressed (see openWorkspace). A plain instrumentId signal
-   * wouldn't re-fire the workspace's effect for the same symbol pressed
-   * twice in a row; wrapping it with a bumped counter makes every request a
-   * new object by reference, so the effect always sees a change.
+   * The instrument each chart tab is showing, as chosen in the top bar's one
+   * shared search. Kept per tab rather than as a single value: Live and the
+   * workspace are two independent charts, and picking a symbol while looking
+   * at one must not silently swap the other out from under an in-flight
+   * analysis or a set of drawings. See SymbolSelection for the requestId.
    */
-  protected readonly pendingWorkspaceInstrument = signal<PendingInstrument | null>(null);
-  private workspaceRequestSeq = 0;
+  protected readonly liveSelection = signal<SymbolSelection | null>(null);
+  protected readonly workspaceSelection = signal<SymbolSelection | null>(null);
+  /**
+   * The watchlist's is a staged add rather than a chart, so it is dropped on
+   * the way out of the tab — that screen is remounted on every visit, and a
+   * kept value would re-stage last week's symbol under the Add button.
+   */
+  protected readonly watchlistSelection = signal<SymbolSelection | null>(null);
+  private selectionSeq = 0;
 
   /**
    * AnalyzePage stays mounted for the life of the shell (it is hidden, not
@@ -118,13 +136,24 @@ export class AppPage implements OnInit {
    */
   private readonly analyzePage = viewChild(AnalyzePage);
 
+  /**
+   * The top bar's search. Mounted for the life of the shell (hidden, never
+   * destroyed, on the tabs it does not apply to), so this reference is
+   * stable — it is how the Live → workspace handoff leaves the box reading
+   * the symbol it opened.
+   */
+  private readonly symbolSearch = viewChild(SymbolSearch);
+
   ngOnInit(): void {
     // The tab lives in the URL so links from outside the shell — the Account
     // page's nav, a bookmark — can land on a specific tab. Subscribed rather
     // than read once: navigating to /app?tab=… while already here reuses this
     // component instance, so only the param stream reports the change.
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
-      this.tab.set(parseTab(params.get('tab')));
+      const tab = parseTab(params.get('tab'));
+      this.tab.set(tab);
+      // See watchlistSelection: a staged add does not survive leaving.
+      if (tab !== 'watchlist') this.watchlistSelection.set(null);
     });
 
     // The one plan read for the whole shell. Everything downstream — this
@@ -147,6 +176,25 @@ export class AppPage implements OnInit {
     return TAB_TITLES[this.tab()];
   }
 
+  /** Whether the top bar's symbol search applies to the current tab. */
+  protected searchVisible(): boolean {
+    return SEARCHABLE_TABS.includes(this.tab());
+  }
+
+  /** Routes a symbol picked in the top bar to whichever chart tab is open. */
+  protected onInstrumentSelected(instrument: Instrument): void {
+    const selection: SymbolSelection = { instrument, requestId: ++this.selectionSeq };
+    if (this.tab() === 'workspace') this.workspaceSelection.set(selection);
+    else if (this.tab() === 'live') this.liveSelection.set(selection);
+    else if (this.tab() === 'watchlist') this.watchlistSelection.set(selection);
+  }
+
+  /** The watchlist asking for the box back after an add (or a cancel). */
+  protected clearSearch(): void {
+    this.watchlistSelection.set(null);
+    this.symbolSearch()?.clear();
+  }
+
   protected toggleNav(): void {
     this.navOpen.update((open) => !open);
   }
@@ -166,9 +214,12 @@ export class AppPage implements OnInit {
    * screen there, so the handoff lands on the same chart instead of an empty
    * search box.
    */
-  protected openWorkspace(instrumentId?: string): void {
-    if (instrumentId !== undefined && instrumentId !== '') {
-      this.pendingWorkspaceInstrument.set({ instrumentId, requestId: ++this.workspaceRequestSeq });
+  protected openWorkspace(instrument: Instrument | null): void {
+    if (instrument) {
+      this.workspaceSelection.set({ instrument, requestId: ++this.selectionSeq });
+      // The box is shared, and the workspace is about to open on this
+      // symbol — so it should read as though it had been searched for here.
+      this.symbolSearch()?.setDisplayText(`${instrument.symbol} — ${instrument.name}`);
     }
     this.select('workspace');
   }

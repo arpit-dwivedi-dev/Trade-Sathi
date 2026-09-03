@@ -14,6 +14,14 @@
    (mat-table only exists once real rows are being rendered) and keeps its own
    max-height — at four rows it never reaches it. */
 
+/* Tighter padding than the default page body — a 900px-min table wants every
+   column it can get. The sticky-header offset below is tied to the inline
+   padding value here, so the two must move together. */
+.history {
+  gap: var(--s4);
+  padding: var(--s4) var(--s4) var(--s12);
+}
+
 /* `overflow: clip` rather than `hidden`: both round the corners over the
    table's own square edges, but `hidden` would make this a scroll container
    and capture the sticky header, re-creating the clipped-row problem one
@@ -60,7 +68,7 @@
    of sight under the header and nowhere else. !important is the only way past
    the inline style the CDK writes. */
 .history-table th.mat-mdc-header-cell.mat-mdc-table-sticky {
-  top: calc(-1 * var(--s6)) !important;
+  top: calc(-1 * var(--s4)) !important;
 }
 
 .history-table td.mat-mdc-cell {
@@ -143,10 +151,12 @@
   padding: 0 !important;
 }
 
+/* Filter on the leading edge, count on the trailing one. */
 .history-head {
-  align-items: flex-end;
+  align-items: center;
   display: flex;
-  gap: var(--s4);
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s4);
   justify-content: space-between;
 }
 
@@ -228,12 +238,17 @@
   gap: var(--s2);
 }
 
+/* Stands in for the whole table, so it centres in the height the table would
+   have had rather than leaving a page of empty space under it. */
 .history-empty {
   align-items: center;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--s3);
-  padding: var(--s16) var(--s8);
+  justify-content: center;
+  min-height: 260px;
+  padding: var(--s8);
   text-align: center;
 }
 
@@ -331,17 +346,10 @@
     flex-direction: column;
     gap: var(--s2);
   }
-}
 
-/* ── source filter ──────────────────────────────────────── */
-/* A segmented control is sized by its options, not by its container: left at
-   the group's default full width it stretched the whole 1180px column, so
-   four short labels sat in the corner of an otherwise empty bar. The
-   margin-bottom is gone too — .body already spaces its children by --s6, and
-   the two together read as a gap in the page. */
-.history-filters {
-  width: fit-content;
-  max-width: 100%;
+  .history-empty {
+    flex: none;
+  }
 }
 
 /* ── provenance chips inside the symbol cell ────────────── */

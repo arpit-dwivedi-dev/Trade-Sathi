@@ -1,10 +1,29 @@
+/* The shell's .body. Tighter padding than the default page body, and a grid
+   rather than a stack: three independent logs read side by side use the width
+   the screen actually has — stacked, each one was a short list with a full
+   page of empty space to its right. auto-fit collapses to two columns and
+   then one on its own as the viewport narrows. */
 .logs {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s5);
+  align-content: start;
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
+  padding: var(--s4);
 }
 
+/* Errors carry a full message per row, so they get the whole width back on
+   any viewport wide enough to have put the other two beside each other. */
+.logs-card:last-child {
+  grid-column: 1 / -1;
+}
+
+/* Each card owns its own scrollbox and they all end on the same line, so the
+   three logs stay comparable however long any one of them gets. */
 .logs-card {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--top-h) - var(--s16));
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -19,7 +38,9 @@
 }
 
 .logs-empty {
-  padding: var(--s4) var(--s5);
+  flex: 1 1 auto;
+  justify-content: center;
+  padding: var(--s6) var(--s5);
 }
 
 .logs-list {
@@ -27,6 +48,8 @@
   flex-direction: column;
   list-style: none;
   margin: 0;
+  min-height: 0;
+  overflow-y: auto;
   padding: var(--s2) var(--s5) var(--s4);
 }
 
@@ -67,6 +90,13 @@
   color: var(--down);
 }
 
+/* Whole-page states (the initial spinner, a load error) are not one of the
+   three logs — they span the grid instead of sitting in its first column. */
+.logs > .logs-state,
+.logs > .err {
+  grid-column: 1 / -1;
+}
+
 .logs-row-error {
   align-items: flex-start;
 }
@@ -79,4 +109,16 @@
   color: var(--tx-2);
   flex: 1;
   min-width: 0;
+}
+
+@media (max-width: 640px) {
+  /* One column already, so a per-card scrollbox only fragments the page's
+     own scroll — let each log run to its natural length instead. */
+  .logs-card {
+    max-height: none;
+  }
+
+  .logs-list {
+    overflow-y: visible;
+  }
 }

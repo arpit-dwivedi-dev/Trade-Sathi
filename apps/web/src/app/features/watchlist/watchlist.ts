@@ -1,5 +1,15 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -18,7 +28,7 @@ import { AuthService } from '../../core/auth.service';
 import { startRowWatch, type RowWatch } from '../../core/row-watch';
 import { SupabaseClientService } from '../../core/supabase-client';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
-import { SymbolSearch } from '../../shared/symbol-search/symbol-search';
+import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import { BillingService } from '../billing/billing.service';
 import { LiveService } from '../live/live.service';
 
@@ -77,7 +87,9 @@ const MAX_LOOKBACK_DAYS = 365;
  * endpoint for add/remove. Instrument search is the one exception: it goes
  * through the API's /api/instruments/search, since that queries the
  * read-only public.instruments table server-side rather than trusting the
- * client to pick a real instrument id.
+ * client to pick a real instrument id. That search itself lives in the
+ * shell's top bar for every tab that needs one — this screen receives the
+ * chosen instrument through `selection` and only stages it for adding.
  */
 @Component({
   selector: 'app-watchlist',
@@ -92,7 +104,6 @@ const MAX_LOOKBACK_DAYS = 365;
     MatSelectModule,
     MatSlideToggleModule,
     MatTableModule,
-    SymbolSearch,
   ],
   styleUrl: './watchlist.css',
   templateUrl: './watchlist.html',
@@ -249,8 +260,19 @@ export class Watchlist implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * The instrument picked in the shell's top-bar search, staged for adding.
+   * Staged rather than added outright: picking a symbol is a search result,
+   * not consent to start analysing it daily.
+   */
   protected readonly selected = signal<Instrument | null>(null);
-  private readonly symbolSearch = viewChild(SymbolSearch);
+
+  /**
+   * Set by AppPage from the top-bar search while this tab is open.
+   */
+  readonly selection = input<SymbolSelection | null>(null);
+  /** Asks the shell to empty the top-bar search once an add has landed. */
+  readonly addCompleted = output<void>();
 
   /**
    * The Watchlist tab is unmounted whenever the user looks at another tab.
@@ -271,6 +293,17 @@ export class Watchlist implements OnInit, OnDestroy {
     }
   }
 
+  constructor() {
+    // Stages whatever the shell's search hands down, including the same
+    // symbol picked twice — see SymbolSelection's requestId.
+    effect(() => {
+      const selection = this.selection();
+      if (!selection) return;
+      this.selected.set(selection.instrument);
+      this.error.set(null);
+    });
+  }
+
   ngOnInit(): void {
     void this.load();
     void this.resumeRuns();
@@ -279,8 +312,10 @@ export class Watchlist implements OnInit, OnDestroy {
     this.watchBriefingLog();
   }
 
-  protected onInstrumentSelected(instrument: Instrument): void {
-    this.selected.set(instrument);
+  /** Drops a staged instrument without adding it. */
+  protected clearSelection(): void {
+    this.selected.set(null);
+    this.addCompleted.emit();
   }
 
   protected async load(): Promise<void> {
@@ -325,8 +360,8 @@ export class Watchlist implements OnInit, OnDestroy {
       );
       return;
     }
-    this.symbolSearch()?.clear();
     this.selected.set(null);
+    this.addCompleted.emit();
     await this.load();
   }
 

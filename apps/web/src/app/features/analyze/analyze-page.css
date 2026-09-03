@@ -1,14 +1,24 @@
+/* This is the shell's .body, so it is already the scrolling flex column sized
+   to the space under the topbar. Tighter padding than the default page body:
+   the drop target and the result are both full-width blocks that read better
+   with the extra room. */
 .analyze {
-  padding-top: var(--s5);
+  gap: var(--s4);
+  padding: var(--s4);
 }
 
-/* Idle, this screen is a heading and a drop target and nothing else, so the
-   target is the screen rather than a small box floating in it: it takes the
-   full content measure and enough height to fill the fold. Capped so it can
-   never outgrow the viewport on a short window. */
 .analyze > app-chart-drop {
-  display: block;
   width: 100%;
+}
+
+/* The status and error cards are the only thing on the screen while they are
+   up, so they take the height the drop row gave back and centre their copy in
+   it instead of leaving a void underneath. */
+.analyze > mat-card {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
 }
 
 
@@ -33,8 +43,10 @@
 
 .state-card {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--s3);
+  justify-content: center;
 }
 
 .state-head {
@@ -87,6 +99,11 @@
 }
 
 @media (max-width: 640px) {
+  /* Narrow screens scroll rather than fit — see chart-drop.css. */
+  .analyze > mat-card {
+    flex: none;
+  }
+
   .analyze-quota {
     align-items: flex-start;
     flex-wrap: wrap;

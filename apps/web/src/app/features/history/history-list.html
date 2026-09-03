@@ -1,12 +1,20 @@
 <section class="body content-max history">
+  <!-- Filter and row count on one line. The count used to own a row of its
+       own above this, which spent a whole band of the page on two words. -->
   <div class="history-head">
-    <div class="page-head">
-      <h1 class="page-title">Your analyses</h1>
-      <p class="page-sub">
-        Every chart you've run, with the readings it came back with. Open one to see the full
-        report.
-      </p>
-    </div>
+    <!-- Provenance filter. Uploads, live runs and briefings were one
+         undifferentiated list, so a user who wanted "what did my briefing
+         send me" had to open rows one at a time to find out. -->
+    <!-- hideSingleSelectionIndicator: the checkmark is redundant next to the
+         filled selected state, and it only pushes four short labels apart. -->
+    <mat-button-toggle-group class="seg" aria-label="Filter by source"
+                              hideSingleSelectionIndicator
+                              [value]="sourceFilter()" (change)="selectSource($event.value)">
+      @for (filter of sourceFilters; track filter.value) {
+        <mat-button-toggle [value]="filter.value">{{ filter.label }}</mat-button-toggle>
+      }
+    </mat-button-toggle-group>
+
     @if (!loading() && rows().length) {
       <span class="history-count">
         <span class="num">{{ rows().length }}</span>
@@ -14,16 +22,6 @@
       </span>
     }
   </div>
-
-  <!-- Provenance filter. Uploads, live runs and briefings were one
-       undifferentiated list, so a user who wanted "what did my briefing send
-       me" had to open rows one at a time to find out. -->
-  <mat-button-toggle-group class="history-filters" aria-label="Filter by source"
-                            [value]="sourceFilter()" (change)="selectSource($event.value)">
-    @for (filter of sourceFilters; track filter.value) {
-      <mat-button-toggle [value]="filter.value">{{ filter.label }}</mat-button-toggle>
-    }
-  </mat-button-toggle-group>
 
   @if (loading()) {
     <div class="tbl" aria-busy="true">

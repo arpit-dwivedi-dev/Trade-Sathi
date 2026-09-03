@@ -95,6 +95,17 @@
 
         <h1 class="topbar-title trunc">{{ pageTitle() }}</h1>
 
+        <!-- One search for every chart tab. Bound with [hidden] rather than
+             wrapped in @if: an @if would destroy it on the way to, say, the
+             History tab and hand back an empty box on the way back, with the
+             chart still open behind it. -->
+        <app-symbol-search
+          class="topbar-search"
+          [hidden]="!searchVisible()"
+          placeholder="Search symbol or company"
+          (instrumentSelected)="onInstrumentSelected($event)"
+        />
+
         <div class="topbar-end">
           <button mat-icon-button (click)="toggleTheme()"
                   [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
@@ -129,6 +140,7 @@
       <div class="tab-pane" [hidden]="tab() !== 'live'">
         <app-live-page
           class="tab-pane"
+          [selection]="liveSelection()"
           (plansRequested)="openPlans()"
           (manualAnalysisRequested)="openWorkspace($event)"
         />
@@ -143,7 +155,7 @@
       <div class="tab-pane" [hidden]="tab() !== 'workspace'">
         <app-workspace-page
           class="tab-pane"
-          [pendingInstrument]="pendingWorkspaceInstrument()"
+          [selection]="workspaceSelection()"
           (toggleSidebar)="toggleNavCollapsed()"
         />
       </div>
@@ -167,7 +179,11 @@
          first visit. -->
     @defer (when tab() === 'watchlist') {
       @if (tab() === 'watchlist') {
-        <app-watchlist class="tab-pane" />
+        <app-watchlist
+          class="tab-pane"
+          [selection]="watchlistSelection()"
+          (addCompleted)="clearSearch()"
+        />
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your watchlist…</p>

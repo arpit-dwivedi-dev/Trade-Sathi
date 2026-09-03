@@ -1,20 +1,23 @@
 <section class="body content-max watchlist">
-  <div class="page-head">
-    <h1 class="page-title">Watchlist</h1>
-    <p class="page-sub">
-      Enabled instruments are analysed in your Daily Briefing, at the window and time you set
-      below.
-    </p>
-  </div>
-
-  <!-- The add control is a toolbar, not a card: it is one field and one button,
-       and a titled panel around it added chrome without adding meaning. -->
-  <div class="watchlist-add">
-    <app-symbol-search (instrumentSelected)="onInstrumentSelected($event)" />
-    <button mat-flat-button color="primary" [disabled]="saving() || !selected()" (click)="add()">
-      Add to watchlist
-    </button>
-  </div>
+  <!-- The search itself is in the shell's top bar; this is only the staged
+       result of using it, so it appears exactly when there is something to
+       add and takes no room otherwise. Adding stays a second, explicit click:
+       a search result is not consent to analyse a symbol every day. -->
+  @if (selected(); as picked) {
+    <div class="watchlist-add">
+      <span class="watchlist-staged">
+        <span class="sym">{{ picked.symbol }}</span>
+        <span class="watchlist-staged-name trunc">{{ picked.name }}</span>
+        <span class="watchlist-staged-exchange">{{ picked.exchange }}</span>
+      </span>
+      <button mat-flat-button color="primary" [disabled]="saving()" (click)="add()">
+        Add to watchlist
+      </button>
+      <button mat-button [disabled]="saving()" (click)="clearSelection()">
+        Cancel
+      </button>
+    </div>
+  }
 
   @if (error(); as err) {
     <p class="err" role="alert">{{ err }}</p>
@@ -39,7 +42,9 @@
     @if (loading()) {
       <p class="watchlist-state"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your watchlist…</p>
     } @else if (items().length === 0) {
-      <p class="watchlist-state">No symbols yet. Search above to start tracking one.</p>
+      <p class="watchlist-state">
+        No symbols yet. Search in the bar at the top of the page to start tracking one.
+      </p>
     } @else {
       <div class="watchlist-table-wrap">
         <table mat-table [dataSource]="tableRows()" multiTemplateDataRows class="watchlist-table">
@@ -241,7 +246,7 @@
             </td>
           </ng-container>
 
-          <tr mat-header-row *matHeaderRowDef="columns"></tr>
+          <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
           <tr mat-row *matRowDef="let row; columns: columns" class="watchlist-row"></tr>
           <tr mat-row *matRowDef="let row; columns: ['rowNote']; when: hasRowNote" class="watchlist-note-row"></tr>
         </table>

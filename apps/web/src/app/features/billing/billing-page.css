@@ -1,7 +1,10 @@
+/* The shell's .body. Tighter padding than the default page body so the plan
+   grid and the summary slab get the full width. */
 .bill {
   display: flex;
   flex-direction: column;
-  gap: var(--s5);
+  gap: var(--s4);
+  padding: var(--s4) var(--s4) var(--s8);
 }
 
 /* ── summary slab ───────────────────────────────────────── */
@@ -162,8 +165,8 @@
 .bill-plans {
   display: flex;
   flex-direction: column;
-  gap: var(--s4);
-  padding-top: var(--s2);
+  gap: var(--s3);
+  padding-top: var(--s1);
 }
 
 .bill-plans-head {
@@ -179,6 +182,7 @@
 
 .bill-disc {
   border-top: 1px solid var(--line-soft);
+  margin-top: auto;
   padding-top: var(--s4);
 }
 

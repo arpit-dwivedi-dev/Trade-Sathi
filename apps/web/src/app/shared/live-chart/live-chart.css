@@ -1,16 +1,28 @@
+/* Fills whatever the page hands it — the live page gives the chart every row
+   the viewport has left, so a fixed height here would just cap it. */
+:host {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
+
 .live-chart {
   display: grid;
   gap: 6px;
+  grid-template-rows: 1fr auto;
+  height: 100%;
   margin: 0;
+  min-height: 0;
 }
 
-/* The library sizes its canvas from this element, so it needs a real height
-   before the chart is created — a percentage height would collapse to zero. */
+/* The library sizes its canvas from this element. A percentage height would
+   collapse to zero, but a `1fr` track inside a definite-height grid resolves
+   to real pixels before the chart is created, which is all it needs. */
 .live-chart-canvas {
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  height: 420px;
+  min-height: 0;
   overflow: hidden;
   width: 100%;
 }
@@ -20,10 +32,4 @@
   font-size: var(--t-2xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-@media (max-width: 640px) {
-  .live-chart-canvas {
-    height: 300px;
-  }
 }

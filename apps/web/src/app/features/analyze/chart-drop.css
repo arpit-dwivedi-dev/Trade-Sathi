@@ -1,7 +1,23 @@
-/* Idle, the Analyze screen is a heading and this control and nothing else, so
-   it is sized to be the screen rather than a short box floating at the top of
-   one. Capped against the viewport so a short window never has to scroll to
-   reach the button inside it. */
+/* Two shapes, chosen by the `fill` class the page sets (see analyze-page.html).
+   Without it — something real is on the screen — this is a compact row that
+   spends no more height than it needs. */
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* With it, the control is the screen: it takes every row the page has left
+   rather than floating as a short box at the top of an empty one. */
+:host(.fill) {
+  flex: 1 1 auto;
+}
+
+:host(.fill) .drop-zone {
+  flex: 1 1 auto;
+  min-height: 260px;
+}
+
 .drop-zone {
   align-items: center;
   cursor: pointer;
@@ -9,9 +25,41 @@
   flex-direction: column;
   gap: var(--s3);
   justify-content: center;
-  min-height: min(420px, 52vh);
-  padding: var(--s12) var(--s6);
+  padding: var(--s8) var(--s6);
   text-align: center;
+}
+
+/* Compact: the icon, the copy and the button read left to right on one row,
+   and the long "include the price axis" hint drops out — by this point the
+   user has already uploaded once and knows what the target wants. */
+:host(:not(.fill)) .drop-zone {
+  flex-direction: row;
+  gap: var(--s4);
+  justify-content: flex-start;
+  padding: var(--s4) var(--s5);
+  text-align: start;
+}
+
+:host(:not(.fill)) .drop-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+:host(:not(.fill)) .drop-title {
+  font-size: var(--t-md);
+}
+
+:host(:not(.fill)) .drop-sub {
+  justify-content: flex-start;
+}
+
+:host(:not(.fill)) .drop-browse {
+  margin-top: 0;
+}
+
+:host(:not(.fill)) .drop-hint,
+:host(:not(.fill)) .drop-formats {
+  display: none;
 }
 
 .drop-zone.disabled {
@@ -91,8 +139,20 @@
 }
 
 @media (max-width: 640px) {
-  .drop-zone {
+  /* Narrow screens scroll rather than fit, and the compact row stacks — a
+     three-across row at this width leaves nothing for the copy. */
+  :host(.fill) .drop-zone {
+    flex: none;
     min-height: 0;
+  }
+
+  :host(:not(.fill)) .drop-zone {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .drop-zone {
     padding: var(--s8) var(--s4);
   }
 

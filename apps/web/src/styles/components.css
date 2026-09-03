@@ -239,6 +239,18 @@
   gap: var(--s2);
 }
 
+/* The shell's one symbol search (app-symbol-search's host element), shown on
+   the chart tabs. margin-inline-end pins it to the left edge of the bar —
+   .topbar is justify-content: flex-end, so without it the free space would
+   collect on the wrong side and leave the field floating mid-bar. No display
+   declared here on purpose: that lets the component's own
+   :host([hidden]) rule win on the tabs the search doesn't apply to. */
+.topbar-search {
+  flex: 1 1 auto;
+  margin-inline-end: auto;
+  max-width: 620px;
+}
+
 /* Opens the nav drawer. Only ever visible once the rail collapses. Qualified
    with the element type so this outranks Material's own .mat-mdc-icon-button
    display rule, which carries the same class-selector specificity. */
@@ -292,29 +304,15 @@ button.nav-toggle {
    there, and the extra width only bought dead space. */
 .content-max {
   margin-inline: auto;
-  max-width: 1180px;
+  /* max-width: 1180px; */
   width: 100%;
 }
 
-/* The standard page heading block: title, then one line saying what the screen
-   is for. Used by History, Live, Watchlist and Account so all four open the
-   same way. */
+/* Page-level heading block, now carrying only a page's leading actions. */
 .page-head {
   display: flex;
   flex-direction: column;
   gap: var(--s1);
-}
-
-.page-title {
-  font-size: var(--t-2xl);
-  letter-spacing: -0.022em;
-  line-height: 1.2;
-}
-
-.page-sub {
-  color: var(--tx-2);
-  font-size: var(--t-sm);
-  max-width: 72ch;
 }
 
 /* ── marketing top bar ──────────────────────────────────
@@ -541,6 +539,12 @@ button.nav-toggle {
   border-radius: var(--r-lg);
   box-shadow: var(--sh-1);
   color: var(--slab-tx);
+  /* Same trap as .seg further down: .panel declares overflow: hidden, which
+     waives a flex item's automatic minimum size, and every page that uses one
+     drops it straight into a flex column (.body, the result grid). Left
+     shrinkable, the slab collapses to nothing — no height, no figures — as
+     soon as the page it sits on is taller than the scroller. */
+  flex: none;
   overflow: hidden;
   position: relative;
 }
@@ -1007,13 +1011,24 @@ button.nav-toggle {
     display: inline-flex;
   }
 
-  /* The rail is gone, so the bar becomes the only thing naming the screen. */
+  /* The rail is gone, so the bar becomes the only thing naming the screen.
+     The search drops to a second row of its own (see .topbar-search below)
+     rather than fighting the title for what's left of one. */
   .topbar {
+    flex-wrap: wrap;
     justify-content: space-between;
   }
 
   .topbar-title {
     display: block;
+  }
+
+  .topbar-search {
+    flex-basis: 100%;
+    margin-inline-end: 0;
+    max-width: none;
+    order: 3;
+    padding-bottom: var(--s2);
   }
 
   .bar {
@@ -1048,14 +1063,42 @@ button.nav-toggle {
     padding-inline: var(--s4);
   }
 
-  .page-title {
-    font-size: var(--t-xl);
-  }
-
   /* Touch targets grow; the visual weight does not. */
   .btn {
     min-height: 40px;
   }
+}
+
+/* ── segmented control ──────────────────────────────────
+   A mat-button-toggle-group left on Material's own defaults paints a stock
+   M3 control — extra-large pill, secondary-container fill, 40px rows — that
+   belongs to a different design system than everything around it. Both
+   segmented controls in the app (History's source filter, the workspace's
+   timeframe picker) wear this instead, so they read as one control in two
+   places.
+
+   flex: none matters: .body and the workspace top bar are both flex
+   containers, and .mat-button-toggle-group sets overflow: hidden, which
+   waives a flex item's automatic minimum size. Left shrinkable, the group
+   collapses to its own two borders — full width, no height, no labels — as
+   soon as its container runs short of room. */
+.seg {
+  flex: none;
+  width: fit-content;
+  max-width: 100%;
+
+  --mat-button-toggle-height: 34px;
+  --mat-button-toggle-shape: var(--r-sm);
+  --mat-button-toggle-background-color: var(--surf);
+  --mat-button-toggle-text-color: var(--tx-2);
+  --mat-button-toggle-divider-color: var(--line);
+  --mat-button-toggle-selected-state-background-color: var(--acc-soft);
+  --mat-button-toggle-selected-state-text-color: var(--acc-tx);
+  --mat-button-toggle-state-layer-color: var(--tx);
+  --mat-button-toggle-label-text-font: var(--fb);
+  --mat-button-toggle-label-text-size: var(--t-xs);
+  --mat-button-toggle-label-text-weight: 500;
+  --mat-button-toggle-label-text-tracking: normal;
 }
 
 /* ── overlay-rendered Material menus ─────────────────────

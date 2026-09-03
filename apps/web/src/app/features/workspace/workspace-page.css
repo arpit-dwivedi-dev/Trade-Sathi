@@ -60,15 +60,6 @@
   margin-inline-start: auto;
 }
 
-/* Wraps app-symbol-search's own market-select + search-input row; that
-   component's internal CSS already caps the search field itself at 560px,
-   so this just keeps the combined control from stretching the full topbar
-   width now that the two controls are one flex item instead of two. */
-.ws-search {
-  flex: 1 1 auto;
-  max-width: 620px;
-}
-
 .ws-ident {
   align-items: center;
   display: flex;
@@ -391,12 +382,6 @@
     border-left: 0;
     border-top: 1px solid var(--line);
     max-height: 180px;
-  }
-
-  .ws-search {
-    max-width: none;
-    order: 3;
-    width: 100%;
   }
 
   .ws-timeframes {

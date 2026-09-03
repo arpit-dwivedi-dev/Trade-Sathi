@@ -1,49 +1,109 @@
+/* This is the shell's .body — already the scrolling flex column sized to the
+   space under the topbar. Tighter padding than the default page body: the
+   table is wide enough to need every column it can get. */
 .watchlist {
   display: flex;
   flex-direction: column;
-  gap: var(--s5);
+  gap: var(--s4);
+  padding: var(--s4);
 }
 
 /* ── add row ────────────────────────────────────────────── */
+/* The staged search result plus its Add/Cancel pair. A toolbar, not a card:
+   it is one line of text and two buttons, and a titled panel around it added
+   chrome without adding meaning. */
 .watchlist-add {
-  align-items: flex-start;
+  align-items: center;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
   display: flex;
   gap: var(--s3);
+  padding: var(--s2) var(--s3);
 }
 
-.watchlist-add app-symbol-search {
+.watchlist-staged {
+  align-items: center;
+  display: flex;
   flex: 1;
-  max-width: 620px;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.watchlist-staged-name {
+  color: var(--tx-2);
+  flex: 1;
+  font-size: var(--t-sm);
+  min-width: 0;
+}
+
+.watchlist-staged-exchange {
+  color: var(--tx-3);
+  flex: none;
+  font-size: var(--t-3xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 /* ── list ───────────────────────────────────────────────── */
+
+/* Takes every row left under the add-row and any notices above it, so the
+   list is the screen rather than a short box at the top of one. The rows
+   scroll inside the wrapper below, which is why the card itself clips. */
 .watchlist-card {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 240px;
   overflow: hidden;
 }
 
+/* Loading and empty both stand in for the whole list, so they centre in the
+   height the list would have had instead of leaving a void beneath them. */
 .watchlist-state {
   align-items: center;
   color: var(--tx-3);
   display: flex;
+  flex: 1 1 auto;
   font-size: var(--t-sm);
   gap: var(--s2);
   justify-content: center;
-  padding: var(--s12) var(--s5);
+  padding: var(--s8) var(--s5);
+  text-align: center;
 }
 
 /* The list became a table once each row carried its own settings (chart
    window, run time) alongside its actions — pills could not hold that
-   without wrapping unreadably. Capped to a viewport-relative height with its
-   own scrollbar (both axes) so a long watchlist scrolls inside the table
-   instead of handing its scroll to the page. */
+   without wrapping unreadably. It scrolls inside itself on both axes rather
+   than handing its scroll to the page; the height it scrolls within is now
+   whatever the card has left (was a flat 70vh, which under-used a tall
+   window and overflowed a short one). */
 .watchlist-table-wrap {
-  max-height: 70vh;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 
 .watchlist-table {
   min-width: 760px;
   width: 100%;
+}
+
+/* The wrapper above is the scroll container, so the CDK's inline `top: 0`
+   parks the header exactly at its top edge — no offset correction needed
+   here (unlike History, which sticks against the page). It does need an
+   opaque ground of its own, or rows would show through as they pass under
+   it; styled to match History's header so both tables read as one control. */
+.watchlist-table th.mat-mdc-header-cell {
+  background: var(--surf-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--tx-3);
+  font-family: var(--fh);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .mat-column-symbol {
@@ -214,12 +274,18 @@
 }
 
 @media (max-width: 640px) {
-  .watchlist-add {
-    flex-direction: column;
+  /* Narrow screens scroll the page rather than a box inside it. */
+  .watchlist-card {
+    flex: none;
   }
 
-  .watchlist-add app-symbol-search {
-    max-width: none;
-    width: 100%;
+  .watchlist-table-wrap {
+    flex: none;
+    max-height: 70vh;
+  }
+
+  .watchlist-add {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
