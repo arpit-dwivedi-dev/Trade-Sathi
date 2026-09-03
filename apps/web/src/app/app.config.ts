@@ -5,7 +5,7 @@ import { provideClientHydration } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideHttpClient, withFetch } from '@angular/common/http';
 import { FullscreenOverlayContainer, OverlayContainer } from '@angular/cdk/overlay';
-import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
+import { provideMaterialSymbols } from './shared/icons/material-symbols';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -15,9 +15,10 @@ export const appConfig: ApplicationConfig = {
     // withFetch: XHR does not exist during SSR.
     provideHttpClient(withFetch()),
     provideAnimationsAsync(),
-    // Every <mat-icon> in the app draws glyphs by name from Material Symbols
-    // rather than the older Material Icons ligature font.
-    { provide: MAT_ICON_DEFAULT_OPTIONS, useValue: { fontSet: 'material-symbols-outlined' } },
+    // Every <mat-icon> in the app draws a Material Symbols outline that ships
+    // in the bundle, addressed by name through svgIcon. No icon webfont, so
+    // nothing to download and no flash of unstyled ligature text.
+    provideMaterialSymbols(),
     // Menus, autocompletes and tooltips are rendered into the CDK overlay
     // container, which by default hangs off <body>. The workspace's Full
     // screen control (WorkspacePage.toggleFullscreen) fullscreens its own

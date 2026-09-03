@@ -212,8 +212,11 @@
   padding: 5px 0;
 }
 
-.landing-preview-level .num {
+.landing-preview-level .tnum {
   font-size: var(--t-sm);
+  /* The level column is the one place on the page four prices stack, so it is
+     the one place the shared right edge is worth anything. */
+  text-align: right;
 }
 
 .landing-preview-tick {
@@ -261,7 +264,7 @@
   padding: var(--s3) var(--s4);
 }
 
-.landing-preview-cells .cell .num {
+.landing-preview-cells .cell .tnum {
   font-size: var(--t-sm);
 }
 

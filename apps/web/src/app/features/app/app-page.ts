@@ -1,6 +1,14 @@
-import { Component, DestroyRef, OnInit, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -15,11 +23,14 @@ import { LivePage } from '../live/live-page';
 import { LogsPage } from '../logs/logs-page';
 import { Watchlist } from '../watchlist/watchlist';
 import { WorkspacePage } from '../workspace/workspace-page';
+import { NavRail, type NavTab } from '../../shared/nav-rail/nav-rail';
 import { SymbolSearch, type SymbolSelection } from '../../shared/symbol-search/symbol-search';
+import { ProfileService } from '../account/profile.service';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 
-type Tab = 'analyze' | 'live' | 'workspace' | 'history' | 'watchlist' | 'logs' | 'billing';
+/** The rail owns this list — it is the set of destinations it links to. */
+type Tab = NavTab;
 
 /**
  * The tabs whose content is a chart of one instrument, and so the tabs the
@@ -76,8 +87,8 @@ function parseTab(value: string | null): Tab {
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    NavRail,
     PlansOverlay,
-    RouterLink,
     SymbolSearch,
     Watchlist,
     WorkspacePage,
@@ -87,6 +98,7 @@ function parseTab(value: string | null): Tab {
 })
 export class AppPage implements OnInit {
   private readonly auth = inject(AuthService);
+  private readonly profileService = inject(ProfileService);
   private readonly billing = inject(BillingService);
   private readonly router = inject(Router);
   private readonly themeService = inject(ThemeService);
@@ -94,6 +106,19 @@ export class AppPage implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly user = this.auth.user;
+  /** The saved profile name, if the Account page has one on record. */
+  private readonly fullName = signal<string | null>(null);
+  /**
+   * What the rail calls the signed-in person: their profile name when they
+   * have saved one, otherwise the local part of their address — the full
+   * address is too long for the rail and reads as data, not as a name.
+   */
+  protected readonly displayName = computed(() => {
+    const name = this.fullName()?.trim();
+    if (name) return name;
+    const email = this.user()?.email ?? '';
+    return email.split('@')[0] || 'Account';
+  });
   protected readonly tab = signal<Tab>('analyze');
   protected readonly theme = this.themeService.theme;
   protected readonly plansOpen = signal(false);
@@ -102,14 +127,11 @@ export class AppPage implements OnInit {
   /**
    * Desktop-only collapse, distinct from navOpen above (that one is the
    * off-canvas mobile drawer). The rail hides itself outright below 900px
-   * already, so this only has anything to do above it — the workspace tab is
-   * the one screen cramped enough on desktop to want the space back, and it's
-   * the only place the control to flip this is shown.
+   * already, so this only has anything to do above it. Collapsed means an
+   * icon-only rail, never a hidden one — the icons and the toggle stay on
+   * screen, so it survives a tab change without stranding anyone.
    */
   protected readonly navCollapsed = signal(false);
-  /** The shared cached read; the overlay and the picker use this same value. */
-  protected readonly currentPlanKey = this.billing.currentPlanKey;
-
   /**
    * The instrument each chart tab is showing, as chosen in the top bar's one
    * shared search. Kept per tab rather than as a single value: Live and the
@@ -156,19 +178,15 @@ export class AppPage implements OnInit {
       if (tab !== 'watchlist') this.watchlistSelection.set(null);
     });
 
-    // The one plan read for the whole shell. Everything downstream — this
-    // control's label, the overlay, the plan picker's "Current plan" marker —
+    // The one plan read for the whole shell. Everything downstream — the
+    // rail's CTA label, the overlay, the plan picker's "Current plan" marker —
     // reads the cache it fills rather than querying again.
     void this.billing.ensurePlanSummary();
-  }
 
-  /**
-   * A free user is offered the upgrade; a paid user is offered credits, since
-   * moving between paid tiers is not built. An unknown plan (the read failed)
-   * falls back to the credits label, which is valid on every tier.
-   */
-  protected billingLabel(): string {
-    return this.currentPlanKey() === 'free' ? 'Upgrade' : 'Buy Credits';
+    // Only for the rail's label — see displayName.
+    void this.profileService
+      .getProfile()
+      .then((details) => this.fullName.set(details?.fullName ?? null));
   }
 
   /** Names the current screen in the top bar, beside the drawer toggle. */
@@ -203,11 +221,6 @@ export class AppPage implements OnInit {
     this.navOpen.set(false);
   }
 
-  /** The workspace topbar's own "Collapse sidebar" control — see navCollapsed. */
-  protected toggleNavCollapsed(): void {
-    this.navCollapsed.update((collapsed) => !collapsed);
-  }
-
   /**
    * Opens the workspace tab, optionally on a specific instrument — the Live
    * tab's "Manual Analysis" button calls this with the symbol already on
@@ -222,15 +235,6 @@ export class AppPage implements OnInit {
       this.symbolSearch()?.setDisplayText(`${instrument.symbol} — ${instrument.name}`);
     }
     this.select('workspace');
-  }
-
-  /**
-   * The rail's billing CTA. Routes to the Billing tab rather than opening the
-   * overlay — the overlay stays for the in-flow prompt raised by Analyze and
-   * Live, where leaving the screen would lose an in-flight run.
-   */
-  protected openBilling(): void {
-    this.select('billing');
   }
 
   protected openPlans(): void {
@@ -260,12 +264,6 @@ export class AppPage implements OnInit {
    */
   protected select(tab: Tab): void {
     this.navOpen.set(false);
-    // Collapsing the rail is only offered from the workspace tab itself, so
-    // leaving it with no way back to expand the rail would strand a user who
-    // collapsed it there and then picked a different tab from... nowhere,
-    // since the rail is what they'd use to do that. Leaving is the moment to
-    // put it back.
-    if (tab !== 'workspace') this.navCollapsed.set(false);
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { tab },

@@ -1,202 +1,201 @@
-<div class="ws-shell" #shell [class.ws-fullscreen]="isFullscreen()">
-  <header class="ws-topbar">
-    @if (instrument(); as picked) {
-      <span class="ws-ident">
-        <span class="sym">{{ picked.symbol }}</span>
-        <mat-chip-set aria-label="Exchange">
-          <mat-chip>{{ picked.exchange }}</mat-chip>
-        </mat-chip-set>
-        @if (lastPrice(); as price) {
-          <span class="num ws-price">{{ price | number: '1.2-2' }}</span>
-        }
-        @if (streaming()) {
-          <span class="live-tick" title="Streaming live prices">
-            <span class="live-tick-dot" aria-hidden="true"></span>
-            Live
-          </span>
-        }
+<!-- Wrapped in the shell's own .body so this tab sits on the same padded
+     canvas as Live and Chart Image Analysis; .ws-shell is then the card on it. -->
+<section class="body workspace">
+  <div class="ws-shell" #shell [class.ws-fullscreen]="isFullscreen()">
+    <header class="ws-topbar">
+      @if (instrument(); as picked) {
+        <span class="ws-ident">
+          <span class="sym">{{ picked.symbol }}</span>
+          <mat-chip-set aria-label="Exchange">
+            <mat-chip>{{ picked.exchange }}</mat-chip>
+          </mat-chip-set>
+          @if (lastPrice(); as price) {
+            <span class="tnum ws-price">{{ price | number: '1.2-2' }}</span>
+          }
+          @if (streaming()) {
+            <span class="live-tick" title="Streaming live prices">
+              <span class="live-tick-dot" aria-hidden="true"></span>
+              Live
+            </span>
+          }
+        </span>
+
+        <!-- hideSingleSelectionIndicator: the checkmark is redundant next to the
+             filled selected state, and it only pushes the short labels apart. -->
+        <mat-button-toggle-group class="seg ws-timeframes" aria-label="Timeframe"
+                                  hideSingleSelectionIndicator [value]="timeframe()"
+                                  (change)="selectTimeframe($event.value)">
+          @for (tf of timeframes; track tf.value) {
+            <mat-button-toggle [value]="tf.value">{{ tf.label }}</mat-button-toggle>
+          }
+        </mat-button-toggle-group>
+
+        <app-indicator-menu class="ws-indicators" [active]="activeIndicators()" (activeChange)="onIndicatorsChange($event)" />
+      }
+
+      <span class="ws-topbar-end">
+        <button mat-icon-button (click)="toggleFullscreen()"
+                [attr.aria-pressed]="isFullscreen()"
+                [title]="isFullscreen() ? 'Exit full screen' : 'Full screen'"
+                [attr.aria-label]="isFullscreen() ? 'Exit full screen' : 'Full screen'">
+          <mat-icon aria-hidden="true" [svgIcon]="isFullscreen() ? 'fullscreen_exit' : 'fullscreen'"></mat-icon>
+        </button>
       </span>
+    </header>
 
-      <!-- hideSingleSelectionIndicator: the checkmark is redundant next to the
-           filled selected state, and it only pushes the short labels apart. -->
-      <mat-button-toggle-group class="seg ws-timeframes" aria-label="Timeframe"
-                                hideSingleSelectionIndicator [value]="timeframe()"
-                                (change)="selectTimeframe($event.value)">
-        @for (tf of timeframes; track tf.value) {
-          <mat-button-toggle [value]="tf.value">{{ tf.label }}</mat-button-toggle>
-        }
-      </mat-button-toggle-group>
-
-      <app-indicator-menu class="ws-indicators" [active]="activeIndicators()" (activeChange)="onIndicatorsChange($event)" />
-    }
-
-    <span class="ws-topbar-end">
-      <button mat-icon-button (click)="requestCollapseSidebar()"
-              title="Collapse dashboard sidebar" aria-label="Collapse dashboard sidebar">
-        <mat-icon aria-hidden="true">left_panel_close</mat-icon>
-      </button>
-
-      <button mat-icon-button (click)="toggleFullscreen()"
-              [attr.aria-pressed]="isFullscreen()"
-              [title]="isFullscreen() ? 'Exit full screen' : 'Full screen'"
-              [attr.aria-label]="isFullscreen() ? 'Exit full screen' : 'Full screen'">
-        <mat-icon aria-hidden="true">{{ isFullscreen() ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
-      </button>
-    </span>
-  </header>
-
-  @if (instrument()) {
-    <nav class="ws-tools" aria-label="Drawing tools">
-      <button
-        type="button"
-        class="ws-tool-btn"
-        [class.ws-tool-btn-active]="tool() === 'cursor'"
-        [attr.aria-pressed]="tool() === 'cursor'"
-        title="Cursor — select and drag"
-        aria-label="Cursor — select and drag"
-        (click)="selectTool('cursor')"
-      >
-        <mat-icon aria-hidden="true">near_me</mat-icon>
-      </button>
-
-      @for (group of toolGroups; track group.id) {
+    @if (instrument()) {
+      <nav class="ws-tools" aria-label="Drawing tools">
         <button
           type="button"
           class="ws-tool-btn"
-          [class.ws-tool-btn-active]="isGroupActive(group)"
-          [attr.aria-pressed]="isGroupActive(group)"
-          [matMenuTriggerFor]="toolMenu"
-          [matMenuTriggerData]="{ group: group }"
-          [title]="groupTooltip(group)"
-          [attr.aria-label]="groupTooltip(group)"
-          aria-haspopup="true"
+          [class.ws-tool-btn-active]="tool() === 'cursor'"
+          [attr.aria-pressed]="tool() === 'cursor'"
+          title="Cursor — select and drag"
+          aria-label="Cursor — select and drag"
+          (click)="selectTool('cursor')"
         >
-          <mat-icon aria-hidden="true">{{ groupIcon(group) }}</mat-icon>
-          <!-- Corner notch: the rail's only cue that this button opens a list
-               rather than arming a tool outright. -->
-          <span class="ws-tool-more" aria-hidden="true"></span>
+          <mat-icon aria-hidden="true" svgIcon="near_me"></mat-icon>
         </button>
-      }
 
-      <span class="ws-tool-divider" aria-hidden="true"></span>
+        @for (group of toolGroups; track group.id) {
+          <button
+            type="button"
+            class="ws-tool-btn"
+            [class.ws-tool-btn-active]="isGroupActive(group)"
+            [attr.aria-pressed]="isGroupActive(group)"
+            [matMenuTriggerFor]="toolMenu"
+            [matMenuTriggerData]="{ group: group }"
+            [title]="groupTooltip(group)"
+            [attr.aria-label]="groupTooltip(group)"
+            aria-haspopup="true"
+          >
+            <mat-icon aria-hidden="true" [svgIcon]="groupIcon(group)"></mat-icon>
+            <!-- Corner notch: the rail's only cue that this button opens a list
+                 rather than arming a tool outright. -->
+            <span class="ws-tool-more" aria-hidden="true"></span>
+          </button>
+        }
 
-      <button type="button" class="ws-tool-btn" title="Clear all drawings" aria-label="Clear all drawings"
-              [disabled]="drawings().length === 0" (click)="clearDrawings()">
-        <mat-icon aria-hidden="true">delete</mat-icon>
-      </button>
-    </nav>
+        <span class="ws-tool-divider" aria-hidden="true"></span>
 
-    <!-- One flyout, filled by whichever rail button opened it — the groups
-         differ only in their list of tools. -->
-    <mat-menu #toolMenu="matMenu" xPosition="after" class="tool-panel">
-      <ng-template matMenuContent let-group="group">
-        <div class="tool-top" (click)="$event.stopPropagation()">
-          <span class="tool-top-title">{{ group.label }}</span>
-          <span class="tool-top-sub">Click the chart to place</span>
-        </div>
-        <div class="tool-list">
-          @for (kind of group.tools; track kind) {
-            <button
-              mat-menu-item
-              class="tool-item"
-              [class.tool-item-on]="tool() === kind"
-              (click)="selectTool(kind)"
-              [attr.aria-pressed]="tool() === kind"
-            >
-              <!-- Every part is wrapped in a span on purpose: a bare <mat-icon>
-                   is projected into mat-menu-item's own leading slot, which
-                   would drop the tick on the left instead of the right. -->
-              <span class="tool-glyph" aria-hidden="true"><mat-icon>{{ toolIcon(kind) }}</mat-icon></span>
-              <span class="tool-label">{{ toolLabel(kind) }}</span>
-              @if (tool() === kind) {
-                <span class="tool-check" aria-hidden="true"><mat-icon>check</mat-icon></span>
-              }
-            </button>
-          }
-        </div>
-      </ng-template>
-    </mat-menu>
-  }
+        <button type="button" class="ws-tool-btn" title="Clear all drawings" aria-label="Clear all drawings"
+                [disabled]="drawings().length === 0" (click)="clearDrawings()">
+          <mat-icon aria-hidden="true" svgIcon="delete"></mat-icon>
+        </button>
+      </nav>
 
-  <main class="ws-chart-area">
-    @if (instrument()) {
-      @if (chartError(); as err) {
-        <p class="err">{{ err }}</p>
-      } @else if (loadingChart() && candles().length === 0) {
-        <div class="skel ws-chart-skel" aria-busy="true"></div>
-      } @else {
-        <app-workspace-chart
-          [candles]="candles()"
-          [activeIndicators]="activeIndicators()"
-          [tool]="tool()"
-          [drawings]="drawings()"
-          (drawingsChange)="onDrawingsChange($event)"
-          (toolConsumed)="onToolConsumed()"
-          (selectedDrawingId)="onSelectDrawing($event)"
-        />
-      }
-    } @else {
-      <div class="ws-placeholder">
-        <span class="ws-placeholder-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
-               stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 3v18h18" />
-            <path d="M7 15l3.5-4 3 2.5L21 6" />
-          </svg>
-        </span>
-        <h2>Search for a symbol to start charting</h2>
-        <p>
-          Type a symbol or company name in the search box at the top of the page. Once a chart
-          is open you can switch between six timeframes, draw with sixteen tools — trend lines,
-          rays, channels, Fibonacci retracements, freehand and markers — and layer on any of
-          twenty-six indicators, all saved to this browser as you go.
-        </p>
-        <dl class="ws-placeholder-features">
-          <div>
-            <dt aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                   stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18" /></svg>
-            </dt>
-            <dd>1m to 1D timeframes</dd>
+      <!-- One flyout, filled by whichever rail button opened it — the groups
+           differ only in their list of tools. -->
+      <mat-menu #toolMenu="matMenu" xPosition="after" class="tool-panel">
+        <ng-template matMenuContent let-group="group">
+          <div class="tool-top" (click)="$event.stopPropagation()">
+            <span class="tool-top-title">{{ group.label }}</span>
+            <span class="tool-top-sub">Click the chart to place</span>
           </div>
-          <div>
-            <dt aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                   stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="1.6" /><circle cx="19" cy="5" r="1.6" /><path d="M6.2 17.8 17.8 6.2" /></svg>
-            </dt>
-            <dd>Trend lines, S/R &amp; Fibonacci</dd>
-          </div>
-          <div>
-            <dt aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                   stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.5 8.5 11l3.5 3.5L21 6" /><path d="M16 6h5v5" /></svg>
-            </dt>
-            <dd>26 indicators</dd>
-          </div>
-        </dl>
-      </div>
-    }
-  </main>
-
-  @if (instrument()) {
-    <aside class="ws-side" aria-label="Drawings">
-      <h2 class="ws-side-title">Drawings</h2>
-      @if (drawings().length === 0) {
-        <p class="ws-side-empty">Nothing drawn yet. Pick a tool on the left and click the chart.</p>
-      } @else {
-        <ul class="ws-drawing-list">
-          @for (drawing of drawings(); track drawing.id) {
-            <li [class.ws-drawing-selected]="selectedDrawingId() === drawing.id">
-              <span class="trunc">{{ drawingLabel(drawing) }}</span>
-              <button type="button" class="ws-drawing-delete" (click)="deleteDrawing(drawing.id)" title="Delete" aria-label="Delete drawing">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" aria-hidden="true">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
+          <div class="tool-list">
+            @for (kind of group.tools; track kind) {
+              <button
+                mat-menu-item
+                class="tool-item"
+                [class.tool-item-on]="tool() === kind"
+                (click)="selectTool(kind)"
+                [attr.aria-pressed]="tool() === kind"
+              >
+                <!-- Every part is wrapped in a span on purpose: a bare <mat-icon>
+                     is projected into mat-menu-item's own leading slot, which
+                     would drop the tick on the left instead of the right. -->
+                <span class="tool-glyph" aria-hidden="true"><mat-icon [svgIcon]="toolIcon(kind)"></mat-icon></span>
+                <span class="tool-label">{{ toolLabel(kind) }}</span>
+                @if (tool() === kind) {
+                  <span class="tool-check" aria-hidden="true"><mat-icon svgIcon="check"></mat-icon></span>
+                }
               </button>
-            </li>
-          }
-        </ul>
+            }
+          </div>
+        </ng-template>
+      </mat-menu>
+    }
+
+    <main class="ws-chart-area">
+      @if (instrument()) {
+        @if (chartError(); as err) {
+          <p class="err">{{ err }}</p>
+        } @else if (loadingChart() && candles().length === 0) {
+          <div class="skel ws-chart-skel" aria-busy="true"></div>
+        } @else {
+          <app-workspace-chart
+            [candles]="candles()"
+            [activeIndicators]="activeIndicators()"
+            [tool]="tool()"
+            [drawings]="drawings()"
+            (drawingsChange)="onDrawingsChange($event)"
+            (toolConsumed)="onToolConsumed()"
+            (selectedDrawingId)="onSelectDrawing($event)"
+          />
+        }
+      } @else {
+        <div class="ws-placeholder">
+          <span class="ws-placeholder-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3v18h18" />
+              <path d="M7 15l3.5-4 3 2.5L21 6" />
+            </svg>
+          </span>
+          <h2>Search for a symbol to start charting</h2>
+          <p>
+            Type a symbol or company name in the search box at the top of the page. Once a chart
+            is open you can switch between six timeframes, draw with sixteen tools — trend lines,
+            rays, channels, Fibonacci retracements, freehand and markers — and layer on any of
+            twenty-six indicators, all saved to this browser as you go.
+          </p>
+          <dl class="ws-placeholder-features">
+            <div>
+              <dt aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                     stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18" /></svg>
+              </dt>
+              <dd>1m to 1D timeframes</dd>
+            </div>
+            <div>
+              <dt aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                     stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="1.6" /><circle cx="19" cy="5" r="1.6" /><path d="M6.2 17.8 17.8 6.2" /></svg>
+              </dt>
+              <dd>Trend lines, S/R &amp; Fibonacci</dd>
+            </div>
+            <div>
+              <dt aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                     stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.5 8.5 11l3.5 3.5L21 6" /><path d="M16 6h5v5" /></svg>
+              </dt>
+              <dd>26 indicators</dd>
+            </div>
+          </dl>
+        </div>
       }
-    </aside>
-  }
-</div>
+    </main>
+
+    @if (instrument()) {
+      <aside class="ws-side" aria-label="Drawings">
+        <h2 class="ws-side-title">Drawings</h2>
+        @if (drawings().length === 0) {
+          <p class="ws-side-empty">Nothing drawn yet. Pick a tool on the left and click the chart.</p>
+        } @else {
+          <ul class="ws-drawing-list">
+            @for (drawing of drawings(); track drawing.id) {
+              <li [class.ws-drawing-selected]="selectedDrawingId() === drawing.id">
+                <span class="trunc">{{ drawingLabel(drawing) }}</span>
+                <button type="button" class="ws-drawing-delete" (click)="deleteDrawing(drawing.id)" title="Delete" aria-label="Delete drawing">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" aria-hidden="true">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </aside>
+    }
+  </div>
+</section>

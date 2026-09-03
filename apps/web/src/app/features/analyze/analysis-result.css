@@ -80,7 +80,7 @@
   font-size: var(--t-xs);
 }
 
-.result-raw .num {
+.result-raw .fin-mono {
   color: var(--tx-2);
 }
 

@@ -17,7 +17,7 @@
 
     @if (!loading() && rows().length) {
       <span class="history-count">
-        <span class="num">{{ rows().length }}</span>
+        <span class="tnum">{{ rows().length }}</span>
         <span class="lbl">shown</span>
       </span>
     }
@@ -68,7 +68,7 @@
       <table mat-table [dataSource]="tableRows()" multiTemplateDataRows class="history-table">
         <ng-container matColumnDef="analyzed">
           <th mat-header-cell *matHeaderCellDef>Analyzed</th>
-          <td mat-cell *matCellDef="let row" class="num">
+          <td mat-cell *matCellDef="let row" class="tnum">
             {{ relativeDate(row.created_at) }}
           </td>
         </ng-container>
@@ -107,7 +107,7 @@
 
         <ng-container matColumnDef="tf">
           <th mat-header-cell *matHeaderCellDef>TF</th>
-          <td mat-cell *matCellDef="let row" class="num">
+          <td mat-cell *matCellDef="let row" class="tnum">
             {{ row.timeframe ?? '—' }}
           </td>
         </ng-container>
@@ -152,11 +152,11 @@
                 @if (exportingId() === row.id) {
                   <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
                 } @else {
-                  <mat-icon aria-hidden="true">download</mat-icon>
+                  <mat-icon aria-hidden="true" svgIcon="download"></mat-icon>
                 }
               </button>
               <span class="history-chevron" [class.history-chevron-open]="expandedId() === row.id" aria-hidden="true">
-                <mat-icon aria-hidden="true">chevron_right</mat-icon>
+                <mat-icon aria-hidden="true" svgIcon="chevron_right"></mat-icon>
               </span>
             </span>
           </td>

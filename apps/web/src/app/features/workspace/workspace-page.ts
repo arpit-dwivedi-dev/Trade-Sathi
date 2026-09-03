@@ -10,7 +10,6 @@ import {
   effect,
   inject,
   input,
-  output,
   signal,
   viewChild,
 } from '@angular/core';
@@ -118,9 +117,6 @@ export class WorkspacePage implements OnInit, OnDestroy {
    * there). This screen has no search box of its own.
    */
   readonly selection = input<SymbolSelection | null>(null);
-  /** Raised by the "Collapse sidebar" control — AppPage owns the rail, this only asks. */
-  readonly toggleSidebar = output<void>();
-
   protected readonly timeframes = TIMEFRAMES;
   protected readonly toolGroups = TOOL_GROUPS;
 
@@ -225,17 +221,13 @@ export class WorkspacePage implements OnInit, OnDestroy {
     // Can legitimately be refused — no user-gesture in the call stack, an
     // embedding iframe without allow="fullscreen", a browser that doesn't
     // support it at all. Same "enhancement, not a requirement" handling as
-    // the live price stream: fail quietly, the collapse-sidebar control
-    // still gets most of the same room back.
+    // the live price stream: fail quietly, collapsing the rail still gets
+    // most of the same room back.
     this.shellHost()
       ?.nativeElement.requestFullscreen()
       .catch(() => {
         /* not fatal — see above */
       });
-  }
-
-  protected requestCollapseSidebar(): void {
-    this.toggleSidebar.emit();
   }
 
   /**

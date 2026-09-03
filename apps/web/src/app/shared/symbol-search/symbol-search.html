@@ -33,7 +33,7 @@
     } @else if (queryInput()) {
       <button mat-icon-button class="symbol-search-clear" (click)="clearQuery()"
               title="Clear search" aria-label="Clear search">
-        <mat-icon aria-hidden="true">close</mat-icon>
+        <mat-icon aria-hidden="true" svgIcon="close"></mat-icon>
       </button>
     }
 
@@ -41,7 +41,7 @@
       @for (result of results(); track result.id) {
         <mat-option [value]="result">
           <span class="symbol-search-row-content">
-            <span class="num symbol-search-sym">{{ result.symbol }}</span>
+            <span class="tnum symbol-search-sym">{{ result.symbol }}</span>
             <span class="symbol-search-name trunc">{{ result.name }}</span>
             <span class="symbol-search-exchange">{{ result.exchange }}</span>
           </span>

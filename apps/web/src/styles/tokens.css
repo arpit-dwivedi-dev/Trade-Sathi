@@ -40,12 +40,22 @@
   --r-pill: 9999px;
 
   /* ── type ────────────────────────────────────────────────
-     One family for the interface, one for figures. Numbers
-     are monospaced everywhere so columns of prices align
-     down the page without a table to hold them. */
-  --fh: 'Inter', system-ui, -apple-system, sans-serif;
-  --fb: 'Inter', system-ui, -apple-system, sans-serif;
-  --fm: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+     One family for the interface, one for the places a
+     character grid is the point. Both are resident system
+     faces, so nothing here is downloaded.
+
+     These mirror $font-ui / $font-mono in _typography.scss —
+     spelled out because this file is plain CSS and cannot
+     @use the Sass partial. Figures are no longer monospaced
+     by default; .tnum in styles.scss gives them tabular
+     numerals without leaving the UI face. */
+  --fh:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu,
+    Cantarell, 'Noto Sans', Arial, sans-serif;
+  --fb: var(--fh);
+  --fm:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Cascadia Code', 'Liberation Mono',
+    'DejaVu Sans Mono', monospace;
 
   /* Set a step larger than a trading terminal would: this scale
      is built for reading, and the mono figures hold their own

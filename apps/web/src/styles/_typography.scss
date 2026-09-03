@@ -1,0 +1,38 @@
+// The app's two font stacks. Nothing here is downloaded: every family named
+// below is either a platform UI font already resident on the machine or a
+// generic that the UA resolves itself, so a cold load makes zero font
+// requests and text paints on the first frame with no swap.
+//
+// $font-ui is mirrored, verbatim, by FONT_UI in
+// ../app/shared/typography.ts — canvas renderers (KLineChart, the PNG
+// capture) take a font string in JS and CSS never reaches them. Change one
+// and the typography.spec.ts guard fails until the other matches.
+
+// system-ui first so each platform gets its own current UI face; the rest is
+// the fallback ladder for UAs that do not resolve it (older Safari, and the
+// Linux desktops whose fontconfig has no system-ui alias).
+$font-ui:
+  system-ui,
+  -apple-system,
+  BlinkMacSystemFont,
+  'Segoe UI',
+  Roboto,
+  'Helvetica Neue',
+  Ubuntu,
+  Cantarell,
+  'Noto Sans',
+  Arial,
+  sans-serif;
+
+// ui-monospace picks up SF Mono / Cascadia where the OS ships them under a
+// name the browser will not otherwise match.
+$font-mono:
+  ui-monospace,
+  SFMono-Regular,
+  'SF Mono',
+  Menlo,
+  Consolas,
+  'Cascadia Code',
+  'Liberation Mono',
+  'DejaVu Sans Mono',
+  monospace;

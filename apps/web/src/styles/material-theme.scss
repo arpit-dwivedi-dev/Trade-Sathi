@@ -9,6 +9,7 @@
 // switch the instant the attribute flips, no extra JS wiring needed.
 @use '@angular/material' as mat;
 @use './theme-colors' as theme;
+@use './typography' as type;
 
 html {
   @include mat.theme((
@@ -17,10 +18,23 @@ html {
       tertiary: theme.$tertiary-palette,
       theme-type: light,
     ),
-    // Matches --fb/--fh in tokens.css — kept as a literal font stack (not a
-    // var() reference) since this is evaluated by Sass at build time.
-    typography: 'Inter, system-ui, -apple-system, sans-serif',
-    density: 0,
+    // Material components do not inherit the body font — every one of them
+    // reads --mat-sys-*-font, which only mat.theme() writes. Setting the
+    // family here is what actually restyles a mat-button or a dialog title.
+    //
+    // The map form, not the single-value shorthand: passing a bare stack
+    // leaves brand-family on Roboto, so headings and dialog titles keep the
+    // font the rest of the app just stopped using.
+    typography: (
+      plain-family: type.$font-ui,
+      brand-family: type.$font-ui,
+      // System UI faces have no 700 that reads as "semibold"; 600 is the
+      // heaviest weight that stays legible at the 12–14px this app runs at.
+      bold-weight: 600,
+      medium-weight: 500,
+      regular-weight: 400,
+    ),
+    density: -1,
   ));
 }
 
@@ -520,6 +534,33 @@ html[data-theme='dark'] {
 
 .mat-mdc-icon-button:hover {
   --mat-icon-button-icon-color: var(--text-main);
+}
+
+// Centres the glyph inside the round state layer.
+//
+// Two things knock it off centre on their own. Material lays the icon out as
+// an inline-block inside the button's padding box, so it sits on the baseline
+// of a line box built from the *inherited* line-height — unitless 1.6 against
+// the button's own font-size: 24px is a ~38px line box around a 24px box, and
+// the icon drops several pixels below the middle of the hover circle. And
+// Material's own `.mat-mdc-icon-button svg { vertical-align: baseline }` —
+// written for a bare <svg> child — pushes the <svg> down *within* mat-icon,
+// which clips it (mat-icon is overflow: hidden). The app draws every glyph as
+// an inline svgIcon rather than the old webfont, so both apply to every icon
+// button in the app.
+//
+// Centring with flex takes the line box out of it entirely; display: block on
+// the svg drops the baseline alignment. The button's ripple, focus ring and
+// touch target are all absolutely positioned, so neither touches them.
+.mat-mdc-icon-button {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mat-icon svg {
+  display: block;
 }
 
 .mat-mdc-button-base {

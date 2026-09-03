@@ -9,6 +9,8 @@ import type {
   YAxisOverride,
 } from 'klinecharts';
 
+import { FONT_UI } from '../typography';
+
 /**
  * The chart vocabulary shared by every place this app draws candles with
  * KLineChart: the on-screen chart component, the manual-analysis workspace
@@ -229,12 +231,24 @@ function registerLevelOverlay(kc: KLineChartsModule): void {
  * Everything about a chart's look that a theme change can move. Kept separate
  * from construction so a running chart can reapply it without being rebuilt
  * (and so without resetting the user's pan/zoom).
+ *
+ * The font family is set on every text style the library exposes, because the
+ * chart is a <canvas>: no stylesheet reaches it, and KLineChart's own default
+ * is Helvetica Neue — a face neither Linux nor Windows has, so axis labels
+ * were resolving to a different fallback than the DOM sitting beside them.
  */
 export function chartStyles(palette: ChartPalette): DeepPartial<Styles> {
   const axis = {
     axisLine: { color: palette.line },
     tickLine: { color: palette.line },
-    tickText: { color: palette.text },
+    tickText: { color: palette.text, family: FONT_UI },
+  };
+
+  // A tooltip's family sits on its two text styles rather than on the tooltip,
+  // and candle and indicator tooltips are separate types with the same shape.
+  const tooltipText = {
+    title: { family: FONT_UI },
+    legend: { family: FONT_UI },
   };
 
   return {
@@ -255,9 +269,14 @@ export function chartStyles(palette: ChartPalette): DeepPartial<Styles> {
         noChangeWickColor: palette.flat,
       },
       priceMark: {
-        last: { upColor: palette.up, downColor: palette.down, noChangeColor: palette.flat },
+        last: {
+          upColor: palette.up,
+          downColor: palette.down,
+          noChangeColor: palette.flat,
+          text: { family: FONT_UI },
+        },
       },
-      tooltip: { showRule: 'follow_cross' },
+      tooltip: { showRule: 'follow_cross', ...tooltipText },
     },
     indicator: {
       // One palette for every indicator the workspace can switch on, rather
@@ -268,19 +287,25 @@ export function chartStyles(palette: ChartPalette): DeepPartial<Styles> {
       // Histogram indicators — MACD above all — read as up/down against the
       // candles they are being compared with.
       bars: [{ upColor: palette.up, downColor: palette.down, noChangeColor: palette.flat }],
-      tooltip: { showRule: 'follow_cross' },
+      tooltip: { showRule: 'follow_cross', ...tooltipText },
     },
     xAxis: axis,
     yAxis: axis,
     separator: { color: palette.line },
     crosshair: {
-      horizontal: { line: { color: palette.text }, text: { backgroundColor: palette.text } },
-      vertical: { line: { color: palette.text }, text: { backgroundColor: palette.text } },
+      horizontal: {
+        line: { color: palette.text },
+        text: { backgroundColor: palette.text, family: FONT_UI },
+      },
+      vertical: {
+        line: { color: palette.text },
+        text: { backgroundColor: palette.text, family: FONT_UI },
+      },
     },
     overlay: {
       point: { color: palette.accent, borderColor: `${palette.accent}44`, activeColor: palette.accent },
       line: { color: palette.accent },
-      text: { color: palette.textStrong },
+      text: { color: palette.textStrong, family: FONT_UI },
     },
   };
 }

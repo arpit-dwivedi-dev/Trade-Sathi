@@ -12,6 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
 import type { ProfileDetails, SurveyAnswers, SurveyStatus } from '@chartanalyzer/shared';
 
+import { NavRail } from '../../shared/nav-rail/nav-rail';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 import { ProfileService } from './profile.service';
@@ -46,6 +47,7 @@ function splitMultiChoice(value: string | undefined): string[] {
     MatIconModule,
     MatInputModule,
     MatSelectModule,
+    NavRail,
   ],
   styleUrl: './account-page.css',
   templateUrl: './account-page.html',
@@ -60,6 +62,8 @@ export class AccountPage implements OnInit {
   protected readonly theme = this.themeService.theme;
   /** Drawer state. Only consulted below 900px, where the rail is off-canvas. */
   protected readonly navOpen = signal(false);
+  /** The rail's desktop icons-only state — see NavRail.collapsed. */
+  protected readonly navCollapsed = signal(false);
 
   /** Supabase stamps this on the auth user; absent on a session shape without it. */
   protected readonly memberSince = computed(() => this.user()?.created_at ?? null);

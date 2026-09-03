@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@use './styles/typography' as type;
+
+// Plain CSS, so still @import — Sass's @use is for the .scss partials only.
 @import './styles/tokens.css';
 @import './styles/components.css';
 
@@ -6,6 +8,18 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* Dark is the default the UA is told about, so the scrollbars, form controls
+   and the paint behind <html> match the app before Angular boots. ThemeService
+   writes data-theme on the server as well as the client, so a light-mode user
+   never sees this — the bare document does, for the frame before hydration. */
+html {
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
 }
 
 /* The canvas is set on <html> as well as <body> so overscroll, the SSR flash
@@ -20,16 +34,17 @@ body {
 
 body {
   color: var(--text-main);
-  font-family: var(--fb);
+  /* The Material token first so the page and the components are provably the
+     same face; the literal stack is the fallback for the frame before
+     material-theme.scss has defined it. */
+  font-family: var(--mat-sys-body-medium-font, #{type.$font-ui});
   font-size: var(--t-base);
   line-height: var(--lh-body);
-  /* Inter's contextual alternates give a proper single-storey 'a' free of the
-     default's tail, and disabling the default ligatures keeps ticker strings
-     like "BTCUSDT" from fusing. */
-  font-feature-settings: 'cv05' 1, 'cv11' 1;
+  /* No synthesised bold or italic: the system faces all ship real weights, and
+     a synthesised 600 smears the 12px figures in a dense table. */
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
 /* Headings are set in sentence case at a real weight, with tracking tightened
@@ -101,13 +116,44 @@ a:not([class]):hover {
   color: var(--acc-tx);
 }
 
-/* Every figure in the product: monospaced and tabular, so a column of prices
-   lines up on the decimal without a table to hold it. */
-.num {
-  font-family: var(--fm);
+/* Figures come in two tiers, and almost everything is the first one.
+ *
+ * .tnum is the default for prices, percentages, market cap, volume, P/L and
+ * LTP — anything in a stock card, a movers list or a data table. It stays in
+ * the UI font and only switches the numerals to tabular, so a column lines up
+ * on the decimal while the surrounding label still reads as the same
+ * typeface. slashed-zero is what keeps a 0 from being read as an O in a
+ * ticker. Neither tier takes negative tracking: at the 12–14px these tables
+ * run at, tightening is the difference between reading a price and squinting
+ * at one. */
+.tnum {
   font-feature-settings: 'tnum' 1, 'zero' 1;
   font-variant-numeric: tabular-nums slashed-zero;
-  letter-spacing: -0.01em;
+}
+
+/* Tabular figures only pay off against a shared right edge — a column of
+   prices lines up on the decimal only when the column ends at the same x, and
+   left-aligned they buy nothing. The app's label/value card rows carry this
+   themselves (.bill-val, .acct-val, .result-val); this covers the cells of a
+   table. */
+th.tnum,
+td.tnum {
+  // text-align: right;
+}
+
+/* .fin-mono is the second tier, and it is deliberately rare: only where a
+   character grid is the actual point — a DOM ladder, raw API payloads, code,
+   fixed-width identifiers. Everything else is .tnum. */
+.fin-mono {
+  font-family: type.$font-mono;
+  /* Required, not cosmetic. WebKit and Blink apply the user's *monospace*
+     default size — ~13px — to any stack that terminates in the monospace
+     generic, whatever the parent is set to. 1em pins it back to the parent so
+     mono text sits on the same baseline size as the label beside it. */
+  font-size: 1em;
+  font-feature-settings: 'liga' 0, 'calt' 0;
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: 0;
 }
 
 /* Native controls inherit the interface font rather than the platform's. */

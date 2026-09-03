@@ -1,79 +1,18 @@
-<main class="shell" [class.shell-nav-open]="navOpen()">
+<main class="shell" [class.shell-nav-open]="navOpen()" [class.shell-nav-collapsed]="navCollapsed()">
   <div class="nav-scrim" (click)="closeNav()" aria-hidden="true"></div>
 
-  <aside class="nav" aria-label="Sections">
-    <div class="nav-head">
-      <a class="brand" routerLink="/app">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
-            <path d="M16 6h5v5" />
-          </svg>
-        </span>
-        <b>Chart</b><span>Analyzer</span>
-      </a>
-    </div>
-
-    <div class="nav-body">
-      <span class="nav-lbl">Workspace</span>
-
-      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'live' }">
-        <mat-icon aria-hidden="true">monitoring</mat-icon>
-        Live Chart Analysis
-      </a>
-
-      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'analyze' }">
-        <mat-icon aria-hidden="true">image_search</mat-icon>
-        Chart Image Analysis
-      </a>
-
-      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'workspace' }">
-        <mat-icon aria-hidden="true">candlestick_chart</mat-icon>
-        Manual Chart Analysis
-      </a>
-
-      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'watchlist' }">
-        <mat-icon aria-hidden="true">visibility</mat-icon>
-        Watch List
-      </a>
-
-      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'history' }">
-        <mat-icon aria-hidden="true">history</mat-icon>
-        Analysis History
-      </a>
-
-      <span class="nav-lbl">Activity</span>
-
-      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'logs' }">
-        <mat-icon aria-hidden="true">list_alt</mat-icon>
-        Logs
-      </a>
-
-      <a class="nav-item" routerLink="/app" [queryParams]="{ tab: 'billing' }">
-        <mat-icon aria-hidden="true">credit_card</mat-icon>
-        Billing
-      </a>
-
-      <span class="nav-item" aria-current="page">
-        <mat-icon aria-hidden="true">person</mat-icon>
-        Account
-      </span>
-    </div>
-
-    <div class="nav-foot">
-      <span class="who">
-        <span class="who-mark" aria-hidden="true">{{ (user()?.email ?? '?').charAt(0) }}</span>
-        <span class="who-email trunc">{{ user()?.email }}</span>
-      </span>
-    </div>
-  </aside>
+  <app-nav-rail
+    active="account"
+    [(collapsed)]="navCollapsed"
+    [displayName]="fullName()"
+    (activated)="closeNav()"
+  />
 
   <div class="main">
     <header class="topbar">
       <button mat-icon-button class="nav-toggle" (click)="toggleNav()"
               title="Sections" aria-label="Sections">
-        <mat-icon aria-hidden="true">menu</mat-icon>
+        <mat-icon aria-hidden="true" svgIcon="menu"></mat-icon>
       </button>
 
       <h1 class="topbar-title trunc">Account</h1>
@@ -82,11 +21,11 @@
         <button mat-icon-button (click)="toggleTheme()"
                 [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                 [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
-          <mat-icon aria-hidden="true">{{ theme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+          <mat-icon aria-hidden="true" [svgIcon]="theme() === 'dark' ? 'light_mode' : 'dark_mode'"></mat-icon>
         </button>
 
         <button mat-icon-button (click)="signOut()" title="Sign out" aria-label="Sign out">
-          <mat-icon aria-hidden="true">logout</mat-icon>
+          <mat-icon aria-hidden="true" svgIcon="logout"></mat-icon>
         </button>
       </div>
     </header>
@@ -117,14 +56,14 @@
             @if (memberSince(); as since) {
               <div class="lvl acct-row">
                 <span class="acct-key">Member since</span>
-                <time class="num acct-val" [attr.datetime]="since">
+                <time class="tnum acct-val" [attr.datetime]="since">
                   {{ since | date: 'd MMM yyyy' }}
                 </time>
               </div>
             }
             <div class="lvl acct-row">
               <span class="acct-key">Sign-in method</span>
-              <span class="num acct-val">Email &amp; password</span>
+              <span class="tnum acct-val">Email &amp; password</span>
             </div>
           </div>
 

@@ -43,14 +43,14 @@
     </div>
 
     <p class="plan-price">
-      <span class="num plan-amount">{{ priceLabel(plan.amountMinor) }}</span>
+      <span class="tnum plan-amount">{{ priceLabel(plan.amountMinor) }}</span>
       @if (plan.amountMinor > 0) {
         <span class="plan-per">/ month</span>
       }
     </p>
 
     <p class="plan-quota">
-      <span class="num plan-quota-val">{{ plan.analysesPerMonth }}</span>
+      <span class="tnum plan-quota-val">{{ plan.analysesPerMonth }}</span>
       <span class="plan-quota-unit">{{ quotaUnit(plan) }}</span>
     </p>
 

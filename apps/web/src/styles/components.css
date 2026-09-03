@@ -27,16 +27,181 @@
 
 /* Desktop-only rail collapse — distinct from the mobile drawer below, which
    already hides the rail by default under 900px (so this has nothing to add
-   there). Currently only reachable from the workspace tab's own "Collapse
-   sidebar" control, for the one screen cramped enough to want the space
-   back; AppPage.select() re-expands it on leaving that tab so it can never
-   be left stuck collapsed with no visible way to undo it. */
-.shell-nav-collapsed {
-  grid-template-columns: minmax(0, 1fr);
-}
+   there). Collapsed narrows the rail to its icons rather than removing it:
+   every destination stays one click away, and the toggle that undoes this is
+   still on screen, so no tab can strand a user with no way back. The one
+   screen that gets the rail out of the way entirely is the workspace's own
+   full-screen mode, and that is the Fullscreen API taking the chart element
+   over the whole viewport — nothing here has to arrange it.
 
-.shell-nav-collapsed .nav {
-  display: none;
+   The whole thing is CSS transitions, not @angular/animations: the state is
+   one class on .shell, and the only moving parts are the grid column and the
+   text that rides inside it. Nothing here needs enter/leave hooks, and the
+   package would be a dependency bought for a single width change.
+
+   Both states live in this one desktop query — collapsing is unreachable
+   below 901px, so the transitions have no business being declared where they
+   can never run. */
+@media (min-width: 901px) {
+  /* The load-bearing animation: the rail is a grid track, so the track itself
+     is what has to move. Everything inside is sized against that width and
+     follows for free. Discretely-animated properties (display, and the grid
+     template in older engines) simply snap, which degrades to today's
+     behaviour rather than to something broken. */
+  .shell {
+    transition: grid-template-columns var(--dur-screen) var(--ease-move);
+  }
+
+  /* The labels are clipped by the narrowing rail rather than reflowed by it:
+     without this the text wraps to two lines on the way through and the rows
+     jump their own height mid-transition. */
+  .nav {
+    overflow-x: hidden;
+  }
+
+  .nav-item {
+    transition:
+      background var(--dur-subtle) var(--ease-move),
+      color var(--dur-subtle) var(--ease-move),
+      gap var(--dur-screen) var(--ease-move),
+      padding var(--dur-screen) var(--ease-move),
+      width var(--dur-screen) var(--ease-move);
+  }
+
+  /* The icon grows on the way in (see the collapsed rule below), so it needs
+     to be animated too, or it would pop to its new size while the rail is
+     still moving. */
+  .nav-item mat-icon {
+    transition:
+      font-size var(--dur-screen) var(--ease-move),
+      height var(--dur-screen) var(--ease-move),
+      width var(--dur-screen) var(--ease-move);
+  }
+
+  /* Both .nav-item and .who pair an icon (or avatar) with a label that
+     collapses to zero width — and a flex gap beside a zero-width item is
+     still a real gap, so it has to close too or the icon ends up off-centre
+     by half of it. */
+  .who {
+    transition:
+      gap var(--dur-screen) var(--ease-move),
+      padding var(--dur-screen) var(--ease-move);
+  }
+
+  /* max-width, not width: the labels have no common width to animate between,
+     and a max-width large enough to never bind expanded still animates down
+     to nothing. Text fades out ahead of the width so it is gone before the
+     clip edge reaches it, which is what stops the mid-flight letter-slicing;
+     the delays are mirrored on the way back. */
+  .brand,
+  .nav-item-lbl,
+  .who-email {
+    max-width: 240px;
+    overflow: hidden;
+    transition:
+      max-width var(--dur-screen) var(--ease-move),
+      opacity var(--dur-standard) var(--ease-move) var(--dur-instant);
+    white-space: nowrap;
+  }
+
+  /* The two block-level pieces collapse their height instead — they sit in a
+     column, so height is the axis that actually reclaims the space.
+     max-height rather than height, for the same reason the labels use
+     max-width: `height: auto` is not an animatable value, so expanding back
+     out of height: 0 would snap. The 56px is a deliberate overshoot past both
+     elements' real height (a ~39px label block, a ~40px button); it only has
+     to never bind. .nav-lbl is a span, so it needs a box before any of this
+     applies to it. */
+  .nav-lbl {
+    display: block;
+  }
+
+  .nav-lbl,
+  .nav-cta {
+    max-height: 56px;
+    overflow: hidden;
+    transition:
+      margin var(--dur-screen) var(--ease-move),
+      max-height var(--dur-screen) var(--ease-move),
+      opacity var(--dur-standard) var(--ease-move) var(--dur-instant),
+      padding var(--dur-screen) var(--ease-move);
+    white-space: nowrap;
+  }
+
+  /* The foot's own column gap would otherwise hold a strip of empty space
+     open where the collapsed plan CTA used to be. */
+  .nav-foot {
+    transition: gap var(--dur-screen) var(--ease-move);
+  }
+
+  .shell-nav-collapsed {
+    grid-template-columns: var(--nav-w-sm) minmax(0, 1fr);
+  }
+
+  .shell-nav-collapsed .nav {
+    align-items: center;
+    padding-inline: var(--s2);
+  }
+
+  /* Everything that only reads as text goes; the icons carry the rail, and
+     each row's own title attribute carries the name on hover. */
+  .shell-nav-collapsed .brand,
+  .shell-nav-collapsed .nav-item-lbl,
+  .shell-nav-collapsed .who-email {
+    max-width: 0;
+    opacity: 0;
+    /* Collapsing: the fade leads and the width follows, the reverse of the
+       expand ordering above. */
+    transition:
+      max-width var(--dur-screen) var(--ease-move),
+      opacity var(--dur-subtle) var(--ease-move);
+  }
+
+  .shell-nav-collapsed .nav-lbl,
+  .shell-nav-collapsed .nav-cta {
+    margin: 0;
+    max-height: 0;
+    min-height: 0;
+    opacity: 0;
+    padding-block: 0;
+    transition:
+      margin var(--dur-screen) var(--ease-move),
+      max-height var(--dur-screen) var(--ease-move),
+      opacity var(--dur-subtle) var(--ease-move),
+      padding var(--dur-screen) var(--ease-move);
+  }
+
+  .shell-nav-collapsed .nav-foot {
+    gap: 0;
+  }
+
+  .shell-nav-collapsed .nav-item {
+    gap: 0;
+    justify-content: center;
+    padding: 0;
+    width: 40px;
+  }
+
+  /* Sized up from the 17px that reads correctly beside text: alone in a rail
+     next to the 24px collapse toggle, the smaller glyph looked like a
+     different class of control. */
+  .shell-nav-collapsed .nav-item mat-icon {
+    font-size: 22px;
+    height: 22px;
+    line-height: 22px;
+    width: 22px;
+  }
+
+  .shell-nav-collapsed .nav-head {
+    justify-content: center;
+    padding: var(--s1) 0 var(--s3);
+  }
+
+  .shell-nav-collapsed .who {
+    gap: 0;
+    justify-content: center;
+    padding: var(--s1) 0;
+  }
 }
 
 /* ── nav rail ───────────────────────────────────────────── */
@@ -70,9 +235,14 @@
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
+  align-items: center;
 }
 
 .nav-lbl {
+  /* .nav-body centres its children so the icon-only collapsed rail lines up;
+     the section headings are the exception — they stay flush with the label
+     column of the rows they head, in both rail widths. */
+  align-self: flex-start;
   color: var(--tx-3);
   font-family: var(--fh);
   font-size: var(--t-3xs);
@@ -554,7 +724,7 @@ button.nav-toggle {
   color: var(--slab-dim);
 }
 
-.panel .num,
+.panel .tnum,
 .panel b {
   color: var(--slab-tx);
 }
@@ -579,7 +749,7 @@ button.nav-toggle {
   border-left: 0;
 }
 
-.cell .num {
+.cell .tnum {
   font-size: var(--t-xl);
   font-weight: 500;
 }
@@ -886,12 +1056,13 @@ button.nav-toggle {
    9. Upload surfaces
    ════════════════════════════════════════════════════════ */
 
-/* The drop target. A plain dashed hairline on a recessed ground — the graph
-   paper and the accent-coloured dashes it replaced made a working control look
-   like an illustration of one. */
+/* The drop target. Deliberately the same surface, hairline and radius as a
+   mat-card, so Chart Image Analysis reads as the same screen as Live and
+   Manual rather than as a recessed panel of its own. The drop affordance is
+   carried by the copy and the .over state, not by a dashed border. */
 .plate {
-  background: var(--surf-2);
-  border: 1px dashed var(--line-strong);
+  background: var(--surf);
+  border: 1px solid var(--line);
   border-radius: var(--r-lg);
   position: relative;
   transition:
@@ -900,7 +1071,7 @@ button.nav-toggle {
 }
 
 .plate:hover {
-  border-color: var(--tx-3);
+  border-color: var(--line-strong);
 }
 
 .plate.over {
@@ -1011,6 +1182,13 @@ button.nav-toggle {
     display: inline-flex;
   }
 
+  /* The rail is an off-canvas drawer here — narrowing it to icons would only
+     make it harder to hit, so the collapse control is off below this width
+     and the collapsed styling (gated to desktop) never applies. */
+  button.nav-collapse {
+    display: none;
+  }
+
   /* The rail is gone, so the bar becomes the only thing naming the screen.
      The search drops to a second row of its own (see .topbar-search below)
      rather than fighting the title for what's left of one. */
@@ -1045,7 +1223,22 @@ button.nav-toggle {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nav {
+  .brand,
+  .nav,
+  .nav-cta,
+  .nav-foot,
+  .nav-item,
+  .nav-item mat-icon,
+  .nav-item-lbl,
+  .nav-lbl,
+  .shell,
+  .who,
+  .who-email,
+  .shell-nav-collapsed .brand,
+  .shell-nav-collapsed .nav-item-lbl,
+  .shell-nav-collapsed .who-email,
+  .shell-nav-collapsed .nav-lbl,
+  .shell-nav-collapsed .nav-cta {
     transition: none;
   }
 }

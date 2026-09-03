@@ -1,10 +1,7 @@
 /* A tab inside the dashboard shell (see .tab-pane's `display: contents` in
-   components.css), not its own route — this is what makes :host the direct
-   flex child of .main that a tab-pane always is, sized exactly like every
-   other tab's own root. A TradingView-style toolbar/rail/panel layout still
-   gets a fixed-height, non-scrolling area of its own below the shell's
-   topbar; it just no longer takes the *whole* dashboard away to get it —
-   Full screen (see toggleFullscreen) is the opt-in for that. */
+   components.css), not its own route — this template renders the shell's own
+   .body (.workspace below), so the host box drops out of layout and .body
+   becomes the direct flex child of .main, exactly as on Live. */
 :host {
   display: block;
   flex: 1 1 auto;
@@ -12,20 +9,38 @@
   min-width: 0;
 }
 
+/* The shell's .body, matched to Live's: the same tighter padding, because a
+   chart is the one thing on the screen and reads better the more room it
+   gets. */
+.workspace {
+  padding: var(--s4);
+}
+
+/* Styled as a card rather than as a bare region, so this tab presents the
+   same white surface, hairline and radius as Live's .live-card on the same
+   canvas behind it. A TradingView-style toolbar/rail/panel layout still gets
+   a fixed-height, non-scrolling area of its own; Full screen (see
+   toggleFullscreen) is the opt-in for taking the whole dashboard. */
 .ws-shell {
-  background: var(--ground);
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
   display: grid;
+  flex: 1 1 auto;
   grid-template-areas: 'top top top' 'tools chart side';
   grid-template-columns: 52px 1fr minmax(220px, 260px);
   grid-template-rows: auto 1fr;
-  height: 100%;
+  min-height: 360px;
   overflow: hidden;
 }
 
 /* The Fullscreen API sizes its target to the screen on its own in most
    browsers, but a couple leave sizing to the page — explicit here so the
-   shell never renders smaller than the screen it was asked to fill. */
+   shell never renders smaller than the screen it was asked to fill. The card
+   framing comes off: there is no canvas left for it to sit on. */
 .ws-shell:fullscreen {
+  border: 0;
+  border-radius: 0;
   height: 100vh;
   width: 100vw;
 }
@@ -50,7 +65,7 @@
   padding: var(--s3) var(--s4);
 }
 
-/* Collapse/full-screen controls — always at the far end of the bar, whether
+/* The full-screen control — always at the far end of the bar, whether
    or not an instrument is picked yet (the @if block above them may not have
    rendered anything). */
 .ws-topbar-end {

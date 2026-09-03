@@ -15,7 +15,7 @@
         <button mat-icon-button (click)="toggleTheme()"
                 [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                 [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
-          <mat-icon aria-hidden="true">{{ theme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+          <mat-icon aria-hidden="true" [svgIcon]="theme() === 'dark' ? 'light_mode' : 'dark_mode'"></mat-icon>
         </button>
         <a class="landing-link" routerLink="/login">Sign in</a>
         <a mat-flat-button color="primary" routerLink="/login">Create account</a>
@@ -75,22 +75,22 @@
               <div class="landing-preview-level">
                 <span class="landing-preview-tick landing-preview-tick-down"></span>
                 <span class="lbl">Resistance</span>
-                <span class="num">1,438.60</span>
+                <span class="tnum">1,438.60</span>
               </div>
               <div class="landing-preview-level">
                 <span class="landing-preview-tick landing-preview-tick-down"></span>
                 <span class="lbl">Resistance</span>
-                <span class="num">1,421.05</span>
+                <span class="tnum">1,421.05</span>
               </div>
               <div class="landing-preview-level">
                 <span class="landing-preview-tick landing-preview-tick-up"></span>
                 <span class="lbl">Support</span>
-                <span class="num">1,402.40</span>
+                <span class="tnum">1,402.40</span>
               </div>
               <div class="landing-preview-level">
                 <span class="landing-preview-tick landing-preview-tick-up"></span>
                 <span class="lbl">Support</span>
-                <span class="num">1,388.15</span>
+                <span class="tnum">1,388.15</span>
               </div>
             </div>
           </div>
@@ -103,9 +103,9 @@
               <span class="lbl">62% confidence</span>
             </div>
             <div class="cells landing-preview-cells">
-              <div class="cell"><span class="lbl">Reference</span><span class="num">1,402.40</span></div>
-              <div class="cell"><span class="lbl">Invalidation</span><span class="num">1,421.05</span></div>
-              <div class="cell"><span class="lbl">Target</span><span class="num">1,388.15</span></div>
+              <div class="cell"><span class="lbl">Reference</span><span class="tnum">1,402.40</span></div>
+              <div class="cell"><span class="lbl">Invalidation</span><span class="tnum">1,421.05</span></div>
+              <div class="cell"><span class="lbl">Target</span><span class="tnum">1,388.15</span></div>
             </div>
           </div>
         </mat-card>

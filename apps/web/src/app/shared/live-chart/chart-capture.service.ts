@@ -9,6 +9,7 @@ import {
   type ChartPalette,
   type LiveCandle,
 } from './chart-render';
+import { FONT_UI } from '../typography';
 
 /** Identity printed on the image — the model reads the ticker off the chart. */
 export interface CaptureMeta {
@@ -119,13 +120,13 @@ export class ChartCaptureService {
     const pad = Math.round(16 * scale);
     ctx.textBaseline = 'middle';
     ctx.fillStyle = palette.textStrong;
-    ctx.font = `600 ${Math.round(22 * scale)}px system-ui, sans-serif`;
+    ctx.font = `600 ${Math.round(22 * scale)}px ${FONT_UI}`;
     ctx.textAlign = 'left';
     ctx.fillText(`${meta.symbol} · ${meta.name} · ${meta.exchange}`, pad, header / 2);
 
     if (meta.timeframeLabel) {
       ctx.fillStyle = palette.text;
-      ctx.font = `${Math.round(16 * scale)}px system-ui, sans-serif`;
+      ctx.font = `${Math.round(16 * scale)}px ${FONT_UI}`;
       ctx.textAlign = 'right';
       ctx.fillText(meta.timeframeLabel, canvas.width - pad, header / 2);
     }

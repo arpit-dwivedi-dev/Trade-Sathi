@@ -58,7 +58,7 @@ export const DRAWING_LABELS: Record<DrawingKind, string> = {
 };
 
 /**
- * One Material Symbols ligature per tool, so the flyout that lists them reads
+ * One Material Symbols glyph name per tool, so the flyout that lists them reads
  * as a row of shapes rather than a column of prose — each glyph was picked to
  * echo what the tool actually draws (a slope, a horizontal rule, an arrow in
  * the direction the line runs).
@@ -90,7 +90,7 @@ export const DRAWING_ICONS: Record<DrawingKind, string> = {
 export interface ToolGroup {
   id: string;
   label: string;
-  /** Material Symbols ligature for the rail button. */
+  /** Material Symbols glyph name for the rail button — see material-symbols.ts. */
   icon: string;
   tools: readonly DrawingKind[];
 }

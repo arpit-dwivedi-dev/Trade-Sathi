@@ -4,7 +4,11 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "types": [
-      "vitest/globals"
+      "vitest/globals",
+      // Specs run in Node under vitest, so a spec may read a file off disk —
+      // typography.spec.ts reads the Sass partial to compare it with its
+      // TypeScript twin. The app itself still builds without node types.
+      "node"
     ]
   },
   "include": [

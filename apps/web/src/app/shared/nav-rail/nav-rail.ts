@@ -1,0 +1,106 @@
+import { Component, computed, inject, input, model, output, signal } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { Router, RouterLink } from '@angular/router';
+
+import { AuthService } from '../../core/auth.service';
+import { BillingService } from '../../features/billing/billing.service';
+
+/** The dashboard tabs the rail links to. The app shell reads its own tab from the URL. */
+export type NavTab = 'analyze' | 'live' | 'workspace' | 'history' | 'watchlist' | 'logs' | 'billing';
+
+/**
+ * Which rail row is the current screen. Account is its own route rather than a
+ * tab, so it is not a NavTab — but it is a rail destination like the rest.
+ */
+export type NavRailActive = NavTab | 'account';
+
+/**
+ * The signed-in nav rail. One component rather than a copy per screen: the app
+ * shell and Account both sit in the same frame, and when the markup was
+ * duplicated the two drifted — Account's copy never gained the collapse
+ * control or the billing CTA the shell's had.
+ *
+ * Every destination is a route (`/app?tab=…` or `/account`), which is what lets
+ * the same rail work from a page that is not the shell. The shell picks its tab
+ * up from the URL, so navigating is all this has to do.
+ */
+@Component({
+  selector: 'app-nav-rail',
+  imports: [MatButtonModule, MatIconModule, RouterLink],
+  host: {
+    class: 'nav',
+    role: 'navigation',
+    'aria-label': 'Sections',
+  },
+  templateUrl: './nav-rail.html',
+})
+export class NavRail {
+  private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
+  private readonly billing = inject(BillingService);
+
+  /** The row to mark as the current screen. */
+  readonly active = input.required<NavRailActive>();
+
+  /**
+   * Desktop-only icons-only state. A model rather than internal state because
+   * the width it changes is a grid track on the parent `.shell`, so the parent
+   * has to carry the matching class.
+   */
+  readonly collapsed = model(false);
+
+  /**
+   * The name for the identity block. Optional: pages that have already loaded
+   * the profile pass it, and the rest fall back to the email below rather than
+   * making this component issue a second profile read of its own.
+   */
+  readonly displayName = input<string | null>(null);
+
+  /** Fired on every row activation, so the parent can close the mobile drawer. */
+  readonly activated = output<void>();
+
+  protected readonly user = this.auth.user;
+
+  protected readonly name = computed(() => {
+    const passed = this.displayName()?.trim();
+    if (passed) return passed;
+    const email = this.user()?.email ?? '';
+    return email.split('@')[0] || 'Account';
+  });
+
+  private readonly planKey = signal<string | null>(null);
+
+  constructor() {
+    // The label below is the only thing this needs the plan for. ensurePlanSummary
+    // is cached on the root service, so this shares whatever the billing screen
+    // already fetched rather than adding a request.
+    void this.billing.ensurePlanSummary().then(() => this.planKey.set(this.billing.currentPlanKey()));
+  }
+
+  /**
+   * A free user is offered the upgrade; a paid user is offered credits, since
+   * moving between paid tiers is not built. An unknown plan (the read failed)
+   * gets the upgrade too — it is the safe default for a signed-in user.
+   */
+  protected billingLabel(): string {
+    return this.planKey() === 'free' || this.planKey() === null ? 'Upgrade' : 'Buy Credits';
+  }
+
+  protected toggleCollapsed(): void {
+    this.collapsed.update((collapsed) => !collapsed);
+  }
+
+  /**
+   * replaceUrl only while already in the shell: there, switching tabs is not a
+   * step worth a back-stack entry. Arriving from another page (Account) is, or
+   * Back would skip straight past it.
+   */
+  protected select(tab: NavTab): void {
+    this.activated.emit();
+    void this.router.navigate(['/app'], {
+      queryParams: { tab },
+      replaceUrl: this.router.url.startsWith('/app'),
+    });
+  }
+}

@@ -10,7 +10,7 @@
       <div class="cells bill-cells">
         <div class="cell">
           <span class="lbl">Current plan</span>
-          <b class="num bill-figure">{{ plan()?.name ?? '—' }}</b>
+          <b class="tnum bill-figure">{{ plan()?.name ?? '—' }}</b>
           @if (plan(); as p) {
             <span class="dim bill-note">
               {{ priceLabel(p.priceInrPaise) }}{{ p.priceInrPaise > 0 ? ' / month' : '' }}
@@ -21,10 +21,10 @@
         <div class="cell">
           <span class="lbl">Analyses left</span>
           @if (quota(); as q) {
-            <b class="num bill-figure">{{ q.remaining }}</b>
+            <b class="tnum bill-figure">{{ q.remaining }}</b>
             <span class="dim bill-note">of {{ q.limit }} this month</span>
           } @else {
-            <b class="num bill-figure">—</b>
+            <b class="tnum bill-figure">—</b>
             <span class="dim bill-note">usage unavailable</span>
           }
         </div>
@@ -34,7 +34,7 @@
              them into "remaining" would misreport both numbers. -->
         <div class="cell">
           <span class="lbl">Top-up credits</span>
-          <b class="num bill-figure">{{ analysisCredits() }}</b>
+          <b class="tnum bill-figure">{{ analysisCredits() }}</b>
           <span class="dim bill-note">spent after the allowance</span>
         </div>
       </div>
@@ -105,7 +105,7 @@
       </div>
       <div class="bill-topup-act">
         <span class="lbl bill-balance">
-          <b class="num">{{ analysisCredits() }}</b> in reserve
+          <b class="tnum">{{ analysisCredits() }}</b> in reserve
         </span>
         <app-buy-credits-button (creditsAdded)="onCreditsAdded()" />
       </div>
@@ -124,7 +124,7 @@
         </div>
         <div class="bill-topup-act">
           <span class="lbl bill-balance">
-            <b class="num">{{ briefingCredits() }}</b> in reserve
+            <b class="tnum">{{ briefingCredits() }}</b> in reserve
           </span>
           <app-buy-credits-button kind="daily_briefing" (creditsAdded)="onCreditsAdded()" />
         </div>
@@ -155,7 +155,7 @@
       <mat-card-content class="bill-current-body">
         <div class="lvl bill-row">
           <span class="bill-key">{{ p.name }}</span>
-          <span class="num bill-val">
+          <span class="tnum bill-val">
             {{ priceLabel(p.priceInrPaise) }}{{ p.priceInrPaise > 0 ? ' / month' : '' }}
           </span>
         </div>
@@ -164,19 +164,19 @@
         @if (p.currentPeriodEnd; as ends) {
           <div class="lvl bill-row bill-row-sub">
             <span class="bill-key">Renews</span>
-            <time class="num bill-val" [attr.datetime]="ends">{{ ends | date: 'd MMM yyyy' }}</time>
+            <time class="tnum bill-val" [attr.datetime]="ends">{{ ends | date: 'd MMM yyyy' }}</time>
           </div>
         }
 
         @for (addOn of addOns(); track addOn.key) {
           <div class="lvl bill-row bill-row-addon">
             <span class="bill-key">{{ addOn.name }}</span>
-            <span class="num bill-val">{{ priceLabel(addOn.amountMinor) }} / month</span>
+            <span class="tnum bill-val">{{ priceLabel(addOn.amountMinor) }} / month</span>
           </div>
           @if (addOn.currentPeriodEnd; as ends) {
             <div class="lvl bill-row bill-row-sub">
               <span class="bill-key">Renews</span>
-              <time class="num bill-val" [attr.datetime]="ends">
+              <time class="tnum bill-val" [attr.datetime]="ends">
                 {{ ends | date: 'd MMM yyyy' }}
               </time>
             </div>

@@ -1,0 +1,90 @@
+<div class="nav-head">
+  <a class="brand" routerLink="/app">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
+        <path d="M16 6h5v5" />
+      </svg>
+    </span>
+    <b>Chart</b><span>Analyzer</span>
+  </a>
+
+  <!-- Lives on the rail rather than on any one screen: the rail is what it
+       acts on, and it is the only thing still on screen once the rail is
+       collapsed to icons. -->
+  <button mat-icon-button class="nav-collapse" (click)="toggleCollapsed()"
+          [attr.aria-pressed]="collapsed()"
+          [title]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+          [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
+    <mat-icon aria-hidden="true"
+              [svgIcon]="collapsed() ? 'left_panel_open' : 'left_panel_close'"></mat-icon>
+  </button>
+</div>
+
+<div class="nav-body">
+  <span class="nav-lbl">Workspace</span>
+
+  <button type="button" class="nav-item" title="Live Chart Analysis" (click)="select('live')"
+          [attr.aria-current]="active() === 'live' ? 'page' : null">
+    <mat-icon aria-hidden="true" svgIcon="monitoring"></mat-icon>
+    <span class="nav-item-lbl">Live Chart Analysis</span>
+  </button>
+
+  <button type="button" class="nav-item" title="Chart Image Analysis" (click)="select('analyze')"
+          [attr.aria-current]="active() === 'analyze' ? 'page' : null">
+    <mat-icon aria-hidden="true" svgIcon="image_search"></mat-icon>
+    <span class="nav-item-lbl">Chart Image Analysis</span>
+  </button>
+
+  <button type="button" class="nav-item" title="Manual Chart Analysis" (click)="select('workspace')"
+          [attr.aria-current]="active() === 'workspace' ? 'page' : null">
+    <mat-icon aria-hidden="true" svgIcon="candlestick_chart"></mat-icon>
+    <span class="nav-item-lbl">Manual Chart Analysis</span>
+  </button>
+
+  <button type="button" class="nav-item" title="Watch List" (click)="select('watchlist')"
+          [attr.aria-current]="active() === 'watchlist' ? 'page' : null">
+    <mat-icon aria-hidden="true" svgIcon="visibility"></mat-icon>
+    <span class="nav-item-lbl">Watch List</span>
+  </button>
+
+  <button type="button" class="nav-item" title="Analysis History" (click)="select('history')"
+          [attr.aria-current]="active() === 'history' ? 'page' : null">
+    <mat-icon aria-hidden="true" svgIcon="history"></mat-icon>
+    <span class="nav-item-lbl">Analysis History</span>
+  </button>
+
+  <span class="nav-lbl">Activity</span>
+
+  <button type="button" class="nav-item" title="Logs" (click)="select('logs')"
+          [attr.aria-current]="active() === 'logs' ? 'page' : null">
+    <mat-icon aria-hidden="true" svgIcon="list_alt"></mat-icon>
+    <span class="nav-item-lbl">Logs</span>
+  </button>
+
+  <button type="button" class="nav-item" title="Billing" (click)="select('billing')"
+          [attr.aria-current]="active() === 'billing' ? 'page' : null">
+    <mat-icon aria-hidden="true" svgIcon="credit_card"></mat-icon>
+    <span class="nav-item-lbl">Billing</span>
+  </button>
+
+  <a class="nav-item" title="Account" routerLink="/account" (click)="activated.emit()"
+     [attr.aria-current]="active() === 'account' ? 'page' : null">
+    <mat-icon aria-hidden="true" svgIcon="person"></mat-icon>
+    <span class="nav-item-lbl">Account</span>
+  </a>
+</div>
+
+<div class="nav-foot">
+  <button mat-flat-button color="primary" class="nav-cta" (click)="select('billing')">
+    {{ billingLabel() }}
+  </button>
+
+  <!-- Identity, not a control: the initial gives the rail an anchor when the
+       name is too long to show in full. -->
+  <span class="who" [title]="user()?.email">
+    <span class="who-mark" aria-hidden="true">{{ name().charAt(0) }}</span>
+    <span class="who-email trunc">{{ name() }}</span>
+  </span>
+</div>

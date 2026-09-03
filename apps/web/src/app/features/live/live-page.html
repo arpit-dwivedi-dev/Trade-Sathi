@@ -11,7 +11,7 @@
 
         <span class="live-quote">
           @if (lastPrice(); as price) {
-            <span class="num live-price">{{ price | number: '1.2-2' }}</span>
+            <span class="tnum live-price">{{ price | number: '1.2-2' }}</span>
           }
           @if (streaming()) {
             <span class="live-tick" title="Streaming live prices">

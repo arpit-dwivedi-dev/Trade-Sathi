@@ -91,7 +91,7 @@
             @if (failedRow.error_code; as code) {
               <p class="state-ref">
                 <span class="lbl">Reference</span>
-                <span class="num">{{ code }}</span>
+                <span class="fin-mono">{{ code }}</span>
               </p>
             }
           </mat-card-content>
@@ -145,7 +145,7 @@
 
   @if (state() !== 'idle' && state() !== 'uploading' && state() !== 'processing') {
     <button mat-stroked-button class="analyze-again" (click)="reset()">
-      <mat-icon aria-hidden="true">refresh</mat-icon>
+      <mat-icon aria-hidden="true" svgIcon="refresh"></mat-icon>
       Analyze another chart
     </button>
   }

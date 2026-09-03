@@ -47,7 +47,7 @@ export interface IndicatorOption {
   label: string;
   /** 'overlay' shares the price pane and its scale; 'sub' gets its own pane below. */
   pane: 'overlay' | 'sub';
-  /** Material Symbols ligature — what the row's glyph tile draws. */
+  /** Material Symbols glyph name — what the row's glyph tile draws. */
   icon: string;
 }
 

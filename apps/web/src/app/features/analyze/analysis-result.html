@@ -32,7 +32,7 @@
         </div>
         @if (readFromImage() && row().symbol_raw; as raw) {
           <p class="result-raw">
-            Detected from image as <span class="num" translate="no">"{{ raw }}"</span>
+            Detected from image as <span class="fin-mono" translate="no">"{{ raw }}"</span>
           </p>
         }
       </div>
@@ -80,7 +80,7 @@
                   @if (row().call_confidence !== null) {
                     <div class="result-conf">
                       <span class="lbl">Confidence</span>
-                      <span class="num result-conf-val">
+                      <span class="tnum result-conf-val">
                         {{ row().call_confidence! * 100 | number: '1.0-0' }}%
                       </span>
                     </div>
@@ -95,19 +95,19 @@
                 <div class="cells result-cells">
                   <div class="cell">
                     <span class="lbl">Reference level</span>
-                    <span class="num">{{ row().call_entry !== null ? (row().call_entry | number: '1.2-2') : '—' }}</span>
+                    <span class="tnum">{{ row().call_entry !== null ? (row().call_entry | number: '1.2-2') : '—' }}</span>
                   </div>
                   <div class="cell">
                     <span class="lbl">Invalidation</span>
-                    <span class="num">{{ row().call_invalidation !== null ? (row().call_invalidation | number: '1.2-2') : '—' }}</span>
+                    <span class="tnum">{{ row().call_invalidation !== null ? (row().call_invalidation | number: '1.2-2') : '—' }}</span>
                   </div>
                   <div class="cell">
                     <span class="lbl">Target</span>
-                    <span class="num">{{ row().call_target !== null ? (row().call_target | number: '1.2-2') : '—' }}</span>
+                    <span class="tnum">{{ row().call_target !== null ? (row().call_target | number: '1.2-2') : '—' }}</span>
                   </div>
                   <div class="cell">
                     <span class="lbl">Horizon</span>
-                    <span class="num">
+                    <span class="tnum">
                       {{ row().horizon_candles !== null ? row().horizon_candles + ' candles' : '—' }}
                     </span>
                   </div>
@@ -145,7 +145,7 @@
                   <div class="result-pattern-head">
                     <b class="result-pattern-key">{{ pattern.pattern_key }}</b>
                     @if (pattern.confidence !== null) {
-                      <span class="num result-pattern-conf">
+                      <span class="tnum result-pattern-conf">
                         {{ pattern.confidence * 100 | number: '1.0-0' }}%
                       </span>
                     }
@@ -176,7 +176,7 @@
                   @for (level of resistances(); track $index) {
                     <div class="result-level">
                       <span class="result-tick result-tick-down" aria-hidden="true"></span>
-                      <span class="num result-level-val">{{ level | number: '1.2-2' }}</span>
+                      <span class="tnum result-level-val">{{ level | number: '1.2-2' }}</span>
                     </div>
                   }
                 } @else {
@@ -190,7 +190,7 @@
                   @for (level of supports(); track $index) {
                     <div class="result-level">
                       <span class="result-tick result-tick-up" aria-hidden="true"></span>
-                      <span class="num result-level-val">{{ level | number: '1.2-2' }}</span>
+                      <span class="tnum result-level-val">{{ level | number: '1.2-2' }}</span>
                     </div>
                   }
                 } @else {
@@ -215,10 +215,10 @@
           </div>
           <mat-card>
             <mat-card-content class="result-glance">
-              <div class="lvl"><span class="result-key">Asset class</span><span class="num result-val">{{ row().asset_class ?? '—' }}</span></div>
-              <div class="lvl"><span class="result-key">Timeframe</span><span class="num result-val">{{ row().timeframe ?? '—' }}</span></div>
-              <div class="lvl"><span class="result-key">Source</span><span class="num result-val">{{ sourceLabel() }}</span></div>
-              <div class="lvl"><span class="result-key">Analyzed</span><span class="num result-val">{{ row().created_at | date: 'd MMM, HH:mm' }}</span></div>
+              <div class="lvl"><span class="result-key">Asset class</span><span class="tnum result-val">{{ row().asset_class ?? '—' }}</span></div>
+              <div class="lvl"><span class="result-key">Timeframe</span><span class="tnum result-val">{{ row().timeframe ?? '—' }}</span></div>
+              <div class="lvl"><span class="result-key">Source</span><span class="tnum result-val">{{ sourceLabel() }}</span></div>
+              <div class="lvl"><span class="result-key">Analyzed</span><span class="tnum result-val">{{ row().created_at | date: 'd MMM, HH:mm' }}</span></div>
             </mat-card-content>
           </mat-card>
         </section>

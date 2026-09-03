@@ -1,96 +1,22 @@
 <main class="shell" [class.shell-nav-open]="navOpen()" [class.shell-nav-collapsed]="navCollapsed()">
-  @if (user(); as currentUser) {
+  @if (user()) {
     <!-- Closes the drawer by tapping away from it. Present in the DOM only as
          a plain div — CSS gives it a box exclusively while the rail is
          off-canvas, so it can never swallow a click on the desktop layout. -->
     <div class="nav-scrim" (click)="closeNav()" aria-hidden="true"></div>
 
-    <aside class="nav" aria-label="Sections">
-      <div class="nav-head">
-        <span class="brand">
-          <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
-              <path d="M16 6h5v5" />
-            </svg>
-          </span>
-          <b>Chart</b><span>Analyzer</span>
-        </span>
-      </div>
-
-      <div class="nav-body">
-        <span class="nav-lbl">Workspace</span>
-
-        <button type="button" class="nav-item" (click)="select('live')"
-                [attr.aria-current]="tab() === 'live' ? 'page' : null">
-          <mat-icon aria-hidden="true">monitoring</mat-icon>
-          Live Chart Analysis
-        </button>
-
-        <button type="button" class="nav-item" (click)="select('analyze')"
-                [attr.aria-current]="tab() === 'analyze' ? 'page' : null">
-          <mat-icon aria-hidden="true">image_search</mat-icon>
-          Chart Image Analysis
-        </button>
-
-        <button type="button" class="nav-item" (click)="select('workspace')"
-                [attr.aria-current]="tab() === 'workspace' ? 'page' : null">
-          <mat-icon aria-hidden="true">candlestick_chart</mat-icon>
-          Manual Chart Analysis
-        </button>
-
-        <button type="button" class="nav-item" (click)="select('watchlist')"
-                [attr.aria-current]="tab() === 'watchlist' ? 'page' : null">
-          <mat-icon aria-hidden="true">visibility</mat-icon>
-          Watch List
-        </button>
-
-        <button type="button" class="nav-item" (click)="select('history')"
-                [attr.aria-current]="tab() === 'history' ? 'page' : null">
-          <mat-icon aria-hidden="true">history</mat-icon>
-          Analysis History
-        </button>
-
-        <span class="nav-lbl">Activity</span>
-
-        <button type="button" class="nav-item" (click)="select('logs')"
-                [attr.aria-current]="tab() === 'logs' ? 'page' : null">
-          <mat-icon aria-hidden="true">list_alt</mat-icon>
-          Logs
-        </button>
-
-        <button type="button" class="nav-item" (click)="select('billing')"
-                [attr.aria-current]="tab() === 'billing' ? 'page' : null">
-          <mat-icon aria-hidden="true">credit_card</mat-icon>
-          Billing
-        </button>
-
-        <a class="nav-item" routerLink="/account">
-          <mat-icon aria-hidden="true">person</mat-icon>
-          Account
-        </a>
-      </div>
-
-      <div class="nav-foot">
-        <button mat-flat-button color="primary" class="nav-cta" (click)="openBilling()">
-          {{ billingLabel() }}
-        </button>
-
-        <!-- Identity, not a control: the initial gives the rail an anchor when
-             the address is too long to show in full. -->
-        <span class="who">
-          <span class="who-mark" aria-hidden="true">{{ (currentUser.email ?? '?').charAt(0) }}</span>
-          <span class="who-email trunc">{{ currentUser.email }}</span>
-        </span>
-      </div>
-    </aside>
+    <app-nav-rail
+      [active]="tab()"
+      [(collapsed)]="navCollapsed"
+      [displayName]="displayName()"
+      (activated)="closeNav()"
+    />
 
     <div class="main">
       <header class="topbar">
         <button mat-icon-button class="nav-toggle" (click)="toggleNav()"
                 title="Sections" aria-label="Sections">
-          <mat-icon aria-hidden="true">menu</mat-icon>
+          <mat-icon aria-hidden="true" svgIcon="menu"></mat-icon>
         </button>
 
         <h1 class="topbar-title trunc">{{ pageTitle() }}</h1>
@@ -110,12 +36,12 @@
           <button mat-icon-button (click)="toggleTheme()"
                   [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                   [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
-            <mat-icon aria-hidden="true">{{ theme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+            <mat-icon aria-hidden="true" [svgIcon]="theme() === 'dark' ? 'light_mode' : 'dark_mode'"></mat-icon>
           </button>
 
           <button mat-icon-button (click)="signOut()"
                   title="Sign out" aria-label="Sign out">
-            <mat-icon aria-hidden="true">logout</mat-icon>
+            <mat-icon aria-hidden="true" svgIcon="logout"></mat-icon>
           </button>
         </div>
       </header>
@@ -156,7 +82,6 @@
         <app-workspace-page
           class="tab-pane"
           [selection]="workspaceSelection()"
-          (toggleSidebar)="toggleNavCollapsed()"
         />
       </div>
     } @loading (after 150ms; minimum 300ms) {
