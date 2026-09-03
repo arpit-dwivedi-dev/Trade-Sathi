@@ -4,7 +4,6 @@
   <app-nav-rail
     active="account"
     [(collapsed)]="navCollapsed"
-    [displayName]="fullName()"
     (activated)="closeNav()"
   />
 
@@ -42,16 +41,19 @@
           }
         </div>
         <mat-card-content class="acct-body">
+          <!-- The saved name is the heading, with the address under it. A
+               profile with no name saved yet leads with the address instead,
+               and then the sub-line names the sign-in method. -->
           <div class="acct-who">
-            <span class="acct-mark" aria-hidden="true">{{ (user()?.email ?? '?').charAt(0) }}</span>
+            <span class="acct-mark" aria-hidden="true">{{ (whoName() || '?').charAt(0) }}</span>
             <span class="acct-who-text">
-              <span class="acct-email trunc">{{ user()?.email ?? '—' }}</span>
-              <span class="acct-sub">Signed in with email</span>
+              <span class="acct-email trunc">{{ whoName() || '—' }}</span>
+              <span class="acct-sub trunc">{{ whoSub() }}</span>
             </span>
           </div>
 
-          <!-- The address is already the heading above; repeating it as a row
-               would say the same thing twice. -->
+          <!-- The address is already in the heading above; repeating it as a
+               row would say the same thing twice. -->
           <div class="acct-rows">
             @if (memberSince(); as since) {
               <div class="lvl acct-row">

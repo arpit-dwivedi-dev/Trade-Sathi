@@ -450,12 +450,58 @@ export class Watchlist implements OnInit, OnDestroy {
     await this.patchSettings(item, { scheduled_hour_ist: hour, scheduled_minute_ist: minute });
   }
 
-  /** "08:15" for the time input's value, or '' when following the default. */
-  protected scheduledTimeValue(item: WatchlistItem): string {
-    if (item.scheduled_hour_ist === null) return '';
-    const hour = String(item.scheduled_hour_ist).padStart(2, '0');
-    const minute = String(item.scheduled_minute_ist ?? 0).padStart(2, '0');
-    return `${hour}:${minute}`;
+  /**
+   * `<input type="time">` hands scheduling off to the OS/browser's own
+   * picker, which ignores this app's theme entirely (light chrome regardless
+   * of dark mode, a completely different visual language from the rest of
+   * the row). A pair of mat-selects styled the same as the chart-window
+   * field keeps the control inside Material, so it actually reads as part of
+   * this app rather than a stray OS widget dropped into the row.
+   */
+  protected readonly hourOptions = Array.from({ length: 24 }, (_, i) => i);
+
+  private static readonly MINUTE_STEP_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+  protected padTime(value: number): string {
+    return String(value).padStart(2, '0');
+  }
+
+  /** The hour select's bound value: the sentinel 'default' or 0-23. */
+  protected scheduledHourValue(item: WatchlistItem): 'default' | number {
+    return item.scheduled_hour_ist ?? 'default';
+  }
+
+  /**
+   * Minute options are 5-minute steps — coarser than the underlying column
+   * allows, but plenty for a daily schedule and far shorter than a 60-entry
+   * dropdown. The item's actual stored minute is folded in even when it
+   * isn't a multiple of 5, so a value set elsewhere (another device, an
+   * earlier version of this control) is never silently changed just by the
+   * dropdown being opened.
+   */
+  protected minuteOptionsFor(item: WatchlistItem): number[] {
+    const current = item.scheduled_minute_ist ?? 0;
+    const base = Watchlist.MINUTE_STEP_OPTIONS;
+    return base.includes(current) ? base : [...base, current].sort((a, b) => a - b);
+  }
+
+  /** 'default' clears the schedule back to the deployment default (both columns null). */
+  protected async setScheduledHour(item: WatchlistItem, value: 'default' | number): Promise<void> {
+    if (value === 'default') {
+      if (item.scheduled_hour_ist === null) return;
+      await this.patchSettings(item, { scheduled_hour_ist: null, scheduled_minute_ist: null });
+      return;
+    }
+    if (value === item.scheduled_hour_ist) return;
+    await this.patchSettings(item, {
+      scheduled_hour_ist: value,
+      scheduled_minute_ist: item.scheduled_minute_ist ?? 0,
+    });
+  }
+
+  protected async setScheduledMinute(item: WatchlistItem, value: number): Promise<void> {
+    if (item.scheduled_hour_ist === null || value === item.scheduled_minute_ist) return;
+    await this.patchSettings(item, { scheduled_minute_ist: value });
   }
 
   /**

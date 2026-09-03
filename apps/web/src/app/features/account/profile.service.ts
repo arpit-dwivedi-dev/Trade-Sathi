@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type {
   ProfileDetails,
@@ -31,15 +31,35 @@ export class ProfileService {
     return token ? { Authorization: `Bearer ${token}` } : null;
   }
 
+  /**
+   * The saved name, shared by every screen that labels the signed-in person
+   * (the nav rail, from both the app shell and Account). Root-scoped and
+   * filled by the first getProfile() of the session, so navigating between
+   * those screens reuses the name instead of showing the email fallback
+   * again while a fresh read is in flight.
+   */
+  readonly cachedName = signal<string | null>(null);
+  private nameLoad: Promise<void> | null = null;
+
   async getProfile(): Promise<ProfileDetails | null> {
     const headers = await this.authHeaders();
     if (!headers) return null;
     try {
-      return await firstValueFrom(this.http.get<ProfileDetails>('/api/me/profile', { headers }));
+      const details = await firstValueFrom(
+        this.http.get<ProfileDetails>('/api/me/profile', { headers }),
+      );
+      this.cachedName.set(details.fullName);
+      return details;
     } catch (cause) {
       console.warn('failed to load profile', cause);
       return null;
     }
+  }
+
+  /** Fills cachedName once per session. Callers that only need the label use this. */
+  async ensureName(): Promise<void> {
+    this.nameLoad ??= this.getProfile().then(() => undefined);
+    return this.nameLoad;
   }
 
   async updateProfile(updates: ProfileUpdatePayload): Promise<ActionResult> {
@@ -47,6 +67,7 @@ export class ProfileService {
     if (!headers) return NOT_SIGNED_IN;
     try {
       await firstValueFrom(this.http.patch('/api/me/profile', updates, { headers }));
+      if (updates.fullName !== undefined) this.cachedName.set(updates.fullName);
       return { ok: true };
     } catch (cause) {
       const status = cause instanceof HttpErrorResponse ? cause.status : 0;

@@ -70,6 +70,18 @@ export class AccountPage implements OnInit {
 
   protected readonly profile = signal<ProfileDetails | null>(null);
   protected readonly fullName = signal('');
+  /**
+   * The Profile card's heading: the saved name, falling back to the address
+   * for a profile with no name yet. Reads the service's shared value rather
+   * than the editable fullName above, which would follow every keystroke.
+   */
+  protected readonly whoName = computed(
+    () => this.profileService.cachedName()?.trim() || this.user()?.email || '',
+  );
+  /** Under the heading: the address, or the sign-in method when that is the heading. */
+  protected readonly whoSub = computed(() =>
+    this.profileService.cachedName()?.trim() ? (this.user()?.email ?? '') : 'Signed in with email',
+  );
   protected readonly phoneNumber = signal('');
   protected readonly profession = signal('');
   protected readonly location = signal('');

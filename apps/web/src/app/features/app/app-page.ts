@@ -2,7 +2,6 @@ import {
   Component,
   DestroyRef,
   OnInit,
-  computed,
   inject,
   signal,
   viewChild,
@@ -25,7 +24,6 @@ import { Watchlist } from '../watchlist/watchlist';
 import { WorkspacePage } from '../workspace/workspace-page';
 import { NavRail, type NavTab } from '../../shared/nav-rail/nav-rail';
 import { SymbolSearch, type SymbolSelection } from '../../shared/symbol-search/symbol-search';
-import { ProfileService } from '../account/profile.service';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 
@@ -98,7 +96,6 @@ function parseTab(value: string | null): Tab {
 })
 export class AppPage implements OnInit {
   private readonly auth = inject(AuthService);
-  private readonly profileService = inject(ProfileService);
   private readonly billing = inject(BillingService);
   private readonly router = inject(Router);
   private readonly themeService = inject(ThemeService);
@@ -106,19 +103,6 @@ export class AppPage implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly user = this.auth.user;
-  /** The saved profile name, if the Account page has one on record. */
-  private readonly fullName = signal<string | null>(null);
-  /**
-   * What the rail calls the signed-in person: their profile name when they
-   * have saved one, otherwise the local part of their address — the full
-   * address is too long for the rail and reads as data, not as a name.
-   */
-  protected readonly displayName = computed(() => {
-    const name = this.fullName()?.trim();
-    if (name) return name;
-    const email = this.user()?.email ?? '';
-    return email.split('@')[0] || 'Account';
-  });
   protected readonly tab = signal<Tab>('analyze');
   protected readonly theme = this.themeService.theme;
   protected readonly plansOpen = signal(false);
@@ -182,11 +166,6 @@ export class AppPage implements OnInit {
     // rail's CTA label, the overlay, the plan picker's "Current plan" marker —
     // reads the cache it fills rather than querying again.
     void this.billing.ensurePlanSummary();
-
-    // Only for the rail's label — see displayName.
-    void this.profileService
-      .getProfile()
-      .then((details) => this.fullName.set(details?.fullName ?? null));
   }
 
   /** Names the current screen in the top bar, beside the drawer toggle. */

@@ -1,0 +1,35 @@
+// Global scrollbar treatment: one thin, theme-matched scrollbar for the
+// whole app instead of each browser's default chrome. Firefox gets the
+// `scrollbar-width`/`scrollbar-color` pair; WebKit/Blink get the
+// `::-webkit-scrollbar*` pseudo-elements. Both read the same design
+// tokens as everything else so the thumb/track shift with light/dark
+// automatically and never look like an unstyled system control.
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--line-strong);
+  border-radius: var(--r-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--tx-3);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}

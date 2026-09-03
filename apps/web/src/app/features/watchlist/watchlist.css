@@ -51,6 +51,10 @@
    list is the screen rather than a short box at the top of one. The rows
    scroll inside the wrapper below, which is why the card itself clips. */
 .watchlist-card {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -85,7 +89,8 @@
 }
 
 .watchlist-table {
-  min-width: 760px;
+  min-width: 900px;
+  table-layout: fixed;
   width: 100%;
 }
 
@@ -106,26 +111,42 @@
   white-space: nowrap;
 }
 
+.watchlist-table td.mat-mdc-cell {
+  border-bottom-color: var(--line-soft);
+}
+
 .mat-column-symbol {
-  flex: 1.4 1 0;
-  min-width: 0;
   position: relative;
+  width: auto;
 }
 
 .mat-column-window {
-  flex: 1 1 0;
-  min-width: 190px;
   position: relative;
+  width: 200px;
 }
 
 .mat-column-runAt {
-  flex: 0 0 150px;
   position: relative;
+  width: 220px;
 }
 
 .mat-column-dailyBriefing {
-  flex: 0 0 108px;
   position: relative;
+  width: 140px;
+}
+
+.mat-column-actions {
+  width: 300px;
+}
+
+.watchlist-row {
+  height: 56px;
+  transition: background var(--dur-subtle) var(--ease-move);
+}
+
+.watchlist-row:hover,
+.watchlist-row:focus-visible {
+  background: var(--surf-2);
 }
 
 /* The actions cell deliberately carries no rule of its own — it is left as
@@ -143,6 +164,27 @@
   display: flex;
   gap: var(--s2);
   justify-content: flex-end;
+}
+
+.watchlist-actions .mat-mdc-unelevated-button,
+.watchlist-actions .mat-mdc-outlined-button {
+  --mdc-filled-button-container-height: 28px;
+  --mdc-outlined-button-container-height: 28px;
+  font-size: var(--t-2xs);
+  padding: 0 var(--s2);
+  white-space: nowrap;
+}
+
+.watchlist-actions .mat-mdc-icon-button {
+  --mdc-icon-button-state-layer-size: 32px;
+  height: 32px;
+  padding: 4px;
+  width: 32px;
+}
+
+.watchlist-actions .mat-mdc-icon-button .mat-icon {
+  height: 18px;
+  width: 18px;
 }
 
 /* ── busy-row overlay ─────────────────────────────────────
@@ -204,14 +246,15 @@
    a table row, not a stack of form fields. */
 .watchlist-select-field,
 .watchlist-days-field,
-.watchlist-time-field {
-  --mat-form-field-container-height: 40px;
-  --mat-form-field-container-vertical-padding: 8px;
-  font-size: var(--t-xs);
+.watchlist-hour-field,
+.watchlist-minute-field {
+  --mat-form-field-container-height: 36px;
+  --mat-form-field-container-vertical-padding: 6px;
+  font-size: var(--t-2xs);
 }
 
 .watchlist-select-field {
-  width: 160px;
+  width: 140px;
 }
 
 .watchlist-custom {
@@ -221,29 +264,37 @@
 }
 
 .watchlist-days-field {
-  width: 72px;
+  width: 64px;
 }
 
 .watchlist-unit {
   color: var(--tx-3);
-  font-size: var(--t-xs);
+  font-size: var(--t-2xs);
   white-space: nowrap;
 }
 
 /* ── run-at time ─────────────────────────────────────────
-   A native <input type="time"> rather than an hour-only <select> — see
-   watchlist.ts's setScheduledTime doc comment. Kept on one line with its
-   "IST"/"Default" label so this cell's row height matches every other cell
-   in the row. */
+   Hour and minute as a pair of mat-selects rather than a native
+   <input type="time"> — see watchlist.ts's hourOptions doc comment for why:
+   the native control's own picker UI ignores the app's theme entirely. Kept
+   on one line with its "IST"/"Default" label so this cell's row height
+   matches every other cell in the row. */
 .watchlist-time {
   align-items: center;
   display: inline-flex;
-  gap: var(--s2);
+  gap: var(--s1);
 }
 
-.watchlist-time-field {
-  color-scheme: light dark;
-  width: 108px;
+.watchlist-hour-field {
+  width: 92px;
+}
+
+.watchlist-minute-field {
+  width: 68px;
+}
+
+.watchlist-time-sep {
+  color: var(--tx-3);
 }
 
 .watchlist-note-cell {

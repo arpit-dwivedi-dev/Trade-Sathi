@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../core/auth.service';
 import { BillingService } from '../../features/billing/billing.service';
+import { ProfileService } from '../../features/account/profile.service';
 
 /** The dashboard tabs the rail links to. The app shell reads its own tab from the URL. */
 export type NavTab = 'analyze' | 'live' | 'workspace' | 'history' | 'watchlist' | 'logs' | 'billing';
@@ -39,6 +40,7 @@ export class NavRail {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly billing = inject(BillingService);
+  private readonly profiles = inject(ProfileService);
 
   /** The row to mark as the current screen. */
   readonly active = input.required<NavRailActive>();
@@ -50,28 +52,28 @@ export class NavRail {
    */
   readonly collapsed = model(false);
 
-  /**
-   * The name for the identity block. Optional: pages that have already loaded
-   * the profile pass it, and the rest fall back to the email below rather than
-   * making this component issue a second profile read of its own.
-   */
-  readonly displayName = input<string | null>(null);
-
   /** Fired on every row activation, so the parent can close the mobile drawer. */
   readonly activated = output<void>();
 
   protected readonly user = this.auth.user;
 
-  protected readonly name = computed(() => {
-    const passed = this.displayName()?.trim();
-    if (passed) return passed;
-    const email = this.user()?.email ?? '';
-    return email.split('@')[0] || 'Account';
-  });
+  /**
+   * The profile name when there is one; the email address only as a fallback
+   * for a profile with no name saved yet. Read straight off the profile
+   * service rather than taken as an input: the rail is hosted by two
+   * different pages, and when each had to pass the name down, whichever page
+   * had not loaded it yet rendered the email instead.
+   */
+  protected readonly name = computed(
+    () => this.profiles.cachedName()?.trim() || this.user()?.email || 'Account',
+  );
 
   private readonly planKey = signal<string | null>(null);
 
   constructor() {
+    // One profile read for the whole session, shared with the Account page.
+    void this.profiles.ensureName();
+
     // The label below is the only thing this needs the plan for. ensurePlanSummary
     // is cached on the root service, so this shares whatever the billing screen
     // already fetched rather than adding a request.

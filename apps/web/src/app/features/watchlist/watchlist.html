@@ -112,25 +112,41 @@
             <th mat-header-cell *matHeaderCellDef>Run at</th>
             <td mat-cell *matCellDef="let item">
               <span class="watchlist-time">
-                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="watchlist-time-field">
-                  <input
-                    matInput
-                    type="time"
-                    [value]="scheduledTimeValue(item)"
-                    (change)="setScheduledTime(item, $any($event.target).value)"
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="watchlist-hour-field">
+                  <mat-select
+                    [value]="scheduledHourValue(item)"
+                    (selectionChange)="setScheduledHour(item, $any($event.value))"
                     [disabled]="billing.hasDailyBriefingEntitlement() === false"
                     [attr.title]="
                       billing.hasDailyBriefingEntitlement() === false
                         ? 'Requires the Daily Briefing add-on'
                         : null
                     "
-                    [attr.aria-label]="'Scheduled run time for ' + displaySymbol(item)"
-                  />
+                    [attr.aria-label]="'Scheduled hour for ' + displaySymbol(item)"
+                  >
+                    <mat-option value="default">Default</mat-option>
+                    @for (h of hourOptions; track h) {
+                      <mat-option [value]="h">{{ padTime(h) }}</mat-option>
+                    }
+                  </mat-select>
                 </mat-form-field>
-                @if (item.scheduled_hour_ist === null) {
-                  <span class="watchlist-unit">Default</span>
-                } @else {
+                @if (scheduledHourValue(item) !== 'default') {
+                  <span class="watchlist-time-sep">:</span>
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="watchlist-minute-field">
+                    <mat-select
+                      [value]="item.scheduled_minute_ist ?? 0"
+                      (selectionChange)="setScheduledMinute(item, $any($event.value))"
+                      [disabled]="billing.hasDailyBriefingEntitlement() === false"
+                      [attr.aria-label]="'Scheduled minute for ' + displaySymbol(item)"
+                    >
+                      @for (m of minuteOptionsFor(item); track m) {
+                        <mat-option [value]="m">{{ padTime(m) }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
                   <span class="watchlist-unit">IST</span>
+                } @else {
+                  <span class="watchlist-unit">Default</span>
                 }
               </span>
               @if (isBusy(item.id)) {
