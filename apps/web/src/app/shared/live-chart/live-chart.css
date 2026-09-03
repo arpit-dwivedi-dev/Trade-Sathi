@@ -19,7 +19,7 @@
    collapse to zero, but a `1fr` track inside a definite-height grid resolves
    to real pixels before the chart is created, which is all it needs. */
 .live-chart-canvas {
-  background: var(--surf);
+  background: var(--bg-canvas);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   min-height: 0;

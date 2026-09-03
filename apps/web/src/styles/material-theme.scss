@@ -1,7 +1,7 @@
-// Angular Material M3 theme, generated from the app's own accent color
+// Angular Material M3 theme, generated from the app's own brand colour
 // (see theme-colors.scss — produced by `ng generate @angular/material:theme-color
-// --primary-color=#4f46e5`, the light-mode --acc value in tokens.css) rather
-// than a stock Material palette.
+// --primary-color=#2962FF --tertiary-color=#9D2BFF`, the --brand-primary and
+// --ai-accent values in tokens.css) rather than a stock Material palette.
 //
 // Scoped to the same [data-theme] attribute ThemeService (../app/core/theme.service.ts)
 // already sets on <html> — the same mechanism tokens.css's own dark-mode
@@ -32,4 +32,543 @@ html[data-theme='dark'] {
       theme-type: dark,
     ),
   ));
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// System-token binding
+//
+// mat.theme() above derives Material's whole tonal system from two seed
+// colours. That gets the hues right but not the *surfaces*: M3's generated
+// neutrals are tonal steps off the seed, while this app's surfaces are four
+// fixed TradingView greys. Rebinding --mat-sys-* onto the tokens is what makes
+// a mat-card and a hand-written .panel the same colour instead of two shades
+// of nearly-the-same.
+//
+// Both selectors are repeated because mat.theme() emits its dark values at
+// (0,1,1); a bare `html` block would lose to them. Each half of this list
+// matches the specificity of the include it has to outrank and comes later in
+// source order, so it wins on both themes. The values themselves are
+// theme-independent — tokens.css has already resolved which palette is live.
+// ─────────────────────────────────────────────────────────────────────────
+html,
+html[data-theme='dark'] {
+  // ── surfaces ──────────────────────────────────────────
+  // The canvas is the page floor; everything Material considers a "container"
+  // is one flat step above it. The high/highest steps are the hover grey, so a
+  // menu or a raised sheet lands on the same colour a hovered row does.
+  --mat-sys-background: var(--bg-canvas);
+  --mat-sys-on-background: var(--text-main);
+  --mat-sys-surface: var(--bg-surface);
+  --mat-sys-surface-dim: var(--bg-canvas);
+  --mat-sys-surface-bright: var(--bg-hover);
+  --mat-sys-surface-container-lowest: var(--bg-canvas);
+  --mat-sys-surface-container-low: var(--bg-surface);
+  --mat-sys-surface-container: var(--bg-surface);
+  --mat-sys-surface-container-high: var(--bg-hover);
+  --mat-sys-surface-container-highest: var(--bg-hover);
+  --mat-sys-surface-variant: var(--surf-2);
+  --mat-sys-on-surface: var(--text-main);
+  --mat-sys-on-surface-variant: var(--text-muted);
+  --mat-sys-inverse-surface: var(--text-main);
+  --mat-sys-inverse-on-surface: var(--bg-canvas);
+  --mat-sys-scrim: rgba(0, 0, 0, 0.6);
+
+  // ── hairlines ─────────────────────────────────────────
+  // Both outline roles collapse onto the one grid grey: in a flat hierarchy a
+  // "strong" and a "weak" border next to each other just read as an accident.
+  --mat-sys-outline: var(--border-subtle);
+  --mat-sys-outline-variant: var(--border-subtle);
+
+  // ── brand ─────────────────────────────────────────────
+  // --brand-primary is a fill colour. Anything that renders it as *text* takes
+  // --acc-tx instead, which is the same blue moved far enough for 4.5:1.
+  --mat-sys-primary: var(--brand-primary);
+  --mat-sys-on-primary: #ffffff;
+  --mat-sys-primary-container: var(--acc-soft);
+  --mat-sys-on-primary-container: var(--acc-tx);
+  --mat-sys-inverse-primary: var(--acc-tx);
+  --mat-sys-primary-fixed: var(--acc-soft);
+  --mat-sys-primary-fixed-dim: var(--acc-line);
+  --mat-sys-on-primary-fixed: var(--acc-tx);
+  --mat-sys-on-primary-fixed-variant: var(--acc-tx);
+
+  // Secondary is deliberately colourless. Material reaches for it on chips and
+  // unselected controls, and a second hue there would compete with the market
+  // colours for the same glance.
+  --mat-sys-secondary: var(--text-muted);
+  --mat-sys-on-secondary: var(--bg-canvas);
+  --mat-sys-secondary-container: var(--bg-hover);
+  --mat-sys-on-secondary-container: var(--text-main);
+
+  // ── AI ────────────────────────────────────────────────
+  // Material's tertiary slot is where the AI purple lives, so anything themed
+  // `color="tertiary"` is AI output by construction.
+  --mat-sys-tertiary: var(--ai-accent);
+  --mat-sys-on-tertiary: #ffffff;
+  --mat-sys-tertiary-container: var(--ai-soft);
+  --mat-sys-on-tertiary-container: var(--ai-tx);
+
+  // ── error ─────────────────────────────────────────────
+  // The error red is the bearish red. One red on a trading surface: a failed
+  // save and a down day should not be two different alarms.
+  --mat-sys-error: var(--market-down);
+  --mat-sys-on-error: #ffffff;
+  --mat-sys-error-container: color-mix(in srgb, var(--market-down) 16%, transparent);
+  --mat-sys-on-error-container: var(--market-down);
+
+  // ── flat ──────────────────────────────────────────────
+  // Every Material elevation level is off. Separation on this surface comes
+  // from a 1px hairline and nothing else; the overlay rule further down is the
+  // single exception, for panels that float free of the layout entirely.
+  --mat-sys-level0: none;
+  --mat-sys-level1: none;
+  --mat-sys-level2: none;
+  --mat-sys-level3: none;
+  --mat-sys-level4: none;
+  --mat-sys-level5: none;
+
+  // ── radii ─────────────────────────────────────────────
+  --mat-sys-corner-none: 0;
+  --mat-sys-corner-extra-small: var(--r-xs);
+  --mat-sys-corner-small: var(--r-sm);
+  --mat-sys-corner-medium: var(--r-md);
+  --mat-sys-corner-large: var(--r-lg);
+  --mat-sys-corner-extra-large: var(--r-xl);
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// Component overrides
+//
+// The system tokens above get every Material component's *colour* right — a
+// component token left alone falls back to the --mat-sys-* role it was derived
+// from, so most of the surface is already correct by the time this section
+// starts. What remains is the two things a token swap cannot express:
+//
+//   1. The flat hierarchy itself. M3 assumes elevation does the separating, so
+//      a card with its shadow removed has nothing left to mark its edge. The
+//      hairline has to be added as a real border.
+//   2. Density. M3's metrics are sized for touch; this is a data surface.
+//
+// Token names follow Angular Material 22, which renamed the whole --mdc-*
+// surface to --mat-*. They are worth re-deriving from
+// node_modules/@angular/material/fesm2022/<component>.mjs on a major upgrade
+// rather than assumed — a token that no longer exists fails silently.
+//
+// These live with the theme rather than in components.css because they address
+// Material's own generated class names, not anything authored here.
+//
+// Nothing below sets `box-shadow: none` directly: the elevation tokens are
+// already none, and an explicit declaration here would also flatten the few
+// components that deliberately opt back into a shadow (the landing page's
+// preview card, the workspace flyouts).
+// ─────────────────────────────────────────────────────────────────────────
+
+// ── card ────────────────────────────────────────────────
+// The most visible half of the flat hierarchy: 86 cards across the app, every
+// one of them elevated by default. Radius follows tokens.css's own rule that
+// cards take the larger step; the outlined and filled variants are bound too so
+// a card that later opts into one does not fall back to an M3 tonal fill.
+.mat-mdc-card {
+  --mat-card-elevated-container-color: var(--bg-surface);
+  --mat-card-elevated-container-elevation: none;
+  --mat-card-elevated-container-shape: var(--r-lg);
+  --mat-card-filled-container-color: var(--bg-surface);
+  --mat-card-filled-container-elevation: none;
+  --mat-card-filled-container-shape: var(--r-lg);
+  --mat-card-outlined-container-color: var(--bg-surface);
+  --mat-card-outlined-container-elevation: none;
+  --mat-card-outlined-container-shape: var(--r-lg);
+  --mat-card-outlined-outline-color: var(--border-subtle);
+  --mat-card-outlined-outline-width: 1px;
+  --mat-card-subtitle-text-color: var(--text-muted);
+  --mat-card-subtitle-text-font: var(--fb);
+  --mat-card-title-text-font: var(--fh);
+}
+
+// The outlined variant draws this border itself and would end up with two.
+.mat-mdc-card:not(.mat-mdc-card-outlined) {
+  border: 1px solid var(--border-subtle);
+}
+
+// ── sidenav / toolbar ───────────────────────────────────
+// The app's shell is hand-built (.nav / .topbar in components.css), so nothing
+// renders these today. They are bound anyway so a future drawer or toolbar
+// arrives already flat and already the right grey, rather than as the one
+// Material-tinted panel in the product.
+.mat-drawer-container {
+  --mat-sidenav-container-background-color: var(--bg-surface);
+  --mat-sidenav-container-text-color: var(--text-main);
+  --mat-sidenav-container-divider-color: var(--border-subtle);
+  --mat-sidenav-container-elevation-shadow: none;
+  --mat-sidenav-container-shape: 0;
+  --mat-sidenav-content-background-color: var(--bg-canvas);
+  --mat-sidenav-content-text-color: var(--text-main);
+  --mat-sidenav-scrim-color: rgba(0, 0, 0, 0.6);
+}
+
+.mat-drawer {
+  border-right: 1px solid var(--border-subtle);
+}
+
+.mat-toolbar {
+  --mat-toolbar-container-background-color: var(--bg-surface);
+  --mat-toolbar-container-text-color: var(--text-main);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+// ── tabs ────────────────────────────────────────────────
+// The ink bar is the brand blue and the active label goes to full-strength
+// text while an inactive one stays muted. That pairing — not a colour change on
+// the label alone — is what reads as "selected" on this surface.
+.mat-mdc-tab-group,
+.mat-mdc-tab-nav-bar {
+  --mat-tab-active-indicator-color: var(--brand-primary);
+  --mat-tab-active-indicator-height: 2px;
+  --mat-tab-active-focus-indicator-color: var(--brand-primary);
+  --mat-tab-active-hover-indicator-color: var(--brand-primary);
+  --mat-tab-active-label-text-color: var(--text-main);
+  --mat-tab-active-focus-label-text-color: var(--text-main);
+  --mat-tab-active-hover-label-text-color: var(--text-main);
+  --mat-tab-inactive-label-text-color: var(--text-muted);
+  --mat-tab-inactive-focus-label-text-color: var(--text-main);
+  --mat-tab-inactive-hover-label-text-color: var(--text-main);
+  --mat-tab-active-ripple-color: var(--brand-primary);
+  --mat-tab-inactive-ripple-color: var(--text-main);
+  --mat-tab-background-color: transparent;
+  --mat-tab-divider-color: var(--border-subtle);
+  --mat-tab-divider-height: 1px;
+  --mat-tab-container-height: 40px;
+  --mat-tab-label-text-font: var(--fb);
+  --mat-tab-label-text-size: var(--t-sm);
+  --mat-tab-label-text-weight: 500;
+  --mat-tab-label-text-tracking: normal;
+}
+
+// ── form fields (outline) ───────────────────────────────
+// Idle outline is the same hairline every other edge in the product uses, so a
+// field at rest reads as a rectangle on the grid rather than as a control
+// shouting for input. Focus is the only thing that colours it.
+//
+// The focus width stays at 1px: M3 doubles it to 2px, which makes the box jump
+// a pixel as it gains focus and knocks a row of fields out of alignment. The
+// blue is signal enough on its own.
+.mat-mdc-form-field {
+  --mat-form-field-outlined-outline-color: var(--border-subtle);
+  --mat-form-field-outlined-hover-outline-color: var(--line-strong);
+  --mat-form-field-outlined-focus-outline-color: var(--brand-primary);
+  --mat-form-field-outlined-disabled-outline-color: var(--line-soft);
+  --mat-form-field-outlined-outline-width: 1px;
+  --mat-form-field-outlined-focus-outline-width: 1px;
+  --mat-form-field-outlined-container-shape: var(--r-sm);
+  --mat-form-field-outlined-input-text-color: var(--text-main);
+  --mat-form-field-outlined-disabled-input-text-color: var(--text-muted);
+  --mat-form-field-outlined-input-text-placeholder-color: var(--text-muted);
+  --mat-form-field-outlined-label-text-color: var(--text-muted);
+  --mat-form-field-outlined-hover-label-text-color: var(--text-muted);
+  --mat-form-field-outlined-focus-label-text-color: var(--brand-primary);
+  --mat-form-field-outlined-disabled-label-text-color: var(--text-muted);
+  --mat-form-field-outlined-caret-color: var(--brand-primary);
+  --mat-form-field-outlined-label-text-font: var(--fb);
+  --mat-form-field-outlined-label-text-size: var(--t-sm);
+  --mat-form-field-outlined-label-text-populated-size: var(--t-sm);
+  --mat-form-field-outlined-label-text-tracking: normal;
+
+  // One red for everything wrong, matching --mat-sys-error above.
+  --mat-form-field-outlined-error-outline-color: var(--market-down);
+  --mat-form-field-outlined-error-hover-outline-color: var(--market-down);
+  --mat-form-field-outlined-error-focus-outline-color: var(--market-down);
+  --mat-form-field-outlined-error-label-text-color: var(--market-down);
+  --mat-form-field-outlined-error-focus-label-text-color: var(--market-down);
+  --mat-form-field-outlined-error-hover-label-text-color: var(--market-down);
+  --mat-form-field-outlined-error-caret-color: var(--market-down);
+  --mat-form-field-error-text-color: var(--market-down);
+
+  // Tight by default. M3's 56px is a touch target; this is a data surface, and
+  // the two components that had already dropped to 40px locally
+  // (symbol-search, watchlist) set the precedent this makes global.
+  --mat-form-field-container-height: 40px;
+  --mat-form-field-container-vertical-padding: 8px;
+  --mat-form-field-container-text-font: var(--fb);
+  --mat-form-field-container-text-size: var(--t-sm);
+  --mat-form-field-container-text-tracking: normal;
+  --mat-form-field-subscript-text-font: var(--fb);
+  --mat-form-field-subscript-text-size: var(--t-2xs);
+  --mat-form-field-subscript-text-tracking: normal;
+
+  --mat-form-field-leading-icon-color: var(--text-muted);
+  --mat-form-field-trailing-icon-color: var(--text-muted);
+  --mat-form-field-enabled-select-arrow-color: var(--text-muted);
+  --mat-form-field-focus-select-arrow-color: var(--brand-primary);
+  --mat-form-field-state-layer-color: var(--text-main);
+}
+
+// The select trigger lives inside the field and takes its colours from the
+// same place, so a <mat-select> and a text input read as one control type.
+.mat-mdc-form-field .mat-mdc-select {
+  --mat-select-enabled-trigger-text-color: var(--text-main);
+  --mat-select-disabled-trigger-text-color: var(--text-muted);
+  --mat-select-placeholder-text-color: var(--text-muted);
+  --mat-select-enabled-arrow-color: var(--text-muted);
+  --mat-select-disabled-arrow-color: var(--line-strong);
+  --mat-select-focused-arrow-color: var(--brand-primary);
+  --mat-select-invalid-arrow-color: var(--market-down);
+  --mat-select-trigger-text-font: var(--fb);
+  --mat-select-trigger-text-size: var(--t-sm);
+  --mat-select-trigger-text-tracking: normal;
+}
+
+// M3 pads the wrapper for a 16px gutter either side of the text. At this
+// density that is most of a short field's width, so it comes in to 12px.
+.mat-mdc-form-field .mat-mdc-text-field-wrapper {
+  padding-left: var(--s3);
+  padding-right: var(--s3);
+}
+
+.mat-mdc-form-field .mat-mdc-form-field-infix {
+  min-height: 0;
+}
+
+// ── overlay panels ──────────────────────────────────────
+// The one exception to the flat rule. A menu, a select list, an autocomplete
+// and a dialog float free of the layout, with no adjacent edge to borrow
+// separation from — so they keep the hairline *and* the single surviving
+// shadow. The workspace's own .ind-panel / .tool-panel (components.css) set the
+// same shell at a higher specificity and are unaffected by any of this.
+.mat-mdc-menu-panel {
+  --mat-menu-container-color: var(--bg-surface);
+  --mat-menu-container-shape: var(--r-lg);
+  --mat-menu-container-elevation-shadow: var(--sh-3);
+  --mat-menu-divider-color: var(--border-subtle);
+  --mat-menu-item-label-text-color: var(--text-main);
+  --mat-menu-item-icon-color: var(--text-muted);
+  --mat-menu-item-hover-state-layer-color: var(--bg-hover);
+  --mat-menu-item-focus-state-layer-color: var(--bg-hover);
+  --mat-menu-item-label-text-font: var(--fb);
+  --mat-menu-item-label-text-size: var(--t-sm);
+  --mat-menu-item-label-text-tracking: normal;
+  border: 1px solid var(--border-subtle);
+}
+
+.mat-mdc-select-panel {
+  --mat-select-panel-background-color: var(--bg-surface);
+  --mat-select-container-elevation-shadow: var(--sh-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+}
+
+.mat-mdc-autocomplete-panel {
+  --mat-autocomplete-background-color: var(--bg-surface);
+  --mat-autocomplete-container-shape: var(--r-lg);
+  --mat-autocomplete-container-elevation-shadow: var(--sh-3);
+  border: 1px solid var(--border-subtle);
+}
+
+.mat-mdc-dialog-container {
+  --mat-dialog-container-color: var(--bg-surface);
+  --mat-dialog-container-shape: var(--r-lg);
+  --mat-dialog-container-elevation-shadow: var(--sh-3);
+  --mat-dialog-subhead-color: var(--text-main);
+  --mat-dialog-subhead-font: var(--fh);
+  --mat-dialog-supporting-text-color: var(--text-muted);
+  --mat-dialog-supporting-text-font: var(--fb);
+}
+
+.mat-mdc-dialog-surface {
+  border: 1px solid var(--border-subtle);
+}
+
+// A row's hover is the hover grey — the same one a table row and a nav item
+// use, so "the thing under the pointer" looks identical everywhere. The
+// selected row is the only one that takes colour.
+.mat-mdc-option {
+  --mat-option-label-text-color: var(--text-main);
+  --mat-option-label-text-font: var(--fb);
+  --mat-option-label-text-size: var(--t-sm);
+  --mat-option-label-text-tracking: normal;
+  --mat-option-hover-state-layer-color: var(--bg-hover);
+  --mat-option-focus-state-layer-color: var(--bg-hover);
+  --mat-option-selected-state-layer-color: var(--acc-soft);
+  --mat-option-selected-state-label-text-color: var(--acc-tx);
+  --mat-optgroup-label-text-color: var(--text-muted);
+  --mat-optgroup-label-text-font: var(--fb);
+  --mat-optgroup-label-text-size: var(--t-2xs);
+}
+
+// ── chips ───────────────────────────────────────────────
+// Outlined pills rather than filled tone blocks: on a dense surface a filled
+// chip sitting beside a figure competes with the figure for the same glance.
+.mat-mdc-standard-chip {
+  --mat-chip-elevated-container-color: var(--surf-2);
+  --mat-chip-elevated-selected-container-color: var(--acc-soft);
+  --mat-chip-elevated-disabled-container-color: var(--surf-2);
+  --mat-chip-flat-disabled-selected-container-color: var(--surf-2);
+  --mat-chip-outline-color: var(--border-subtle);
+  --mat-chip-disabled-outline-color: var(--line-soft);
+  --mat-chip-focus-outline-color: var(--brand-primary);
+  --mat-chip-outline-width: 1px;
+  --mat-chip-label-text-color: var(--text-main);
+  --mat-chip-selected-label-text-color: var(--acc-tx);
+  --mat-chip-disabled-label-text-color: var(--text-muted);
+  --mat-chip-with-icon-icon-color: var(--text-muted);
+  --mat-chip-with-icon-selected-icon-color: var(--acc-tx);
+  --mat-chip-with-trailing-icon-trailing-icon-color: var(--text-muted);
+  --mat-chip-hover-state-layer-color: var(--text-main);
+  --mat-chip-focus-state-layer-color: var(--text-main);
+  --mat-chip-selected-hover-state-layer-color: var(--brand-primary);
+  --mat-chip-selected-focus-state-layer-color: var(--brand-primary);
+  --mat-chip-label-text-font: var(--fb);
+  --mat-chip-label-text-size: var(--t-2xs);
+  --mat-chip-label-text-tracking: normal;
+  --mat-chip-container-shape-radius: var(--r-sm);
+  --mat-chip-container-height: 26px;
+}
+
+// ── table ───────────────────────────────────────────────
+// Transparent so a table takes whatever panel it is sitting in. Header text is
+// muted and the row rule is the standard hairline: the values are what the eye
+// should land on, not the grid holding them.
+.mat-mdc-table {
+  --mat-table-background-color: transparent;
+  --mat-table-header-container-height: 40px;
+  --mat-table-row-item-container-height: 44px;
+  --mat-table-header-headline-color: var(--text-muted);
+  --mat-table-header-headline-font: var(--fb);
+  --mat-table-header-headline-size: var(--t-2xs);
+  --mat-table-header-headline-weight: 600;
+  --mat-table-header-headline-tracking: normal;
+  --mat-table-row-item-label-text-color: var(--text-main);
+  --mat-table-row-item-label-text-font: var(--fb);
+  --mat-table-row-item-label-text-size: var(--t-xs);
+  --mat-table-row-item-label-text-tracking: normal;
+  --mat-table-row-item-outline-color: var(--border-subtle);
+  --mat-table-row-item-outline-width: 1px;
+}
+
+// ── selection controls ──────────────────────────────────
+.mat-mdc-slide-toggle {
+  --mat-slide-toggle-selected-track-color: var(--brand-primary);
+  --mat-slide-toggle-selected-hover-track-color: var(--brand-primary);
+  --mat-slide-toggle-selected-focus-track-color: var(--brand-primary);
+  --mat-slide-toggle-selected-pressed-track-color: var(--brand-primary);
+  --mat-slide-toggle-selected-handle-color: #ffffff;
+  --mat-slide-toggle-selected-hover-handle-color: #ffffff;
+  --mat-slide-toggle-selected-focus-handle-color: #ffffff;
+  --mat-slide-toggle-selected-pressed-handle-color: #ffffff;
+  --mat-slide-toggle-selected-icon-color: var(--brand-primary);
+  --mat-slide-toggle-unselected-track-color: var(--bg-hover);
+  --mat-slide-toggle-unselected-hover-track-color: var(--bg-hover);
+  --mat-slide-toggle-unselected-focus-track-color: var(--bg-hover);
+  --mat-slide-toggle-unselected-pressed-track-color: var(--bg-hover);
+  --mat-slide-toggle-unselected-handle-color: var(--text-muted);
+  --mat-slide-toggle-unselected-hover-handle-color: var(--text-main);
+  --mat-slide-toggle-unselected-focus-handle-color: var(--text-main);
+  --mat-slide-toggle-unselected-icon-color: var(--bg-surface);
+  --mat-slide-toggle-track-outline-color: var(--border-subtle);
+  --mat-slide-toggle-track-outline-width: 1px;
+  --mat-slide-toggle-selected-track-outline-color: var(--brand-primary);
+  --mat-slide-toggle-handle-elevation-shadow: none;
+  --mat-slide-toggle-disabled-handle-elevation-shadow: none;
+  --mat-slide-toggle-label-text-color: var(--text-main);
+  --mat-slide-toggle-label-text-font: var(--fb);
+  --mat-slide-toggle-label-text-size: var(--t-sm);
+  --mat-slide-toggle-label-text-tracking: normal;
+}
+
+.mat-mdc-checkbox {
+  --mat-checkbox-selected-icon-color: var(--brand-primary);
+  --mat-checkbox-selected-hover-icon-color: var(--brand-primary);
+  --mat-checkbox-selected-focus-icon-color: var(--brand-primary);
+  --mat-checkbox-selected-checkmark-color: #ffffff;
+  --mat-checkbox-selected-hover-state-layer-color: var(--brand-primary);
+  --mat-checkbox-selected-focus-state-layer-color: var(--brand-primary);
+  --mat-checkbox-selected-pressed-state-layer-color: var(--brand-primary);
+  --mat-checkbox-unselected-icon-color: var(--line-strong);
+  --mat-checkbox-unselected-hover-icon-color: var(--text-muted);
+  --mat-checkbox-unselected-focus-icon-color: var(--text-muted);
+  --mat-checkbox-unselected-hover-state-layer-color: var(--text-main);
+  --mat-checkbox-unselected-focus-state-layer-color: var(--text-main);
+  --mat-checkbox-disabled-unselected-icon-color: var(--line-soft);
+  --mat-checkbox-label-text-color: var(--text-main);
+  --mat-checkbox-label-text-font: var(--fb);
+  --mat-checkbox-label-text-size: var(--t-sm);
+  --mat-checkbox-label-text-tracking: normal;
+}
+
+// ── progress ────────────────────────────────────────────
+// The track is the hairline grey rather than a tint of the indicator: a
+// half-filled bar should read as one blue segment on the grid, not as two
+// blues of different strengths.
+.mat-mdc-progress-bar {
+  --mat-progress-bar-active-indicator-color: var(--brand-primary);
+  --mat-progress-bar-track-color: var(--border-subtle);
+}
+
+.mat-mdc-progress-spinner {
+  --mat-progress-spinner-active-indicator-color: var(--brand-primary);
+}
+
+// ── buttons ─────────────────────────────────────────────
+// The app draws its own .btn (components.css) for anything prominent, so these
+// bind what is left — mostly icon buttons in toolbars and card corners — onto
+// the same greys, and flatten the raised variant.
+.mat-mdc-icon-button {
+  --mat-icon-button-icon-color: var(--text-muted);
+  --mat-icon-button-state-layer-color: var(--text-main);
+  --mat-icon-button-disabled-icon-color: var(--line-strong);
+}
+
+.mat-mdc-icon-button:hover {
+  --mat-icon-button-icon-color: var(--text-main);
+}
+
+.mat-mdc-button-base {
+  --mat-button-filled-container-color: var(--brand-primary);
+  --mat-button-filled-label-text-color: #ffffff;
+  --mat-button-filled-container-shape: var(--r-sm);
+  --mat-button-filled-label-text-font: var(--fb);
+  --mat-button-filled-label-text-tracking: normal;
+
+  --mat-button-protected-container-color: var(--bg-surface);
+  --mat-button-protected-label-text-color: var(--text-main);
+  --mat-button-protected-container-shape: var(--r-sm);
+  --mat-button-protected-container-elevation-shadow: none;
+  --mat-button-protected-hover-container-elevation-shadow: none;
+  --mat-button-protected-focus-container-elevation-shadow: none;
+  --mat-button-protected-pressed-container-elevation-shadow: none;
+  --mat-button-protected-disabled-container-elevation-shadow: none;
+  --mat-button-protected-label-text-font: var(--fb);
+  --mat-button-protected-label-text-tracking: normal;
+
+  --mat-button-outlined-outline-color: var(--border-subtle);
+  --mat-button-outlined-outline-width: 1px;
+  --mat-button-outlined-label-text-color: var(--text-main);
+  --mat-button-outlined-container-shape: var(--r-sm);
+  --mat-button-outlined-state-layer-color: var(--text-main);
+  --mat-button-outlined-label-text-font: var(--fb);
+  --mat-button-outlined-label-text-tracking: normal;
+
+  --mat-button-text-label-text-color: var(--acc-tx);
+  --mat-button-text-state-layer-color: var(--brand-primary);
+  --mat-button-text-container-shape: var(--r-sm);
+  --mat-button-text-label-text-font: var(--fb);
+  --mat-button-text-label-text-tracking: normal;
+
+  --mat-button-tonal-container-color: var(--acc-soft);
+  --mat-button-tonal-label-text-color: var(--acc-tx);
+  --mat-button-tonal-container-shape: var(--r-sm);
+  --mat-button-tonal-label-text-font: var(--fb);
+  --mat-button-tonal-label-text-tracking: normal;
+}
+
+// ── tooltip ─────────────────────────────────────────────
+// The hover grey rather than a tint, so a tooltip reads as an overlay on both
+// themes without introducing a second background colour into the system.
+.mat-mdc-tooltip {
+  --mat-tooltip-container-color: var(--bg-hover);
+  --mat-tooltip-supporting-text-color: var(--text-main);
+  --mat-tooltip-container-shape: var(--r-sm);
+  --mat-tooltip-supporting-text-font: var(--fb);
+  --mat-tooltip-supporting-text-size: var(--t-2xs);
+  --mat-tooltip-supporting-text-tracking: normal;
 }

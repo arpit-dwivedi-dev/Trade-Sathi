@@ -8,15 +8,18 @@
   box-sizing: border-box;
 }
 
+/* The canvas is set on <html> as well as <body> so overscroll, the SSR flash
+   before the app boots, and any full-bleed route all land on the same colour
+   rather than the UA's white. */
 html,
 body {
+  background: var(--bg-canvas);
   margin: 0;
   min-height: 100%;
 }
 
 body {
-  background: var(--ground);
-  color: var(--tx);
+  color: var(--text-main);
   font-family: var(--fb);
   font-size: var(--t-base);
   line-height: var(--lh-body);

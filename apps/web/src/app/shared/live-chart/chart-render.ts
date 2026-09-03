@@ -49,21 +49,26 @@ export interface ChartPalette {
   textStrong: string;
   line: string;
   lineSoft: string;
-  surface: string;
+  /** The chart's own background — the deep canvas, not the panel around it. */
+  canvas: string;
   accent: string;
 }
 
-/** Used when a token is missing — during SSR, or before styles are applied. */
+/** Used when a token is missing — during SSR, or before styles are applied.
+ *
+ * These are the dark palette's literals (tokens.css), not the light one's: a
+ * chart that renders before the theme resolves should flash the canvas colour
+ * it will settle on, and dark is what this surface is designed around. */
 const FALLBACK_PALETTE: ChartPalette = {
-  up: '#0a7d55',
-  down: '#c02a26',
-  flat: '#6b7280',
-  text: '#7b8492',
-  textStrong: '#0d1117',
-  line: '#e2e5ea',
-  lineSoft: '#edeff2',
-  surface: '#ffffff',
-  accent: '#1f4fd8',
+  up: '#089981',
+  down: '#f23645',
+  flat: '#787b86',
+  text: '#787b86',
+  textStrong: '#d1d4dc',
+  line: '#2b3139',
+  lineSoft: '#21252f',
+  canvas: '#131722',
+  accent: '#2962ff',
 };
 
 export function readPalette(element: HTMLElement): ChartPalette {
@@ -79,7 +84,7 @@ export function readPalette(element: HTMLElement): ChartPalette {
     textStrong: token('--tx', FALLBACK_PALETTE.textStrong),
     line: token('--line', FALLBACK_PALETTE.line),
     lineSoft: token('--line-soft', FALLBACK_PALETTE.lineSoft),
-    surface: token('--surf', FALLBACK_PALETTE.surface),
+    canvas: token('--bg-canvas', FALLBACK_PALETTE.canvas),
     accent: token('--acc', FALLBACK_PALETTE.accent),
   };
 }
@@ -152,8 +157,12 @@ const VOLUME_AXIS: YAxisOverride = {
 /**
  * Distinct, theme-independent colours for indicator line figures, in the order
  * the library asks for them.
+ *
+ * The brand blue leads, then five hues chosen to stay apart from each other at
+ * a 1px stroke. None of them is the market teal or the market coral: an
+ * indicator line the same colour as a candle body would be read as price.
  */
-const INDICATOR_LINE_COLORS = ['#2563eb', '#f59e0b', '#8b5cf6', '#0ea5e9', '#ec4899', '#14b8a6'];
+const INDICATOR_LINE_COLORS = ['#2962ff', '#ff9800', '#9d2bff', '#00bcd4', '#e91e63', '#7cb342'];
 
 /** Volume bars are the candle colours at low alpha, as they were before the migration. */
 function volumeStyles(palette: ChartPalette): DeepPartial<IndicatorStyle> {
@@ -230,8 +239,8 @@ export function chartStyles(palette: ChartPalette): DeepPartial<Styles> {
 
   return {
     grid: {
-      horizontal: { color: palette.lineSoft },
-      vertical: { color: palette.lineSoft },
+      horizontal: { color: palette.line },
+      vertical: { color: palette.line },
     },
     candle: {
       bar: {
@@ -450,7 +459,7 @@ export function drawLevelOverlays(
         // label reads as belonging to its line — and stays legible in the
         // PNG the model is sent.
         text: {
-          color: palette.surface,
+          color: palette.canvas,
           backgroundColor: color,
           borderColor: color,
           size: 10,

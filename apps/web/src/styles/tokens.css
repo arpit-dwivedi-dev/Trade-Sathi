@@ -1,14 +1,16 @@
 /* Design tokens.
 
-   A warm, modern SaaS surface: neutral greys carry a trace of warmth so the
-   product reads as approachable rather than clinical, and one indigo accent
-   marks everything interactive. Saturated colour is still rationed — direction
-   (up/down), state (warn/fail) and the accent are the only places it appears,
-   because on a trading surface the numbers have to be the loudest thing.
+   A TradingView-dark surface: a near-black blue canvas with every panel one
+   flat step above it, separated by a single hairline rather than a shadow.
+   Saturated colour is rationed to three jobs and never overlaps between them
+   — brand blue marks anything interactive, teal/coral carry direction, and a
+   purple is held back for AI output so a model's read is never mistaken for a
+   market figure.
 
-   Theme is selected by a data-theme attribute on <html> so it can later fall
-   back to prefers-color-scheme without a class-toggle rewrite. */
-
+   The ten palette tokens are the contract; everything below them is an alias
+   the components address by meaning. Theme is selected by a data-theme
+   attribute on <html> so it can later fall back to prefers-color-scheme
+   without a class-toggle rewrite. */
 :root {
   /* ── space ───────────────────────────────────────────────
      A 4px base. Layout gaps live on the 8px steps; the odd
@@ -83,112 +85,162 @@
   --nav-w-sm: 72px;
   --top-h: 60px;
 
-  /* ── light palette (default) ─────────────────────────── */
+  /* ── light palette (default) ───────────────────────────
+     The derived twin of the dark theme below. TradingView's own light
+     surface ladder (#FFFFFF → #F8F9FD → #F0F3FA, hairlines at #E0E3EB)
+     paired with the identical brand, market and AI accents, so the two
+     themes read as one product rather than two. */
   color-scheme: light;
 
-  /* surfaces, from the page floor up. Warm-shifted: a neutral
-     grey next to this indigo reads cold and slightly blue. */
-  --ground: #f7f7f6;
-  --surf: #ffffff;
-  --surf-2: #fafaf9;
-  --surf-3: #f1f1ef;
+  /* surfaces, from the page floor up */
+  --bg-canvas: #f0f3fa;
+  --bg-surface: #ffffff;
+  --bg-hover: #e8ebf2;
+  --border-subtle: #e0e3eb;
+
+  --text-main: #131722;
+  /* TradingView's exact axis grey, and the one token in the set that does not
+     clear 4.5:1 as normal-size body text (3.8:1 on the canvas, 4.2:1 on white).
+     It is correct for what the palette scopes it to — axis labels, inactive
+     icons, and anything else the eye is meant to skip — but --tx-2 is the token
+     for secondary copy that still has to be *read*. See the same note in dark. */
+  --text-muted: #787b86;
+
+  /* the three accents are theme-independent: identical values in both
+     palettes, so a candle, a buy button and an AI badge never shift
+     hue when the theme flips */
+  --brand-primary: #2962ff;
+  --market-up: #089981;
+  --market-down: #f23645;
+  --ai-accent: #9d2bff;
+
+  /* ── internal aliases ────────────────────────────────
+     The names ~400 existing call sites already use, resolved onto the
+     tokens above. Components keep addressing the semantic name (--surf,
+     --line, --tx) and the palette swap happens here, once. */
+
+  --ground: var(--bg-canvas);
+  --surf: var(--bg-surface);
+  --surf-2: #f8f9fd;
+  --surf-3: var(--bg-hover);
 
   /* hairlines: soft divides content, plain divides regions,
      strong outlines a control the user can act on */
-  --line-soft: #f0f0ed;
-  --line: #e6e6e2;
-  --line-strong: #d3d3ce;
+  --line-soft: #eef0f6;
+  --line: var(--border-subtle);
+  --line-strong: #c1c4cd;
 
   /* text, in descending emphasis */
-  --tx: #1a1a18;
-  --tx-2: #5c5c57;
-  /* Dark enough to clear 4.5:1 on the page ground, which is the tightest
-     pairing it appears in — .lbl and .disc are normal-size text, not large,
-     so the AA threshold is the full one. */
-  --tx-3: #6f6f69;
+  --tx: var(--text-main);
+  --tx-2: #50535e;
+  --tx-3: var(--text-muted);
 
-  /* the one accent — interactive and active states only */
-  --acc: #4f46e5;
-  --acc-tx: #4338ca;
-  --acc-soft: #eef2ff;
-  --acc-line: #c7d2fe;
+  /* the brand accent. --acc paints fills and rules; --acc-tx is the
+     text-safe darkening of it, since #2962FF as small text on white
+     lands under 4.5:1. */
+  --acc: var(--brand-primary);
+  --acc-tx: #1a4bd6;
+  --acc-soft: #e8eeff;
+  --acc-line: #b3c6ff;
+
+  /* the AI accent, kept apart from market data by design. --ai-tx is its
+     text-safe form, for the same reason --acc-tx exists. */
+  --ai-tx: #7b1fca;
+  --ai-soft: #f4e7ff;
+  --ai-line: #ddb8ff;
 
   /* the primary control: ink on paper, inverted in dark */
-  --ink: #1a1a18;
+  --ink: #131722;
   --ink-hi: #000000;
   --ink-fg: #ffffff;
 
-  /* the dark analytical slab, used on both themes */
-  --slab: #17171a;
-  --slab-tx: #ededec;
-  --slab-dim: #9a9a95;
-  --slab-line: rgba(237, 237, 236, 0.14);
+  /* the dark analytical slab — the canvas colour on both themes */
+  --slab: #131722;
+  --slab-tx: #d1d4dc;
+  --slab-dim: #787b86;
+  --slab-line: rgba(209, 212, 220, 0.14);
 
-  /* semantics — the only other saturated colour in the system */
-  --up: #0d8f5b;
-  --down: #d33f3f;
-  --flat: #78787a;
-  --warn: #b45309;
-  --focus: #4f46e5;
+  /* direction and state */
+  --up: var(--market-up);
+  --down: var(--market-down);
+  --flat: var(--text-muted);
+  --warn: #e07000;
+  --focus: var(--brand-primary);
 
-  /* elevation. Soft and ambient rather than deep: this is a
-     dense product, and a hard shadow on a dense surface reads
-     as noise. Two layers so the falloff looks like real light. */
-  --sh-1:
-    0 1px 2px rgba(24, 24, 20, 0.04),
-    0 1px 3px rgba(24, 24, 20, 0.03);
-  --sh-2:
-    0 2px 4px -1px rgba(24, 24, 20, 0.04),
-    0 8px 16px -4px rgba(24, 24, 20, 0.07);
-  --sh-3:
-    0 4px 8px -2px rgba(24, 24, 20, 0.05),
-    0 20px 32px -8px rgba(24, 24, 20, 0.13);
+  /* ── elevation ───────────────────────────────────────
+     TradingView separates surfaces with a 1px hairline and nothing else,
+     so the two lower steps are flat by design. Only --sh-3 survives, for
+     true overlays (menus, dialogs) that float free of the layout and have
+     no adjacent edge to borrow separation from. */
+  --sh-1: none;
+  --sh-2: none;
+  --sh-3: 0 4px 16px rgba(19, 23, 34, 0.14);
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* Warm-black rather than blue-black: it sits under the same
-     indigo without the whole page turning navy. */
-  --ground: #0e0e10;
-  --surf: #161618;
-  --surf-2: #1c1c1f;
-  --surf-3: #232327;
+  /* ── TradingView dark ────────────────────────────────
+     The exact TradingView chart-surface palette. #131722 is the chart
+     canvas, #1E222D every panel that sits on it, #2A2E39 the hover and
+     menu step, #2B3139 the grid line that doubles as every border. */
+  --bg-canvas: #131722;
+  --bg-surface: #1e222d;
+  --bg-hover: #2a2e39;
+  --border-subtle: #2b3139;
 
-  --line-soft: #1f1f22;
-  --line: #2a2a2e;
-  --line-strong: #3d3d43;
+  --text-main: #d1d4dc;
+  /* Identical in both themes, and under 4.5:1 in both (3.8:1 on the panel grey,
+     4.2:1 on the canvas). Held anyway because it is the palette's stated value
+     and because at TradingView's own density a fully AA-compliant grey stops
+     receding — but it means --tx-3, which this backs, is no longer the
+     AA-guaranteed token the previous palette made it. Copy that must be read at
+     small sizes should move to --tx-2 (7.8:1). */
+  --text-muted: #787b86;
 
-  --tx: #f0f0ef;
-  --tx-2: #a3a3a0;
-  /* Light enough to clear 4.5:1 on --surf, the tightest pairing here. */
-  --tx-3: #86868d;
+  /* unchanged from light — see the note there */
+  --brand-primary: #2962ff;
+  /* Both clear 4.5:1 against the canvas they are drawn on (5.0:1 and 4.6:1) and
+     land just under it against the lighter panel grey (4.5:1 and 4.1:1). As
+     candle bodies and as the large figures they mostly label, that is fine; a
+     percentage set at --t-2xs on a panel is the one place to check by eye. */
+  --market-up: #089981;
+  --market-down: #f23645;
+  --ai-accent: #9d2bff;
 
-  --acc: #7c73ff;
-  --acc-tx: #a9a3ff;
-  --acc-soft: rgba(124, 115, 255, 0.14);
-  --acc-line: #3f3a8f;
+  /* ── internal aliases ──────────────────────────────── */
+
+  /* --surf-2 sits between the canvas and the hover step, for a strip
+     nested inside a panel that still has to read as part of it. */
+  --surf-2: #232732;
+
+  --line-soft: #21252f;
+  --line-strong: #363a45;
+
+  /* TradingView's own secondary text sits a step above the muted axis
+     grey, which is reserved for labels that must recede. */
+  --tx-2: #b2b5be;
+
+  /* #2962FF is a fill colour here, not a text colour: on #131722 it
+     clears 3:1 for a control surface but not 4.5:1 for a label, so text
+     and links take the lightened tint instead. */
+  --acc-tx: #5b8dff;
+  --acc-soft: rgba(41, 98, 255, 0.18);
+  --acc-line: #2a4586;
+
+  --ai-tx: #c58aff;
+  --ai-soft: rgba(157, 43, 255, 0.18);
+  --ai-line: #5c2a8f;
 
   /* inverted: the primary control is the light one here */
-  --ink: #f0f0ef;
+  --ink: #d1d4dc;
   --ink-hi: #ffffff;
-  --ink-fg: #0e0e10;
+  --ink-fg: #131722;
 
-  --slab: #08080a;
-  --slab-tx: #f0f0ef;
-  --slab-dim: #92929a;
-  --slab-line: rgba(240, 240, 239, 0.11);
+  --slab: #131722;
+  --slab-line: rgba(209, 212, 220, 0.11);
 
-  --up: #34d399;
-  --down: #f87171;
-  --flat: #92929a;
-  --warn: #fbbf24;
-  --focus: #a9a3ff;
+  --warn: #ff9800;
 
-  /* On a dark ground a soft shadow cannot be seen; separation
-     comes from the surface step and the hairline instead. Only
-     true overlays keep a shadow, to sell that they float. */
-  --sh-1: none;
-  --sh-2: 0 8px 24px -8px rgba(0, 0, 0, 0.7);
-  --sh-3: 0 16px 40px -12px rgba(0, 0, 0, 0.8);
+  --sh-3: 0 4px 16px rgba(0, 0, 0, 0.6);
 }

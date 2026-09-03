@@ -1,14 +1,25 @@
 /* Two shapes, chosen by the `fill` class the page sets (see analyze-page.html).
    Without it — something real is on the screen — this is a compact row that
-   spends no more height than it needs. */
+   spends no more height than it needs.
+
+   `flex: none` is load-bearing, not tidiness. .analyze is a flex column, and
+   the result rendered below this is far taller than the viewport. Every flex
+   item in that column defaults to flex-shrink: 1, but the result's own
+   min-height stays `auto`, so it refuses to shrink below its content — which
+   leaves this row as the only item that *can* absorb the overflow. It used to
+   carry `min-height: 0` as well, which removed the last thing stopping it, and
+   the whole overflow was taken out of this one row: the host collapsed to 0px
+   while .drop-zone kept its 82px and spilled over the result, whose header then
+   painted on top of the drop copy. The page scrolls instead. */
 :host {
   display: flex;
+  flex: none;
   flex-direction: column;
-  min-height: 0;
 }
 
 /* With it, the control is the screen: it takes every row the page has left
-   rather than floating as a short box at the top of an empty one. */
+   rather than floating as a short box at the top of an empty one. Growing is
+   safe where shrinking was not — nothing follows it in this state. */
 :host(.fill) {
   flex: 1 1 auto;
 }

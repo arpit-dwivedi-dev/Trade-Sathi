@@ -76,7 +76,7 @@ export class ChartCaptureService {
         await nextFrame();
         await nextFrame();
         const chartImage = await loadImage(
-          target.chart.getConvertPictureUrl(true, 'png', palette.surface),
+          target.chart.getConvertPictureUrl(true, 'png', palette.canvas),
         );
         return await this.compose(chartImage, meta, palette);
       } finally {
@@ -113,7 +113,7 @@ export class ChartCaptureService {
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    ctx.fillStyle = palette.surface;
+    ctx.fillStyle = palette.canvas;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const pad = Math.round(16 * scale);
