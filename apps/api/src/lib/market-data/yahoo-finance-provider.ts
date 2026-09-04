@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { FundamentalsAnnualPeriod, InstrumentFundamentals } from "@chartanalyzer/shared";
 import { logger } from "../logger.js";
 import {
   MarketDataError,
@@ -9,6 +10,15 @@ import {
 } from "./types.js";
 
 const YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
+
+/**
+ * Yahoo's endpoints 429 or 403 a fraction of requests with no User-Agent at
+ * all; a plain browser-like UA is the documented community workaround, not a
+ * spoofing/evasion measure. Shared by every request this module makes,
+ * including the cookie/crumb handshake below, which is refused outright
+ * without one.
+ */
+const YAHOO_USER_AGENT = "Mozilla/5.0 (compatible; ChartAnalyzer/1.0)";
 
 /**
  * Node's fetch has no default timeout, and Yahoo under load soft-throttles by
@@ -117,6 +127,290 @@ export function resolveUpstreamRequest(params: HistoricalCandlesParams): Upstrea
   };
 }
 
+
+/**
+ * One GET against Yahoo, with the shared UA and timeout, and with connection
+ * failures mapped to MarketDataError. The status is deliberately left to the
+ * caller: each endpoint reads its own 401/404 differently (the chart endpoint
+ * is unauthenticated, quoteSummary's 401 means a stale crumb).
+ */
+async function fetchYahoo(url: string, instrumentKey: string, cookie?: string): Promise<Response> {
+  try {
+    return await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": YAHOO_USER_AGENT,
+        ...(cookie ? { Cookie: cookie } : {}),
+      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (cause) {
+    // A timeout is reported as its own thing rather than folded into the
+    // generic failure text: it is the symptom of upstream throttling, and
+    // the one these endpoints actually exhibit under load.
+    if (cause instanceof DOMException && cause.name === "TimeoutError") {
+      throw new MarketDataError(
+        "provider_error",
+        `Yahoo Finance did not respond within ${REQUEST_TIMEOUT_MS}ms for symbol ${instrumentKey}`,
+      );
+    }
+    throw new MarketDataError("provider_error", `Yahoo Finance request failed: ${String(cause)}`);
+  }
+}
+
+/**
+ * The response body as unstructured JSON, for a caller's schema to validate.
+ * AbortSignal.timeout also aborts a stalled body stream, so a response whose
+ * headers arrive promptly but whose body never completes fails here rather
+ * than hanging.
+ */
+async function readYahooJson(response: Response, instrumentKey: string): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch (cause) {
+    throw new MarketDataError(
+      "provider_error",
+      `Yahoo Finance response for ${instrumentKey} was not valid JSON: ${String(cause)}`,
+    );
+  }
+}
+const YAHOO_QUOTE_SUMMARY_URL = "https://query1.finance.yahoo.com/v10/finance/quoteSummary";
+const YAHOO_TIMESERIES_URL =
+  "https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries";
+const YAHOO_COOKIE_URL = "https://fc.yahoo.com/";
+const YAHOO_CRUMB_URL = "https://query1.finance.yahoo.com/v1/test/getcrumb";
+
+/**
+ * The quoteSummary modules the fundamentals contract is built from. One
+ * request covers all of them, so the whole tab is a single upstream call:
+ * `price` and `summaryDetail` for the snapshot, `defaultKeyStatistics` and
+ * `summaryDetail` for valuation, `financialData` for margins/returns/balance
+ * sheet, `summaryProfile` for sector and industry.
+ */
+const QUOTE_SUMMARY_MODULES = [
+  "price",
+  "summaryDetail",
+  "defaultKeyStatistics",
+  "financialData",
+  "summaryProfile",
+] as const;
+
+/**
+ * The annual series behind the financial-history chart and table. These come
+ * from a different endpoint to quoteSummary (fundamentals-timeseries), which
+ * needs no cookie or crumb at all.
+ */
+const ANNUAL_TIMESERIES_TYPES = [
+  "annualTotalRevenue",
+  "annualOperatingIncome",
+  "annualNetIncome",
+  "annualDilutedEPS",
+] as const;
+
+type AnnualTimeseriesType = (typeof ANNUAL_TIMESERIES_TYPES)[number];
+
+/** Yahoo rejects a timeseries request without a window; this one spans every filing. */
+const TIMESERIES_PERIOD1 = 0;
+const TIMESERIES_PERIOD2 = 2_000_000_000;
+
+/**
+ * quoteSummary, unlike the chart endpoint, is cookie-and-crumb gated: without
+ * both it answers 401 `Invalid Crumb` for every symbol. The pair is obtained
+ * the same way a browser gets it — one request that only sets a consent
+ * cookie, then one that trades that cookie for a crumb — and then reused for
+ * every subsequent call rather than re-fetched per request, which would
+ * triple the upstream traffic this endpoint sees.
+ *
+ * Process-local, like the candle cache, and subject to the same
+ * single-instance constraint (see the operational note in CLAUDE.md).
+ */
+interface CrumbSession {
+  cookie: string;
+  crumb: string;
+  fetchedAt: number;
+}
+
+/**
+ * Long enough that the pair is effectively per-process, short enough that a
+ * rotated cookie is picked up without a restart. A 401 invalidates it
+ * immediately regardless — see fetchQuoteSummary.
+ */
+const CRUMB_TTL_MS = 60 * 60_000;
+
+let crumbSession: CrumbSession | null = null;
+let crumbInFlight: Promise<CrumbSession> | null = null;
+
+async function loadCrumbSession(): Promise<CrumbSession> {
+  // The cookie request answers 404 — there is no page at that path, and there
+  // does not need to be; the Set-Cookie header is the whole point of it, so
+  // the status is deliberately not checked.
+  let cookieResponse: Response;
+  try {
+    cookieResponse = await fetch(YAHOO_COOKIE_URL, {
+      headers: { "User-Agent": YAHOO_USER_AGENT },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (cause) {
+    throw new MarketDataError(
+      "provider_error",
+      `Yahoo Finance cookie request failed: ${String(cause)}`,
+    );
+  }
+
+  const cookie = cookieResponse.headers
+    .getSetCookie()
+    .map((entry) => entry.split(";", 1)[0])
+    .filter((pair) => pair.length > 0)
+    .join("; ");
+
+  if (!cookie) {
+    throw new MarketDataError(
+      "auth",
+      "Yahoo Finance did not issue a cookie, so no crumb can be obtained",
+    );
+  }
+
+  let crumbResponse: Response;
+  try {
+    crumbResponse = await fetch(YAHOO_CRUMB_URL, {
+      headers: { "User-Agent": YAHOO_USER_AGENT, Cookie: cookie },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (cause) {
+    throw new MarketDataError(
+      "provider_error",
+      `Yahoo Finance crumb request failed: ${String(cause)}`,
+    );
+  }
+
+  if (!crumbResponse.ok) {
+    throw new MarketDataError(
+      "auth",
+      `Yahoo Finance refused to issue a crumb (HTTP ${crumbResponse.status})`,
+    );
+  }
+
+  const crumb = (await crumbResponse.text()).trim();
+  // A blocked client gets a 200 with an HTML body rather than a crumb, so the
+  // shape is checked and not just the status.
+  if (!crumb || crumb.length > 64 || crumb.includes("<")) {
+    throw new MarketDataError("auth", "Yahoo Finance returned no usable crumb");
+  }
+
+  return { cookie, crumb, fetchedAt: Date.now() };
+}
+
+/**
+ * The cached pair, refreshed when stale and shared while in flight — the
+ * same reasoning as the candle cache's collapsed misses: several concurrent
+ * fundamentals requests on a cold process must not each run their own
+ * two-request handshake.
+ */
+async function getCrumbSession(): Promise<CrumbSession> {
+  const session = crumbSession;
+  if (session && Date.now() - session.fetchedAt < CRUMB_TTL_MS) return session;
+  if (crumbInFlight) return crumbInFlight;
+
+  crumbInFlight = loadCrumbSession()
+    .then((loaded) => {
+      crumbSession = loaded;
+      return loaded;
+    })
+    .finally(() => {
+      crumbInFlight = null;
+    });
+
+  return crumbInFlight;
+}
+
+/**
+ * A sparsely populated numeric field. quoteSummary wraps every figure as
+ * `{ raw, fmt }`, but which figures are present varies by company and by
+ * market — a bank reports no gross margin, a loss-making company no trailing
+ * P/E — and an absent one arrives either missing outright or as an empty
+ * object `{}`. So the envelope below is validated by zod field-by-field, as
+ * the chart response is, while the ~50 figures inside each module are read
+ * through this: a strict per-field schema would reject a perfectly good
+ * response because one ratio does not apply to the company asked about.
+ */
+function readNumber(module: Record<string, unknown> | undefined, key: string): number | null {
+  const field = module?.[key];
+  if (typeof field === "number") return Number.isFinite(field) ? field : null;
+  if (field !== null && typeof field === "object" && "raw" in field) {
+    const { raw } = field;
+    if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  }
+  return null;
+}
+
+function readString(module: Record<string, unknown> | undefined, key: string): string | null {
+  const value = module?.[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/** An epoch-seconds field (`regularMarketTime`, `mostRecentQuarter`) as an ISO string. */
+function readEpochSeconds(
+  module: Record<string, unknown> | undefined,
+  key: string,
+): string | null {
+  const seconds = readNumber(module, key);
+  return seconds === null ? null : new Date(seconds * 1000).toISOString();
+}
+
+// The module bodies are read through readNumber/readString above, so the
+// schema's job here is the envelope: that a result came back at all, and that
+// each module is an object rather than, say, a string.
+const YahooQuoteSummaryResponseSchema = z.object({
+  quoteSummary: z.object({
+    result: z.array(z.record(z.string(), z.record(z.string(), z.unknown()))).nullable(),
+    error: z.object({ code: z.string(), description: z.string() }).nullable(),
+  }),
+});
+
+const YahooTimeseriesResponseSchema = z.object({
+  timeseries: z.object({
+    result: z
+      .array(
+        z
+          .object({
+            meta: z.object({ type: z.array(z.string()) }),
+          })
+          // Each result carries its series under a key named by its own type,
+          // so the payload key is dynamic and cannot be named in the schema.
+          .catchall(z.unknown()),
+      )
+      .nullable(),
+    error: z.unknown().nullable(),
+  }),
+});
+
+/** One `{ asOfDate, reportedValue: { raw } }` entry of a timeseries result. */
+function readTimeseriesPoints(
+  result: { meta: { type: string[] } } & Record<string, unknown>,
+): Map<string, number> {
+  const type = result.meta.type[0];
+  const points = new Map<string, number>();
+  const series = type === undefined ? undefined : result[type];
+  if (!Array.isArray(series)) return points;
+
+  for (const entry of series) {
+    // Yahoo pads a series with nulls for periods it has no filing for.
+    if (entry === null || typeof entry !== "object") continue;
+    const row = entry as Record<string, unknown>;
+    const asOfDate = row["asOfDate"];
+    const value = readNumber(row, "reportedValue");
+    if (typeof asOfDate === "string" && value !== null) points.set(asOfDate, value);
+  }
+  return points;
+}
+
+/**
+ * Everything the fundamentals contract holds except the instrument identity,
+ * which the provider is given as a ticker and never resolves back to a
+ * catalogue row — the service layer adds it.
+ */
+export type ProviderFundamentals = Omit<InstrumentFundamentals, "instrument">;
+
 /**
  * Reads market data from Yahoo Finance's unofficial, undocumented chart API —
  * no API key, no account, no per-user auth. Chosen over Upstox/Dhan/Angel One
@@ -141,33 +435,7 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
   ): Promise<YahooChartResult> {
     const url = `${YAHOO_CHART_URL}/${encodeURIComponent(instrumentKey)}?range=${range}&interval=${interval}`;
 
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-          // Yahoo's chart endpoint 429s or 403s a fraction of requests with no
-          // User-Agent at all; a plain browser-like UA is the documented
-          // community workaround, not a spoofing/evasion measure.
-          "User-Agent": "Mozilla/5.0 (compatible; ChartAnalyzer/1.0)",
-        },
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-    } catch (cause) {
-      // A timeout is reported as its own thing rather than folded into the
-      // generic failure text: it is the symptom of upstream throttling, and
-      // the one this endpoint actually exhibits under load.
-      if (cause instanceof DOMException && cause.name === "TimeoutError") {
-        throw new MarketDataError(
-          "provider_error",
-          `Yahoo Finance did not respond within ${REQUEST_TIMEOUT_MS}ms for symbol ${instrumentKey}`,
-        );
-      }
-      throw new MarketDataError(
-        "provider_error",
-        `Yahoo Finance request failed: ${String(cause)}`,
-      );
-    }
+    const response = await fetchYahoo(url, instrumentKey);
 
     if (response.status === 401 || response.status === 403) {
       throw new MarketDataError(
@@ -188,20 +456,9 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
       );
     }
 
-    let body: unknown;
-    try {
-      // AbortSignal.timeout also aborts a stalled body stream, so a response
-      // whose headers arrive promptly but whose body never completes fails
-      // here rather than hanging.
-      body = await response.json();
-    } catch (cause) {
-      throw new MarketDataError(
-        "provider_error",
-        `Yahoo Finance response was not valid JSON: ${String(cause)}`,
-      );
-    }
-
-    const validation = YahooChartResponseSchema.safeParse(body);
+    const validation = YahooChartResponseSchema.safeParse(
+      await readYahooJson(response, instrumentKey),
+    );
     if (!validation.success) {
       logger.error("yahoo finance chart response failed validation", {
         instrumentKey,
@@ -308,5 +565,247 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
       lastPrice: regularMarketPrice,
       asOf: new Date(regularMarketTime * 1000).toISOString(),
     };
+  }
+
+  /**
+   * Fundamentals for one symbol: the valuation, margin and balance-sheet
+   * figures behind the Fundamentals tab, plus the annual revenue/earnings
+   * history the chart and table there are drawn from.
+   *
+   * Two upstream calls, run together — quoteSummary for everything as-of-now
+   * and fundamentals-timeseries for the yearly history. They are separate
+   * endpoints with separate auth (see getCrumbSession) and there is no single
+   * endpoint that carries both.
+   *
+   * `instrumentKey` is a Yahoo ticker, exactly as for the chart methods.
+   */
+  async getFundamentals(instrumentKey: string): Promise<ProviderFundamentals> {
+    const [modules, annual] = await Promise.all([
+      this.fetchQuoteSummary(instrumentKey),
+      // The history is the one part of this screen that is not worth failing
+      // the whole request over: the figures above it stand on their own, and
+      // this endpoint is the flakier of the two.
+      this.fetchAnnualSeries(instrumentKey).catch((cause: unknown) => {
+        logger.warn("yahoo finance annual fundamentals unavailable", {
+          instrumentKey,
+          cause: String(cause),
+        });
+        return [] as FundamentalsAnnualPeriod[];
+      }),
+    ]);
+
+    const price = modules["price"];
+    const detail = modules["summaryDetail"];
+    const stats = modules["defaultKeyStatistics"];
+    const financials = modules["financialData"];
+    const profile = modules["summaryProfile"];
+
+    return {
+      meta: {
+        currency: readString(price, "currency"),
+        financialCurrency: readString(financials, "financialCurrency"),
+        asOf: readEpochSeconds(price, "regularMarketTime"),
+        mostRecentQuarter: readEpochSeconds(stats, "mostRecentQuarter")?.slice(0, 10) ?? null,
+      },
+      profile: {
+        sector: readString(profile, "sectorDisp") ?? readString(profile, "sector"),
+        industry: readString(profile, "industryDisp") ?? readString(profile, "industry"),
+        employees: readNumber(profile, "fullTimeEmployees"),
+        website: readString(profile, "website"),
+        summary: readString(profile, "longBusinessSummary"),
+      },
+      snapshot: {
+        price: readNumber(price, "regularMarketPrice") ?? readNumber(financials, "currentPrice"),
+        change: readNumber(price, "regularMarketChange"),
+        // Yahoo reports this one as a percentage-as-fraction already.
+        changePercent: readNumber(price, "regularMarketChangePercent"),
+        previousClose: readNumber(price, "regularMarketPreviousClose"),
+        dayLow: readNumber(price, "regularMarketDayLow"),
+        dayHigh: readNumber(price, "regularMarketDayHigh"),
+        fiftyTwoWeekLow: readNumber(detail, "fiftyTwoWeekLow"),
+        fiftyTwoWeekHigh: readNumber(detail, "fiftyTwoWeekHigh"),
+        fiftyDayAverage: readNumber(detail, "fiftyDayAverage"),
+        twoHundredDayAverage: readNumber(detail, "twoHundredDayAverage"),
+        volume: readNumber(price, "regularMarketVolume"),
+        averageVolume: readNumber(detail, "averageVolume"),
+        marketCap: readNumber(price, "marketCap") ?? readNumber(detail, "marketCap"),
+      },
+      valuation: {
+        trailingPe: readNumber(detail, "trailingPE"),
+        forwardPe: readNumber(detail, "forwardPE") ?? readNumber(stats, "forwardPE"),
+        pegRatio: readNumber(stats, "pegRatio"),
+        priceToBook: readNumber(stats, "priceToBook"),
+        priceToSales:
+          readNumber(detail, "priceToSalesTrailing12Months") ??
+          readNumber(stats, "priceToSalesTrailing12Months"),
+        enterpriseValue: readNumber(stats, "enterpriseValue"),
+        enterpriseToRevenue: readNumber(stats, "enterpriseToRevenue"),
+        enterpriseToEbitda: readNumber(stats, "enterpriseToEbitda"),
+        trailingEps: readNumber(stats, "trailingEps"),
+        forwardEps: readNumber(stats, "forwardEps"),
+        bookValue: readNumber(stats, "bookValue"),
+        dividendYield: readNumber(detail, "dividendYield"),
+        dividendRate: readNumber(detail, "dividendRate"),
+        payoutRatio: readNumber(detail, "payoutRatio"),
+        beta: readNumber(detail, "beta") ?? readNumber(stats, "beta"),
+      },
+      profitability: {
+        grossMargin: readNumber(financials, "grossMargins"),
+        operatingMargin: readNumber(financials, "operatingMargins"),
+        ebitdaMargin: readNumber(financials, "ebitdaMargins"),
+        profitMargin:
+          readNumber(financials, "profitMargins") ?? readNumber(stats, "profitMargins"),
+        returnOnEquity: readNumber(financials, "returnOnEquity"),
+        returnOnAssets: readNumber(financials, "returnOnAssets"),
+      },
+      growth: {
+        revenueGrowth: readNumber(financials, "revenueGrowth"),
+        earningsGrowth: readNumber(financials, "earningsGrowth"),
+        earningsQuarterlyGrowth: readNumber(stats, "earningsQuarterlyGrowth"),
+      },
+      health: {
+        totalRevenue: readNumber(financials, "totalRevenue"),
+        ebitda: readNumber(financials, "ebitda"),
+        netIncome: readNumber(stats, "netIncomeToCommon"),
+        totalCash: readNumber(financials, "totalCash"),
+        totalDebt: readNumber(financials, "totalDebt"),
+        debtToEquity: readNumber(financials, "debtToEquity"),
+        currentRatio: readNumber(financials, "currentRatio"),
+        quickRatio: readNumber(financials, "quickRatio"),
+        freeCashflow: readNumber(financials, "freeCashflow"),
+        operatingCashflow: readNumber(financials, "operatingCashflow"),
+        sharesOutstanding: readNumber(stats, "sharesOutstanding"),
+      },
+      annual,
+    };
+  }
+
+  /**
+   * quoteSummary, with one retry on 401. The cookie/crumb pair is cached for
+   * an hour, and Yahoo can rotate it inside that window — a stale pair fails
+   * every call until the TTL expires, so a 401 drops the cached session and
+   * the request is made once more against a fresh one. A second 401 is a real
+   * rejection (blocked or rate-limited) and is reported as such.
+   */
+  private async fetchQuoteSummary(
+    instrumentKey: string,
+  ): Promise<Record<string, Record<string, unknown>>> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const session = await getCrumbSession();
+      const url =
+        `${YAHOO_QUOTE_SUMMARY_URL}/${encodeURIComponent(instrumentKey)}` +
+        `?modules=${QUOTE_SUMMARY_MODULES.join(",")}&crumb=${encodeURIComponent(session.crumb)}`;
+
+      const response = await fetchYahoo(url, instrumentKey, session.cookie);
+
+      if (response.status === 401 || response.status === 403) {
+        crumbSession = null;
+        if (attempt === 0) continue;
+        throw new MarketDataError(
+          "auth",
+          "Yahoo Finance rejected the fundamentals request (blocked/rate-limited)",
+        );
+      }
+      if (response.status === 404) {
+        throw new MarketDataError(
+          "not_found",
+          `Yahoo Finance has no fundamentals for symbol ${instrumentKey}`,
+        );
+      }
+      if (!response.ok) {
+        throw new MarketDataError(
+          "provider_error",
+          `Yahoo Finance returned HTTP ${response.status} for fundamentals`,
+        );
+      }
+
+      const validation = YahooQuoteSummaryResponseSchema.safeParse(
+        await readYahooJson(response, instrumentKey),
+      );
+      if (!validation.success) {
+        logger.error("yahoo finance quoteSummary response failed validation", {
+          instrumentKey,
+          issues: validation.error.issues.map((i) => i.path.join(".")).join(", "),
+        });
+        throw new MarketDataError(
+          "provider_error",
+          "Yahoo Finance response did not match the expected fundamentals schema",
+        );
+      }
+
+      const { result, error } = validation.data.quoteSummary;
+      if (error) {
+        throw new MarketDataError(
+          "not_found",
+          `Yahoo Finance error for symbol ${instrumentKey}: ${error.description}`,
+        );
+      }
+      const modules = result?.[0];
+      if (!modules) {
+        throw new MarketDataError(
+          "not_found",
+          `Yahoo Finance returned no fundamentals for symbol ${instrumentKey}`,
+        );
+      }
+      return modules;
+    }
+
+    // Unreachable: the loop either returns or throws on both attempts.
+    throw new MarketDataError("provider_error", "Yahoo Finance fundamentals request failed");
+  }
+
+  /**
+   * The annual series, joined on fiscal period end. Each requested type comes
+   * back as its own result with its own list of periods, and a company can
+   * have reported one but not another for a given year, so the union of the
+   * dates is walked rather than any single series' own list.
+   */
+  private async fetchAnnualSeries(instrumentKey: string): Promise<FundamentalsAnnualPeriod[]> {
+    const encoded = encodeURIComponent(instrumentKey);
+    const url =
+      `${YAHOO_TIMESERIES_URL}/${encoded}?symbol=${encoded}` +
+      `&type=${ANNUAL_TIMESERIES_TYPES.join(",")}` +
+      `&period1=${TIMESERIES_PERIOD1}&period2=${TIMESERIES_PERIOD2}`;
+
+    const response = await fetchYahoo(url, instrumentKey);
+    if (!response.ok) {
+      throw new MarketDataError(
+        "provider_error",
+        `Yahoo Finance returned HTTP ${response.status} for annual fundamentals`,
+      );
+    }
+
+    const validation = YahooTimeseriesResponseSchema.safeParse(
+      await readYahooJson(response, instrumentKey),
+    );
+    if (!validation.success) {
+      throw new MarketDataError(
+        "provider_error",
+        "Yahoo Finance response did not match the expected timeseries schema",
+      );
+    }
+
+    const byType = new Map<AnnualTimeseriesType, Map<string, number>>();
+    for (const result of validation.data.timeseries.result ?? []) {
+      const type = result.meta.type[0];
+      if (type === undefined) continue;
+      if (!(ANNUAL_TIMESERIES_TYPES as readonly string[]).includes(type)) continue;
+      byType.set(type as AnnualTimeseriesType, readTimeseriesPoints(result));
+    }
+
+    const dates = new Set<string>();
+    for (const points of byType.values()) {
+      for (const date of points.keys()) dates.add(date);
+    }
+
+    return [...dates]
+      .sort((a, b) => a.localeCompare(b))
+      .map((asOfDate) => ({
+        asOfDate,
+        revenue: byType.get("annualTotalRevenue")?.get(asOfDate) ?? null,
+        operatingIncome: byType.get("annualOperatingIncome")?.get(asOfDate) ?? null,
+        netIncome: byType.get("annualNetIncome")?.get(asOfDate) ?? null,
+        dilutedEps: byType.get("annualDilutedEPS")?.get(asOfDate) ?? null,
+      }));
   }
 }

@@ -2,6 +2,7 @@ import {
   resolveUpstreamRequest,
   YahooFinanceMarketDataProvider,
 } from "../lib/market-data/yahoo-finance-provider.js";
+import type { ProviderFundamentals } from "../lib/market-data/yahoo-finance-provider.js";
 import type { Candle, MarketDataProvider, Quote } from "../lib/market-data/types.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { toYahooSymbol } from "./watchlist.service.js";
@@ -20,7 +21,12 @@ import { toYahooSymbol } from "./watchlist.service.js";
 // window; it just keeps the most recent MAX_CANDLES_FOR_CHART of it.
 export const MAX_CANDLES_FOR_CHART = 250;
 
-export const marketDataProvider: MarketDataProvider = new YahooFinanceMarketDataProvider();
+// Concretely typed, `satisfies`-checked against the provider-agnostic
+// contract every automated-analysis path depends on: fundamentals are read
+// off this same instance (one client, one connection pool, one crumb
+// session), and getFundamentals is deliberately not part of that contract —
+// it serves one screen, not the analysis pipeline.
+export const marketDataProvider = new YahooFinanceMarketDataProvider() satisfies MarketDataProvider;
 
 export interface CandleSpec {
   unit: "minutes" | "days";
@@ -177,6 +183,13 @@ class TtlCache<T> {
   private readonly entries = new Map<string, CacheEntry<T>>();
   private readonly inFlight = new Map<string, Promise<T>>();
 
+  /**
+   * @param pruneAfterMs the longest TTL this cache is ever resolved with, so
+   * prune() below can tell an entry no caller could still be served from a
+   * live one. Defaults to the candle path's longest.
+   */
+  constructor(private readonly pruneAfterMs: number = DAILY_TTL_MS) {}
+
   async resolve(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
     const entry = this.entries.get(key);
     if (entry && Date.now() - entry.fetchedAt < ttlMs) return entry.value;
@@ -214,7 +227,7 @@ class TtlCache<T> {
     for (const [key, entry] of this.entries) {
       // The longest TTL in use, so this only drops entries no caller could
       // still have served to them.
-      if (now - entry.fetchedAt >= DAILY_TTL_MS) this.entries.delete(key);
+      if (now - entry.fetchedAt >= this.pruneAfterMs) this.entries.delete(key);
     }
     // Map iterates in insertion order, so the first key is the oldest write.
     while (this.entries.size > MAX_CACHE_ENTRIES) {
@@ -236,10 +249,22 @@ class TtlCache<T> {
 const candleCache = new TtlCache<Candle[]>();
 const quoteCache = new TtlCache<Quote>();
 
+/**
+ * Fundamentals move on a filing calendar, not a candle clock — the ratios
+ * behind them are restated quarterly — so this is cached far longer than
+ * anything on the candle path. The price fields inside the payload do go
+ * stale within the window; that is accepted, because the Fundamentals screen
+ * is not a price ticker (the Live tab is) and the alternative is two upstream
+ * calls per visitor per visit for figures that did not change.
+ */
+const FUNDAMENTALS_TTL_MS = 15 * 60_000;
+const fundamentalsCache = new TtlCache<ProviderFundamentals>(FUNDAMENTALS_TTL_MS);
+
 /** Test seam: the caches are process-global, which would otherwise leak between tests. */
 export function clearCandleCache(): void {
   candleCache.clear();
   quoteCache.clear();
+  fundamentalsCache.clear();
 }
 
 export interface CandleWindow {
@@ -314,5 +339,21 @@ export async function getCandlesForInstrument(
 export async function getQuoteForInstrument(ref: InstrumentRef): Promise<Quote> {
   return quoteCache.resolve(ref.instrumentKey, QUOTE_TTL_MS, () =>
     marketDataProvider.getQuote(ref.instrumentKey),
+  );
+}
+
+/**
+ * Fundamentals for one instrument, cached on the same terms as candles and
+ * quotes. Keyed on the Yahoo ticker rather than the instrument id so the NSE
+ * and BSE rows for the same ticker are not two upstream reads of the same
+ * filings.
+ *
+ * Throws MarketDataError from the provider; callers decide policy.
+ */
+export async function getFundamentalsForInstrument(
+  ref: InstrumentRef,
+): Promise<ProviderFundamentals> {
+  return fundamentalsCache.resolve(ref.instrumentKey, FUNDAMENTALS_TTL_MS, () =>
+    marketDataProvider.getFundamentals(ref.instrumentKey),
   );
 }

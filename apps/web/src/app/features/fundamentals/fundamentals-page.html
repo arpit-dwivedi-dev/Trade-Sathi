@@ -1,0 +1,284 @@
+<section class="body content-max fund">
+  <!-- Declared once, placed twice: it stands where the placeholder's icon
+       would otherwise be while there is nothing to read, and docks into the
+       company card's own header once there is. Disabled until the figures
+       have arrived — there is nothing for it to analyse before that.
+       Deliberately unwired even when enabled: the AI reading of these figures
+       is not built yet, and this is the place it will be started from. -->
+  <ng-template #analyzeButton let-ready="ready">
+    <button mat-flat-button color="primary" class="fund-ai" [disabled]="!ready">
+      <mat-icon aria-hidden="true" svgIcon="psychology"></mat-icon>
+      Analyze with AI
+    </button>
+  </ng-template>
+
+  @if (loading()) {
+    <div class="fund-skel" aria-busy="true">
+      <div class="skel fund-skel-head"></div>
+      <div class="tiles">
+        @for (slot of [1, 2, 3, 4]; track slot) {
+          <div class="skel fund-skel-tile"></div>
+        }
+      </div>
+      <div class="skel fund-skel-block"></div>
+    </div>
+  } @else if (error(); as message) {
+    <mat-card class="fund-empty">
+      <p class="err">{{ message }}</p>
+      <button mat-stroked-button (click)="reload()">
+        <mat-icon aria-hidden="true" svgIcon="refresh"></mat-icon>
+        Try again
+      </button>
+    </mat-card>
+  } @else if (data(); as f) {
+    <!-- ── identity ────────────────────────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd fund-ident-head">
+        <span class="fund-ident">
+          <span class="sym fund-sym">{{ f.instrument.symbol }}</span>
+          <mat-chip-set aria-label="Listing">
+            <mat-chip>{{ f.instrument.exchange }}</mat-chip>
+            @if (f.profile.sector; as sector) {
+              <mat-chip>{{ sector }}</mat-chip>
+            }
+          </mat-chip-set>
+        </span>
+
+        <span class="fund-head-end">
+          <span class="fund-quote" [attr.data-tone]="changeTone() ?? null">
+            <span class="tnum fund-price">{{ price(f.snapshot.price) }}</span>
+            @if (f.snapshot.change !== null) {
+              <span class="tnum fund-change">
+                {{ f.snapshot.change > 0 ? '+' : '' }}{{ ratio(f.snapshot.change) }}
+                ({{ signedPercent(f.snapshot.changePercent) }})
+              </span>
+            }
+          </span>
+
+          <ng-container [ngTemplateOutlet]="analyzeButton"
+                        [ngTemplateOutletContext]="{ ready: true }" />
+        </span>
+      </div>
+
+      <div class="fund-ident-body">
+        <p class="fund-name">{{ f.instrument.name }}</p>
+        <p class="meta dim fund-ident-meta">
+          @if (f.profile.industry; as industry) {
+            <span>{{ industry }}</span>
+          }
+          @if (f.profile.employees !== null) {
+            <span>{{ whole(f.profile.employees) }} employees</span>
+          }
+          @if (f.meta.mostRecentQuarter; as quarter) {
+            <span>Latest reported quarter {{ quarter }}</span>
+          }
+        </p>
+
+        @if (f.profile.summary; as summary) {
+          <p class="meta fund-summary" [class.fund-summary-open]="summaryOpen()">{{ summary }}</p>
+          <button mat-button class="fund-summary-toggle" (click)="toggleSummary()"
+                  [attr.aria-expanded]="summaryOpen()">
+            {{ summaryOpen() ? 'Show less' : 'Read more' }}
+          </button>
+        }
+      </div>
+    </mat-card>
+
+    <!-- ── headline figures ───────────────────────────────── -->
+    <div class="tiles">
+      @for (tile of tiles(); track tile.label) {
+        <div class="tile">
+          <span class="lbl">{{ tile.label }}</span>
+          <b class="tnum">{{ tile.value }}</b>
+        </div>
+      }
+    </div>
+
+    <!-- ── 52-week range ──────────────────────────────────── -->
+    @if (rangePosition() !== null) {
+      <mat-card class="fund-card fund-range-card">
+        <div class="fund-range-head">
+          <span class="lbl">52-week range</span>
+          <span class="tnum dim fund-range-now">Last {{ price(f.snapshot.price) }}</span>
+        </div>
+        <div class="fund-range" role="img"
+             [attr.aria-label]="'Last price ' + price(f.snapshot.price)
+               + ' within a 52-week range of ' + price(f.snapshot.fiftyTwoWeekLow)
+               + ' to ' + price(f.snapshot.fiftyTwoWeekHigh)">
+          <span class="fund-range-track"></span>
+          <span class="fund-range-mark" [style.left.%]="rangePosition()"></span>
+        </div>
+        <div class="lvl fund-range-ends">
+          <span class="tnum dim">{{ price(f.snapshot.fiftyTwoWeekLow) }}</span>
+          <span class="tnum dim">{{ price(f.snapshot.fiftyTwoWeekHigh) }}</span>
+        </div>
+      </mat-card>
+    }
+
+    <!-- Sections stack full width and read in the order the questions come
+         in: what am I paying for it, what does it earn, can it survive, what
+         has it reported — and trading statistics last, below, since they
+         describe the share price rather than the business.
+
+         Each section's figures flow into as many columns as the width holds
+         (see .fund-figures), which is why a section is a short wide band and
+         not a tall narrow list. Side-by-side cards were tried first and could
+         not work: a column of 13 figures beside a column of 3 leaves the
+         short one's card half empty however the cards are packed. -->
+
+    <!-- ── what the market is paying ─────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd"><span class="lbl">Valuation &amp; ratios</span></div>
+      <ul class="fund-figures">
+        @for (figure of valuationFigures(); track figure.label) {
+          <li class="lvl fund-figure">
+            <span class="meta">{{ figure.label }}</span>
+            <span class="tnum fund-figure-val">{{ figure.value }}</span>
+          </li>
+        }
+      </ul>
+    </mat-card>
+
+    <!-- ── what the company earns ────────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd"><span class="lbl">Profitability &amp; returns</span></div>
+      <div class="fund-bars">
+        @for (row of profitabilityRatios(); track row.label) {
+          <div class="fund-bar">
+            <span class="lvl">
+              <span class="meta">{{ row.label }}</span>
+              <span class="tnum fund-figure-val">{{ percent(row.value) }}</span>
+            </span>
+            <span class="meter fund-meter"><i [style.width.%]="row.fill"></i></span>
+          </div>
+        }
+      </div>
+
+      <div class="hd fund-hd-mid"><span class="lbl">Growth</span></div>
+      <ul class="fund-figures">
+        @for (figure of growthFigures(); track figure.label) {
+          <li class="lvl fund-figure">
+            <span class="meta">{{ figure.label }}</span>
+            <span class="tnum fund-figure-val" [attr.data-tone]="figure.tone ?? null">
+              {{ figure.value }}
+            </span>
+          </li>
+        }
+      </ul>
+    </mat-card>
+
+    <!-- ── what it is built on ───────────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd"><span class="lbl">Scale &amp; balance sheet</span></div>
+      <ul class="fund-figures">
+        @for (figure of healthFigures(); track figure.label) {
+          <li class="lvl fund-figure">
+            <span class="meta">{{ figure.label }}</span>
+            <span class="tnum fund-figure-val">{{ figure.value }}</span>
+          </li>
+        }
+      </ul>
+    </mat-card>
+
+    <!-- ── reported years ─────────────────────────────────── -->
+    @if (annualRows().length > 0) {
+      <mat-card class="fund-card">
+        <div class="hd fund-annual-head">
+          <span class="lbl">Reported years</span>
+          <mat-button-toggle-group class="seg" aria-label="Financial metric"
+                                   hideSingleSelectionIndicator [value]="annualMetric()"
+                                   (change)="selectAnnualMetric($event.value)">
+            @for (metric of annualMetrics; track metric.key) {
+              <mat-button-toggle [value]="metric.key">{{ metric.label }}</mat-button-toggle>
+            }
+          </mat-button-toggle-group>
+        </div>
+
+        <div class="fund-annual-body">
+          @if (annualBars().length > 0) {
+            <div class="fund-chart">
+              <span class="fund-chart-zero" [style.bottom.%]="annualZeroPct()"
+                    aria-hidden="true"></span>
+              @for (bar of annualBars(); track bar.asOfDate) {
+                <div class="fund-chart-col"
+                     [title]="annualMetricLabel() + ' ' + bar.year + ': ' + bar.label">
+                  <span class="fund-chart-val tnum">{{ bar.label }}</span>
+                  @if (!bar.missing) {
+                    <span class="fund-chart-bar" [class.fund-chart-bar-neg]="bar.negative"
+                          [style.height.%]="bar.heightPct" [style.bottom.%]="bar.basePct"></span>
+                  }
+                  <span class="fund-chart-year tnum">{{ bar.year }}</span>
+                </div>
+              }
+            </div>
+          }
+
+          <div class="tbl fund-tbl">
+            <div class="tr tr-h fund-tr">
+              <span>Fiscal year end</span>
+              <span class="fund-tbl-num">Revenue</span>
+              <span class="fund-tbl-num">Operating income</span>
+              <span class="fund-tbl-num">Net income</span>
+              <span class="fund-tbl-num">Diluted EPS</span>
+            </div>
+            @for (period of annualRows(); track period.asOfDate) {
+              <div class="tr fund-tr">
+                <span class="tnum">{{ period.asOfDate }}</span>
+                <span class="tnum fund-tbl-num">{{ annualValue(period, 'revenue') }}</span>
+                <span class="tnum fund-tbl-num">{{ annualValue(period, 'operatingIncome') }}</span>
+                <span class="tnum fund-tbl-num">{{ annualValue(period, 'netIncome') }}</span>
+                <span class="tnum fund-tbl-num">{{ annualValue(period, 'dilutedEps') }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </mat-card>
+    }
+
+    <!-- ── the share itself ──────────────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd"><span class="lbl">Trading</span></div>
+      <ul class="fund-figures">
+        @for (figure of tradingFigures(); track figure.label) {
+          <li class="lvl fund-figure">
+            <span class="meta">{{ figure.label }}</span>
+            <span class="tnum fund-figure-val">{{ figure.value }}</span>
+          </li>
+        }
+      </ul>
+    </mat-card>
+
+    <p class="disc">
+      Figures are as published by the market-data provider
+      @if (f.meta.financialCurrency; as currency) { in {{ currency }} }
+      and can lag a company's own filings. Nothing here is investment advice.
+    </p>
+  } @else {
+    <div class="fund-placeholder">
+      <ng-container [ngTemplateOutlet]="analyzeButton"
+                    [ngTemplateOutletContext]="{ ready: false }" />
+
+      <h2>Search for a symbol to read its fundamentals</h2>
+      <p>
+        Type a symbol or company name in the search box at the top of the page. Once a company
+        is open you get its valuation and ratios, margins and returns, growth, scale and
+        balance sheet, and every fiscal year it has reported — and Analyze with AI turns on.
+      </p>
+
+      <dl class="fund-placeholder-features">
+        <div>
+          <dt aria-hidden="true"><mat-icon svgIcon="percent"></mat-icon></dt>
+          <dd>Valuation &amp; ratios</dd>
+        </div>
+        <div>
+          <dt aria-hidden="true"><mat-icon svgIcon="equalizer"></mat-icon></dt>
+          <dd>Margins &amp; returns</dd>
+        </div>
+        <div>
+          <dt aria-hidden="true"><mat-icon svgIcon="stacked_bar_chart"></mat-icon></dt>
+          <dd>Every reported year</dd>
+        </div>
+      </dl>
+    </div>
+  }
+</section>

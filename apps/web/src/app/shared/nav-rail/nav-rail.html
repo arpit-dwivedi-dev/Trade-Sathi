@@ -55,6 +55,14 @@
     <span class="nav-item-lbl">Analysis History</span>
   </button>
 
+  <span class="nav-lbl">Research</span>
+
+  <button type="button" class="nav-item" title="Fundamentals" (click)="select('fundamentals')"
+          [attr.aria-current]="active() === 'fundamentals' ? 'page' : null">
+    <mat-icon aria-hidden="true" svgIcon="balance"></mat-icon>
+    <span class="nav-item-lbl">Fundamentals</span>
+  </button>
+
   <span class="nav-lbl">Activity</span>
 
   <button type="button" class="nav-item" title="Logs" (click)="select('logs')"

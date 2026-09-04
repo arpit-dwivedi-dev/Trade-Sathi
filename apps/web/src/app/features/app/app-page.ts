@@ -17,6 +17,7 @@ import { AccountPage } from '../account/account-page';
 import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingPage } from '../billing/billing-page';
 import { BillingService } from '../billing/billing.service';
+import { FundamentalsPage } from '../fundamentals/fundamentals-page';
 import { PlansOverlay } from '../billing/plans-overlay';
 import { HistoryList } from '../history/history-list';
 import { LivePage } from '../live/live-page';
@@ -37,13 +38,14 @@ type Tab = NavTab;
  * than torn down — see the template) so a chart tab returns to the symbol
  * still written in the box.
  */
-const SEARCHABLE_TABS: readonly Tab[] = ['live', 'workspace', 'watchlist'];
+const SEARCHABLE_TABS: readonly Tab[] = ['live', 'workspace', 'watchlist', 'fundamentals'];
 
 const TABS: readonly Tab[] = [
   'live',
   'analyze',
   'workspace',
   'watchlist',
+  'fundamentals',
   'history',
   'logs',
   'billing',
@@ -67,6 +69,7 @@ const TAB_TITLES: Readonly<Record<Tab, string>> = {
   workspace: 'Manual Chart Analysis',
   history: 'Analysis History',
   watchlist: 'Watch List',
+  fundamentals: 'Fundamentals',
   logs: 'Logs',
   billing: 'Billing',
   account: 'Account',
@@ -83,6 +86,7 @@ function parseTab(value: string | null): Tab {
     AccountPage,
     AnalyzePage,
     BillingPage,
+    FundamentalsPage,
     HistoryList,
     LivePage,
     LogsPage,
@@ -135,6 +139,13 @@ export class AppPage implements OnInit {
    * kept value would re-stage last week's symbol under the Add button.
    */
   protected readonly watchlistSelection = signal<SymbolSelection | null>(null);
+  /**
+   * Fundamentals is not a chart, but it is the same question — which symbol
+   * are we looking at — so it gets the same kept-per-tab treatment: coming
+   * back to the tab shows the company that was being read, not an empty
+   * screen.
+   */
+  protected readonly fundamentalsSelection = signal<SymbolSelection | null>(null);
   private selectionSeq = 0;
 
   /**
@@ -188,6 +199,7 @@ export class AppPage implements OnInit {
     if (this.tab() === 'workspace') this.workspaceSelection.set(selection);
     else if (this.tab() === 'live') this.liveSelection.set(selection);
     else if (this.tab() === 'watchlist') this.watchlistSelection.set(selection);
+    else if (this.tab() === 'fundamentals') this.fundamentalsSelection.set(selection);
   }
 
   /** The watchlist asking for the box back after an add (or a cancel). */

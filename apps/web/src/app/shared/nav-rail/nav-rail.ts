@@ -14,6 +14,7 @@ export type NavTab =
   | 'workspace'
   | 'history'
   | 'watchlist'
+  | 'fundamentals'
   | 'logs'
   | 'billing'
   | 'account';

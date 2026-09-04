@@ -87,6 +87,20 @@
       <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading the workspace…</p>
     }
 
+    <!-- Deferred, then kept mounted while hidden, like the chart tabs: the
+         figures for the company being read cost two upstream calls to fetch,
+         so glancing at another tab must not throw them away. -->
+    @defer (when tab() === 'fundamentals') {
+      <div class="tab-pane" [hidden]="tab() !== 'fundamentals'">
+        <app-fundamentals-page
+          class="tab-pane"
+          [selection]="fundamentalsSelection()"
+        />
+      </div>
+    } @loading (after 150ms; minimum 300ms) {
+      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading fundamentals…</p>
+    }
+
     <!-- Deferred rather than @if'd, but the effect on mounting is the same:
          nothing renders until this tab is activated. -->
     @defer (when tab() === 'history') {

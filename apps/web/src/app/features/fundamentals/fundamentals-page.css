@@ -1,0 +1,457 @@
+/* This is the shell's .body (see components.css), so it is already the
+   scrolling flex column sized to the space under the topbar. Everything below
+   only arranges what that column contains — no colours, radii or type sizes
+   of its own beyond the tokens. */
+.fund {
+  gap: var(--s3);
+  /* Tighter than .body's default on all four sides. This screen is a dense
+     grid of figures rather than a column of prose: the default 24px inset and
+     48px tail put a card's worth of empty space around a page whose whole job
+     is fitting readings on screen together. */
+  padding: var(--s4) var(--s4) var(--s6);
+}
+
+/* ── page header ─────────────────────────────────────────── */
+
+/* Price and action at the card head's right edge. The head's own middle is
+   elastic, so this is the width that used to be a blank row. */
+.fund-head-end {
+  align-items: center;
+  display: flex;
+  gap: var(--s4);
+}
+
+.fund-ai {
+  flex: none;
+}
+
+/* ── identity card ───────────────────────────────────────── */
+
+.fund-card {
+  display: block;
+  overflow: visible;
+}
+
+.fund-ident-head {
+  flex-wrap: wrap;
+}
+
+.fund-ident {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.fund-sym {
+  font-size: var(--t-md);
+}
+
+.fund-quote {
+  align-items: baseline;
+  display: flex;
+  gap: var(--s3);
+}
+
+.fund-price {
+  font-size: var(--t-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* The day's move is the only figure on the card that carries a direction, so
+   the tone lives on the wrapper and only the change inherits it. */
+.fund-quote[data-tone='up'] .fund-change {
+  color: var(--up);
+}
+
+.fund-quote[data-tone='down'] .fund-change {
+  color: var(--down);
+}
+
+.fund-change {
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+.fund-ident-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s3) var(--s5) var(--s4);
+}
+
+.fund-name {
+  color: var(--tx);
+  font-family: var(--fh);
+  font-size: var(--t-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Descriptive facts, read as one line and separated rather than listed. */
+.fund-ident-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+}
+
+.fund-ident-meta span + span::before {
+  content: '·';
+  margin-right: var(--s4);
+}
+
+/* Clamped until asked for: a business summary runs to a full paragraph and
+   would otherwise push every figure on the screen below the fold. */
+.fund-summary {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  overflow: hidden;
+}
+
+.fund-summary-open {
+  -webkit-line-clamp: unset;
+  display: block;
+}
+
+.fund-summary-toggle {
+  align-self: flex-start;
+  margin-left: calc(var(--s3) * -1);
+  margin-top: calc(var(--s2) * -1);
+}
+
+/* ── 52-week range ───────────────────────────────────────── */
+
+.fund-range-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s4) var(--s5);
+}
+
+.fund-range-head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--s3);
+  justify-content: space-between;
+}
+
+.fund-range-now {
+  font-size: var(--t-xs);
+}
+
+/* The track is a gradient rather than a fill: the marker is the reading, and
+   a filled bar would imply the range below it had been "achieved". */
+.fund-range {
+  align-items: center;
+  display: flex;
+  height: 14px;
+  position: relative;
+}
+
+.fund-range-track {
+  background: linear-gradient(90deg, var(--down) 0%, var(--line-strong) 50%, var(--up) 100%);
+  border-radius: var(--r-pill);
+  height: 6px;
+  opacity: 0.55;
+  width: 100%;
+}
+
+.fund-range-mark {
+  background: var(--tx);
+  border: 2px solid var(--surf);
+  border-radius: var(--r-pill);
+  height: 14px;
+  margin-left: -7px;
+  position: absolute;
+  transition: left var(--dur-screen) var(--ease-move);
+  width: 14px;
+}
+
+.fund-range-ends {
+  font-size: var(--t-xs);
+}
+
+/* ── figure cards ────────────────────────────────────────── */
+
+/* The figures of one section flow into as many columns as the width holds,
+   with a rule between them — the arrangement every fundamentals screen worth
+   copying uses, and the only one that cannot strand empty space.
+   Side-by-side section cards were tried twice and cannot work: the sections
+   hold 13, 6, 3 and 11 figures, so a row of cards is either stretched to the
+   tallest card's height or leaves a short card alone with empty slots beside
+   it. Here a section is instead a full-width band whose height follows from
+   how many columns fit, so nothing is stretched and nothing is stranded at
+   any viewport width. */
+/* A grid, deliberately not CSS multi-column. `columns` expressed this exactly
+   and had to go: the rows were in the DOM (there is a spec covering that) but
+   Chrome would not paint them until something forced a relayout, so a section
+   sat blank after its figures arrived and filled in on the next resize or
+   reload. Multi-column fragmentation carries the same class of bug into
+   printing and full-page screenshots. A grid needs no fragmentation to lay
+   this out, so there is nothing to go wrong; the trade is that figures read
+   left-to-right along a row rather than down a column, which is how a
+   labelled figure list is scanned anyway. */
+.fund-figures {
+  column-gap: var(--s8);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  list-style: none;
+  padding: var(--s2) var(--s5) var(--s4);
+}
+
+.fund-figure {
+  border-bottom: 1px solid var(--line-soft);
+  padding: var(--s3) 0;
+}
+
+/* Values share a right edge, which is the only arrangement tabular figures
+   actually pay off in. */
+.fund-figure-val {
+  color: var(--tx);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  text-align: right;
+}
+
+.fund-figure-val[data-tone='up'] {
+  color: var(--up);
+}
+
+.fund-figure-val[data-tone='down'] {
+  color: var(--down);
+}
+
+/* A second header inside one card: growth is three figures, which would be
+   almost entirely chrome as a section of its own, and it answers the same
+   question as the margins above it — what the company earns. */
+.fund-hd-mid {
+  border-top: 1px solid var(--line-soft);
+  margin-top: var(--s2);
+}
+
+/* ── margin bars ─────────────────────────────────────────── */
+
+.fund-bars {
+  display: grid;
+  gap: var(--s4) var(--s8);
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  padding: var(--s4) var(--s5);
+}
+
+.fund-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* .meter takes its fill from currentColor; the accent is what these bars mean
+   here — a magnitude, not a direction. */
+.fund-meter {
+  color: var(--acc);
+}
+
+/* ── annual chart and table ──────────────────────────────── */
+
+.fund-annual-head {
+  flex-wrap: wrap;
+}
+
+.fund-annual-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s4) var(--s5) var(--s5);
+}
+
+/* Bars are positioned against a shared zero line rather than the floor, so a
+   loss-making year is drawn downwards instead of clipped to nothing. */
+.fund-chart {
+  align-items: stretch;
+  display: flex;
+  gap: var(--s3);
+  height: 200px;
+  position: relative;
+}
+
+.fund-chart-zero {
+  background: var(--line);
+  height: 1px;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.fund-chart-col {
+  display: flex;
+  flex: 1 1 0;
+  justify-content: center;
+  min-width: 0;
+  position: relative;
+}
+
+.fund-chart-bar {
+  background: var(--acc);
+  border-radius: var(--r-xs) var(--r-xs) 0 0;
+  min-height: 2px;
+  position: absolute;
+  transition:
+    height var(--dur-screen) var(--ease-enter),
+    bottom var(--dur-screen) var(--ease-enter);
+  width: min(56px, 70%);
+}
+
+/* A negative year hangs from the zero line, so its corners round the other way. */
+.fund-chart-bar-neg {
+  background: var(--down);
+  border-radius: 0 0 var(--r-xs) var(--r-xs);
+}
+
+.fund-chart-val {
+  color: var(--tx-2);
+  font-size: var(--t-3xs);
+  font-weight: 600;
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
+}
+
+.fund-chart-year {
+  bottom: -20px;
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
+  position: absolute;
+}
+
+/* Clears the year labels, which sit below the track. */
+.fund-annual-body .fund-chart {
+  margin-bottom: var(--s5);
+}
+
+/* Five columns, not the eight .tr is cut for elsewhere. */
+.fund-tbl {
+  --tr-min-w: 640px;
+}
+
+.fund-tr {
+  grid-template-columns: 132px repeat(4, minmax(0, 1fr));
+}
+
+.fund-tbl-num {
+  text-align: right;
+}
+
+/* ── empty and loading states ────────────────────────────── */
+
+.fund-placeholder {
+  align-items: center;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  color: var(--tx-2);
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--s3);
+  justify-content: center;
+  min-height: 360px;
+  padding: var(--s6);
+  text-align: center;
+}
+
+/* Stands where the workspace placeholder puts its icon tile. Disabled here,
+   so it reads as the thing this screen is heading towards rather than
+   something to press now. */
+.fund-placeholder .fund-ai {
+  margin-block-end: var(--s2);
+}
+
+.fund-placeholder h2 {
+  color: var(--tx);
+  font-size: var(--t-xl);
+  letter-spacing: -0.02em;
+}
+
+.fund-placeholder p {
+  font-size: var(--t-sm);
+  line-height: 1.6;
+  max-width: 52ch;
+}
+
+/* The three-item "what you get" summary — a plain <dl> read as a row of
+   icon + label pairs rather than a definition list, matching the manual
+   workspace's. */
+.fund-placeholder-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s5);
+  justify-content: center;
+  margin-block-start: var(--s2);
+}
+
+.fund-placeholder-features > div {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+}
+
+.fund-placeholder-features dt {
+  align-items: center;
+  color: var(--acc);
+  display: flex;
+}
+
+.fund-placeholder-features dt mat-icon {
+  height: 16px;
+  width: 16px;
+  font-size: 16px;
+}
+
+.fund-placeholder-features dd {
+  color: var(--tx-2);
+  font-size: var(--t-xs);
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* The error state stays a compact card: it is a message plus a retry, not a
+   screen the user is meant to settle into. */
+.fund-empty {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s10) var(--s6);
+  text-align: center;
+}
+
+.fund-empty .meta {
+  max-width: 46ch;
+}
+
+@media (max-width: 640px) {
+  .fund-placeholder-features {
+    flex-direction: column;
+    gap: var(--s3);
+  }
+}
+
+.fund-skel {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.fund-skel-head {
+  height: 132px;
+}
+
+.fund-skel-tile {
+  height: 84px;
+}
+
+.fund-skel-block {
+  height: 280px;
+}

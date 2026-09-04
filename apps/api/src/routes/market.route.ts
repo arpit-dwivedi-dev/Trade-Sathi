@@ -9,6 +9,7 @@ import {
   explicitCandleSpec,
   fetchInstrumentById,
   getCandlesForInstrument,
+  getFundamentalsForInstrument,
   getQuoteForInstrument,
   WORKSPACE_INTERVALS,
   type WorkspaceInterval,
@@ -121,6 +122,41 @@ marketRouter.get(
       res.json({ lastPrice: quote.lastPrice, asOf: quote.asOf });
     } catch (cause) {
       sendMarketDataError(res, cause, "live quote request failed");
+    }
+  }),
+);
+
+marketRouter.get(
+  "/api/market/fundamentals",
+  asyncRoute(requireAuth),
+  asyncRoute(async (req: Request, res: Response) => {
+    const instrumentId =
+      typeof req.query["instrumentId"] === "string" ? req.query["instrumentId"] : "";
+    if (!instrumentId) {
+      res.status(400).json({ error: "instrumentId is required" });
+      return;
+    }
+
+    try {
+      const ref = await fetchInstrumentById(instrumentId);
+      if (!ref) {
+        res.status(404).json({ error: "Instrument not found" });
+        return;
+      }
+      const fundamentals = await getFundamentalsForInstrument(ref);
+      // The instrument identity is added here rather than by the provider,
+      // which only ever saw a ticker — see ProviderFundamentals.
+      res.json({
+        instrument: {
+          id: ref.instrumentId,
+          symbol: ref.symbol,
+          name: ref.name,
+          exchange: ref.exchange,
+        },
+        ...fundamentals,
+      });
+    } catch (cause) {
+      sendMarketDataError(res, cause, "fundamentals request failed");
     }
   }),
 );

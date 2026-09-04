@@ -4,6 +4,10 @@ export const SHARED_PLACEHOLDER = true;
 // and stores, and the shape apps/web renders back. See chart-analysis.ts.
 export * from './chart-analysis.js';
 
+// The fundamentals contract: the shape apps/api reads out of the market-data
+// provider and apps/web's Fundamentals tab renders. See fundamentals.ts.
+export * from './fundamentals.js';
+
 /** A row from public.instruments — the canonical symbol identity used by the watchlist. */
 export interface Instrument {
   id: string;
