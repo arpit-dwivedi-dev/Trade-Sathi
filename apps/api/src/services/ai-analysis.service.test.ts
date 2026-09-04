@@ -34,9 +34,8 @@ vi.mock("../lib/logger.js", () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }));
 
-const { AnalysisFailure, runSeriesAnalysis, runVisualAnalysis } = await import(
-  "./ai-analysis.service.js"
-);
+const { AnalysisFailure, runSeriesAnalysis, runVisualAnalysis, runFundamentalsAnalysis } =
+  await import("./ai-analysis.service.js");
 
 const CONTEXT = {
   symbol: "RELIANCE",
@@ -149,6 +148,105 @@ function visionPayload(overrides: Record<string, unknown> = {}) {
     falsifier: "A four-hour close beneath the lower edge of the zone.",
     base_rate: { n_analogues: "unknown", hit_rate: "unknown", definition: null },
     summary: "The market is ranging between two well-tested edges.",
+    ...overrides,
+  };
+}
+
+/** A minimal InstrumentFundamentals payload — runFundamentalsAnalysis only
+ *  serializes it into the prompt, so its exact figures don't matter here. */
+const FUNDAMENTALS_INPUT = {
+  instrument: { id: "i1", symbol: "RELIANCE", name: "Reliance Industries", exchange: "NSE" },
+  meta: { currency: "INR", financialCurrency: "INR", asOf: "2026-08-31", mostRecentQuarter: "2026-06-30" },
+  profile: { sector: "Energy", industry: "Refining", employees: 100000, website: null, summary: "A conglomerate." },
+  snapshot: {
+    price: 1400, change: 5, changePercent: 0.0036, previousClose: 1395, dayLow: 1390, dayHigh: 1410,
+    fiftyTwoWeekLow: 1200, fiftyTwoWeekHigh: 1550, fiftyDayAverage: 1380, twoHundredDayAverage: 1350,
+    volume: 5_000_000, averageVolume: 4_000_000, marketCap: 18_000_000_000_000,
+  },
+  valuation: {
+    trailingPe: 24, forwardPe: 20, pegRatio: null, priceToBook: 2.1, priceToSales: 1.8,
+    enterpriseValue: 19_000_000_000_000, enterpriseToRevenue: 2, enterpriseToEbitda: 12,
+    trailingEps: 58.3, forwardEps: 70, bookValue: 666, dividendYield: 0.004, dividendRate: 5.5,
+    payoutRatio: 0.09, beta: 1.1,
+  },
+  profitability: {
+    grossMargin: 0.3, operatingMargin: 0.12, ebitdaMargin: 0.15, profitMargin: 0.08,
+    returnOnEquity: 0.09, returnOnAssets: 0.05,
+  },
+  growth: { revenueGrowth: 0.1, earningsGrowth: 0.07, earningsQuarterlyGrowth: 0.05 },
+  health: {
+    totalRevenue: 9_000_000_000_000, ebitda: 1_350_000_000_000, netIncome: 720_000_000_000,
+    totalCash: 200_000_000_000, totalDebt: 1_200_000_000_000, debtToEquity: 41.2, currentRatio: 1.1,
+    quickRatio: 0.8, freeCashflow: 300_000_000_000, operatingCashflow: 900_000_000_000,
+    sharesOutstanding: 6_766_000_000,
+  },
+  annual: [
+    { asOfDate: "2024-03-31", revenue: 8_000_000_000_000, operatingIncome: 900_000_000_000, netIncome: 650_000_000_000, dilutedEps: 48 },
+    { asOfDate: "2025-03-31", revenue: 8_500_000_000_000, operatingIncome: 950_000_000_000, netIncome: 690_000_000_000, dilutedEps: 51 },
+    { asOfDate: "2026-03-31", revenue: 9_000_000_000_000, operatingIncome: 1_000_000_000_000, netIncome: 720_000_000_000, dilutedEps: 58.3 },
+  ],
+};
+
+/** A schema-valid response, per prompts/fundamentals-analysis.ts's json shape. */
+function fundamentalsPayload(overrides: Record<string, unknown> = {}) {
+  const taggedStatement = (extra: Record<string, unknown> = {}) => ({
+    statement: "A statement grounded in the payload.",
+    tag: "fact",
+    evidence: "health.totalRevenue 9000000000000",
+    ...extra,
+  });
+
+  return {
+    meta: {
+      symbol: "RELIANCE",
+      completeness: 7,
+      confidence: "high",
+      confidence_reason: "7 of 8 checklist items present; 3 usable annual records.",
+      material_conflict: false,
+      data_issues: [],
+      notes: [],
+    },
+    executive_verdict: {
+      stance: "attractive",
+      commitment: "Margins are stable and leverage is moderate against steady revenue growth.",
+      deciding_factors: [
+        { claim: "Operating margin held near 12% across three years.", tag: "calc", evidence: "profitability.operatingMargin 0.12" },
+        { claim: "Revenue grew 10% year on year.", tag: "fact", evidence: "growth.revenueGrowth 0.1" },
+      ],
+      falsifier: "A quarter of margin compression below 9% operating margin.",
+    },
+    business: taggedStatement({ tag: "fact" }),
+    performance: {
+      revenue_trend: taggedStatement(),
+      earnings_trend: taggedStatement(),
+      growth_supports_earnings: "yes",
+    },
+    profitability: taggedStatement({ direction: "stable" }),
+    per_share: taggedStatement({ dilution: "no" }),
+    balance_sheet: taggedStatement({ leverage: "moderate" }),
+    cash_flow: taggedStatement({ assessable: "yes" }),
+    capital_efficiency: taggedStatement({ assessable: "yes" }),
+    dividend: taggedStatement({ sustainability: "conservative" }),
+    valuation: taggedStatement({ read: "supported" }),
+    historical_trend: {
+      statement: "Revenue, operating income and net income all rose across the three reported years.",
+      tag: "fact",
+      evidence: "annual[2].revenue 9000000000000 vs annual[0].revenue 8000000000000",
+      strongest_period: "2026-03-31",
+      weakest_period: "2024-03-31",
+      inflections: [],
+    },
+    positive_signals: [
+      { claim: "Free cash flow covers the dividend several times over.", tag: "calc", evidence: "health.freeCashflow 300000000000" },
+    ],
+    red_flags: [],
+    scenarios: [
+      { id: "bull", view: "Margins expand as refining spreads improve.", requires: "Operating margin above 13%.", falsifier: "Margin falls below 10%." },
+      { id: "base", view: "Margins hold near current levels.", requires: "Revenue growth continues near 10%.", falsifier: "Revenue growth turns negative." },
+      { id: "bear", view: "Margins compress on rising input costs.", requires: "Operating margin below 9%.", falsifier: "Margin recovers above 11%." },
+    ],
+    missing_information: [],
+    summary: "A stable, moderately levered business with consistent margins and growth.",
     ...overrides,
   };
 }
@@ -535,6 +633,61 @@ describe("provider fallback", () => {
       runVisualAnalysis(Buffer.from("png"), "image/png"),
     ).rejects.toBeInstanceOf(AnalysisFailure);
     expect(fallbackCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("fundamentals analysis", () => {
+  it("accepts a schema-valid response", async () => {
+    create.mockResolvedValue(completion(fundamentalsPayload()));
+
+    const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
+
+    expect(outcome.result.executive_verdict.stance).toBe("attractive");
+    expect(outcome.result.scenarios).toHaveLength(3);
+    // One attempt only: a valid response must never be retried.
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an out-of-contract stance value", async () => {
+    const payload = fundamentalsPayload({
+      executive_verdict: {
+        stance: "bullish",
+        commitment: "x",
+        deciding_factors: [
+          { claim: "a", tag: "fact", evidence: "e" },
+          { claim: "b", tag: "fact", evidence: "e" },
+        ],
+        falsifier: "x",
+      },
+    });
+    create.mockResolvedValue(completion(payload));
+    fallbackCreate.mockResolvedValue(completion(payload));
+
+    await expect(runFundamentalsAnalysis(FUNDAMENTALS_INPUT)).rejects.toMatchObject({
+      code: "schema_validation",
+    });
+  });
+
+  it("rejects scenarios missing one of bull/base/bear", async () => {
+    const payload = fundamentalsPayload();
+    payload.scenarios = [payload.scenarios[0], payload.scenarios[1], payload.scenarios[1]];
+    create.mockResolvedValue(completion(payload));
+    fallbackCreate.mockResolvedValue(completion(payload));
+
+    await expect(runFundamentalsAnalysis(FUNDAMENTALS_INPUT)).rejects.toMatchObject({
+      code: "schema_validation",
+    });
+  });
+
+  it("never sends an image — this prompt is text/JSON only", async () => {
+    // The fallback provider is supportsVision: false; if this path ever
+    // requested vision it would be dropped from the chain and never called.
+    create.mockRejectedValue(new Error("upstream down"));
+    fallbackCreate.mockResolvedValue(completion(fundamentalsPayload()));
+
+    const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
+
+    expect(outcome.modelId).toBe("fallback-model");
   });
 });
 

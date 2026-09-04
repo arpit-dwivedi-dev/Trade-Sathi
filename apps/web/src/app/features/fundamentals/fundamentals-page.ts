@@ -1,6 +1,7 @@
 import { NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
 import {
   Component,
+  OnDestroy,
   PLATFORM_ID,
   computed,
   effect,
@@ -17,7 +18,19 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import type { FundamentalsAnnualPeriod, InstrumentFundamentals } from '@chartanalyzer/shared';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
-import { FundamentalsService } from './fundamentals.service';
+import type { AnalysisRow } from '../analyze/analysis.types';
+import { FundamentalsAnalysisResultComponent } from './fundamentals-analysis-result';
+import { FundamentalsService, type FundamentalsPollHandle } from './fundamentals.service';
+
+/** State of the "Analyze with AI" run, independent of the raw-data load above it. */
+type AiState =
+  | 'idle'
+  | 'queued'
+  | 'complete'
+  | 'failed'
+  | 'quota_exceeded'
+  | 'timed_out'
+  | 'poll_error';
 
 /** A label/value pair as rendered in the figure lists. */
 interface Figure {
@@ -82,6 +95,7 @@ const CURRENCY_SYMBOLS: Readonly<Record<string, string>> = {
   selector: 'app-fundamentals-page',
   imports: [
     NgTemplateOutlet,
+    FundamentalsAnalysisResultComponent,
     MatButtonModule,
     MatButtonToggleModule,
     MatCardModule,
@@ -92,7 +106,7 @@ const CURRENCY_SYMBOLS: Readonly<Record<string, string>> = {
   templateUrl: './fundamentals-page.html',
   styleUrl: './fundamentals-page.css',
 })
-export class FundamentalsPage {
+export class FundamentalsPage implements OnDestroy {
   private readonly fundamentals = inject(FundamentalsService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
@@ -109,6 +123,13 @@ export class FundamentalsPage {
 
   /** The symbol a load is in flight for, so a stale response can be dropped. */
   private pendingInstrumentId: string | null = null;
+
+  /* ── Analyze with AI ─────────────────────────────────────── */
+
+  protected readonly aiState = signal<AiState>('idle');
+  protected readonly aiRow = signal<AnalysisRow | null>(null);
+  protected readonly aiError = signal<string | null>(null);
+  private aiPoll: FundamentalsPollHandle | null = null;
 
   constructor() {
     // Reads whatever the shell hands down, including the same symbol picked
@@ -135,6 +156,10 @@ export class FundamentalsPage {
     // under a new header would read as this company's numbers.
     this.data.set(null);
     this.summaryOpen.set(false);
+    // A new symbol owns the AI panel too — an in-flight run or a finished
+    // read for the company just left the screen must not linger under one
+    // that has nothing to do with it.
+    this.resetAi();
 
     const result = await this.fundamentals.fetchFundamentals(instrumentId);
     // A second symbol picked while this was in flight owns the screen now.
@@ -143,6 +168,62 @@ export class FundamentalsPage {
     this.loading.set(false);
     if (result.ok) this.data.set(result.fundamentals);
     else this.error.set(result.message);
+  }
+
+  private resetAi(): void {
+    this.aiPoll?.cancel();
+    this.aiPoll = null;
+    this.aiState.set('idle');
+    this.aiRow.set(null);
+    this.aiError.set(null);
+  }
+
+  protected async analyzeWithAi(): Promise<void> {
+    const instrumentId = this.data()?.instrument.id;
+    if (!instrumentId || this.aiState() === 'queued') return;
+
+    this.aiState.set('queued');
+    this.aiError.set(null);
+    this.aiRow.set(null);
+
+    const submitted = await this.fundamentals.analyzeWithAi(instrumentId);
+    if (!submitted.ok) {
+      this.aiError.set(submitted.message);
+      this.aiState.set(submitted.reason === 'quota_exceeded' ? 'quota_exceeded' : 'failed');
+      return;
+    }
+
+    const handle = this.fundamentals.pollFundamentalsAnalysis(submitted.id, (row) =>
+      this.aiRow.set(row),
+    );
+    this.aiPoll = handle;
+
+    void handle.result.then((outcome) => {
+      this.aiPoll = null;
+      switch (outcome.outcome) {
+        case 'complete':
+          this.aiRow.set(outcome.row);
+          this.aiState.set('complete');
+          break;
+        case 'failed':
+          this.aiRow.set(outcome.row);
+          this.aiState.set('failed');
+          break;
+        case 'timed_out':
+          this.aiState.set('timed_out');
+          break;
+        case 'poll_error':
+          this.aiState.set('poll_error');
+          break;
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    // Without this the row watch keeps firing after the user navigates away,
+    // and would try to update a destroyed component's state.
+    this.aiPoll?.cancel();
+    this.aiPoll = null;
   }
 
   // ── formatting ────────────────────────────────────────────

@@ -2,13 +2,17 @@
   <!-- Declared once, placed twice: it stands where the placeholder's icon
        would otherwise be while there is nothing to read, and docks into the
        company card's own header once there is. Disabled until the figures
-       have arrived — there is nothing for it to analyse before that.
-       Deliberately unwired even when enabled: the AI reading of these figures
-       is not built yet, and this is the place it will be started from. -->
+       have arrived (there is nothing for it to analyse before that) and
+       while a run is already queued. -->
   <ng-template #analyzeButton let-ready="ready">
-    <button mat-flat-button color="primary" class="fund-ai" [disabled]="!ready">
-      <mat-icon aria-hidden="true" svgIcon="psychology"></mat-icon>
-      Analyze with AI
+    <button mat-flat-button color="primary" class="fund-ai"
+            [disabled]="!ready || aiState() === 'queued'" (click)="analyzeWithAi()">
+      @if (aiState() === 'queued') {
+        <mat-progress-spinner diameter="16" mode="indeterminate" />
+      } @else {
+        <mat-icon aria-hidden="true" svgIcon="psychology"></mat-icon>
+      }
+      {{ aiState() === 'queued' ? 'Analyzing…' : 'Analyze with AI' }}
     </button>
   </ng-template>
 
@@ -83,6 +87,59 @@
         }
       </div>
     </mat-card>
+
+    <!-- ── AI verdict ─────────────────────────────────────── -->
+    @switch (aiState()) {
+      @case ('queued') {
+        <mat-card class="fund-card fund-ai-status" aria-busy="true">
+          <mat-progress-spinner diameter="20" mode="indeterminate" />
+          <p class="meta">Reading the fundamentals above and building a verdict — this usually takes under a minute.</p>
+        </mat-card>
+      }
+      @case ('complete') {
+        @if (aiRow(); as row) {
+          <app-fundamentals-analysis-result [row]="row" />
+        }
+      }
+      @case ('failed') {
+        @if (aiRow(); as row) {
+          <app-fundamentals-analysis-result [row]="row" />
+        } @else {
+          <mat-card class="fund-card fund-ai-status">
+            <p class="err">{{ aiError() }}</p>
+            <button mat-stroked-button (click)="analyzeWithAi()">
+              <mat-icon aria-hidden="true" svgIcon="refresh"></mat-icon>
+              Try again
+            </button>
+          </mat-card>
+        }
+      }
+      @case ('quota_exceeded') {
+        <mat-card class="fund-card fund-ai-status">
+          <p class="err">{{ aiError() }}</p>
+        </mat-card>
+      }
+      @case ('timed_out') {
+        <mat-card class="fund-card fund-ai-status">
+          <p class="meta">
+            This is taking longer than expected. It may still finish — check back, or try again.
+          </p>
+          <button mat-stroked-button (click)="analyzeWithAi()">
+            <mat-icon aria-hidden="true" svgIcon="refresh"></mat-icon>
+            Try again
+          </button>
+        </mat-card>
+      }
+      @case ('poll_error') {
+        <mat-card class="fund-card fund-ai-status">
+          <p class="err">Lost track of that analysis. Try again.</p>
+          <button mat-stroked-button (click)="analyzeWithAi()">
+            <mat-icon aria-hidden="true" svgIcon="refresh"></mat-icon>
+            Try again
+          </button>
+        </mat-card>
+      }
+    }
 
     <!-- ── headline figures ───────────────────────────────── -->
     <div class="tiles">

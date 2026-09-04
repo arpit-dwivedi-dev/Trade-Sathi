@@ -27,6 +27,9 @@ export type HistoryRow = Pick<
   // rows, and these are null on every row written since.
   | 'asset_class'
   | 'trend'
+  // Promoted out of fundamentals_result, the same way call_direction is
+  // promoted out of analysis_result — see that column's migration.
+  | 'fundamentals_stance'
 >;
 
 // `symbol` and `source` join the list because symbol_raw alone was not enough
@@ -35,14 +38,15 @@ export type HistoryRow = Pick<
 // all store source_type 'upload', so `source` is their only real provenance.
 const HISTORY_COLUMNS =
   'id, created_at, symbol, symbol_raw, instrument_type, structure_state, setup_format, ' +
-  'call_direction, status, source, source_type, timeframe, emailed_at, asset_class, trend';
+  'call_direction, status, source, source_type, timeframe, emailed_at, asset_class, trend, ' +
+  'fundamentals_stance';
 
 /**
  * Which provenances a listing is restricted to. 'all' is the absence of a
  * filter rather than a value, so it is spelled out here instead of being
  * represented by an empty array — an empty `in` list would match nothing.
  */
-export type HistorySourceFilter = 'all' | 'manual' | 'live' | 'watchlist_daily';
+export type HistorySourceFilter = 'all' | 'manual' | 'live' | 'watchlist_daily' | 'fundamentals';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;

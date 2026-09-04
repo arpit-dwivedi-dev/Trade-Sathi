@@ -16,6 +16,12 @@ import {
   type CandleAnalysisContext,
   type PromptCandle,
 } from "../prompts/candle-analysis.js";
+import { buildFundamentalsAnalysisPrompt } from "../prompts/fundamentals-analysis.js";
+import {
+  FundamentalsAiSchema,
+  normalizeFundamentalsAnalysis,
+} from "./fundamentals-analysis-schema.js";
+import type { InstrumentFundamentals, FundamentalsAnalysisResult } from "@chartanalyzer/shared";
 import { APIConnectionTimeoutError, AuthenticationError, RateLimitError } from "openai";
 import { aiProviders, type AiProvider } from "../lib/ai-client.js";
 import { logAppError } from "../lib/error-log.js";
@@ -38,6 +44,10 @@ export const VISUAL_PROMPT_VERSION = "v3";
  *  independently, and a stored analysis must stay attributable to whichever
  *  one produced it. */
 export const SERIES_PROMPT_VERSION = "series-v2";
+
+/** Version of the fundamentals prompt in ../prompts/fundamentals-analysis.ts.
+ *  Tracked separately for the same reason as SERIES_PROMPT_VERSION. */
+export const FUNDAMENTALS_PROMPT_VERSION = "fundamentals-v1";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   jpg: "image/jpeg",
@@ -78,14 +88,14 @@ export class AnalysisFailure extends Error {
  * — and validating either response against the other's schema would reject a
  * perfectly good answer. See services/analysis-schema.ts.
  */
-type ResponseValidator = (payload: unknown) =>
-  | { ok: true; result: AnalysisResult }
+type ResponseValidator<T> = (payload: unknown) =>
+  | { ok: true; result: T }
   | { ok: false; issues: string };
 
-function validatorFor<T>(
+function validatorFor<T, R>(
   schema: ZodType<T, unknown>,
-  normalize: (parsed: T) => AnalysisResult,
-): ResponseValidator {
+  normalize: (parsed: T) => R,
+): ResponseValidator<R> {
   return (payload) => {
     const validation = schema.safeParse(payload);
     if (!validation.success) {
@@ -102,6 +112,10 @@ function validatorFor<T>(
 
 const validateVisionResponse = validatorFor(VisionAnalysisSchema, normalizeVisionAnalysis);
 const validateSeriesResponse = validatorFor(SeriesAnalysisSchema, normalizeSeriesAnalysis);
+const validateFundamentalsResponse = validatorFor(
+  FundamentalsAiSchema,
+  normalizeFundamentalsAnalysis,
+);
 
 /**
  * The columns a completed analysis writes outside of `analysis_result`.
@@ -144,8 +158,11 @@ function mimeTypeForKey(imageKey: string): string {
   return MIME_BY_EXTENSION[ext] ?? "image/png";
 }
 
-export interface VisualAnalysisOutcome {
-  result: AnalysisResult;
+/** Generic over the result type so the fundamentals prompt (which validates
+ *  into `FundamentalsAnalysisResult`, not `AnalysisResult`) shares this shape
+ *  and everything below it rather than duplicating it — see ResponseValidator. */
+export interface VisualAnalysisOutcome<T = AnalysisResult> {
+  result: T;
   inputTokens: number;
   outputTokens: number;
   latencyMs: number;
@@ -221,7 +238,29 @@ export async function runSeriesAnalysis(
   );
 }
 
-/** The message shapes the two entry points above build. */
+/**
+ * Runs one InstrumentFundamentals payload through the AI provider — the same
+ * client, JSON-mode request shape, retry policy and provider-fallback chain
+ * as runVisualAnalysis/runSeriesAnalysis, against the single finalized
+ * fundamentals prompt (see prompts/fundamentals-analysis.ts) instead of a
+ * chart read. Text/JSON only, so needsVision is false: no image is ever sent.
+ */
+export async function runFundamentalsAnalysis(
+  payload: InstrumentFundamentals,
+): Promise<VisualAnalysisOutcome<FundamentalsAnalysisResult>> {
+  const prompt = buildFundamentalsAnalysisPrompt(payload);
+
+  return runAnalysisCompletion(
+    [
+      { role: "system", content: prompt.system },
+      { role: "user", content: prompt.user },
+    ],
+    false,
+    validateFundamentalsResponse,
+  );
+}
+
+/** The message shapes the three entry points above build. */
 type AnalysisMessage =
   | { role: "system"; content: string }
   | { role: "user"; content: string }
@@ -281,11 +320,11 @@ function estimateCostUsd(
  * max_tokens is deliberately generous and per-provider config rather than a
  * constant.
  */
-async function runOnProvider(
+async function runOnProvider<T>(
   provider: AiProvider,
   messages: AnalysisMessage[],
-  validate: ResponseValidator,
-): Promise<VisualAnalysisOutcome | AnalysisFailure> {
+  validate: ResponseValidator<T>,
+): Promise<VisualAnalysisOutcome<T> | AnalysisFailure> {
   const request = {
     model: provider.model,
     response_format: { type: "json_object" as const },
@@ -423,11 +462,11 @@ async function runOnProvider(
  * chain with no vision-capable provider fails immediately rather than
  * pretending to try.
  */
-async function runAnalysisCompletion(
+async function runAnalysisCompletion<T>(
   messages: AnalysisMessage[],
   needsVision: boolean,
-  validate: ResponseValidator,
-): Promise<VisualAnalysisOutcome> {
+  validate: ResponseValidator<T>,
+): Promise<VisualAnalysisOutcome<T>> {
   const chain = needsVision
     ? aiProviders.filter((provider) => provider.supportsVision)
     : aiProviders;
@@ -435,7 +474,9 @@ async function runAnalysisCompletion(
   if (chain.length === 0) {
     throw new AnalysisFailure(
       "api_error",
-      "No configured AI provider can read chart images",
+      needsVision
+        ? "No configured AI provider can read chart images"
+        : "No configured AI provider is available",
     );
   }
 

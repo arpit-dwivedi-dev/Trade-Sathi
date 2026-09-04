@@ -5,7 +5,13 @@ import { Injectable, inject } from '@angular/core';
 // import put all of it in the /app chunk that every signed-in user downloads.
 import type { jsPDF } from 'jspdf';
 
-import type { AnalysisResult, AnalysisScenario } from '@chartanalyzer/shared';
+import type {
+  AnalysisResult,
+  AnalysisScenario,
+  FundamentalsAnalysisResult,
+  FundamentalsClaim,
+  FundamentalsScenarioId,
+} from '@chartanalyzer/shared';
 
 import { SupabaseClientService } from '../../core/supabase-client';
 import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
@@ -104,11 +110,32 @@ export class AnalysisPdfService {
     const { jsPDF: JsPdf } = await import('jspdf');
 
     const doc = new JsPdf({ unit: 'mm', format: 'a4' });
+    let y = this.drawHeader(doc, row);
+
+    // A fundamentals row has its own document shape entirely — no chart image
+    // (image_key is '' by design; see fundamentals-analysis.service.ts), and a
+    // payload shape that shares nothing with AnalysisResult.
+    const fundamentals = row.fundamentals_result;
+    if (fundamentals) {
+      y = this.drawFundamentalsMeta(doc, fundamentals, y);
+      y = this.drawFundamentalsVerdict(doc, fundamentals, y);
+      y = this.drawSummary(doc, fundamentals.summary, y);
+      y = this.drawFundamentalsBusiness(doc, fundamentals, y);
+      y = this.drawFundamentalsPerformance(doc, fundamentals, y);
+      y = this.drawFundamentalsSections(doc, fundamentals, y);
+      y = this.drawFundamentalsHistoricalTrend(doc, fundamentals, y);
+      y = this.drawFundamentalsClaims(doc, 'Positive signals', fundamentals.positive_signals, y);
+      y = this.drawFundamentalsClaims(doc, 'Red flags', fundamentals.red_flags, y);
+      y = this.drawFundamentalsScenarios(doc, fundamentals, y);
+      y = this.drawFundamentalsMissingInformation(doc, fundamentals, y);
+      this.drawFundamentalsDisclaimer(doc, y);
+      doc.save(fileNameFor(row));
+      return;
+    }
+
     // The chart is the one part that can fail on its own (private bucket, an
     // expired object). A missing image must not cost the user the whole export.
     const image = await this.loadImage(row.image_key);
-
-    let y = this.drawHeader(doc, row);
     y = this.drawChart(doc, image, y);
 
     // Two document shapes, for the same reason the on-screen report has two:
@@ -182,6 +209,7 @@ export class AnalysisPdfService {
 
     const chips = [
       row.analysis_result?.identity.instrument_type ?? row.asset_class,
+      row.fundamentals_stance ? humanise(row.fundamentals_stance) : null,
       row.timeframe,
       row.source ?? row.source_type,
       row.status,
@@ -408,6 +436,227 @@ export class AnalysisPdfService {
     top = this.row(doc, 'Hit rate', formatPercent(hit_rate), top);
     if (definition) top = this.paragraph(doc, definition, top);
     return this.note(doc, 'Counted within this window only — not a historical study.', top) + 2;
+  }
+
+  /* ── fundamentals AI analysis ─────────────────────────────────────────
+     A different report entirely from the chart one above: no chart image,
+     no setup/scenarios geometry, a payload that shares nothing with
+     AnalysisResult. See FundamentalsAnalysisResult in packages/shared. */
+
+  private drawFundamentalsMeta(
+    doc: jsPDF,
+    result: FundamentalsAnalysisResult,
+    y: number,
+  ): number {
+    let top = this.sectionTitle(doc, 'Read quality', y);
+    top = this.row(doc, 'Confidence', result.meta.confidence, top);
+    top = this.row(doc, 'Completeness', `${result.meta.completeness}/8 checklist items`, top);
+    if (result.meta.material_conflict) {
+      top = this.paragraph(
+        doc,
+        'The source data contains a conflict that caps how confident this read can be.',
+        top,
+      );
+    }
+    for (const issue of result.meta.data_issues) top = this.paragraph(doc, `• ${issue}`, top);
+    return this.note(doc, result.meta.confidence_reason, top) + 2;
+  }
+
+  private drawFundamentalsVerdict(
+    doc: jsPDF,
+    result: FundamentalsAnalysisResult,
+    y: number,
+  ): number {
+    let top = this.sectionTitle(doc, 'Executive verdict', y);
+    top = this.row(doc, 'Stance', humanise(result.executive_verdict.stance), top);
+    top = this.paragraph(doc, result.executive_verdict.commitment, top);
+    for (const factor of result.executive_verdict.deciding_factors) {
+      top = this.paragraph(doc, `• [${factor.tag}] ${factor.claim}`, top);
+    }
+    return this.note(doc, `Falsifier: ${result.executive_verdict.falsifier}`, top) + 2;
+  }
+
+  private drawFundamentalsBusiness(
+    doc: jsPDF,
+    result: FundamentalsAnalysisResult,
+    y: number,
+  ): number {
+    const top = this.sectionTitle(doc, 'Business', y);
+    return this.paragraph(doc, result.business.statement, top) + 2;
+  }
+
+  private drawFundamentalsPerformance(
+    doc: jsPDF,
+    result: FundamentalsAnalysisResult,
+    y: number,
+  ): number {
+    let top = this.sectionTitle(doc, 'Performance', y);
+    top = this.row(
+      doc,
+      'Growth supports earnings',
+      humanise(result.performance.growth_supports_earnings),
+      top,
+    );
+    top = this.paragraph(doc, `Revenue: ${result.performance.revenue_trend.statement}`, top);
+    top = this.paragraph(doc, `Earnings: ${result.performance.earnings_trend.statement}`, top);
+    return top + 2;
+  }
+
+  /**
+   * Seven sections share the exact {statement, tag, evidence} + one enum
+   * verdict shape (profitability, per_share, balance_sheet, cash_flow,
+   * capital_efficiency, dividend, valuation) — drawn from one list rather
+   * than seven near-identical methods, the same reasoning the on-screen
+   * report's `sections` computed property uses.
+   */
+  private drawFundamentalsSections(
+    doc: jsPDF,
+    result: FundamentalsAnalysisResult,
+    y: number,
+  ): number {
+    const sections: { title: string; statement: string; verdictLabel: string; verdictValue: string }[] = [
+      {
+        title: 'Profitability',
+        statement: result.profitability.statement,
+        verdictLabel: 'Direction',
+        verdictValue: humanise(result.profitability.direction),
+      },
+      {
+        title: 'Per-share',
+        statement: result.per_share.statement,
+        verdictLabel: 'Dilution',
+        verdictValue: humanise(result.per_share.dilution),
+      },
+      {
+        title: 'Balance sheet',
+        statement: result.balance_sheet.statement,
+        verdictLabel: 'Leverage',
+        verdictValue: humanise(result.balance_sheet.leverage),
+      },
+      {
+        title: 'Cash flow',
+        statement: result.cash_flow.statement,
+        verdictLabel: 'Assessable',
+        verdictValue: result.cash_flow.assessable,
+      },
+      {
+        title: 'Capital efficiency',
+        statement: result.capital_efficiency.statement,
+        verdictLabel: 'Assessable',
+        verdictValue: result.capital_efficiency.assessable,
+      },
+      {
+        title: 'Dividend',
+        statement: result.dividend.statement,
+        verdictLabel: 'Sustainability',
+        verdictValue: humanise(result.dividend.sustainability),
+      },
+      {
+        title: 'Valuation',
+        statement: result.valuation.statement,
+        verdictLabel: 'Read',
+        verdictValue: humanise(result.valuation.read),
+      },
+    ];
+
+    let top = y;
+    for (const section of sections) {
+      top = this.sectionTitle(doc, section.title, top);
+      top = this.row(doc, section.verdictLabel, section.verdictValue, top);
+      top = this.paragraph(doc, section.statement, top) + 2;
+    }
+    return top;
+  }
+
+  private drawFundamentalsHistoricalTrend(
+    doc: jsPDF,
+    result: FundamentalsAnalysisResult,
+    y: number,
+  ): number {
+    let top = this.sectionTitle(doc, 'Historical trend', y);
+    top = this.paragraph(doc, result.historical_trend.statement, top);
+    if (result.historical_trend.strongest_period) {
+      top = this.row(doc, 'Strongest period', result.historical_trend.strongest_period, top);
+    }
+    if (result.historical_trend.weakest_period) {
+      top = this.row(doc, 'Weakest period', result.historical_trend.weakest_period, top);
+    }
+    for (const inflection of result.historical_trend.inflections) {
+      top = this.paragraph(doc, `• ${inflection}`, top);
+    }
+    return top + 2;
+  }
+
+  private drawFundamentalsClaims(
+    doc: jsPDF,
+    title: string,
+    claims: FundamentalsClaim[],
+    y: number,
+  ): number {
+    let top = this.sectionTitle(doc, title, y);
+    if (!claims.length) {
+      doc.setFont('helvetica', 'normal').setFontSize(9.5).setTextColor(INK);
+      top = this.space(doc, top, 8);
+      doc.text('None the data clearly supports.', MARGIN, top);
+      return top + 8;
+    }
+    for (const claim of claims) {
+      top = this.paragraph(doc, `• [${claim.tag}] ${claim.claim}`, top);
+    }
+    return top + 2;
+  }
+
+  private static readonly SCENARIO_ORDER: FundamentalsScenarioId[] = ['bull', 'base', 'bear'];
+
+  private drawFundamentalsScenarios(
+    doc: jsPDF,
+    result: FundamentalsAnalysisResult,
+    y: number,
+  ): number {
+    let top = this.sectionTitle(doc, 'Scenarios', y);
+    top = this.note(doc, 'Qualitative — no price, earnings or margin forecast.', top);
+
+    const byId = new Map(result.scenarios.map((s) => [s.id, s] as const));
+    for (const id of AnalysisPdfService.SCENARIO_ORDER) {
+      const scenario = byId.get(id);
+      if (!scenario) continue;
+
+      top = this.space(doc, top, 10);
+      doc.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(INK);
+      doc.text(scenario.id.toUpperCase(), MARGIN, top);
+      top += 6;
+
+      top = this.paragraph(doc, scenario.view, top);
+      top = this.paragraph(doc, `Requires: ${scenario.requires}`, top);
+      top = this.paragraph(doc, `Falsifier: ${scenario.falsifier}`, top) + 2;
+    }
+    return top;
+  }
+
+  private drawFundamentalsMissingInformation(
+    doc: jsPDF,
+    result: FundamentalsAnalysisResult,
+    y: number,
+  ): number {
+    if (!result.missing_information.length) return y;
+    let top = this.sectionTitle(doc, 'Missing information', y);
+    for (const item of result.missing_information) {
+      top = this.paragraph(doc, `• ${item.item} — ${item.impact}`, top);
+    }
+    return top + 2;
+  }
+
+  private drawFundamentalsDisclaimer(doc: jsPDF, y: number): void {
+    const top = this.space(doc, y, 20) + 2;
+    doc.setDrawColor(RULE).setLineWidth(0.2);
+    doc.line(MARGIN, top - 4, PAGE_W - MARGIN, top - 4);
+    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(DIM);
+    const lines = wrap(
+      doc,
+      'Every reading in this document is generated by the model from the fundamentals data alone. ChartAnalyzer does not connect to a broker, hold positions, or track what happens after an analysis.',
+      CONTENT_W,
+    );
+    doc.text(lines, MARGIN, top);
   }
 
   /* ── rows analyzed before the structured-read prompts ────────────────── */

@@ -177,10 +177,14 @@
                   <p class="history-msg">
                     This analysis is still {{ loaded.row.status }}. Check back shortly.
                   </p>
-                  <app-chart-image
-                    [imageKey]="loaded.row.image_key"
-                    [label]="loaded.row.symbol_raw"
-                  />
+                  @if (loaded.row.source !== 'fundamentals') {
+                    <app-chart-image
+                      [imageKey]="loaded.row.image_key"
+                      [label]="loaded.row.symbol_raw"
+                    />
+                  }
+                } @else if (loaded.row.source === 'fundamentals') {
+                  <app-fundamentals-analysis-result [row]="loaded.row" />
                 } @else {
                   <app-analysis-result [row]="loaded.row" [patterns]="loaded.patterns" />
                 }

@@ -455,3 +455,18 @@
 .fund-skel-block {
   height: 280px;
 }
+
+/* ── AI verdict status states ────────────────────────────── */
+
+.fund-ai-status {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  justify-content: space-between;
+  padding: var(--s4) var(--s5);
+}
+
+.fund-ai .mat-mdc-progress-spinner {
+  margin-right: 4px;
+}

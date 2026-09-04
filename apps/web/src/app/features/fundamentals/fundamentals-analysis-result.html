@@ -1,0 +1,190 @@
+@if (failed()) {
+  <mat-card class="fund-card fund-ai-status">
+    <p class="err">{{ failureMessage() }}</p>
+  </mat-card>
+} @else if (result(); as analysis) {
+  <section class="fund-ai">
+    @if (showCaveats()) {
+      <mat-card class="fund-card fund-ai-caveats">
+        <span class="lbl">How to read this</span>
+        @for (caveat of caveats(); track $index) {
+          <p class="meta">{{ caveat }}</p>
+        }
+      </mat-card>
+    }
+
+    <!-- ── headline readings ──────────────────────────────── -->
+    <div class="tiles">
+      @for (tile of tiles(); track tile.label) {
+        <div class="tile">
+          <span class="lbl">{{ tile.label }}</span>
+          <b [attr.data-tone]="tile.tone">{{ tile.value }}</b>
+          @if (tile.hint) {
+            <span class="meta dim fund-ai-hint">{{ tile.hint }}</span>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- ── executive verdict ──────────────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd">
+        <span class="lbl">Executive verdict · model-generated, not investment advice</span>
+        <mat-chip-set>
+          <mat-chip>{{ humanise(stance() ?? '') }}</mat-chip>
+        </mat-chip-set>
+      </div>
+      <div class="fund-ai-body">
+        <p class="meta">{{ analysis.executive_verdict.commitment }}</p>
+        <ul class="fund-ai-factors">
+          @for (factor of analysis.executive_verdict.deciding_factors; track $index) {
+            <li>
+              <span class="meta">{{ factor.claim }}</span>
+              <span class="meta dim fund-ai-evidence">{{ factor.evidence }}</span>
+            </li>
+          }
+        </ul>
+        <p class="meta dim fund-ai-falsifier">
+          <b>What would prove this wrong —</b> {{ analysis.executive_verdict.falsifier }}
+        </p>
+      </div>
+    </mat-card>
+
+    <!-- ── summary ─────────────────────────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd"><span class="lbl">Summary</span></div>
+      <p class="meta fund-ai-body">{{ analysis.summary }}</p>
+    </mat-card>
+
+    <!-- ── business & performance ─────────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd"><span class="lbl">Business &amp; performance</span></div>
+      <div class="fund-ai-body">
+        <p class="meta">{{ analysis.business.statement }}</p>
+        <div class="fund-ai-sub">
+          <span class="lbl">Revenue trend</span>
+          <p class="meta">{{ analysis.performance.revenue_trend.statement }}</p>
+        </div>
+        <div class="fund-ai-sub">
+          <span class="lbl">Earnings trend</span>
+          <p class="meta">{{ analysis.performance.earnings_trend.statement }}</p>
+        </div>
+        <p class="meta dim">
+          Growth supports earnings — {{ humanise(analysis.performance.growth_supports_earnings) }}
+        </p>
+      </div>
+    </mat-card>
+
+    <!-- ── the seven section verdicts ─────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd"><span class="lbl">Section verdicts</span></div>
+      <ul class="fund-figures fund-ai-sections">
+        @for (section of sections(); track section.title) {
+          <li class="fund-figure fund-ai-section">
+            <div class="lvl">
+              <span class="meta"><b>{{ section.title }}</b></span>
+              <span class="fund-figure-val">{{ section.verdictValue }}</span>
+            </div>
+            <p class="meta dim">{{ section.statement }}</p>
+          </li>
+        }
+      </ul>
+    </mat-card>
+
+    <!-- ── historical trend ───────────────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd"><span class="lbl">Historical trend</span></div>
+      <div class="fund-ai-body">
+        <p class="meta">{{ analysis.historical_trend.statement }}</p>
+        @if (analysis.historical_trend.strongest_period || analysis.historical_trend.weakest_period) {
+          <div class="lvl">
+            <span class="meta dim">Strongest period</span>
+            <span class="tnum">{{ analysis.historical_trend.strongest_period ?? '—' }}</span>
+          </div>
+          <div class="lvl">
+            <span class="meta dim">Weakest period</span>
+            <span class="tnum">{{ analysis.historical_trend.weakest_period ?? '—' }}</span>
+          </div>
+        }
+        @if (analysis.historical_trend.inflections.length) {
+          <ul class="fund-ai-list">
+            @for (inflection of analysis.historical_trend.inflections; track $index) {
+              <li class="meta">{{ inflection }}</li>
+            }
+          </ul>
+        }
+      </div>
+    </mat-card>
+
+    <!-- ── positive signals ────────────────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd"><span class="lbl">Positive signals</span></div>
+      @if (positiveSignals().length) {
+        <ul class="fund-ai-claims">
+          @for (signal of positiveSignals(); track $index) {
+            <li>
+              <span class="meta">{{ signal.claim }}</span>
+              <span class="meta dim fund-ai-evidence">{{ signal.evidence }}</span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="meta dim fund-ai-body">None the data clearly supports.</p>
+      }
+    </mat-card>
+
+    <!-- ── red flags ───────────────────────────────────────── -->
+    <mat-card class="fund-card">
+      <div class="hd"><span class="lbl">Red flags</span></div>
+      @if (redFlags().length) {
+        <ul class="fund-ai-claims">
+          @for (flag of redFlags(); track $index) {
+            <li>
+              <span class="meta">{{ flag.claim }}</span>
+              <span class="meta dim fund-ai-evidence">{{ flag.evidence }}</span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="meta dim fund-ai-body">None the data clearly supports.</p>
+      }
+    </mat-card>
+
+    <!-- ── scenarios — the one dark analytical slab in the report,
+         matching the chart AI scenario treatment elsewhere in the product ── -->
+    <div class="hd fund-ai-scenarios-hd"><span class="lbl">Scenarios · qualitative, no price or earnings forecast</span></div>
+    <div class="fund-ai-scenarios">
+      @for (scenario of scenarios(); track scenario.id) {
+        <div class="panel fund-ai-scenario">
+          <div class="fund-ai-scenario-head">
+            <span class="fund-ai-scenario-id" [attr.data-tone]="scenarioTone(scenario.id)">
+              {{ scenario.id }}
+            </span>
+          </div>
+          <div class="fund-ai-scenario-body">
+            <p>{{ scenario.view }}</p>
+            <p class="dim"><b>Requires</b> {{ scenario.requires }}</p>
+            <p class="dim"><b>Falsifier</b> {{ scenario.falsifier }}</p>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- ── missing information ────────────────────────────── -->
+    @if (analysis.missing_information.length) {
+      <mat-card class="fund-card">
+        <div class="hd"><span class="lbl">Missing information</span></div>
+        <ul class="fund-ai-list fund-ai-body">
+          @for (item of analysis.missing_information; track $index) {
+            <li class="meta"><b>{{ item.item }}</b> — {{ item.impact }}</li>
+          }
+        </ul>
+      </mat-card>
+    }
+
+    <p class="disc">
+      Every reading here is generated by the model from the fundamentals data alone. ChartAnalyzer
+      does not connect to a broker, hold positions, or track what happens after an analysis.
+    </p>
+  </section>
+}

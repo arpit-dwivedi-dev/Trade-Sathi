@@ -159,6 +159,8 @@ export class LogsPage implements OnInit, OnDestroy {
         return 'upload';
       case 'live_run':
         return 'live chart';
+      case 'fundamentals_analysis':
+        return 'fundamentals';
       case 'watchlist_run':
         return 'watchlist';
       case 'briefing':

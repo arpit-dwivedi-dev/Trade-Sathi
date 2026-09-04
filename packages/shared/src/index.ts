@@ -8,6 +8,11 @@ export * from './chart-analysis.js';
 // provider and apps/web's Fundamentals tab renders. See fundamentals.ts.
 export * from './fundamentals.js';
 
+// The fundamentals AI analysis contract: the shape apps/api validates the
+// model's json into and stores, and the shape apps/web renders back. See
+// fundamentals-analysis.ts.
+export * from './fundamentals-analysis.js';
+
 /** A row from public.instruments — the canonical symbol identity used by the watchlist. */
 export interface Instrument {
   id: string;

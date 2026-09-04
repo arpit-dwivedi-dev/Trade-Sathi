@@ -7,13 +7,16 @@ import type { AnalysisResult as Analysis, AnalysisScenario } from '@chartanalyze
 import { ChartImage } from '../../shared/chart-image';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
 
-const GENERIC_FAILURE = "This analysis couldn't be completed. Try again.";
+/** Exported because fundamentals-analysis-result.ts (the Fundamentals tab's
+ *  own report) shares this exact copy — both surfaces render the same
+ *  analyses-row error_code/error_message pair the AI pipeline writes. */
+export const GENERIC_FAILURE = "This analysis couldn't be completed. Try again.";
 
 /**
  * error_code -> user-facing copy. error_message is provider/parser text and is
  * never shown: it leaks internals and reads as noise to a user.
  */
-const FAILURE_COPY: Record<string, string> = {
+export const FAILURE_COPY: Record<string, string> = {
   api_error: "We couldn't reach the AI provider — try again in a moment.",
   invalid_json: 'The analysis came back in an unexpected format — try again, this is usually transient.',
   schema_validation:

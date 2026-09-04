@@ -21,6 +21,7 @@ import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
 import { ChartImage } from '../../shared/chart-image';
 import { AnalysisResult } from '../analyze/analysis-result';
+import { FundamentalsAnalysisResultComponent } from '../fundamentals/fundamentals-analysis-result';
 import { AnalysisPdfService } from './analysis-pdf.service';
 import {
   HistoryService,
@@ -40,6 +41,7 @@ import {
   selector: 'app-history-list',
   imports: [
     AnalysisResult,
+    FundamentalsAnalysisResultComponent,
     ChartImage,
     MatButtonModule,
     MatButtonToggleModule,
@@ -101,6 +103,7 @@ export class HistoryList implements OnInit, OnDestroy {
     { value: 'manual', label: 'Uploads' },
     { value: 'live', label: 'Live' },
     { value: 'watchlist_daily', label: 'Daily briefing' },
+    { value: 'fundamentals', label: 'Fundamentals' },
   ];
 
   /**
@@ -414,8 +417,15 @@ export class HistoryList implements OnInit, OnDestroy {
    * precisely because both edges are live and the chart does not say which
    * resolves, so naming one of them here would invent a call. 'none' is an
    * abstention, which under these prompts is a result rather than a gap.
+   *
+   * A fundamentals row has no setup at all — its "setup" cell reads the
+   * executive verdict's stance instead, which is the closest thing it has to
+   * a one-word takeaway.
    */
   protected setupLabel(row: HistoryRow): string | null {
+    if (row.source === 'fundamentals') {
+      return row.fundamentals_stance?.replace(/_/g, ' ') ?? null;
+    }
     if (row.setup_format === 'two_scenario') return 'two-way';
     if (row.setup_format === 'none') return 'no setup';
     return row.call_direction;
@@ -423,6 +433,7 @@ export class HistoryList implements OnInit, OnDestroy {
 
   /** The `d-*` class that colours the setup cell, or null for a neutral one. */
   protected setupTone(row: HistoryRow): string | null {
+    if (row.source === 'fundamentals') return null;
     if (row.setup_format === 'two_scenario') return null;
     return row.call_direction;
   }
@@ -434,6 +445,8 @@ export class HistoryList implements OnInit, OnDestroy {
         return 'live chart';
       case 'watchlist_daily':
         return 'daily briefing';
+      case 'fundamentals':
+        return 'fundamentals';
       default:
         return row.source_type;
     }

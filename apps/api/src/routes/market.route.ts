@@ -5,6 +5,7 @@ import { logger } from "../lib/logger.js";
 import { handleImageUpload } from "../middleware/image-upload.js";
 import { requireAuth } from "../middleware/auth.js";
 import { analyzeInstrumentLive } from "../services/live-analysis.service.js";
+import { triggerFundamentalsAnalysis } from "../services/fundamentals-analysis.service.js";
 import {
   explicitCandleSpec,
   fetchInstrumentById,
@@ -223,6 +224,58 @@ marketRouter.post(
       }
     } catch (cause) {
       logger.error("live analyze request failed", { cause: String(cause) });
+      res.status(500).json({ error: "Could not start analysis" });
+    }
+  }),
+);
+
+/**
+ * Starts a fundamentals AI analysis. JSON, not multipart: unlike the chart and
+ * live-analyze routes above, there is no image involved — the model reads the
+ * InstrumentFundamentals payload directly.
+ */
+marketRouter.post(
+  "/api/market/fundamentals/analyze",
+  asyncRoute(requireAuth),
+  asyncRoute(async (req: Request, res: Response) => {
+    const body = (typeof req.body === "object" && req.body !== null ? req.body : {}) as {
+      instrumentId?: unknown;
+    };
+    const instrumentId = typeof body.instrumentId === "string" ? body.instrumentId : "";
+
+    if (!instrumentId) {
+      res.status(400).json({ error: "instrumentId is required" });
+      return;
+    }
+
+    try {
+      // Non-null: requireAuth ran before this handler and only calls next()
+      // after setting profileId.
+      const result = await triggerFundamentalsAnalysis(req.profileId!, instrumentId);
+
+      if (result.ok) {
+        // 202: the pipeline runs in the background. analysisId names the
+        // 'queued' row it will fill in, which is what the client watches —
+        // including for a 'failed' status, so a failure surfaces immediately
+        // instead of as a client-side timeout.
+        res.status(202).json({
+          analysisId: result.analysisId,
+          instrumentId: result.instrumentId,
+          startedAt: result.startedAt,
+        });
+        return;
+      }
+
+      switch (result.reason) {
+        case "not_found":
+          res.status(404).json({ error: "Instrument not found" });
+          return;
+        case "quota_exceeded":
+          res.status(402).json({ error: "Monthly fundamentals analysis quota exceeded" });
+          return;
+      }
+    } catch (cause) {
+      logger.error("fundamentals analyze request failed", { cause: String(cause) });
       res.status(500).json({ error: "Could not start analysis" });
     }
   }),

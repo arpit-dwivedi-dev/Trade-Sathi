@@ -1,0 +1,205 @@
+/* This report is one more section of the Fundamentals tab, so it is laid out
+   as a stack of full-width cards exactly like the raw-data cards below it —
+   not as its own two-column "report" page. Angular scopes styles per
+   component, so the handful of primitives fundamentals-page.css also defines
+   (.fund-card, .fund-figures, .fund-figure, .fund-figure-val) are copied here
+   rather than shared: harmless duplication of a few small rules, not a new
+   design. Everything else (.tiles/.tile/.hd/.lbl/.meta/.dim/.lvl/.tnum/.disc/
+   .err/.panel/.cells/.cell) is already global, from src/styles/components.css. */
+
+.fund-ai {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.fund-card {
+  display: block;
+  overflow: visible;
+}
+
+.fund-ai-status {
+  padding: var(--s4) var(--s5);
+}
+
+/* ── caveats ─────────────────────────────────────────────── */
+.fund-ai-caveats {
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 24%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--s3) var(--s4);
+}
+
+/* ── tiles ───────────────────────────────────────────────── */
+.tile b {
+  text-transform: capitalize;
+}
+
+.tile b[data-tone='up'] {
+  color: var(--up);
+}
+
+.tile b[data-tone='down'] {
+  color: var(--down);
+}
+
+.fund-ai-hint {
+  font-size: var(--t-2xs);
+}
+
+/* ── card bodies ─────────────────────────────────────────── */
+.fund-ai-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s3) var(--s5) var(--s4);
+}
+
+.fund-ai-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── deciding factors / claim lists ─────────────────────────
+   Same band-with-hairline rhythm as .fund-figure, but a full-width sentence
+   per row rather than a label/value pair. */
+.fund-ai-factors,
+.fund-ai-claims {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  padding: 0 var(--s5) var(--s2);
+}
+
+.fund-ai-factors li,
+.fund-ai-claims li {
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s3) 0;
+}
+
+.fund-ai-factors li:first-child,
+.fund-ai-claims li:first-child {
+  border-top: 0;
+}
+
+.fund-ai-evidence {
+  font-family: var(--fm);
+  font-size: var(--t-2xs);
+}
+
+.fund-ai-falsifier {
+  border-top: 1px solid var(--line-soft);
+  margin: 0 calc(var(--s5) * -1) calc(var(--s4) * -1);
+  padding: var(--s3) var(--s5) var(--s4);
+}
+
+/* ── section verdicts (reuses the fundamentals-page figure-band pattern) ─── */
+.fund-figures {
+  column-gap: var(--s8);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  list-style: none;
+  padding: var(--s2) var(--s5) var(--s4);
+}
+
+.fund-figure {
+  border-bottom: 1px solid var(--line-soft);
+  padding: var(--s3) 0;
+}
+
+.fund-figure-val {
+  color: var(--tx);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.fund-ai-section .lvl {
+  margin-bottom: 4px;
+}
+
+.fund-ai-section p {
+  line-height: 1.5;
+}
+
+/* ── plain bullet lists (inflections, missing information) ─────────────── */
+.fund-ai-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+}
+
+.fund-ai-list li {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 6px;
+}
+
+.fund-ai-list li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* ── scenarios: the dark analytical slab, same role .panel plays for the
+   chart AI scenario elsewhere in the product ─────────────────────────── */
+.fund-ai-scenarios-hd {
+  border-bottom: 0;
+  padding-inline: 2px;
+}
+
+.fund-ai-scenarios {
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fund-ai-scenario {
+  display: flex;
+  flex-direction: column;
+}
+
+.fund-ai-scenario-head {
+  border-bottom: 1px solid var(--slab-line);
+  padding: var(--s3) var(--s4);
+}
+
+.fund-ai-scenario-id {
+  font-family: var(--fh);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  text-transform: capitalize;
+}
+
+.fund-ai-scenario-id[data-tone='up'] {
+  color: var(--up);
+}
+
+.fund-ai-scenario-id[data-tone='down'] {
+  color: var(--down);
+}
+
+.fund-ai-scenario-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s4);
+}
+
+.fund-ai-scenario-body p {
+  font-size: var(--t-xs);
+  line-height: 1.55;
+}
+
+@media (max-width: 720px) {
+  .fund-ai-scenarios {
+    grid-template-columns: 1fr;
+  }
+}
