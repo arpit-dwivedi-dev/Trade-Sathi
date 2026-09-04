@@ -133,6 +133,17 @@
       <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading billing…</p>
     }
 
+    <!-- Created on activation: the profile and survey shown here change from
+         elsewhere (a survey answered, a name saved), so a fresh mount per
+         visit is the re-read. -->
+    @defer (when tab() === 'account') {
+      @if (tab() === 'account') {
+        <app-account-page class="tab-pane" />
+      }
+    } @loading (after 150ms; minimum 300ms) {
+      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your account…</p>
+    }
+
     <!-- Mounted only while open, so closing tears the purchase buttons down
          through their own ngOnDestroy and a reopen starts from a clean state. -->
     @if (plansOpen()) {

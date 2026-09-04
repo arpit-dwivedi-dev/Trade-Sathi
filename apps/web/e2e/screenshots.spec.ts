@@ -99,11 +99,11 @@ for (const theme of THEMES) {
 
   test(`09 account & plan — ${theme}`, async ({ page }) => {
     await signIn(page, theme);
-    await page.getByRole('link', { name: 'Account' }).click();
-    await page.waitForURL('**/account');
-    // The panel shell is visible while still loading — wait for the resolved
-    // usage figure so the screenshot is not of a spinner.
-    await expect(page.locator('.account-used')).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Account' }).click();
+    await page.waitForURL('**/app?tab=account');
+    // The tab is mounted before its profile read resolves — wait for the
+    // rendered cards so the screenshot is not of an empty grid.
+    await expect(page.locator('.acct-card').first()).toBeVisible({ timeout: 15_000 });
     await page.evaluate(() => document.fonts.ready);
     await shoot(page, '09-account', theme);
   });

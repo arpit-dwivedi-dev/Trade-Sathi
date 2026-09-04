@@ -69,11 +69,11 @@
     <span class="nav-item-lbl">Billing</span>
   </button>
 
-  <a class="nav-item" title="Account" routerLink="/account" (click)="activated.emit()"
-     [attr.aria-current]="active() === 'account' ? 'page' : null">
+  <button type="button" class="nav-item" title="Account" (click)="select('account')"
+          [attr.aria-current]="active() === 'account' ? 'page' : null">
     <mat-icon aria-hidden="true" svgIcon="person"></mat-icon>
     <span class="nav-item-lbl">Account</span>
-  </a>
+  </button>
 </div>
 
 <div class="nav-foot">

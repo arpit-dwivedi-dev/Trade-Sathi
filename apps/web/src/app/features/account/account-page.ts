@@ -12,9 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
 import type { ProfileDetails, SurveyAnswers, SurveyStatus } from '@chartanalyzer/shared';
 
-import { NavRail } from '../../shared/nav-rail/nav-rail';
 import { AuthService } from '../../core/auth.service';
-import { ThemeService } from '../../core/theme.service';
 import { ProfileService } from './profile.service';
 
 /** Multi-choice answers are stored as one ", "-joined string — see SurveyQuestion in packages/shared. */
@@ -29,7 +27,7 @@ function splitMultiChoice(value: string | undefined): string[] {
 
 /**
  * Identity, editable profile details, and the onboarding survey. Billing —
- * plans, usage, credits — still lives on the Billing tab; this page only adds
+ * plans, usage, credits — still lives on the Billing tab; this tab only adds
  * the credit balance as a small readout so completing the survey has a
  * visible payoff right where it happened.
  */
@@ -47,7 +45,6 @@ function splitMultiChoice(value: string | undefined): string[] {
     MatIconModule,
     MatInputModule,
     MatSelectModule,
-    NavRail,
   ],
   styleUrl: './account-page.css',
   templateUrl: './account-page.html',
@@ -55,15 +52,9 @@ function splitMultiChoice(value: string | undefined): string[] {
 export class AccountPage implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly themeService = inject(ThemeService);
   private readonly profileService = inject(ProfileService);
 
   protected readonly user = this.auth.user;
-  protected readonly theme = this.themeService.theme;
-  /** Drawer state. Only consulted below 900px, where the rail is off-canvas. */
-  protected readonly navOpen = signal(false);
-  /** The rail's desktop icons-only state — see NavRail.collapsed. */
-  protected readonly navCollapsed = signal(false);
 
   /** Supabase stamps this on the auth user; absent on a session shape without it. */
   protected readonly memberSince = computed(() => this.user()?.created_at ?? null);
@@ -209,18 +200,6 @@ export class AccountPage implements OnInit {
     // Re-fetch: a new survey may already be waiting, or this really was the
     // last one — either way the backend, not local state, decides what's next.
     await this.loadSurvey();
-  }
-
-  protected toggleNav(): void {
-    this.navOpen.update((open) => !open);
-  }
-
-  protected closeNav(): void {
-    this.navOpen.set(false);
-  }
-
-  protected toggleTheme(): void {
-    this.themeService.toggle();
   }
 
   protected async signOut(): Promise<void> {

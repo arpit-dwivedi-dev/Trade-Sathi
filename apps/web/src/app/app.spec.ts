@@ -51,7 +51,6 @@ describe('routes', () => {
       .map((route) => route.path);
 
     expect(guarded).toContain('app');
-    expect(guarded).toContain('account');
     // Signed-in users are bounced away from these rather than shown a second
     // sign-in form.
     expect(guarded).toContain('login');

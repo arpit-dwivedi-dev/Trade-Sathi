@@ -13,6 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import type { Instrument } from '@chartanalyzer/shared';
+import { AccountPage } from '../account/account-page';
 import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingPage } from '../billing/billing-page';
 import { BillingService } from '../billing/billing.service';
@@ -46,6 +47,7 @@ const TABS: readonly Tab[] = [
   'history',
   'logs',
   'billing',
+  'account',
 ];
 
 /**
@@ -67,6 +69,7 @@ const TAB_TITLES: Readonly<Record<Tab, string>> = {
   watchlist: 'Watch List',
   logs: 'Logs',
   billing: 'Billing',
+  account: 'Account',
 };
 
 function parseTab(value: string | null): Tab {
@@ -77,6 +80,7 @@ function parseTab(value: string | null): Tab {
 @Component({
   selector: 'app-app-page',
   imports: [
+    AccountPage,
     AnalyzePage,
     BillingPage,
     HistoryList,

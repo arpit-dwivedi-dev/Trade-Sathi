@@ -29,15 +29,15 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/app/app-page').then((m) => m.AppPage),
   },
+  // Account and Manual Analysis are tabs inside the dashboard shell now (so
+  // the nav rail stays visible by default), not routes of their own — these
+  // only exist so a link or bookmark written against the old standalone URLs
+  // still lands somewhere real rather than falling through to the catch-all
+  // below.
   {
     path: 'account',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/account/account-page').then((m) => m.AccountPage),
+    redirectTo: () => '/app?tab=account',
   },
-  // Manual Analysis is a tab inside the dashboard shell now (so the nav rail
-  // stays visible by default), not its own route — this only exists so a
-  // link or bookmark written against the old standalone /workspace URL still
-  // lands somewhere real rather than falling through to the catch-all below.
   {
     path: 'workspace',
     redirectTo: () => '/app?tab=workspace',

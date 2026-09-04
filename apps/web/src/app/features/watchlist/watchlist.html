@@ -27,7 +27,7 @@
     <p class="note watchlist-entitlement-note" role="status">
       Scheduling and Daily Briefing are part of the Daily Briefing add-on. You can still
       browse your watchlist, but the schedule and toggle below won't run until you
-      <a routerLink="/account">add Daily Briefing</a> to your account.
+      <a routerLink="/app" [queryParams]="{ tab: 'account' }">add Daily Briefing</a> to your account.
     </p>
   }
 

@@ -29,8 +29,9 @@ export const authGuard: CanActivateFn = async (_route, state) => {
   if (auth.session()) return true;
 
   // The attempted URL rides along so signing in returns the user to where they
-  // were headed. Without it, following a link to /account while signed out
-  // always landed on /app afterwards, silently discarding the destination.
+  // were headed. Without it, following a link to a specific shell tab while
+  // signed out always landed on the default tab afterwards, silently
+  // discarding the destination.
   return router.createUrlTree(['/login'], {
     queryParams: { returnUrl: state.url },
   });

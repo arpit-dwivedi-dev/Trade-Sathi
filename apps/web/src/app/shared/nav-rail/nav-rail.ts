@@ -8,23 +8,20 @@ import { BillingService } from '../../features/billing/billing.service';
 import { ProfileService } from '../../features/account/profile.service';
 
 /** The dashboard tabs the rail links to. The app shell reads its own tab from the URL. */
-export type NavTab = 'analyze' | 'live' | 'workspace' | 'history' | 'watchlist' | 'logs' | 'billing';
+export type NavTab =
+  | 'analyze'
+  | 'live'
+  | 'workspace'
+  | 'history'
+  | 'watchlist'
+  | 'logs'
+  | 'billing'
+  | 'account';
 
 /**
- * Which rail row is the current screen. Account is its own route rather than a
- * tab, so it is not a NavTab — but it is a rail destination like the rest.
- */
-export type NavRailActive = NavTab | 'account';
-
-/**
- * The signed-in nav rail. One component rather than a copy per screen: the app
- * shell and Account both sit in the same frame, and when the markup was
- * duplicated the two drifted — Account's copy never gained the collapse
- * control or the billing CTA the shell's had.
- *
- * Every destination is a route (`/app?tab=…` or `/account`), which is what lets
- * the same rail work from a page that is not the shell. The shell picks its tab
- * up from the URL, so navigating is all this has to do.
+ * The signed-in nav rail. Every destination is a tab of the app shell,
+ * reached by writing `/app?tab=…`; the shell picks its tab up from the URL,
+ * so navigating is all this has to do.
  */
 @Component({
   selector: 'app-nav-rail',
@@ -43,7 +40,7 @@ export class NavRail {
   private readonly profiles = inject(ProfileService);
 
   /** The row to mark as the current screen. */
-  readonly active = input.required<NavRailActive>();
+  readonly active = input.required<NavTab>();
 
   /**
    * Desktop-only icons-only state. A model rather than internal state because
@@ -95,8 +92,8 @@ export class NavRail {
 
   /**
    * replaceUrl only while already in the shell: there, switching tabs is not a
-   * step worth a back-stack entry. Arriving from another page (Account) is, or
-   * Back would skip straight past it.
+   * step worth a back-stack entry. Arriving from outside it (a /login redirect,
+   * a bookmark) is, or Back would skip straight past it.
    */
   protected select(tab: NavTab): void {
     this.activated.emit();
