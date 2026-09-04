@@ -32,9 +32,10 @@
         </span>
         <h1 class="landing-h1">Paste a chart.<br />Read it properly.</h1>
         <p class="landing-lede">
-          Drop in a screenshot of any chart and get a structured read back: trend, volatility,
-          volume, sentiment, the support and resistance levels it can see, and a written summary.
-          Seconds, not a second opinion you have to chase.
+          Drop in a screenshot of any chart and get a structured read back: the structure it is
+          in, the level zones it can actually see, one conditional setup with its trigger and
+          invalidation — and what would prove the whole read wrong. Or a straight "no setup",
+          when that is the honest answer.
         </p>
         <div class="landing-actions">
           <a mat-flat-button color="primary" routerLink="/login">Analyze a chart</a>
@@ -66,46 +67,40 @@
 
           <div class="landing-preview-body">
             <div class="landing-preview-readings">
-              <div><span class="lbl">Trend</span><b>Bearish</b></div>
-              <div><span class="lbl">Volatility</span><b>High</b></div>
-              <div><span class="lbl">Volume</span><b>Low</b></div>
+              <div><span class="lbl">Setup</span><b>Conditional</b></div>
+              <div><span class="lbl">Structure</span><b>Downtrend</b></div>
+              <div><span class="lbl">ATR</span><b>1.8%</b></div>
             </div>
 
+            <!-- Bands, not prices, because that is what the product returns:
+                 orders cluster around a level rather than at it. -->
             <div class="landing-preview-levels">
               <div class="landing-preview-level">
                 <span class="landing-preview-tick landing-preview-tick-down"></span>
                 <span class="lbl">Resistance</span>
-                <span class="tnum">1,438.60</span>
-              </div>
-              <div class="landing-preview-level">
-                <span class="landing-preview-tick landing-preview-tick-down"></span>
-                <span class="lbl">Resistance</span>
-                <span class="tnum">1,421.05</span>
+                <span class="tnum">1,421.05 – 1,428.90</span>
               </div>
               <div class="landing-preview-level">
                 <span class="landing-preview-tick landing-preview-tick-up"></span>
                 <span class="lbl">Support</span>
-                <span class="tnum">1,402.40</span>
-              </div>
-              <div class="landing-preview-level">
-                <span class="landing-preview-tick landing-preview-tick-up"></span>
-                <span class="lbl">Support</span>
-                <span class="tnum">1,388.15</span>
+                <span class="tnum">1,388.15 – 1,394.60</span>
               </div>
             </div>
           </div>
 
           <div class="panel landing-preview-panel">
+            <!-- No confidence score, deliberately: the only probability the
+                 model may report is conditional on its trigger firing, so it
+                 sits next to that trigger rather than above the whole read. -->
             <div class="landing-preview-dir">
               <span class="lbl">Scenario</span>
               <span class="dir d-short landing-preview-dir-val">Short</span>
-              <mat-progress-bar class="landing-preview-meter d-short" mode="determinate" [value]="62" />
-              <span class="lbl">62% confidence</span>
+              <span class="lbl">on a close below the zone</span>
             </div>
             <div class="cells landing-preview-cells">
-              <div class="cell"><span class="lbl">Reference</span><span class="tnum">1,402.40</span></div>
-              <div class="cell"><span class="lbl">Invalidation</span><span class="tnum">1,421.05</span></div>
-              <div class="cell"><span class="lbl">Target</span><span class="tnum">1,388.15</span></div>
+              <div class="cell"><span class="lbl">Trigger zone</span><span class="tnum">1,394.60 – 1,388.15</span></div>
+              <div class="cell"><span class="lbl">Invalidation</span><span class="tnum">1,428.90</span></div>
+              <div class="cell"><span class="lbl">P(target first)</span><span class="tnum">0.36</span></div>
             </div>
           </div>
         </mat-card>
@@ -119,7 +114,8 @@
       <div class="landing-section-head">
         <h2 class="landing-h2">What comes back</h2>
         <p class="landing-section-sub">
-          One screenshot in, one structured report out — the same four parts every time.
+          One screenshot in, one structured report out — the same parts every time, including the
+          part that says the chart supports nothing.
         </p>
       </div>
 
@@ -128,24 +124,28 @@
       <mat-card class="landing-grid">
         <div class="landing-grid-item">
           <span class="landing-grid-num">01</span>
-          <h3 class="landing-h3">Trend, volatility, volume, sentiment</h3>
+          <h3 class="landing-h3">Structure and regime</h3>
           <p class="landing-grid-copy">
-            Four compact readings of what the chart is doing, in plain words.
+            Where the chart is in its swing structure, how volatile it is against its own recent
+            range, and whether moves are following through.
           </p>
         </div>
         <div class="landing-grid-item">
           <span class="landing-grid-num">02</span>
-          <h3 class="landing-h3">Support &amp; resistance</h3>
+          <h3 class="landing-h3">Level zones</h3>
           <p class="landing-grid-copy">
-            The price levels the model can identify in the image, listed as numbers you can act on.
+            The zones price has actually reacted in — as bands, with the touch count behind each
+            one. Orders cluster around a level rather than at it, and a single tidy number would
+            claim a precision the chart does not contain.
           </p>
         </div>
         <div class="landing-grid-item">
           <span class="landing-grid-num">03</span>
-          <h3 class="landing-h3">A written read</h3>
+          <h3 class="landing-h3">A setup, or an honest no</h3>
           <p class="landing-grid-copy">
-            A short paragraph tying the readings together, plus an optional directional scenario
-            with its own reference levels.
+            One conditional scenario — trigger zone, invalidation, target, horizon — plus the
+            observable event that would prove the read wrong. When the chart supports nothing, it
+            says so instead of inventing a trade.
           </p>
         </div>
       </mat-card>

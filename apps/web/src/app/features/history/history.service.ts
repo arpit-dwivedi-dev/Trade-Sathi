@@ -13,14 +13,20 @@ export type HistoryRow = Pick<
   | 'created_at'
   | 'symbol'
   | 'symbol_raw'
-  | 'asset_class'
-  | 'trend'
+  | 'instrument_type'
+  | 'structure_state'
+  | 'setup_format'
   | 'call_direction'
   | 'status'
   | 'source'
   | 'source_type'
   | 'timeframe'
   | 'emailed_at'
+  // The legacy pair, for rows analyzed before the structured-read prompts.
+  // Their replacements (instrument_type, structure_state) are null on those
+  // rows, and these are null on every row written since.
+  | 'asset_class'
+  | 'trend'
 >;
 
 // `symbol` and `source` join the list because symbol_raw alone was not enough
@@ -28,7 +34,8 @@ export type HistoryRow = Pick<
 // canonical symbol even when the model read none off the image, and those rows
 // all store source_type 'upload', so `source` is their only real provenance.
 const HISTORY_COLUMNS =
-  'id, created_at, symbol, symbol_raw, asset_class, trend, call_direction, status, source, source_type, timeframe, emailed_at';
+  'id, created_at, symbol, symbol_raw, instrument_type, structure_state, setup_format, ' +
+  'call_direction, status, source, source_type, timeframe, emailed_at, asset_class, trend';
 
 /**
  * Which provenances a listing is restricted to. 'all' is the absence of a
@@ -170,7 +177,9 @@ export class HistoryService {
       .single<AnalysisRow>();
     if (error || !row) throw error ?? new Error('Analysis row not found');
 
-    // Patterns only exist once the pipeline has finished writing them.
+    // Patterns exist only on rows analyzed before the current prompts, which
+    // prohibit pattern names outright. Still fetched, because those rows are
+    // the user's history and their detail view still renders them.
     const { data: patterns, error: patternsError } = await client
       .from('analysis_patterns')
       .select('*')

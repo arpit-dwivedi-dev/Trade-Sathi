@@ -1,11 +1,11 @@
-import type { AnalysisAiResult } from "../../services/ai-analysis.service.js";
+import type { AnalysisResult } from "@chartanalyzer/shared";
 
 export interface BriefingItem {
   symbol: string;
   name: string;
   marketDataDate: string; // YYYY-MM-DD
   latestPrice: number;
-  analysis: AnalysisAiResult;
+  analysis: AnalysisResult;
 }
 
 export interface FailedBriefingItem {
@@ -21,22 +21,59 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function formatDirection(direction: AnalysisAiResult["call"]["direction"]): string {
-  return direction.toUpperCase();
+/**
+ * A price band, written the way the prompts insist levels be read: as a zone,
+ * never a point. A collapsed band (low === high) prints as one number rather
+ * than "1402 – 1402".
+ */
+function band(low: number, high: number): string {
+  return low === high ? String(low) : `${low} – ${high}`;
+}
+
+/**
+ * The headline for one instrument.
+ *
+ * There is no confidence percentage here any more, and that is the point: the
+ * prompts emit no confidence for a call. The one probability they may report
+ * is conditional on the trigger firing, so it is only ever shown next to the
+ * trigger it depends on — never as a standalone score for the instrument.
+ */
+function verdictHtml(analysis: AnalysisResult): string {
+  const setup = analysis.setup;
+
+  if (setup.format === "none") {
+    const reason = setup.abstain_reason ? ` (${setup.abstain_reason.replace(/_/g, " ")})` : "";
+    return `<strong>NO SETUP</strong>${escapeHtml(reason)}`;
+  }
+
+  const label = setup.format === "two_scenario" ? "TWO SCENARIOS" : setup.format.toUpperCase();
+  const lines = setup.scenarios.map((scenario) => {
+    const target = scenario.target !== null ? ` → ${scenario.target}` : "";
+    return `<div style="font-size:13px;color:#444;margin-top:4px;">
+        ${scenario.direction.toUpperCase()} on ${escapeHtml(scenario.trigger.replace(/_/g, " "))}
+        ${band(scenario.trigger_low, scenario.trigger_high)}${target},
+        invalid below/above ${scenario.invalidation}
+        · p ${scenario.p_target_before_invalidation.toFixed(2)} within ${scenario.horizon_candles} candles
+      </div>`;
+  });
+
+  return `<strong>${label}</strong>${lines.join("")}`;
+}
+
+/** At most three zones, nearest the last close first — the prompts' own order. */
+function levelsHtml(analysis: AnalysisResult): string {
+  const zones = analysis.structure.levels;
+  if (zones.length === 0) return "";
+
+  const text = zones
+    .map((zone) => `${zone.kind === "support" ? "S" : "R"} ${band(zone.low, zone.high)}`)
+    .join(" · ");
+  return `<div style="font-size:13px;color:#444;margin-top:4px;">${escapeHtml(text)}</div>`;
 }
 
 function itemHtml(item: BriefingItem): string {
-  const call = item.analysis.call;
-  const levels = [
-    item.analysis.support_levels.length > 0
-      ? `Support: ${item.analysis.support_levels.join(", ")}`
-      : null,
-    item.analysis.resistance_levels.length > 0
-      ? `Resistance: ${item.analysis.resistance_levels.join(", ")}`
-      : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const structure = item.analysis.structure.state ?? "structure unclear";
+  const atr = item.analysis.regime.atr_pct;
 
   return `
     <tr>
@@ -46,13 +83,14 @@ function itemHtml(item: BriefingItem): string {
         </div>
         <div style="font-size:13px;color:#666;margin-top:2px;">
           As of ${escapeHtml(item.marketDataDate)} · Close ${item.latestPrice}
+          · ${escapeHtml(structure)}${atr !== null ? ` · ATR ${atr}%` : ""}
         </div>
-        <div style="font-size:14px;margin-top:8px;">
-          <strong>${formatDirection(call.direction)}</strong>
-          (confidence ${(call.confidence * 100).toFixed(0)}%)
-        </div>
-        ${levels ? `<div style="font-size:13px;color:#444;margin-top:4px;">${escapeHtml(levels)}</div>` : ""}
+        <div style="font-size:14px;margin-top:8px;">${verdictHtml(item.analysis)}</div>
+        ${levelsHtml(item.analysis)}
         <div style="font-size:14px;color:#222;margin-top:8px;">${escapeHtml(item.analysis.summary)}</div>
+        <div style="font-size:12px;color:#666;margin-top:6px;">
+          Wrong if: ${escapeHtml(item.analysis.falsifier)}
+        </div>
       </td>
     </tr>`;
 }

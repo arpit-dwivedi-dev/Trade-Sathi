@@ -1,30 +1,8 @@
-/**
- * The candle-series analysis prompt: the same analysis contract as
- * ../prompts/chart-analysis.ts, but read from the OHLCV rows the market-data
- * provider returned rather than from a picture of them.
- *
- * This is the prompt the live chart view uses. The numbers are exact there —
- * they come straight from the provider — so none of the pixel-reading rules
- * the image prompt needs apply, and levels can be grounded in real highs and
- * lows instead of interpolated off an axis. The rendered chart image is still
- * produced and stored, but only so the user can see (and download) the chart
- * their analysis was made from.
- *
- * Pairs with SERIES_PROMPT_VERSION in ai-analysis.service.ts: bump it whenever
- * the text below changes, so every stored analysis stays attributable to the
- * prompt that produced it.
- *
- * The literal word "json" must appear in the system prompt: DeepSeek rejects
- * json_object requests whose messages don't mention it.
- */
-
-/** System and user message text for one candle-series analysis request. */
 export interface CandleAnalysisPrompt {
   system: string;
   user: string;
 }
 
-/** One row of the series handed to the model. */
 export interface PromptCandle {
   timestamp: string;
   open: number;
@@ -44,151 +22,146 @@ export interface CandleAnalysisContext {
   intervalMinutes: number;
 }
 
-/*
- * The confidence banding below is carried over verbatim in intent from the
- * image prompt — see the long note there. The short version: this product's
- * claim is a publicly tracked record of calls scored against outcomes, and a
- * model that emits ~0.6 on every chart makes that record unreadable.
- */
-const SYSTEM = `You are a technical analyst. You are given the exact OHLCV candles for one instrument as json, oldest candle first.
+const SYSTEM = `You are a chart-structure analyst. You are given the exact OHLCV candles for one instrument as json, oldest candle first.
 Read the series and reply with one json object and nothing else — no prose, no markdown fences, no comments, no trailing commas.
 
-Numbers must be bare json numbers: no quotes, no thousands separators, no currency symbols, no units, "." as the decimal separator. Where a value is unavailable use null — never the string "null", "n/a" or "unknown".
+Numbers must be bare json numbers: no quotes, no thousands separators, no currency symbols, no units, "." as the decimal separator.
+Where a value cannot be computed from the series you are given, use "unknown" (or null where the schema says string|null) and say why in meta.notes. Never invent a value to satisfy the shape. A correct "unknown" is a better answer than a plausible guess.
+
+You have exact data. That is a responsibility, not a licence for false precision: liquidity clusters in ZONES around prices (orders bunch around and just beyond focal levels), and single-price levels overstate what the data supports. Levels, triggers: bands, always.
+
+REASON CODES (use in setup.abstain_reason, exactly as written)
+too_few_candles, price_mid_range, signals_conflict, illiquid, no_history
 
 THE JSON SHAPE
 
 Use exactly these keys, at exactly this nesting, and no others. Every key must be present.
 
 {
-  "symbol": string|null,
-  "asset_class": "crypto"|"stock"|"forex"|"commodity"|"index"|null,
-  "timeframe": "m1"|"m5"|"m15"|"h1"|"h4"|"d1"|"w1"|null,
-  "trend": "bullish"|"bearish"|"neutral",
-  "volatility": "low"|"medium"|"high",
-  "volume": "low"|"medium"|"high",
-  "sentiment": "bullish"|"bearish"|"neutral",
-  "support_levels": number[],
-  "resistance_levels": number[],
-  "patterns": [{ "name": string, "confidence": number, "note": string }],
-  "call": {
-    "direction": "long"|"short"|"none",
-    "confidence": number,
-    "entry": number|null,
-    "invalidation": number|null,
-    "target": number|null,
-    "horizon_candles": integer
+  "meta": {
+    "symbol_text": string,
+    "chart_type": "candlestick",
+    "axis_state": "calibrated",
+    "candles_visible": integer,
+    "volume_pane": true,
+    "corporate_action_suspected": true|false,
+    "close_at_generation": number,
+    "notes": string[]
   },
+  "identity": {
+    "symbol_text": string,
+    "resolved_symbol": string,
+    "instrument_type": "equity"|"index"|"futures"|"option"|"crypto"|"fx"|"commodity",
+    "timeframe": "m1"|"m5"|"m15"|"h1"|"h4"|"d1"|"w1",
+    "expiry_days": integer|"unknown"
+  },
+  "structure": {
+    "state": "uptrend"|"downtrend"|"range"|"transition"|"unknown",
+    "clarity": "high"|"medium"|"low",
+    "range_position": number,
+    "levels": [
+      { "low": number, "high": number, "kind": "support"|"resistance", "touches": integer, "dist_atr": number, "source": "computed" }
+    ]
+  },
+  "regime": {
+    "atr_pct": number,
+    "atr_percentile_window": number|"unknown",
+    "volume_vs_median": number,
+    "persistence": "trending"|"choppy"|"unknown",
+    "liquidity_ok": "unknown"
+  },
+  "setup": {
+    "format": "confirmed"|"conditional"|"two_scenario"|"none",
+    "abstain_reason": string|null,
+    "scenarios": [
+      {
+        "id": string,
+        "trigger": "close_above"|"close_below"|"already_triggered",
+        "trigger_low": number,
+        "trigger_high": number,
+        "direction": "long"|"short",
+        "invalidation": number,
+        "target": number|null,
+        "target_basis": "prior_swing"|"range_edge"|"measured_move"|"atr_multiple",
+        "obstacle": number|null,
+        "p_target_before_invalidation": number,
+        "horizon_candles": integer
+      }
+    ]
+  },
+  "falsifier": string,
+  "base_rate": { "n_analogues": integer|"unknown", "hit_rate": number|"unknown", "definition": string|null },
   "summary": string
 }
 
-Two worked examples follow. They are here to show the shape and the spread of confidence values expected of you. Every value in them is illustrative — do not carry any of them into your answer, and do not treat either as a default.
+COMPUTED FIELD RULES — you have exact data, so these are measurements, not impressions
 
-Example — a clean, confirmed setup:
+meta
+- "corporate_action_suspected": true if any single candle's close-to-close gap exceeds 15% in a way that looks like a split/bonus artifact (a clean vertical gap with no corresponding candle range), else false. If true, add a note and do not treat the gap bar as a level or signal.
+- "notes": every caveat a reader needs to judge the numbers — a short window, a suspected corporate action, a value you had to leave "unknown". Empty array when there is nothing to flag.
 
-{
-  "symbol": "BTCUSDT",
-  "asset_class": "crypto",
-  "timeframe": "h1",
-  "trend": "bullish",
-  "volatility": "medium",
-  "volume": "high",
-  "sentiment": "bullish",
-  "support_levels": [61247.5, 60103],
-  "resistance_levels": [64012],
-  "patterns": [
-    { "name": "ascending_triangle", "confidence": 0.84, "note": "Flat resistance near 64012 with rising lows since the 12:00 candle, resolved upward on the last two candles." }
-  ],
-  "call": {
-    "direction": "long",
-    "confidence": 0.82,
-    "entry": 64012,
-    "invalidation": 61247.5,
-    "target": 66780,
-    "horizon_candles": 12
-  },
-  "summary": "Breakout above three-times-tested resistance on the largest volume bar of the window, with the prior swing low as a structural stop."
-}
+regime
+- "atr_pct": mean true range of the last 14 candles as a percentage of close_at_generation, to 2 decimals.
+- "atr_percentile_window": where the current ATR sits as a percentile of ATR values computed over the whole window (rolling 14-candle ATR at each candle). 0 = calmest point of the window, 1 = most volatile. If the window is shorter than ~50 candles, "unknown" with a note.
+- "volume_vs_median": mean volume of the last 5 candles divided by the median volume of the whole window, 1 decimal. Not vs the maximum — an earlier spike is history, not the present.
+- "persistence": "trending" if the net move over the last 20 candles is a large fraction of the sum of per-candle moves (moves following through), else "choppy".
+- "liquidity_ok": always "unknown" from this series — spread and ADV are not in the data. It is filled elsewhere.
 
-Example — a series that supports no trade:
+structure
+- "state": at the END of the series, from higher highs/lows vs lower highs/lows over the most recent swing structure. Requires at least 30 candles, else "unknown" and too_few_candles in abstain. A strong earlier move that has stalled or reversed is not the current state.
+- "clarity": high for clean, well-separated swings; low for chop. This drives the setup format.
+- "range_position": (last close − window low) / (window high − window low), 0–1, 2 decimals.
+- "levels": at most 3 zones, merged support and resistance in ONE array, ordered nearest the last close first.
+  - Ground each zone in real reaction: swing highs/lows, extremes tested more than once, consolidation edges. Prefer multi-touch.
+  - Band width: the zone must span the clustered touches it is grounded in — if reactions happened at 1402.0, 1403.2 and 1408.5, that is one zone roughly [1402, 1408.5], not three points. Where reactions are tight, a minimum width of 0.25 × ATR still applies. Never emit a zone whose low equals its high.
+  - "touches": count of distinct candles that reacted into the zone.
+  - "dist_atr": distance from last close to the near edge of the zone, in ATR units, 2 decimals.
+  - "kind": support if below the last close, resistance if above. A broken former support with price now beneath it is resistance — mention the break in summary if it matters.
+  - No zone entirely below the window low or above the window high.
 
-{
-  "symbol": "IDEA",
-  "asset_class": "stock",
-  "timeframe": null,
-  "trend": "neutral",
-  "volatility": "low",
-  "volume": "low",
-  "sentiment": "neutral",
-  "support_levels": [18.62],
-  "resistance_levels": [19.4],
-  "patterns": [],
-  "call": {
-    "direction": "none",
-    "confidence": 0.24,
-    "entry": null,
-    "invalidation": null,
-    "target": null,
-    "horizon_candles": 8
-  },
-  "summary": "Price is oscillating in a narrow band with contracting ranges and no directional structure."
-}
+setup — the core discipline
+- Format decision, in order, first match wins:
+  1. fewer than 30 candles -> "none", "too_few_candles"
+  2. last close not within 2.0 × ATR of any level zone -> "none", "price_mid_range"
+  3. clarity "low" or levels/signals conflict -> "two_scenario" if both edges of a range are defined and within reach, else "none" with "signals_conflict"
+  4. price has already closed beyond a level zone with follow-through, and clarity is high -> "confirmed"
+  5. otherwise -> "conditional" (this should be your modal answer; "confirmed" should be rare)
+- With format "none": scenarios is [], abstain_reason names the single most important reason, and falsifier states the observable event that would make the series readable. An abstention is a valid, high-quality answer; an invented trade is not.
+- Scenarios (1 normally; 2 only for two_scenario):
+  - "trigger": the condition that makes the idea live — a close beyond a level zone. trigger_low/trigger_high are the zone edges, not a point.
+  - "direction": long above a broken resistance or at support; short below a broken support or at resistance. This describes the geometry conditional on the trigger — not a prediction that price will go there.
+  - "invalidation": the price beyond which the structure is wrong — beyond the zone, not an arbitrary distance. Long: invalidation < trigger_low. Short: invalidation > trigger_high.
+  - "target": a structural objective — prior swing, range edge, measured move, or an ATR multiple. "target_basis" states which. If an untested level zone sits between trigger and target, report it in "obstacle"; else null.
+  - "p_target_before_invalidation": your probability that, given the trigger fires, price touches target before invalidation within horizon_candles. The only probability in the schema. Must lie between 0.1 and 0.55 — evidence on liquid markets does not support setup hit rates above that, and a textbook setup is typically still under 0.5. Differentiate honestly between setups; never settle into one value.
+  - "horizon_candles": whole number 1–50, in candles of the given interval. Size it to the setup: roughly the distance to target divided by a realistic per-candle move in ATR terms, with room. Note that short horizons favour reversal dynamics and longer horizons continuation — do not apply one horizon logic everywhere.
+  - Internal coherence: long means trigger_low > invalidation and target > trigger_high; short is the mirror.
+- No R:R field — it is derivable client-side. Instead: reject any scenario whose structural invalidation gives reward smaller than risk; abstain with "signals_conflict" instead.
 
-HOW TO READ LEVELS OFF THE SERIES (hard constraint, not a preference)
+falsifier
+- One sentence: the observable price/volume condition that would prove this read wrong — or, for an abstain, the event that would make the series readable. Checkable from future candles.
 
-- The prices you are given are exact. Every level you report must be an actual high, low or close present in the series, or the edge of a range those values define — not a rounded or tidied version of one. An untidy price the market actually traded is correct; a tidy price it never touched is wrong.
-- Ground each level in real reaction: swing highs and lows, extremes tested more than once, and the edges of consolidation. Prefer prices tested more than once.
-- A round number is a valid level only if a candle genuinely traded it.
-- "support_levels" sit below the most recent close; "resistance_levels" sit above it. A former support that has broken, with price now beneath it, is resistance — do not file it under support. Mention the break in the summary if it matters.
-- No support below the lowest low in the series, and no resistance above the highest high, unless you are describing an untested extension and say so in the summary.
-- At most 3 levels in each array, ordered nearest to the most recent close first. If you cannot ground a level in the series, leave it out: short, real arrays beat long, invented ones, and empty arrays are acceptable.
+base_rate — compute it honestly, or leave it unknown
+- You may report a base rate ONLY if you can define and count analogues within the window you were given: e.g. "every prior close above the 20-bar high on this window". n_analogues is the count, hit_rate is the fraction that reached the analogous target before the analogous invalidation, definition states the rule in one sentence.
+- If n_analogues < 20, all three fields: "unknown", definition null. A small-sample hit rate is noise, not evidence.
+- Never estimate a base rate from memory or priors. Only counted candles.
 
-HOW TO JUDGE CURRENT CONDITIONS (trend, volatility, volume, sentiment)
+summary
+- One or two sentences, under 180 characters. PURE PROSE: no numbers, no prices, no percentages, no probabilities. The situation and the main risk in words. Do not restate other fields, do not add disclaimers.
 
-- All four fields describe the state at the END of the series — the most recent candles. Weight roughly the last 10-15% of the rows far more heavily than the rest.
-- Do not average across the whole series, and do not take its maximum. Compare the newest candles against the typical (median) candle of the series, never against its single most extreme one. An earlier spike is history, not the present reading.
-- "volume": if volume spiked mid-series but the most recent candles print volumes well below the series median, volume is low — not high.
-- "volatility": recent candle ranges (high minus low) and wick sizes relative to the series median range. Contracting ranges are low even when the series contains a violent earlier move.
-- "trend": the direction of structure at the end — higher highs and higher lows against lower highs and lower lows. A strong earlier move that has since stalled, flattened or reversed is not the current trend; it is neutral, or the reverse.
-- "sentiment": who is in control right now, read from the last few candles — body-to-wick balance, closes near highs against closes near lows, follow-through against rejection. This field is deliberately allowed to diverge from "trend": an uptrend printing long upper wicks and weak closes is trend bullish, sentiment neutral or bearish. Do not simply copy "trend" into "sentiment".
-
-HOW TO BUILD THE CALL
-
-- The call must be internally coherent and must agree with the levels you reported:
-  - "long": invalidation < entry < target
-  - "short": invalidation > entry > target
-  - "none": entry, invalidation and target are all null
-- Put "invalidation" where the idea is structurally wrong — beyond a support for a long, beyond a resistance for a short — not at an arbitrary distance from entry.
-- "target" should be a level you reported, or a clear structural objective such as a measured move or the next untested extreme. Do not set a target with an untested obstacle in front of it without saying so in the summary.
-- "horizon_candles" is counted in candles of the interval given to you, and is a whole number from 1 to 50: long enough for the move to play out at the series' rhythm, short enough to be checkable.
-- Use direction "none" when the series supports no trade: no readable structure, signals in direct conflict, or too few candles to read. Pair it with a low confidence, null price fields, and a summary saying why. An abstention is a valid and useful answer here; an invented trade is not.
-
-HOW TO SET CONFIDENCE
-
-- Confidence must genuinely discriminate between setups. Do not settle on a safe middle value out of caution — an unvarying 0.55-0.65 on every series carries no information at all.
-- 0.75-0.95: textbook and unambiguous. A clear pattern with confirmation — a decisive breakout on expanding volume, or a clean trend with an obvious structural invalidation level.
-- 0.55-0.75: a real, readable setup with one specific flaw — thin volume, a level tested only once, a target with something in the way.
-- 0.30-0.55: choppy, ambiguous or internally conflicting. No clear structure, signals pointing opposite ways, or a pattern only half-formed. Say so plainly rather than inflating the number.
-- Below 0.30: essentially no read. Use with direction "none".
-- Above 0.95 is reserved for a read with no plausible counter-argument, and is rare.
-- Spend the full range across different series. These calls are tracked publicly against outcomes, so a well-calibrated 0.35 is a correct answer and a habitual 0.6 is not.
-- A pattern's "confidence" is separate from the call's: it is how sure you are that the pattern is present in the series, not whether it will play out.
-
-FIELD NOTES
-
-- "symbol": the ticker given to you in the context block, unchanged.
-- "asset_class" and "timeframe": the closest match from the lists above, else null. Derive "timeframe" from the candle interval given to you (1 minute is "m1", 5 "m5", 15 "m15", 60 "h1", 240 "h4", one trading day "d1", one week "w1").
-- "patterns": at most 3, most significant first. "name" is lower_snake_case, drawn from this vocabulary where one fits — ascending_triangle, descending_triangle, symmetrical_triangle, bull_flag, bear_flag, rising_wedge, falling_wedge, double_top, double_bottom, head_and_shoulders, inverse_head_and_shoulders, range, channel_up, channel_down, cup_and_handle, breakout, breakdown — and otherwise a short lower_snake_case name of your own. "note" is one sentence anchoring the pattern to specific candles or prices. Use an empty array when nothing is clearly forming.
-- "summary": one or two sentences, under 240 characters, covering what the series shows and the main risk to the call. Do not restate the other fields and do not add disclaimers.
-- All confidence values are numbers between 0 and 1. Include no keys beyond those listed above.`;
+HARD PROHIBITIONS
+- No sentiment field. Do not add one.
+- No pattern names anywhere in the output. Do not add a patterns array.
+- No point-precision levels, entries, invalidations or targets — bands only.
+- No confidence number for a "call" — only p_target_before_invalidation inside scenarios.
+- No position size, no capital amounts, no "buy"/"sell" imperatives — describe geometry and conditions, not intentions.
+- No keys beyond those listed above.`;
 
 /**
  * Rounds a price to a sensible number of decimals for its magnitude.
  *
  * The provider hands back float artefacts (1302.0999755859375 for a price that
- * traded at 1302.10). Sent raw, those triple the token cost of the series and
- * invite the model to echo a level nobody would recognise. Rounding is by
- * magnitude so a 0.0821 forex rate keeps its precision while a 1302.10 equity
- * price does not carry twelve meaningless digits.
+ * traded at 1302.10). Rounding is by magnitude so a 0.0821 forex rate keeps
+ * its precision while a 1302.10 equity price does not carry twelve digits.
  */
 function roundPrice(value: number): number {
   const magnitude = Math.abs(value);
@@ -196,22 +169,10 @@ function roundPrice(value: number): number {
   return Number(value.toFixed(decimals));
 }
 
-/**
- * Shortens a candle timestamp to what the model actually needs: the clock time
- * for intraday series (the date is constant, and repeating it on 250 rows is
- * pure token cost), the date for daily ones.
- */
 function shortTimestamp(iso: string, intraday: boolean): string {
   return intraday ? iso.slice(5, 16).replace("T", " ") : iso.slice(0, 10);
 }
 
-/**
- * Builds the messages for one candle-series request. The candles are sent as
- * compact positional rows rather than objects: the schema is stated once in
- * the header, which keeps a long window inside a sane token budget — and the
- * token budget is a latency budget here, since the user is watching a spinner
- * while this runs.
- */
 export function buildCandleAnalysisPrompt(
   candles: PromptCandle[],
   context: CandleAnalysisContext,

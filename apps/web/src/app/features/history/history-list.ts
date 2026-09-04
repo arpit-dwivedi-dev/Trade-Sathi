@@ -57,7 +57,7 @@ export class HistoryList implements OnInit, OnDestroy {
   private readonly supabase = inject(SupabaseClientService);
   private readonly auth = inject(AuthService);
 
-  protected readonly columns = ['analyzed', 'symbol', 'asset', 'tf', 'trend', 'direction', 'status', 'actions'];
+  protected readonly columns = ['analyzed', 'symbol', 'asset', 'tf', 'structure', 'setup', 'status', 'actions'];
 
   protected readonly rows = signal<HistoryRow[]>([]);
   protected readonly nextCursor = signal<string | null>(null);
@@ -383,6 +383,48 @@ export class HistoryList implements OnInit, OnDestroy {
    */
   protected displaySymbol(row: HistoryRow): string | null {
     return row.symbol ?? row.symbol_raw;
+  }
+
+  /**
+   * What kind of instrument the row is on.
+   *
+   * instrument_type comes from the current prompts; asset_class is what rows
+   * analyzed before them stored. Exactly one of the two is set on any row.
+   */
+  protected assetLabel(row: HistoryRow): string {
+    return row.instrument_type ?? row.asset_class ?? '—';
+  }
+
+  /**
+   * Structure at the right edge — 'uptrend', 'range' and so on.
+   *
+   * Not the same reading the old `trend` column held: that was a
+   * bullish/bearish/neutral opinion, this describes the swing structure. They
+   * share a column in the list because they answer the same question for a
+   * reader scanning it, and no row has both.
+   */
+  protected structureLabel(row: HistoryRow): string {
+    return row.structure_state ?? row.trend ?? '—';
+  }
+
+  /**
+   * What the setup came to, in one word.
+   *
+   * A two-scenario read stores no call_direction on purpose: it exists
+   * precisely because both edges are live and the chart does not say which
+   * resolves, so naming one of them here would invent a call. 'none' is an
+   * abstention, which under these prompts is a result rather than a gap.
+   */
+  protected setupLabel(row: HistoryRow): string | null {
+    if (row.setup_format === 'two_scenario') return 'two-way';
+    if (row.setup_format === 'none') return 'no setup';
+    return row.call_direction;
+  }
+
+  /** The `d-*` class that colours the setup cell, or null for a neutral one. */
+  protected setupTone(row: HistoryRow): string | null {
+    if (row.setup_format === 'two_scenario') return null;
+    return row.call_direction;
   }
 
   /** Provenance in the user's terms — see AnalysisResult.sourceLabel. */

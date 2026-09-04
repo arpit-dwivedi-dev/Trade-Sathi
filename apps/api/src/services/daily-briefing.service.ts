@@ -1,4 +1,4 @@
-import type { AnalysisAiResult } from "./ai-analysis.service.js";
+import type { AnalysisResult } from "@chartanalyzer/shared";
 import { runInstrumentAnalysis, type ProvidedChart } from "./instrument-analysis.service.js";
 import { todayIsoDate, type InstrumentRef } from "./market-chart.service.js";
 import {
@@ -142,7 +142,7 @@ interface ProcessedItem {
   analysisId: string;
   marketDataDate: string;
   latestPrice: number;
-  analysis: AnalysisAiResult;
+  analysis: AnalysisResult;
 }
 
 /**

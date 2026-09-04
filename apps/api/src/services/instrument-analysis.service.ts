@@ -3,9 +3,9 @@ import {
   runSeriesAnalysis,
   AnalysisFailure,
   SERIES_PROMPT_VERSION,
-  insertAnalysisPatterns,
+  analysisResultColumns,
 } from "./ai-analysis.service.js";
-import type { AnalysisAiResult } from "./ai-analysis.service.js";
+import type { AnalysisResult } from "@chartanalyzer/shared";
 import {
   MAX_CANDLES_FOR_CHART,
   getCandlesForInstrument,
@@ -56,7 +56,7 @@ export interface InstrumentAnalysisResult {
   analysisId: string;
   marketDataDate: string;
   latestPrice: number;
-  analysis: AnalysisAiResult;
+  analysis: AnalysisResult;
 }
 
 /**
@@ -284,23 +284,12 @@ export async function runInstrumentAnalysis(
   const resultColumns = {
     market_data_date: marketDataDate,
     image_key: imageKey,
-    symbol_raw: visual.result.symbol,
+    // The validated payload and the columns promoted out of it, written the
+    // same way the manual upload path writes them — the two must not drift.
+    ...analysisResultColumns(visual.result),
+    // The catalogue symbol, which this path knows for certain; the model's own
+    // read of it stays in symbol_raw, set by analysisResultColumns above.
     symbol: ref.symbol,
-    asset_class: visual.result.asset_class,
-    timeframe: visual.result.timeframe,
-    trend: visual.result.trend,
-    volatility: visual.result.volatility,
-    volume_reading: visual.result.volume,
-    sentiment: visual.result.sentiment,
-    support_levels: visual.result.support_levels,
-    resistance_levels: visual.result.resistance_levels,
-    call_direction: visual.result.call.direction,
-    call_confidence: visual.result.call.confidence,
-    call_entry: visual.result.call.entry,
-    call_invalidation: visual.result.call.invalidation,
-    call_target: visual.result.call.target,
-    horizon_candles: visual.result.call.horizon_candles,
-    summary: visual.result.summary,
     // The model the call actually went to, reported back by the AI service —
     // not the configured primary, which may have been failed over past. A run
     // must stay attributable to the model that produced it.
@@ -365,11 +354,6 @@ export async function runInstrumentAnalysis(
     }
     analysisId = insertedRow.id;
   }
-
-  // The patterns the model found, stored the same way the manual upload path
-  // stores them. Without this every generated analysis (the live view and the
-  // daily briefing) discarded them and always rendered "No patterns detected".
-  await insertAnalysisPatterns(analysisId, visual.result.patterns);
 
   return {
     analysisId,

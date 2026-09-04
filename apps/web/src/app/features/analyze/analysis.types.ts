@@ -1,3 +1,5 @@
+import type { AnalysisResult } from '@chartanalyzer/shared';
+
 /**
  * Shape of the rows this feature reads back from Supabase.
  *
@@ -5,6 +7,11 @@
  * API writes these columns through the service-role client and has no matching
  * type today, so there is only one call site. Move it to shared the moment the
  * backend needs the same shape.
+ *
+ * The one thing that IS shared is `analysis_result`: the API validates every
+ * model response into `AnalysisResult` before storing it, and this renders it
+ * back, so a divergence between the two must be a compile error rather than a
+ * blank section on the report.
  */
 export interface AnalysisRow {
   id: string;
@@ -26,8 +33,21 @@ export interface AnalysisRow {
   instrument_id: string | null;
   /** Chart window a generated analysis was read from, in days; null for an upload. */
   analysis_lookback_days: number | null;
-  asset_class: string | null;
+  /**
+   * The structured read the current prompts produce — the whole report, in
+   * one column. Null for rows analyzed before those prompts (which render
+   * from the legacy columns below) and for rows that have not completed.
+   */
+  analysis_result: AnalysisResult | null;
+  /** Promoted out of `analysis_result` so the History list need not parse it. */
+  setup_format: 'confirmed' | 'conditional' | 'two_scenario' | 'none' | null;
+  structure_state: 'uptrend' | 'downtrend' | 'range' | 'transition' | null;
+  instrument_type: string | null;
   timeframe: string | null;
+  /* --- legacy reading columns; only rows with a null analysis_result use them.
+     Nothing writes these any more: the current prompts produce no sentiment,
+     no pattern names, and levels as bands rather than prices. --------------- */
+  asset_class: string | null;
   trend: string | null;
   volatility: string | null;
   volume_reading: string | null;

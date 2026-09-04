@@ -13,7 +13,7 @@
   </mat-card>
 } @else {
   <section class="result">
-    <!-- metadata header — symbol · asset_class · timeframe · source_type -->
+    <!-- metadata header — symbol · instrument type · timeframe · source -->
     <header class="result-head">
       <div class="result-ident">
         <div class="result-title-row">
@@ -21,7 +21,7 @@
             {{ row().symbol ?? row().symbol_raw ?? 'Unknown symbol' }}
           </h2>
           <mat-chip-set class="result-chips" aria-label="Analysis metadata">
-            @if (row().asset_class; as asset) {
+            @if (assetLabel(); as asset) {
               <mat-chip translate="no">{{ asset }}</mat-chip>
             }
             @if (row().timeframe; as tf) {
@@ -45,50 +45,294 @@
       </div>
     </header>
 
-    <!-- The four readings lead: they are what the user came for, and they are
-         the only part of the report that can be taken in at a glance. -->
-    <div class="tiles result-tiles">
-      <div class="tile"><span class="lbl">Trend</span><b>{{ row().trend ?? '—' }}</b></div>
-      <div class="tile"><span class="lbl">Volatility</span><b>{{ row().volatility ?? '—' }}</b></div>
-      <div class="tile"><span class="lbl">Volume</span><b>{{ row().volume_reading ?? '—' }}</b></div>
-      <div class="tile"><span class="lbl">Sentiment</span><b>{{ row().sentiment ?? '—' }}</b></div>
-    </div>
+    @if (result(); as analysis) {
+      <!-- Caveats come BEFORE the readings, deliberately. A reader who meets
+           "the axis was only partly legible" after the prices has already read
+           them as exact. -->
+      @if (showCaveats()) {
+        <aside class="result-caveats" role="note">
+          <span class="lbl result-caveats-lbl">How to read this</span>
+          @if (axisDegraded()) {
+            <p class="result-caveat">
+              The price axis was <b>{{ humanise(analysis.meta.axis_state) }}</b>.
+              @if (analysis.meta.price_read_error_pct !== null) {
+                The model puts its own price-read error around
+                <span class="tnum">±{{ analysis.meta.price_read_error_pct }}%</span>.
+              }
+            </p>
+          }
+          @for (caveat of caveats(); track $index) {
+            <p class="result-caveat">{{ caveat }}</p>
+          }
+        </aside>
+      }
 
-    <div class="result-body">
-      <div class="result-main">
-        <!-- summary -->
-        <section class="result-block">
-          <div class="result-block-head">
-            <h3 class="result-h">Summary</h3>
+      <!-- The four readings lead: they are what the user came for, and they are
+           the only part of the report that can be taken in at a glance. -->
+      <div class="tiles result-tiles">
+        @for (tile of tiles(); track tile.label) {
+          <div class="tile">
+            <span class="lbl">{{ tile.label }}</span>
+            <b>{{ tile.value }}</b>
+            @if (tile.hint) {
+              <span class="result-tile-hint">{{ tile.hint }}</span>
+            }
           </div>
-          <p class="result-summary">{{ row().summary ?? 'No summary was produced.' }}</p>
-        </section>
+        }
+      </div>
 
-        <!-- AI scenario — call_* fields, clearly separated and labelled -->
-        @if (row().call_direction; as direction) {
+      <div class="result-body">
+        <div class="result-main">
+          <!-- summary -->
           <section class="result-block">
             <div class="result-block-head">
-              <h3 class="result-h">Model scenario</h3>
-              <span class="lbl">Model-generated · not a recommendation</span>
+              <h3 class="result-h">Summary</h3>
+            </div>
+            <p class="result-summary">{{ analysis.summary }}</p>
+          </section>
+
+          <!-- setup — the core of the report -->
+          <section class="result-block">
+            <div class="result-block-head">
+              <h3 class="result-h">Setup</h3>
+              <span class="lbl">Model-generated geometry · not a recommendation</span>
             </div>
 
-            <div class="panel result-panel">
-              <div class="result-panel-grid">
-                <div class="result-panel-dir">
-                  <span class="lbl">Direction</span>
-                  <span class="dir d-{{ direction }} result-dir">{{ direction }}</span>
-                  @if (row().call_confidence !== null) {
-                    <div class="result-conf">
-                      <span class="lbl">Confidence</span>
-                      <span class="tnum result-conf-val">
-                        {{ row().call_confidence! * 100 | number: '1.0-0' }}%
+            @if (analysis.setup.format === 'none') {
+              <!-- An abstention is a result under these prompts, not a gap in
+                   one, so it gets a stated answer rather than an empty state. -->
+              <div class="panel result-abstain">
+                <b class="result-abstain-title">No setup on this chart</b>
+                @if (analysis.setup.abstain_reason; as reason) {
+                  <p class="result-msg">
+                    {{ humanise(reason) }} — the chart does not support a defined trigger.
+                  </p>
+                }
+                <p class="result-msg">
+                  The model is built to say nothing here rather than invent a trade.
+                </p>
+              </div>
+            } @else {
+              @for (scenario of scenarios(); track scenario.id) {
+                <div class="panel result-panel">
+                  <div class="result-scenario-head">
+                    <span class="dir d-{{ scenario.direction }} result-dir">
+                      {{ scenario.direction }}
+                    </span>
+                    <span class="result-scenario-trigger">{{ triggerLabel(scenario) }}</span>
+                  </div>
+
+                  <div class="cells result-cells">
+                    <div class="cell">
+                      <span class="lbl">Trigger zone</span>
+                      <span class="tnum">{{ band(scenario.trigger_low, scenario.trigger_high) }}</span>
+                    </div>
+                    <div class="cell">
+                      <span class="lbl">Invalidation</span>
+                      <span class="tnum">{{ scenario.invalidation | number: '1.2-2' }}</span>
+                    </div>
+                    <div class="cell">
+                      <span class="lbl">Target · {{ humanise(scenario.target_basis) }}</span>
+                      <span class="tnum">
+                        {{ scenario.target !== null ? (scenario.target | number: '1.2-2') : '—' }}
                       </span>
                     </div>
-                    <mat-progress-bar
-                      class="result-conf-meter d-{{ direction }}"
-                      mode="determinate"
-                      [value]="row().call_confidence! * 100"
-                    />
+                    <div class="cell">
+                      <span class="lbl">Horizon</span>
+                      <span class="tnum">{{ scenario.horizon_candles }} candles</span>
+                    </div>
+                    <div class="cell">
+                      <span class="lbl">P(target first | triggered)</span>
+                      <span class="tnum">
+                        {{ scenario.p_target_before_invalidation | number: '1.2-2' }}
+                      </span>
+                    </div>
+                    <div class="cell">
+                      <span class="lbl">Obstacle en route</span>
+                      <span class="tnum">
+                        {{ scenario.obstacle !== null ? (scenario.obstacle | number: '1.2-2') : 'none' }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p class="result-scenario-note">
+                    This geometry only exists if the trigger fires. The probability is conditional
+                    on that, and on nothing else — it is not a confidence score for the chart, and
+                    it is not advice.
+                  </p>
+                </div>
+              }
+
+              @if (analysis.setup.format === 'two_scenario') {
+                <p class="disc">
+                  Two scenarios means the chart genuinely does not say which edge resolves. Naming
+                  one of them as the call would be inventing an answer the read does not contain.
+                </p>
+              }
+            }
+          </section>
+
+          <!-- falsifier -->
+          <section class="result-block">
+            <div class="result-block-head">
+              <h3 class="result-h">What would prove this wrong</h3>
+            </div>
+            <p class="result-summary">{{ analysis.falsifier }}</p>
+          </section>
+
+          <!-- the chart the reading came from -->
+          <section class="result-block">
+            <div class="result-block-head">
+              <h3 class="result-h">Your chart</h3>
+            </div>
+            <app-chart-image [imageKey]="row().image_key" [label]="row().symbol_raw" />
+          </section>
+
+          @if (hasBaseRate()) {
+            <section class="result-block">
+              <div class="result-block-head">
+                <h3 class="result-h">Base rate</h3>
+                <span class="lbl">Counted in this window only</span>
+              </div>
+              <mat-card>
+                <mat-card-content class="result-glance">
+                  <div class="lvl">
+                    <span class="result-key">Analogues counted</span>
+                    <span class="tnum result-val">{{ analysis.base_rate.n_analogues }}</span>
+                  </div>
+                  <div class="lvl">
+                    <span class="result-key">Reached target first</span>
+                    <span class="tnum result-val">
+                      {{ analysis.base_rate.hit_rate! * 100 | number: '1.0-0' }}%
+                    </span>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+              @if (analysis.base_rate.definition; as definition) {
+                <p class="disc">{{ definition }}</p>
+              }
+            </section>
+          }
+        </div>
+
+        <aside class="result-aside">
+          <!-- level zones -->
+          <section class="result-block">
+            <div class="result-block-head">
+              <h3 class="result-h">Level zones</h3>
+            </div>
+            <mat-card>
+              <div class="result-levels">
+                @if (zones().length) {
+                  @for (zone of zones(); track $index) {
+                    <div class="result-zone">
+                      <span
+                        class="result-tick"
+                        [class.result-tick-up]="zone.kind === 'support'"
+                        [class.result-tick-down]="zone.kind === 'resistance'"
+                        aria-hidden="true"
+                      ></span>
+                      <div class="result-zone-body">
+                        <span class="tnum result-level-val">{{ band(zone.low, zone.high) }}</span>
+                        <span class="result-zone-meta">
+                          {{ zone.kind }} · {{ zone.touches }}
+                          {{ zone.touches === 1 ? 'touch' : 'touches' }}
+                          @if (zone.dist_atr !== null) {
+                            · {{ zone.dist_atr }} ATR away
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  }
+                } @else {
+                  <p class="result-empty result-zone-empty">
+                    No zone was grounded in enough price action to report.
+                  </p>
+                }
+              </div>
+            </mat-card>
+            <p class="disc">
+              Zones, not prices: orders cluster around a level rather than at it, and the model's
+              own read of that level carries error. The width is the honest part.
+            </p>
+          </section>
+
+          <!-- at a glance -->
+          <section class="result-block">
+            <div class="result-block-head">
+              <h3 class="result-h">At a glance</h3>
+            </div>
+            <mat-card>
+              <mat-card-content class="result-glance">
+                <div class="lvl">
+                  <span class="result-key">Position in range</span>
+                  <span class="tnum result-val">
+                    {{
+                      analysis.structure.range_position !== null
+                        ? (analysis.structure.range_position * 100 | number: '1.0-0') + '%'
+                        : '—'
+                    }}
+                  </span>
+                </div>
+                <div class="lvl">
+                  <span class="result-key">Follow-through</span>
+                  <span class="tnum result-val">{{ analysis.regime.persistence ?? '—' }}</span>
+                </div>
+                <div class="lvl">
+                  <span class="result-key">Candles read</span>
+                  <span class="tnum result-val">{{ analysis.meta.candles_visible ?? '—' }}</span>
+                </div>
+                <div class="lvl">
+                  <span class="result-key">Timeframe</span>
+                  <span class="tnum result-val">{{ analysis.identity.timeframe ?? '—' }}</span>
+                </div>
+                <div class="lvl">
+                  <span class="result-key">Source</span>
+                  <span class="tnum result-val">{{ sourceLabel() }}</span>
+                </div>
+                <div class="lvl">
+                  <span class="result-key">Analyzed</span>
+                  <span class="tnum result-val">{{ row().created_at | date: 'd MMM, HH:mm' }}</span>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </section>
+        </aside>
+      </div>
+    } @else {
+      <!-- ── Rows analyzed before the structured-read prompts ──────────────
+           The columns below are the whole record for these, so they keep the
+           report they were written for. Nothing writes them any more. -->
+      <div class="tiles result-tiles">
+        <div class="tile"><span class="lbl">Trend</span><b>{{ row().trend ?? '—' }}</b></div>
+        <div class="tile"><span class="lbl">Volatility</span><b>{{ row().volatility ?? '—' }}</b></div>
+        <div class="tile"><span class="lbl">Volume</span><b>{{ row().volume_reading ?? '—' }}</b></div>
+        <div class="tile"><span class="lbl">Sentiment</span><b>{{ row().sentiment ?? '—' }}</b></div>
+      </div>
+
+      <div class="result-body">
+        <div class="result-main">
+          <section class="result-block">
+            <div class="result-block-head">
+              <h3 class="result-h">Summary</h3>
+            </div>
+            <p class="result-summary">{{ row().summary ?? 'No summary was produced.' }}</p>
+          </section>
+
+          @if (row().call_direction; as direction) {
+            <section class="result-block">
+              <div class="result-block-head">
+                <h3 class="result-h">Model scenario</h3>
+                <span class="lbl">Model-generated · not a recommendation</span>
+              </div>
+
+              <div class="panel result-panel">
+                <div class="result-scenario-head">
+                  <span class="dir d-{{ direction }} result-dir">{{ direction }}</span>
+                  @if (row().call_confidence !== null) {
+                    <span class="result-scenario-trigger tnum">
+                      {{ row().call_confidence! * 100 | number: '1.0-0' }}% confidence
+                    </span>
                   }
                 </div>
 
@@ -112,118 +356,108 @@
                     </span>
                   </div>
                 </div>
+
+                <p class="result-scenario-note">
+                  This is one scenario the model considered, with the levels it would be measured
+                  against. It is not advice and carries no claim about what price will do.
+                </p>
               </div>
+            </section>
+          }
 
-              <p class="result-scenario-note">
-                This is one scenario the model considered, with the levels it would be measured
-                against. It is not advice and carries no claim about what price will do.
-              </p>
+          <section class="result-block">
+            <div class="result-block-head">
+              <h3 class="result-h">Your chart</h3>
             </div>
+            <app-chart-image [imageKey]="row().image_key" [label]="row().symbol_raw" />
           </section>
-        }
 
-        <!-- the chart the reading came from -->
-        <section class="result-block">
-          <div class="result-block-head">
-            <h3 class="result-h">Your chart</h3>
-          </div>
-          <app-chart-image [imageKey]="row().image_key" [label]="row().symbol_raw" />
-        </section>
-
-        <!-- patterns -->
-        <section class="result-block">
-          <div class="result-block-head">
-            <h3 class="result-h">Patterns</h3>
-            @if (patterns().length) {
-              <span class="lbl">{{ patterns().length }} detected</span>
-            }
-          </div>
-          @if (patterns().length) {
-            <div class="result-patterns">
-              @for (pattern of patterns(); track pattern.id) {
-                <mat-card class="result-pattern">
-                  <div class="result-pattern-head">
-                    <b class="result-pattern-key">{{ pattern.pattern_key }}</b>
-                    @if (pattern.confidence !== null) {
-                      <span class="tnum result-pattern-conf">
-                        {{ pattern.confidence * 100 | number: '1.0-0' }}%
-                      </span>
-                    }
-                  </div>
-                  @if (pattern.pattern_note) {
-                    <p class="result-msg">{{ pattern.pattern_note }}</p>
-                  }
-                </mat-card>
+          <section class="result-block">
+            <div class="result-block-head">
+              <h3 class="result-h">Patterns</h3>
+              @if (patterns().length) {
+                <span class="lbl">{{ patterns().length }} detected</span>
               }
             </div>
-          } @else {
-            <p class="result-empty">No patterns detected in this chart.</p>
-          }
-        </section>
-      </div>
-
-      <aside class="result-aside">
-        <!-- levels -->
-        <section class="result-block">
-          <div class="result-block-head">
-            <h3 class="result-h">Support &amp; resistance</h3>
-          </div>
-          <mat-card>
-            <div class="result-levels">
-              <div class="result-levels-group">
-                <span class="lbl result-lbl-down">Resistance</span>
-                @if (resistances().length) {
-                  @for (level of resistances(); track $index) {
-                    <div class="result-level">
-                      <span class="result-tick result-tick-down" aria-hidden="true"></span>
-                      <span class="tnum result-level-val">{{ level | number: '1.2-2' }}</span>
+            @if (patterns().length) {
+              <div class="result-patterns">
+                @for (pattern of patterns(); track pattern.id) {
+                  <mat-card class="result-pattern">
+                    <div class="result-pattern-head">
+                      <b class="result-pattern-key">{{ pattern.pattern_key }}</b>
+                      @if (pattern.confidence !== null) {
+                        <span class="tnum result-pattern-conf">
+                          {{ pattern.confidence * 100 | number: '1.0-0' }}%
+                        </span>
+                      }
                     </div>
-                  }
-                } @else {
-                  <p class="result-empty">None identified.</p>
+                    @if (pattern.pattern_note) {
+                      <p class="result-msg">{{ pattern.pattern_note }}</p>
+                    }
+                  </mat-card>
                 }
               </div>
-
-              <div class="result-levels-group">
-                <span class="lbl result-lbl-up">Support</span>
-                @if (supports().length) {
-                  @for (level of supports(); track $index) {
-                    <div class="result-level">
-                      <span class="result-tick result-tick-up" aria-hidden="true"></span>
-                      <span class="tnum result-level-val">{{ level | number: '1.2-2' }}</span>
-                    </div>
-                  }
-                } @else {
-                  <p class="result-empty">None identified.</p>
-                }
-              </div>
-            </div>
-          </mat-card>
-          <p class="disc">
-            @if (readFromImage()) {
-              Levels are the model's reading of the image, not exchange data.
             } @else {
-              Levels are the model's reading of the price series, not a forecast.
+              <p class="result-empty">No patterns detected in this chart.</p>
             }
-          </p>
-        </section>
+          </section>
+        </div>
 
-        <!-- at a glance -->
-        <section class="result-block">
-          <div class="result-block-head">
-            <h3 class="result-h">At a glance</h3>
-          </div>
-          <mat-card>
-            <mat-card-content class="result-glance">
-              <div class="lvl"><span class="result-key">Asset class</span><span class="tnum result-val">{{ row().asset_class ?? '—' }}</span></div>
-              <div class="lvl"><span class="result-key">Timeframe</span><span class="tnum result-val">{{ row().timeframe ?? '—' }}</span></div>
-              <div class="lvl"><span class="result-key">Source</span><span class="tnum result-val">{{ sourceLabel() }}</span></div>
-              <div class="lvl"><span class="result-key">Analyzed</span><span class="tnum result-val">{{ row().created_at | date: 'd MMM, HH:mm' }}</span></div>
-            </mat-card-content>
-          </mat-card>
-        </section>
-      </aside>
-    </div>
+        <aside class="result-aside">
+          <section class="result-block">
+            <div class="result-block-head">
+              <h3 class="result-h">Support &amp; resistance</h3>
+            </div>
+            <mat-card>
+              <div class="result-levels">
+                <div class="result-levels-group">
+                  <span class="lbl result-lbl-down">Resistance</span>
+                  @if (resistances().length) {
+                    @for (level of resistances(); track $index) {
+                      <div class="result-level">
+                        <span class="result-tick result-tick-down" aria-hidden="true"></span>
+                        <span class="tnum result-level-val">{{ level | number: '1.2-2' }}</span>
+                      </div>
+                    }
+                  } @else {
+                    <p class="result-empty">None identified.</p>
+                  }
+                </div>
+
+                <div class="result-levels-group">
+                  <span class="lbl result-lbl-up">Support</span>
+                  @if (supports().length) {
+                    @for (level of supports(); track $index) {
+                      <div class="result-level">
+                        <span class="result-tick result-tick-up" aria-hidden="true"></span>
+                        <span class="tnum result-level-val">{{ level | number: '1.2-2' }}</span>
+                      </div>
+                    }
+                  } @else {
+                    <p class="result-empty">None identified.</p>
+                  }
+                </div>
+              </div>
+            </mat-card>
+            <p class="disc">Levels are the model's reading, not exchange data.</p>
+          </section>
+
+          <section class="result-block">
+            <div class="result-block-head">
+              <h3 class="result-h">At a glance</h3>
+            </div>
+            <mat-card>
+              <mat-card-content class="result-glance">
+                <div class="lvl"><span class="result-key">Asset class</span><span class="tnum result-val">{{ row().asset_class ?? '—' }}</span></div>
+                <div class="lvl"><span class="result-key">Timeframe</span><span class="tnum result-val">{{ row().timeframe ?? '—' }}</span></div>
+                <div class="lvl"><span class="result-key">Source</span><span class="tnum result-val">{{ sourceLabel() }}</span></div>
+                <div class="lvl"><span class="result-key">Analyzed</span><span class="tnum result-val">{{ row().created_at | date: 'd MMM, HH:mm' }}</span></div>
+              </mat-card-content>
+            </mat-card>
+          </section>
+        </aside>
+      </div>
+    }
 
     <p class="disc result-disc">
       @if (readFromImage()) {

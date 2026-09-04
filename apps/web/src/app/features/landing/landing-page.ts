@@ -3,7 +3,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
 
 import { ThemeService } from '../../core/theme.service';
@@ -14,7 +13,7 @@ import { ThemeService } from '../../core/theme.service';
  */
 @Component({
   selector: 'app-landing-page',
-  imports: [RouterLink, MatButtonModule, MatCardModule, MatChipsModule, MatIconModule, MatProgressBarModule],
+  imports: [RouterLink, MatButtonModule, MatCardModule, MatChipsModule, MatIconModule],
   styleUrl: './landing-page.css',
   templateUrl: './landing-page.html',
 })

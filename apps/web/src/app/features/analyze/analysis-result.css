@@ -102,6 +102,41 @@
   gap: var(--s3);
 }
 
+/* The qualifier a number needs to mean anything — "of price", "vs window
+   median", "62nd pct of window". Without it a bare 1.8 is a decoration. */
+.result-tile-hint {
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
+  line-height: 1.4;
+}
+
+/* ── caveats ────────────────────────────────────────────
+   Sits above the readings on purpose: a reader who meets "the axis was only
+   partly legible" after the prices has already read them as exact. */
+.result-caveats {
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 24%, transparent);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--s3) var(--s4);
+}
+
+.result-caveats-lbl {
+  color: var(--tx-2);
+}
+
+.result-caveat {
+  color: var(--tx-2);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+}
+
+.result-caveat b {
+  color: var(--tx);
+}
+
 /* ── body ───────────────────────────────────────────────
    A fixed-width right rail keeps the report from stretching into dead space on
    wide viewports, and gives support/resistance and the metadata their own
@@ -235,58 +270,41 @@
 }
 
 /* ── scenario panel ─────────────────────────────────────── */
-.result-panel-grid {
-  display: grid;
-  grid-template-columns: 216px minmax(0, 1fr);
-}
-
-.result-panel-dir {
-  border-right: 1px solid var(--slab-line);
+/* One header strip naming the direction and what has to happen first, then a
+   grid of the numbers that geometry is measured in. There is no confidence
+   meter any more, and that is the point: the prompts emit no confidence for a
+   call, only a probability conditional on the trigger — which belongs in the
+   grid next to that trigger, not blown up as a headline score. */
+.result-scenario-head {
+  align-items: baseline;
+  border-bottom: 1px solid var(--slab-line);
   display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-  padding: var(--s5);
+  flex-wrap: wrap;
+  gap: var(--s3);
+  padding: var(--s4) var(--s5);
 }
 
 .result-dir {
-  font-size: var(--t-3xl);
+  font-size: var(--t-2xl);
   line-height: 1.05;
 }
 
-.result-conf {
-  align-items: baseline;
-  display: flex;
-  gap: var(--s2);
-  padding-top: var(--s1);
-}
-
-.result-conf-val {
-  font-size: var(--t-md);
-  font-weight: 600;
-}
-
-/* Takes its fill from the same currentColor the .d-{{direction}} class sets
-   on this same element (up/down/flat), so the bar reads as part of the
-   directional call rather than a generic loading indicator. */
-.result-conf-meter {
-  --mat-progress-bar-active-indicator-color: currentColor;
-  --mat-progress-bar-track-color: color-mix(in srgb, currentColor 18%, transparent);
-  --mat-progress-bar-active-indicator-height: 6px;
-  --mat-progress-bar-track-height: 6px;
+.result-scenario-trigger {
+  color: var(--slab-dim);
+  font-size: var(--t-sm);
 }
 
 .result-cells {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-/* The third and fourth cells start a second row, so they need the divider the
-   :first-child rule removes only from the very first cell. */
-.result-cells .cell:nth-child(3),
-.result-cells .cell:nth-child(4) {
+/* Cells 4-6 start a second row, so they need the divider the :first-child
+   rule removes only from the very first cell. */
+.result-cells .cell:nth-child(n + 4) {
   border-top: 1px solid var(--slab-line);
 }
 
-.result-cells .cell:nth-child(3) {
+.result-cells .cell:nth-child(4) {
   border-left: 0;
 }
 
@@ -297,6 +315,61 @@
   font-size: var(--t-xs);
   line-height: 1.55;
   padding: var(--s3) var(--s5);
+}
+
+/* ── abstention ─────────────────────────────────────────
+   A stated answer, not an empty state: under these prompts "no setup" is a
+   result, and rendering it as a blank section would misreport it as a gap. */
+.result-abstain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s5);
+}
+
+.result-abstain-title {
+  font-family: var(--fh);
+  font-size: var(--t-md);
+  font-weight: 600;
+  letter-spacing: -0.014em;
+}
+
+/* ── level zones ────────────────────────────────────────
+   A band and its evidence on one line — the width is a reading in its own
+   right, so it is set at the same size as the number rather than tucked into
+   a footnote. */
+.result-zone {
+  align-items: start;
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: 3px 1fr;
+  padding: var(--s3) var(--s4);
+}
+
+.result-zone + .result-zone {
+  border-top: 1px solid var(--line-soft);
+}
+
+.result-zone .result-tick {
+  height: 100%;
+  min-height: 24px;
+}
+
+.result-zone-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.result-zone-meta {
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
+  text-transform: capitalize;
+}
+
+.result-zone-empty {
+  padding: var(--s3) var(--s4);
 }
 
 /* ── patterns ───────────────────────────────────────────── */
@@ -364,18 +437,25 @@
     gap: var(--s6);
   }
 
-  .result-panel-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .result-panel-dir {
-    border-bottom: 1px solid var(--slab-line);
-    border-right: 0;
+  .result-scenario-head {
     padding: var(--s4);
   }
 
   .result-dir {
-    font-size: var(--t-2xl);
+    font-size: var(--t-xl);
+  }
+
+  /* Two columns, so the second row starts at cell 3 rather than cell 4. */
+  .result-cells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .result-cells .cell:nth-child(n + 3) {
+    border-top: 1px solid var(--slab-line);
+  }
+
+  .result-cells .cell:nth-child(odd) {
+    border-left: 0;
   }
 
   .result-cells .cell {

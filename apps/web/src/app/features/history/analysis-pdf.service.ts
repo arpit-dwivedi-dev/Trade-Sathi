@@ -5,6 +5,8 @@ import { Injectable, inject } from '@angular/core';
 // import put all of it in the /app chunk that every signed-in user downloads.
 import type { jsPDF } from 'jspdf';
 
+import type { AnalysisResult, AnalysisScenario } from '@chartanalyzer/shared';
+
 import { SupabaseClientService } from '../../core/supabase-client';
 import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
 
@@ -58,6 +60,19 @@ function formatDate(iso: string): string {
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleString();
 }
 
+/** A code like `price_mid_range` as the words a reader can act on. */
+function humanise(code: string): string {
+  return code.replace(/_/g, ' ');
+}
+
+/**
+ * A level or trigger ZONE, which is what the prompts emit — never a point. A
+ * band whose edges coincide prints as one number rather than "1402 – 1402".
+ */
+function formatBand(low: number, high: number): string {
+  return low === high ? formatNumber(low) : `${formatNumber(low)} – ${formatNumber(high)}`;
+}
+
 /**
  * Filenames are user-visible and end up on a filesystem: strip anything that
  * is not safe there rather than trusting a model-detected symbol.
@@ -95,12 +110,29 @@ export class AnalysisPdfService {
 
     let y = this.drawHeader(doc, row);
     y = this.drawChart(doc, image, y);
-    y = this.drawReadings(doc, row, y);
-    y = this.drawSummary(doc, row, y);
-    y = this.drawScenario(doc, row, y);
-    y = this.drawLevels(doc, row, y);
-    y = this.drawPatterns(doc, patterns, y);
-    this.drawDisclaimer(doc, y);
+
+    // Two document shapes, for the same reason the on-screen report has two:
+    // a row analyzed by the current prompts carries the whole structured read
+    // in `analysis_result`, and one from before them carries the old flat
+    // reading in its own columns. Both are the user's history, so both render.
+    const result = row.analysis_result;
+    if (result) {
+      y = this.drawReadQuality(doc, result, y);
+      y = this.drawSummary(doc, result.summary, y);
+      y = this.drawSetup(doc, result, y);
+      y = this.drawLevelZones(doc, result, y);
+      y = this.drawStructure(doc, result, y);
+      y = this.drawFalsifier(doc, result, y);
+      y = this.drawBaseRate(doc, result, y);
+    } else {
+      y = this.drawLegacyReadings(doc, row, y);
+      y = this.drawSummary(doc, row.summary, y);
+      y = this.drawLegacyScenario(doc, row, y);
+      y = this.drawLegacyLevels(doc, row, y);
+      y = this.drawLegacyPatterns(doc, patterns, y);
+    }
+
+    this.drawDisclaimer(doc, row, y);
 
     doc.save(fileNameFor(row));
   }
@@ -148,7 +180,12 @@ export class AnalysisPdfService {
     doc.setFont('helvetica', 'bold').setFontSize(18).setTextColor(INK);
     doc.text(row.symbol ?? row.symbol_raw ?? 'Unknown symbol', MARGIN, MARGIN + 6);
 
-    const chips = [row.asset_class, row.timeframe, row.source_type, row.status]
+    const chips = [
+      row.analysis_result?.identity.instrument_type ?? row.asset_class,
+      row.timeframe,
+      row.source ?? row.source_type,
+      row.status,
+    ]
       .filter((chip): chip is string => Boolean(chip))
       .join('  ·  ');
     doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(DIM);
@@ -179,7 +216,203 @@ export class AnalysisPdfService {
     return top + height + 10;
   }
 
-  private drawReadings(doc: jsPDF, row: AnalysisRow, y: number): number {
+  /** Small dimmed italic prose — a caveat, not a reading. */
+  private note(doc: jsPDF, text: string, y: number): number {
+    doc.setFont('helvetica', 'italic').setFontSize(8).setTextColor(DIM);
+    let top = this.space(doc, y, 8);
+    for (const line of wrap(doc, text, CONTENT_W)) {
+      doc.text(line, MARGIN, top);
+      top += 4;
+    }
+    return top + 2;
+  }
+
+  private drawSummary(doc: jsPDF, summary: string | null, y: number): number {
+    const top = this.sectionTitle(doc, 'Summary', y);
+    return this.paragraph(doc, summary ?? 'No summary was produced.', top) + 4;
+  }
+
+  /* ── the structured read ─────────────────────────────────────────────── */
+
+  /**
+   * How trustworthy the read itself is, before anything it concluded.
+   *
+   * Silent on a clean calibrated chart with no blockers, which is the correct
+   * amount of space to spend saying "nothing went wrong".
+   */
+  private drawReadQuality(doc: jsPDF, result: AnalysisResult, y: number): number {
+    const caveats = [...result.meta.blockers.map(humanise), ...result.meta.notes];
+    if (result.meta.corporate_action_suspected) {
+      caveats.push('a price gap consistent with a split or bonus is present in this window');
+    }
+    const degraded = result.meta.axis_state !== 'calibrated';
+    if (caveats.length === 0 && !degraded) return y;
+
+    let top = this.sectionTitle(doc, 'How to read this', y);
+    if (degraded) top = this.row(doc, 'Price axis', humanise(result.meta.axis_state), top);
+    if (result.meta.price_read_error_pct !== null) {
+      top = this.row(doc, 'Price-read error', `±${result.meta.price_read_error_pct}%`, top);
+    }
+    for (const caveat of caveats) top = this.paragraph(doc, `• ${caveat}`, top);
+    return top + 2;
+  }
+
+  private drawStructure(doc: jsPDF, result: AnalysisResult, y: number): number {
+    let top = this.sectionTitle(doc, 'Structure and regime', y);
+    top = this.row(doc, 'Structure', result.structure.state ?? '—', top);
+    top = this.row(doc, 'Clarity', result.structure.clarity, top);
+    top = this.row(
+      doc,
+      'Position in range',
+      result.structure.range_position !== null
+        ? formatPercent(result.structure.range_position)
+        : '—',
+      top,
+    );
+    top = this.row(
+      doc,
+      'ATR',
+      result.regime.atr_pct !== null ? `${result.regime.atr_pct}% of price` : '—',
+      top,
+    );
+    if (result.regime.atr_percentile !== null) {
+      top = this.row(
+        doc,
+        'ATR percentile (window)',
+        formatPercent(result.regime.atr_percentile),
+        top,
+      );
+    }
+    top = this.row(
+      doc,
+      'Volume vs median',
+      result.regime.volume_vs_median !== null ? `${result.regime.volume_vs_median}×` : '—',
+      top,
+    );
+    top = this.row(doc, 'Follow-through', result.regime.persistence ?? '—', top);
+    return top + 4;
+  }
+
+  private drawLevelZones(doc: jsPDF, result: AnalysisResult, y: number): number {
+    let top = this.sectionTitle(doc, 'Level zones', y);
+    if (result.structure.levels.length === 0) {
+      doc.setFont('helvetica', 'normal').setFontSize(9.5).setTextColor(INK);
+      top = this.space(doc, top, 8);
+      doc.text('No zone was grounded in enough price action to report.', MARGIN, top);
+      return top + 8;
+    }
+
+    for (const zone of result.structure.levels) {
+      const reach = zone.dist_atr !== null ? `  ·  ${zone.dist_atr} ATR away` : '';
+      top = this.row(
+        doc,
+        `${zone.kind === 'support' ? 'Support' : 'Resistance'}  ·  ${zone.touches} touches${reach}`,
+        formatBand(zone.low, zone.high),
+        top,
+      );
+    }
+    return (
+      this.note(
+        doc,
+        "Zones, not prices: orders cluster around a focal level rather than at it, and the model's own read of that level carries error. The width is the honest part.",
+        top,
+      ) + 2
+    );
+  }
+
+  private drawOneScenario(
+    doc: jsPDF,
+    scenario: AnalysisScenario,
+    index: number,
+    y: number,
+  ): number {
+    const heading =
+      scenario.trigger === 'already_triggered'
+        ? `${scenario.direction.toUpperCase()} · already triggered`
+        : `${scenario.direction.toUpperCase()} · on a ${humanise(scenario.trigger)}`;
+
+    let top = this.space(doc, y, 10);
+    doc.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(INK);
+    doc.text(`${index + 1}. ${heading}`, MARGIN, top);
+    top += 6;
+
+    top = this.row(doc, 'Trigger', formatBand(scenario.trigger_low, scenario.trigger_high), top);
+    top = this.row(doc, 'Invalidation', formatNumber(scenario.invalidation), top);
+    top = this.row(
+      doc,
+      `Target (${humanise(scenario.target_basis)})`,
+      formatNumber(scenario.target),
+      top,
+    );
+    if (scenario.obstacle !== null) {
+      top = this.row(doc, 'Untested obstacle en route', formatNumber(scenario.obstacle), top);
+    }
+    top = this.row(
+      doc,
+      'P(target before invalidation | trigger fires)',
+      scenario.p_target_before_invalidation.toFixed(2),
+      top,
+    );
+    top = this.row(doc, 'Horizon', `${scenario.horizon_candles} candles`, top);
+    return top + 2;
+  }
+
+  private drawSetup(doc: jsPDF, result: AnalysisResult, y: number): number {
+    let top = this.sectionTitle(doc, 'Setup', y);
+
+    if (result.setup.format === 'none') {
+      top = this.row(doc, 'Format', 'no setup', top);
+      top = this.paragraph(
+        doc,
+        result.setup.abstain_reason
+          ? `The chart supports no scenario: ${humanise(result.setup.abstain_reason)}.`
+          : 'The chart supports no scenario.',
+        top,
+      );
+      return (
+        this.note(
+          doc,
+          'An abstention is a result, not a gap. The prompt is built to say nothing rather than invent a trade.',
+          top,
+        ) + 2
+      );
+    }
+
+    top = this.row(doc, 'Format', humanise(result.setup.format), top);
+    result.setup.scenarios.forEach((scenario, index) => {
+      top = this.drawOneScenario(doc, scenario, index, top);
+    });
+
+    return (
+      this.note(
+        doc,
+        'Each scenario is a geometry conditional on its trigger firing — not a prediction that price will get there, and not advice. The probability is conditional on the trigger and bounded by what evidence supports.',
+        top,
+      ) + 2
+    );
+  }
+
+  private drawFalsifier(doc: jsPDF, result: AnalysisResult, y: number): number {
+    const top = this.sectionTitle(doc, 'What would prove this wrong', y);
+    return this.paragraph(doc, result.falsifier, top) + 4;
+  }
+
+  private drawBaseRate(doc: jsPDF, result: AnalysisResult, y: number): number {
+    const { n_analogues, hit_rate, definition } = result.base_rate;
+    // All three are null together, by contract: a hit rate off fewer than
+    // twenty counted analogues is noise, and the API's schema drops it.
+    if (n_analogues === null || hit_rate === null) return y;
+
+    let top = this.sectionTitle(doc, 'Base rate', y);
+    top = this.row(doc, 'Analogues counted', String(n_analogues), top);
+    top = this.row(doc, 'Hit rate', formatPercent(hit_rate), top);
+    if (definition) top = this.paragraph(doc, definition, top);
+    return this.note(doc, 'Counted within this window only — not a historical study.', top) + 2;
+  }
+
+  /* ── rows analyzed before the structured-read prompts ────────────────── */
+
+  private drawLegacyReadings(doc: jsPDF, row: AnalysisRow, y: number): number {
     let top = this.sectionTitle(doc, 'What the model observed', y);
     top = this.row(doc, 'Trend', row.trend ?? '—', top);
     top = this.row(doc, 'Volatility', row.volatility ?? '—', top);
@@ -188,12 +421,7 @@ export class AnalysisPdfService {
     return top + 4;
   }
 
-  private drawSummary(doc: jsPDF, row: AnalysisRow, y: number): number {
-    const top = this.sectionTitle(doc, 'Summary', y);
-    return this.paragraph(doc, row.summary ?? 'No summary was produced.', top) + 4;
-  }
-
-  private drawScenario(doc: jsPDF, row: AnalysisRow, y: number): number {
+  private drawLegacyScenario(doc: jsPDF, row: AnalysisRow, y: number): number {
     if (!row.call_direction) return y;
 
     let top = this.sectionTitle(doc, 'AI scenario', y);
@@ -209,21 +437,16 @@ export class AnalysisPdfService {
       top,
     );
 
-    doc.setFont('helvetica', 'italic').setFontSize(8).setTextColor(DIM);
-    top = this.space(doc, top, 8);
-    const note = wrap(
-      doc,
-      'This is one scenario the model considered, with the levels it would be measured against. It is not advice.',
-      CONTENT_W,
+    return (
+      this.note(
+        doc,
+        'This is one scenario the model considered, with the levels it would be measured against. It is not advice.',
+        top,
+      ) + 2
     );
-    for (const line of note) {
-      doc.text(line, MARGIN, top);
-      top += 4;
-    }
-    return top + 4;
   }
 
-  private drawLevels(doc: jsPDF, row: AnalysisRow, y: number): number {
+  private drawLegacyLevels(doc: jsPDF, row: AnalysisRow, y: number): number {
     let top = this.sectionTitle(doc, 'Support & resistance', y);
     const resistances = row.resistance_levels ?? [];
     const supports = row.support_levels ?? [];
@@ -243,7 +466,7 @@ export class AnalysisPdfService {
     return top + 4;
   }
 
-  private drawPatterns(doc: jsPDF, patterns: AnalysisPattern[], y: number): number {
+  private drawLegacyPatterns(doc: jsPDF, patterns: AnalysisPattern[], y: number): number {
     let top = this.sectionTitle(doc, 'Patterns', y);
     if (!patterns.length) {
       doc.setFont('helvetica', 'normal').setFontSize(9.5).setTextColor(INK);
@@ -258,14 +481,21 @@ export class AnalysisPdfService {
     return top + 4;
   }
 
-  private drawDisclaimer(doc: jsPDF, y: number): void {
-    const top = this.space(doc, y, 16) + 2;
+  private drawDisclaimer(doc: jsPDF, row: AnalysisRow, y: number): void {
+    const top = this.space(doc, y, 20) + 2;
     doc.setDrawColor(RULE).setLineWidth(0.2);
     doc.line(MARGIN, top - 4, PAGE_W - MARGIN, top - 4);
     doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(DIM);
+    // A computed read measured the exact candles; a vision read looked at a
+    // picture of them. Telling a user the wrong one describes a step that
+    // never happened.
+    const provenance =
+      row.analysis_result?.kind === 'computed'
+        ? 'Every reading and level in this document is generated by the model from the exact price data behind the chart above.'
+        : 'Every reading and level in this document is generated by the model from the image alone.';
     const lines = wrap(
       doc,
-      'Every reading and level in this document is generated by the model from the image alone. ChartAnalyzer does not connect to a broker, hold positions, or track what happens after an analysis.',
+      `${provenance} ChartAnalyzer does not connect to a broker, hold positions, or track what happens after an analysis.`,
       CONTENT_W,
     );
     doc.text(lines, MARGIN, top);

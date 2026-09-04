@@ -214,8 +214,8 @@
 
 .landing-preview-level .tnum {
   font-size: var(--t-sm);
-  /* The level column is the one place on the page four prices stack, so it is
-     the one place the shared right edge is worth anything. */
+  /* The zones stack, so a shared right edge is what makes their widths
+     comparable at a glance. */
   text-align: right;
 }
 
@@ -251,13 +251,6 @@
 .landing-preview-dir-val {
   font-size: var(--t-2xl);
   line-height: 1.1;
-}
-
-.landing-preview-meter {
-  --mat-progress-bar-active-indicator-color: currentColor;
-  --mat-progress-bar-track-color: color-mix(in srgb, currentColor 18%, transparent);
-  --mat-progress-bar-active-indicator-height: 6px;
-  --mat-progress-bar-track-height: 6px;
 }
 
 .landing-preview-cells .cell {

@@ -1,4 +1,15 @@
-import { z } from "zod";
+import type { ZodType } from "zod";
+import {
+  callDirectionFor,
+  primaryScenario,
+  type AnalysisResult,
+} from "@chartanalyzer/shared";
+import {
+  SeriesAnalysisSchema,
+  VisionAnalysisSchema,
+  normalizeSeriesAnalysis,
+  normalizeVisionAnalysis,
+} from "./analysis-schema.js";
 import { buildChartAnalysisPrompt } from "../prompts/chart-analysis.js";
 import {
   buildCandleAnalysisPrompt,
@@ -20,13 +31,13 @@ const BUCKET = "chart-images";
  *  Exported because the generated-chart pipeline stores it too: that path used
  *  to carry its own hardcoded "v2" copy, which would have gone silently stale
  *  the first time this was bumped. */
-export const VISUAL_PROMPT_VERSION = "v2";
+export const VISUAL_PROMPT_VERSION = "v3";
 
 /** Version of the candle-series prompt in ../prompts/candle-analysis.ts.
  *  Tracked separately from VISUAL_PROMPT_VERSION: the two prompts are edited
  *  independently, and a stored analysis must stay attributable to whichever
  *  one produced it. */
-export const SERIES_PROMPT_VERSION = "series-v1";
+export const SERIES_PROMPT_VERSION = "series-v2";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   jpg: "image/jpeg",
@@ -56,53 +67,75 @@ export class AnalysisFailure extends Error {
   }
 }
 
-const confidence = z.number().min(0).max(1);
+/**
+ * How one provider response is turned into a stored result: parse the model's
+ * json against the schema that mirrors the prompt it was given, then normalise
+ * it into the single shape the rest of the system reads.
+ *
+ * It is a parameter rather than a constant because the two prompts genuinely
+ * differ — a screenshot read reports its own pixel-read error and a list of
+ * blockers, a candle read reports an exact close and a corporate-action check
+ * — and validating either response against the other's schema would reject a
+ * perfectly good answer. See services/analysis-schema.ts.
+ */
+type ResponseValidator = (payload: unknown) =>
+  | { ok: true; result: AnalysisResult }
+  | { ok: false; issues: string };
 
-// strictObject (not the legacy .strict() method): unexpected fields are
-// rejected outright rather than silently dropped, so a model drifting from the
-// contract surfaces as a validation failure instead of a half-saved row.
-const CallSchema = z.strictObject({
-  // Both prompts (prompts/chart-analysis.ts, prompts/candle-analysis.ts) tell
-  // the model to answer "none" when the chart supports no trade — a deliberate,
-  // and deliberately common, abstention. The stored enum (public.call_direction)
-  // spells that same state "hold". Accepting both spellings and normalising to
-  // the stored one here is what stops a correct abstention from failing schema
-  // validation, which would fail the whole analysis and spend the user's
-  // entitlement on a run that actually worked.
-  direction: z
-    .enum(["long", "short", "hold", "none"])
-    .transform((value) => (value === "none" ? "hold" : value)),
-  confidence,
-  entry: z.number().nullable(),
-  invalidation: z.number().nullable(),
-  target: z.number().nullable(),
-  // Integer, matching the int column: a fractional value would pass a loose
-  // numeric check here and then fail at the Postgres insert.
-  horizon_candles: z.number().int().positive(),
-});
+function validatorFor<T>(
+  schema: ZodType<T, unknown>,
+  normalize: (parsed: T) => AnalysisResult,
+): ResponseValidator {
+  return (payload) => {
+    const validation = schema.safeParse(payload);
+    if (!validation.success) {
+      return {
+        ok: false,
+        // Paths only — the issue messages can quote model output, and this
+        // string reaches the logs.
+        issues: validation.error.issues.map((issue) => issue.path.join(".")).join(", "),
+      };
+    }
+    return { ok: true, result: normalize(validation.data) };
+  };
+}
 
-const AnalysisSchema = z.strictObject({
-  symbol: z.string().nullable(),
-  asset_class: z
-    .enum(["crypto", "stock", "forex", "commodity", "index"])
-    .nullable(),
-  timeframe: z.enum(["m1", "m5", "m15", "h1", "h4", "d1", "w1"]).nullable(),
-  trend: z.enum(["bullish", "bearish", "neutral"]),
-  volatility: z.enum(["low", "medium", "high"]),
-  volume: z.enum(["low", "medium", "high"]),
-  sentiment: z.enum(["bullish", "bearish", "neutral"]),
-  support_levels: z.array(z.number()),
-  resistance_levels: z.array(z.number()),
-  patterns: z.array(
-    z.strictObject({
-      name: z.string(),
-      confidence,
-      note: z.string(),
-    }),
-  ),
-  call: CallSchema,
-  summary: z.string(),
-});
+const validateVisionResponse = validatorFor(VisionAnalysisSchema, normalizeVisionAnalysis);
+const validateSeriesResponse = validatorFor(SeriesAnalysisSchema, normalizeSeriesAnalysis);
+
+/**
+ * The columns a completed analysis writes outside of `analysis_result`.
+ *
+ * Everything here is also inside the payload; it is lifted out only because
+ * the History list renders these per row and reading them out of jsonb for
+ * every row of every page is what the promotion buys. Anything the detail view
+ * alone needs stays in the payload, where it cannot drift from it.
+ *
+ * The legacy reading columns (trend, volatility, volume_reading, sentiment,
+ * asset_class, call_confidence, call_entry, call_target, call_invalidation,
+ * support_levels, resistance_levels) are deliberately absent: the current
+ * prompts produce none of them — they explicitly forbid a sentiment field and
+ * pattern names, and a level is now a band rather than a price — so leaving
+ * them null is the honest record. Rows written before this change keep their
+ * values; see supabase/migrations/20260904130000_analysis_result_payload.sql.
+ */
+export function analysisResultColumns(result: AnalysisResult) {
+  const primary = primaryScenario(result);
+  return {
+    analysis_result: result,
+    // symbol_raw, not symbol: exactly what the model read, unnormalized.
+    symbol_raw: result.identity.symbol_text,
+    timeframe: result.identity.timeframe,
+    instrument_type: result.identity.instrument_type,
+    structure_state: result.structure.state,
+    setup_format: result.setup.format,
+    call_direction: callDirectionFor(result),
+    // Null for an abstention and for a two-scenario read, which have no single
+    // horizon — the per-scenario values live in the payload either way.
+    horizon_candles: result.setup.format === "two_scenario" ? null : (primary?.horizon_candles ?? null),
+    summary: result.summary,
+  };
+}
 
 function mimeTypeForKey(imageKey: string): string {
   // The extension was set deterministically at upload time, so trusting it here
@@ -111,10 +144,8 @@ function mimeTypeForKey(imageKey: string): string {
   return MIME_BY_EXTENSION[ext] ?? "image/png";
 }
 
-export type AnalysisAiResult = z.infer<typeof AnalysisSchema>;
-
 export interface VisualAnalysisOutcome {
-  result: AnalysisAiResult;
+  result: AnalysisResult;
   inputTokens: number;
   outputTokens: number;
   latencyMs: number;
@@ -148,16 +179,20 @@ export async function runVisualAnalysis(
   const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
   const prompt = buildChartAnalysisPrompt();
 
-  return runAnalysisCompletion([
-    { role: "system", content: prompt.system },
-    {
-      role: "user",
-      content: [
-        { type: "text", text: prompt.user },
-        { type: "image_url", image_url: { url: dataUrl } },
-      ],
-    },
-  ], true);
+  return runAnalysisCompletion(
+    [
+      { role: "system", content: prompt.system },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt.user },
+          { type: "image_url", image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+    true,
+    validateVisionResponse,
+  );
 }
 
 /**
@@ -176,10 +211,14 @@ export async function runSeriesAnalysis(
 ): Promise<VisualAnalysisOutcome> {
   const prompt = buildCandleAnalysisPrompt(candles, context);
 
-  return runAnalysisCompletion([
-    { role: "system", content: prompt.system },
-    { role: "user", content: prompt.user },
-  ], false);
+  return runAnalysisCompletion(
+    [
+      { role: "system", content: prompt.system },
+      { role: "user", content: prompt.user },
+    ],
+    false,
+    validateSeriesResponse,
+  );
 }
 
 /** The message shapes the two entry points above build. */
@@ -245,6 +284,7 @@ function estimateCostUsd(
 async function runOnProvider(
   provider: AiProvider,
   messages: AnalysisMessage[],
+  validate: ResponseValidator,
 ): Promise<VisualAnalysisOutcome | AnalysisFailure> {
   const request = {
     model: provider.model,
@@ -341,11 +381,11 @@ async function runOnProvider(
       continue;
     }
 
-    const validation = AnalysisSchema.safeParse(parsed);
-    if (!validation.success) {
+    const validation = validate(parsed);
+    if (!validation.ok) {
       logger.error("ai response failed schema validation", {
         provider: provider.name,
-        issues: validation.error.issues.map((i) => i.path.join(".")).join(", "),
+        issues: validation.issues,
       });
       lastFailure = new AnalysisFailure(
         "schema_validation",
@@ -355,7 +395,7 @@ async function runOnProvider(
     }
 
     return {
-      result: validation.data,
+      result: validation.result,
       inputTokens,
       outputTokens,
       latencyMs,
@@ -386,6 +426,7 @@ async function runOnProvider(
 async function runAnalysisCompletion(
   messages: AnalysisMessage[],
   needsVision: boolean,
+  validate: ResponseValidator,
 ): Promise<VisualAnalysisOutcome> {
   const chain = needsVision
     ? aiProviders.filter((provider) => provider.supportsVision)
@@ -401,7 +442,7 @@ async function runAnalysisCompletion(
   let lastFailure = new AnalysisFailure("api_error", "The AI provider request failed");
 
   for (const [index, provider] of chain.entries()) {
-    const outcome = await runOnProvider(provider, messages);
+    const outcome = await runOnProvider(provider, messages, validate);
 
     if (!(outcome instanceof AnalysisFailure)) {
       // Worth a log line at info: which provider served a call is the only way
@@ -426,65 +467,17 @@ async function runAnalysisCompletion(
   throw lastFailure;
 }
 
-/**
- * Writes an analysis's detected patterns, best-effort.
+/*
+ * insertAnalysisPatterns() used to live here, writing the model's detected
+ * patterns into public.analysis_patterns. Both prompts now prohibit pattern
+ * names outright ("No pattern names anywhere in the output. Do not add a
+ * patterns array."), so there is nothing left to write and the function is
+ * gone rather than kept as a no-op.
  *
- * The analysis itself is already complete and useful without its pattern rows,
- * so a failure here is recorded rather than thrown: throwing would flip an
- * already-'complete' row to 'failed' and discard a valid AI result. The row does
- * get an error_code, so "complete but missing its pattern rows" stays an
- * explicitly queryable state rather than being indistinguishable from a fully
- * successful analysis — anything reading analysis_patterns for a 'complete'
- * analysis (e.g. per-pattern hit-rate tracking) needs to be able to find these.
- *
- * Shared by every path that stores an analysis: the manual upload pipeline and
- * the generated-chart pipeline behind the live view and the daily briefing.
- * Without it the generated paths silently dropped every pattern the model
- * found, and their results always read "No patterns detected".
- *
- * Never throws.
+ * The table and its rows stay: they hold the patterns from every analysis run
+ * before this change, and the History detail view still renders them for those
+ * rows. Nothing writes it any more.
  */
-export async function insertAnalysisPatterns(
-  analysisId: string,
-  patterns: AnalysisAiResult["patterns"],
-): Promise<void> {
-  if (patterns.length === 0) return;
-
-  const { error: patternsError } = await supabaseAdmin.from("analysis_patterns").insert(
-    patterns.map((pattern) => ({
-      analysis_id: analysisId,
-      pattern_key: pattern.name,
-      confidence: pattern.confidence,
-      pattern_note: pattern.note,
-    })),
-  );
-  if (!patternsError) return;
-
-  logger.error("failed to insert analysis patterns", {
-    analysisId,
-    cause: String(patternsError),
-  });
-
-  // Marking is best-effort and must not throw out to a caller that would treat
-  // it as the analysis failing. No retry of the insert itself.
-  try {
-    const { error: markError } = await supabaseAdmin
-      .from("analyses")
-      .update({
-        error_code: "patterns_insert_failed",
-        error_message: String(patternsError),
-      })
-      .eq("id", analysisId);
-    if (markError) {
-      throw markError;
-    }
-  } catch (secondary) {
-    logger.error("failed to mark analysis patterns failure", {
-      analysisId,
-      cause: String(secondary),
-    });
-  }
-}
 
 /**
  * Runs the AI analysis for a queued analyses row and writes the result back.
@@ -555,25 +548,10 @@ export async function processAnalysis(analysisId: string): Promise<void> {
     const { error: updateError } = await supabaseAdmin
       .from("analyses")
       .update({
-        // symbol_raw, not symbol: this is exactly what the model read off the
-        // chart, unnormalized. symbol holds the normalized/matched symbol and
-        // stays null until phase-2 symbol matching exists to populate it.
-        symbol_raw: result.symbol,
-        asset_class: result.asset_class,
-        timeframe: result.timeframe,
-        trend: result.trend,
-        volatility: result.volatility,
-        volume_reading: result.volume,
-        sentiment: result.sentiment,
-        support_levels: result.support_levels,
-        resistance_levels: result.resistance_levels,
-        call_direction: result.call.direction,
-        call_confidence: result.call.confidence,
-        call_entry: result.call.entry,
-        call_invalidation: result.call.invalidation,
-        call_target: result.call.target,
-        horizon_candles: result.call.horizon_candles,
-        summary: result.summary,
+        // The payload plus the handful of columns promoted out of it — see
+        // analysisResultColumns for what is promoted and what is deliberately
+        // left null on a row written by the current prompts.
+        ...analysisResultColumns(result),
         model_id: modelId,
         prompt_version: VISUAL_PROMPT_VERSION,
         input_tokens: inputTokens,
@@ -592,8 +570,6 @@ export async function processAnalysis(analysisId: string): Promise<void> {
         "The analysis result could not be saved",
       );
     }
-
-    await insertAnalysisPatterns(analysisId, result.patterns);
 
     logger.info("analysis complete", { analysisId, latencyMs });
   } catch (cause) {

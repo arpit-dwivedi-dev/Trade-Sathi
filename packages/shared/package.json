@@ -2,6 +2,8 @@
   "name": "@chartanalyzer/shared",
   "version": "0.0.1",
   "private": true,
+  "//type": "ESM, and it has to be declared. Without this field Node treats these .ts files as CommonJS, and a `export * from './x.js'` in index.ts compiles to a runtime re-export that cjs-module-lexer cannot see through — so a named import of anything re-exported (e.g. ANALYSIS_REASON_CODES) fails to link, while a namespace import of the same module works. Both consumers are ESM already: the repo root and apps/api declare type: module, and apps/web is bundled.",
+  "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {

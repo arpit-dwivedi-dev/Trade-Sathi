@@ -22,6 +22,7 @@ import {
   updateLastCandle,
   type CandleChart,
   type ChartOverlays,
+  type OverlayBand,
   type ChartPalette,
   type LiveCandle,
 } from './chart-render';
@@ -29,7 +30,7 @@ import {
 // Re-exported so the many call sites that already import these from the
 // component keep working; they are defined next to the drawing code they
 // describe, which the off-screen renderer shares.
-export type { ChartOverlays, LiveCandle };
+export type { ChartOverlays, LiveCandle, OverlayBand };
 
 /**
  * An interactive candlestick chart (KLineChart, Apache-2.0).

@@ -20,7 +20,12 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { type Instrument, type MarketTick } from '@chartanalyzer/shared';
 import { AnalysisResult } from '../analyze/analysis-result';
 import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
-import { LiveChart, type ChartOverlays, type LiveCandle } from '../../shared/live-chart/live-chart';
+import {
+  LiveChart,
+  type ChartOverlays,
+  type LiveCandle,
+  type OverlayBand,
+} from '../../shared/live-chart/live-chart';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import { AnalyzeService, type PollHandle } from '../analyze/analyze.service';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
@@ -194,17 +199,50 @@ export class LivePage implements OnInit, OnDestroy {
    * the lines down without discarding the analysis itself.
    */
   protected readonly overlays = computed<ChartOverlays | null>(() => {
+    /** A legacy single price, as the degenerate band the chart now draws. */
+    const point = (price: number, label: string): OverlayBand => ({
+      low: price,
+      high: price,
+      label,
+    });
+
     const row = this.row();
     const instrument = this.instrument();
     if (!row || row.status !== 'complete' || !instrument) return null;
     if (row.instrument_id !== instrument.id) return null;
     if (row.analysis_lookback_days !== this.lookbackDays()) return null;
+    const result = row.analysis_result;
+    if (!result) {
+      // Analyzed before the structured-read prompts: all this row has are
+      // single prices, so each is drawn as a zero-width band.
+      return {
+        support: (row.support_levels ?? []).map((price) => point(price, 'S')),
+        resistance: (row.resistance_levels ?? []).map((price) => point(price, 'R')),
+        trigger: row.call_entry !== null ? [point(row.call_entry, 'Entry')] : [],
+        targets: row.call_target !== null ? [row.call_target] : [],
+        invalidations: row.call_invalidation !== null ? [row.call_invalidation] : [],
+      };
+    }
+
+    // Zones, drawn as zones. Painting a band's midpoint as one line would
+    // claim a precision the read explicitly refuses to.
+    const zones = result.structure.levels;
     return {
-      support: row.support_levels ?? [],
-      resistance: row.resistance_levels ?? [],
-      entry: row.call_entry,
-      target: row.call_target,
-      invalidation: row.call_invalidation,
+      support: zones
+        .filter((zone) => zone.kind === 'support')
+        .map((zone) => ({ low: zone.low, high: zone.high, label: 'S' })),
+      resistance: zones
+        .filter((zone) => zone.kind === 'resistance')
+        .map((zone) => ({ low: zone.low, high: zone.high, label: 'R' })),
+      trigger: result.setup.scenarios.map((scenario) => ({
+        low: scenario.trigger_low,
+        high: scenario.trigger_high,
+        label: scenario.direction === 'long' ? 'Long above' : 'Short below',
+      })),
+      targets: result.setup.scenarios
+        .map((scenario) => scenario.target)
+        .filter((target): target is number => target !== null),
+      invalidations: result.setup.scenarios.map((scenario) => scenario.invalidation),
     };
   });
 

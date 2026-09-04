@@ -21,10 +21,15 @@ export interface AnalysisPdfAttachment {
 const PDF_COLUMNS = [
   "symbol",
   "symbol_raw",
-  "asset_class",
   "timeframe",
   "source_type",
+  "source",
   "status",
+  "analysis_result",
+  // The legacy reading columns below are still selected because the document
+  // still renders rows written before the structured-read prompts — see the
+  // "TWO DOCUMENT SHAPES" note on buildAnalysisPdf.
+  "asset_class",
   "trend",
   "volatility",
   "volume_reading",

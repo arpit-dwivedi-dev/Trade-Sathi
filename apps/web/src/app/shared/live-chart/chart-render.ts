@@ -33,12 +33,30 @@ export interface LiveCandle {
 }
 
 /** Price levels drawn on top of the candles, straight from an analysis row. */
+/**
+ * One price band drawn on the chart — both edges as lines, sharing a label.
+ *
+ * A band, not a price, because that is what the analysis actually produces: a
+ * level zone spans the reactions it is grounded in, and a trigger is the zone
+ * a close has to clear. Collapsing either to its midpoint to get one tidy line
+ * would draw a precision the read does not claim.
+ */
+export interface OverlayBand {
+  low: number;
+  high: number;
+  label: string;
+}
+
 export interface ChartOverlays {
-  support: number[];
-  resistance: number[];
-  entry: number | null;
-  target: number | null;
-  invalidation: number | null;
+  /** Support zones, drawn in the up colour. */
+  support: OverlayBand[];
+  /** Resistance zones, drawn in the down colour. */
+  resistance: OverlayBand[];
+  /** Trigger zones — where a scenario becomes live. Dashed. */
+  trigger: OverlayBand[];
+  /** Single prices, because these genuinely are single prices. */
+  targets: number[];
+  invalidations: number[];
 }
 
 /** Chart colours, read from the app's CSS tokens so a theme change carries. */
@@ -497,11 +515,21 @@ export function drawLevelOverlays(
     });
   };
 
-  for (const level of overlays.support) add(level, 'S', palette.up, false);
-  for (const level of overlays.resistance) add(level, 'R', palette.down, false);
-  if (overlays.entry !== null) add(overlays.entry, 'Entry', palette.accent, true);
-  if (overlays.target !== null) add(overlays.target, 'Target', palette.up, true);
-  if (overlays.invalidation !== null) add(overlays.invalidation, 'Stop', palette.down, true);
+  /**
+   * A zone as its two edges. The label goes on the near edge only — tagging
+   * both just prints the same word twice a few pixels apart, and on a tight
+   * band the two tags overlap into something unreadable.
+   */
+  const addBand = (zone: OverlayBand, color: string, dashed: boolean): void => {
+    add(zone.high, zone.label, color, dashed);
+    if (zone.low !== zone.high) add(zone.low, '', color, dashed);
+  };
+
+  for (const zone of overlays.support) addBand(zone, palette.up, false);
+  for (const zone of overlays.resistance) addBand(zone, palette.down, false);
+  for (const zone of overlays.trigger) addBand(zone, palette.accent, true);
+  for (const target of overlays.targets) add(target, 'Target', palette.up, true);
+  for (const invalidation of overlays.invalidations) add(invalidation, 'Stop', palette.down, true);
 }
 
 /**

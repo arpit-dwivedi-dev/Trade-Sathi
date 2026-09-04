@@ -27,7 +27,7 @@
     <div class="tbl" aria-busy="true">
       <div class="tr tr-h">
         <span>Analyzed</span><span>Symbol</span><span>Asset</span><span>TF</span>
-        <span>Trend</span><span>Direction</span><span>Status</span><span></span>
+        <span>Structure</span><span>Setup</span><span>Status</span><span></span>
       </div>
       @for (placeholder of [1, 2, 3, 4]; track placeholder) {
         <div class="tr">
@@ -101,7 +101,7 @@
         <ng-container matColumnDef="asset">
           <th mat-header-cell *matHeaderCellDef>Asset</th>
           <td mat-cell *matCellDef="let row" class="history-cell">
-            {{ row.asset_class ?? '—' }}
+            {{ assetLabel(row) }}
           </td>
         </ng-container>
 
@@ -112,18 +112,21 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="trend">
-          <th mat-header-cell *matHeaderCellDef>Trend</th>
+        <ng-container matColumnDef="structure">
+          <th mat-header-cell *matHeaderCellDef>Structure</th>
           <td mat-cell *matCellDef="let row" class="history-cell">
-            {{ row.trend ?? '—' }}
+            {{ structureLabel(row) }}
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="direction">
-          <th mat-header-cell *matHeaderCellDef>Direction</th>
+        <!-- One cell for "what did this come to": a direction where the setup
+             names one, "two-way" where it deliberately does not, "no setup"
+             for an abstention. -->
+        <ng-container matColumnDef="setup">
+          <th mat-header-cell *matHeaderCellDef>Setup</th>
           <td mat-cell *matCellDef="let row">
-            @if (row.call_direction; as direction) {
-              <span class="dir d-{{ direction }} history-dir">{{ direction }}</span>
+            @if (setupLabel(row); as label) {
+              <span [class]="setupTone(row) ? 'dir d-' + setupTone(row) + ' history-dir' : 'history-cell'">{{ label }}</span>
             } @else {
               <span class="history-cell">—</span>
             }
