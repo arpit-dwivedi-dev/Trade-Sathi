@@ -66,6 +66,157 @@ function taggedStatement<TKey extends string, TVerdict extends z.ZodTypeAny>(
   });
 }
 
+/**
+ * Absolute/unfalsifiable claims a fundamentals report can essentially never
+ * earn — a balance sheet is never "pristine", and no amount of net cash
+ * "eliminates" risk. These are not stylistic nitpicks: observed verbatim in
+ * real model output before this guard existed ("pristine balance sheet",
+ * "eliminate balance sheet risk", "severe balance sheet protection",
+ * alongside a "supported" valuation read justified purely by quality
+ * metrics). Checked as case-insensitive substrings across the whole
+ * response — the violation can land in any section, not just one field.
+ */
+const BANNED_PHRASES = [
+  "pristine",
+  "eliminate balance-sheet risk",
+  "eliminate balance sheet risk",
+  "eliminates risk",
+  "eliminate risk",
+  "risk-free",
+  "risk free",
+  "zero risk",
+  "guaranteed",
+  "flawless",
+  "bulletproof",
+  "unbeatable",
+  "severe balance-sheet protection",
+  "severe balance sheet protection",
+] as const;
+
+function findBannedPhrase(value: unknown): string | null {
+  const haystack = JSON.stringify(value).toLowerCase();
+  for (const phrase of BANNED_PHRASES) {
+    if (haystack.includes(phrase)) return phrase;
+  }
+  return null;
+}
+
+/**
+ * Wording that asserts CURRENT margin deterioration, as opposed to a
+ * hypothetical one. Deliberately excludes "scenarios" and the verdict's own
+ * "falsifier" — those are explicitly hypothetical branches
+ * (prompts/fundamentals-analysis.ts's bear scenario is allowed, even expected,
+ * to say margins could compress) and banning the phrase there would reject a
+ * perfectly correct response. Observed verbatim in real output: a
+ * deciding_factor named "margin compression" while profitability.direction
+ * was "stable" — an inference the payload's own margin series did not
+ * support.
+ */
+const MARGIN_DETERIORATION_PATTERN =
+  /margin(?:s)? (?:is|are|have been|has been)? ?(?:compress|eroding|shrinking|deteriorat)|(?:compress|erod|shrink)ing margins?|margin (?:compression|pressure|erosion)/i;
+
+/**
+ * Rejects a claim of current margin compression/pressure/erosion anywhere it
+ * would read as a fact about the business today — profitability's own
+ * statement, and the claims that back the headline verdict or the
+ * signal/flag lists — unless profitability.direction actually supports it
+ * ("deteriorating" or "volatile"). A "stable" or "improving" direction makes
+ * that wording an unsupported inference the ENUM DECISION RULES section
+ * already forbids in principle; this makes it unable to reach a user in
+ * practice.
+ */
+function findUnsupportedMarginDeteriorationClaim(value: {
+  profitability: { statement: string; direction: string };
+  executive_verdict: { deciding_factors: { claim: string }[] };
+  positive_signals: { claim: string }[];
+  red_flags: { claim: string }[];
+}): string | null {
+  if (value.profitability.direction === "deteriorating" || value.profitability.direction === "volatile") {
+    return null;
+  }
+  const candidates = [
+    value.profitability.statement,
+    ...value.executive_verdict.deciding_factors.map((factor) => factor.claim),
+    ...value.positive_signals.map((signal) => signal.claim),
+    ...value.red_flags.map((flag) => flag.claim),
+  ];
+  for (const text of candidates) {
+    if (MARGIN_DETERIORATION_PATTERN.test(text)) return text;
+  }
+  return null;
+}
+
+/**
+ * Words that flag a derived/estimated figure as such in prose, distinct from
+ * the "tag" field the reader never sees rendered. The CALCULATED VALUES
+ * section of the prompt names the implied diluted share count formula and
+ * requires per_share.statement to carry one of these whenever it states that
+ * count — "tag": "calc" alone is not enough, since nothing about the
+ * rendered sentence itself tells a reader the figure was derived rather than
+ * reported. Observed in real output: a "calc"-tagged per_share.statement
+ * stating a specific diluted share count with no qualifying word, reading
+ * exactly like a reported figure.
+ */
+const DERIVATION_HEDGE_PATTERN =
+  /implied|derived|estimated|approximat|roughly|computed|calculat|works out to|inferred|extrapolat|based on|suggests|~/i;
+const SHARE_COUNT_MENTION_PATTERN = /diluted share count|implied share|share count of/i;
+
+/**
+ * Flags per_share.statement when it is tagged "calc" (the implied diluted
+ * share count is inherently a calculated figure — see CALCULATED VALUES) and
+ * mentions a share count without any wording that marks it as derived. Never
+ * fires on "fact" — per_share.tag being "fact" for a genuinely reported
+ * figure (e.g. quoting health.sharesOutstanding rather than the implied
+ * count) is a separate, legitimate case this check must not touch.
+ */
+function findUnhedgedImpliedShareCount(value: {
+  per_share: { statement: string; tag: string };
+}): string | null {
+  const { statement, tag } = value.per_share;
+  if (tag !== "calc") return null;
+  if (!SHARE_COUNT_MENTION_PATTERN.test(statement)) return null;
+  if (DERIVATION_HEDGE_PATTERN.test(statement)) return null;
+  return statement;
+}
+
+/**
+ * Catches the one contradictory-scenario-threshold pattern actually observed
+ * in production: an APOLLO bear scenario reading "operating margin expanding
+ * below -7%" — a margin described as *expanding* while bounded below a
+ * *negative* floor is incoherent (nothing expands while forced to stay below
+ * a negative value; that is describing collapse into negative territory, not
+ * growth).
+ *
+ * Deliberately narrow, on purpose — an earlier, broader version of this
+ * check (any "expand/improve" word followed by "below" and any number, or
+ * any "contract/decline" word followed by "above" and any number) rejected
+ * completely ordinary, correct wording: "debt-to-equity improving to below
+ * 40%" and "leverage deteriorating above 100%" are both coherent because
+ * lower is better for leverage — the direction-word-vs-comparator rule this
+ * was meant to enforce only holds for margin-style metrics where higher is
+ * better, not for every metric in the payload. Scoped to margin wording, and
+ * to a negative threshold specifically, so it only fires on the shape of
+ * error actually seen rather than on plausible variation. Scoped to
+ * "requires"/"falsifier" only, not "view" — "view" is looser narrative prose
+ * the prompt does not hold to the same threshold grammar.
+ */
+const MARGIN_MENTION_PATTERN = /margin/i;
+const EXPANDING_BELOW_NEGATIVE_PATTERN =
+  /(?:expand\w*|widen\w*|improv\w*|increas\w*|grow\w*)[^.]{0,60}\bbelow\b[^.]{0,25}-\d/i;
+
+function findContradictoryScenarioThreshold(value: {
+  scenarios: { id: string; requires: string; falsifier: string }[];
+}): { id: string; text: string } | null {
+  for (const scenario of value.scenarios) {
+    for (const field of [scenario.requires, scenario.falsifier]) {
+      if (MARGIN_MENTION_PATTERN.test(field) && EXPANDING_BELOW_NEGATIVE_PATTERN.test(field)) {
+        return { id: scenario.id, text: field };
+      }
+    }
+  }
+  return null;
+}
+
 export const FundamentalsAiSchema = z.strictObject({
   meta: z.strictObject({
     symbol: z.string().min(1),
@@ -157,7 +308,55 @@ export const FundamentalsAiSchema = z.strictObject({
     )
     .max(6),
   summary: z.string().min(1),
-});
+})
+  .superRefine((value, ctx) => {
+    // Mirrors the prompt's own CONFIDENCE rule: a flagged material conflict
+    // caps confidence, so a response claiming both is internally
+    // inconsistent rather than a defensible edge case.
+    if (value.meta.material_conflict && value.meta.confidence === "high") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["meta", "confidence"],
+        message: "confidence cannot be 'high' when meta.material_conflict is true",
+      });
+    }
+
+    const bannedPhrase = findBannedPhrase(value);
+    if (bannedPhrase) {
+      ctx.addIssue({
+        code: "custom",
+        path: [],
+        message: `response contains a prohibited absolute/superlative phrase: "${bannedPhrase}"`,
+      });
+    }
+
+    const unsupportedMarginClaim = findUnsupportedMarginDeteriorationClaim(value);
+    if (unsupportedMarginClaim) {
+      ctx.addIssue({
+        code: "custom",
+        path: [],
+        message: `claims current margin deterioration ("${unsupportedMarginClaim}") while profitability.direction is "${value.profitability.direction}", which the data does not support`,
+      });
+    }
+
+    const unhedgedShareCount = findUnhedgedImpliedShareCount(value);
+    if (unhedgedShareCount) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["per_share", "statement"],
+        message: `per_share.statement states a calculated share count with no derivation wording ("implied"/"derived"/"estimated"): "${unhedgedShareCount}"`,
+      });
+    }
+
+    const contradictoryThreshold = findContradictoryScenarioThreshold(value);
+    if (contradictoryThreshold) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["scenarios"],
+        message: `scenario "${contradictoryThreshold.id}" has a direction word that contradicts its own comparator: "${contradictoryThreshold.text}"`,
+      });
+    }
+  });
 
 export type FundamentalsAiResponse = z.infer<typeof FundamentalsAiSchema>;
 

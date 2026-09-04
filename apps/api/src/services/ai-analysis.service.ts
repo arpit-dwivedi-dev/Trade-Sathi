@@ -26,7 +26,7 @@ import { APIConnectionTimeoutError, AuthenticationError, RateLimitError } from "
 import { aiProviders, type AiProvider } from "../lib/ai-client.js";
 import { logAppError } from "../lib/error-log.js";
 import { logger } from "../lib/logger.js";
-import { supabaseAdmin } from "../lib/supabase.js";
+import { callRpc, supabaseAdmin } from "../lib/supabase.js";
 
 const BUCKET = "chart-images";
 
@@ -47,7 +47,7 @@ export const SERIES_PROMPT_VERSION = "series-v2";
 
 /** Version of the fundamentals prompt in ../prompts/fundamentals-analysis.ts.
  *  Tracked separately for the same reason as SERIES_PROMPT_VERSION. */
-export const FUNDAMENTALS_PROMPT_VERSION = "fundamentals-v1";
+export const FUNDAMENTALS_PROMPT_VERSION = "fundamentals-v3";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   jpg: "image/jpeg",
@@ -238,6 +238,222 @@ export async function runSeriesAnalysis(
   );
 }
 
+type LeverageBand = "zero" | "low" | "moderate" | "high";
+
+/**
+ * Gross leverage, banded purely on health.debtToEquity/totalDebt — never
+ * adjusted for net cash. A net-cash position is a real and worth stating,
+ * but it is a DIFFERENT concept from gross indebtedness, and the prompt used
+ * to instruct moving the band down a step for it — which is exactly how a
+ * company with real, positive gross debt (health.totalDebt > 0) ended up
+ * labeled "zero" leverage in production. Returns null when debtToEquity is
+ * unreported, since banding then is a judgment call the model is better
+ * placed to make (e.g. deriving it, or calling leverage "unk").
+ */
+function computeGrossLeverageBand(payload: InstrumentFundamentals): LeverageBand | null {
+  const { totalDebt, debtToEquity } = payload.health;
+  if (totalDebt === 0 || debtToEquity === 0) return "zero";
+  if (debtToEquity === null) return null;
+  if (debtToEquity < 50) return "low";
+  if (debtToEquity <= 100) return "moderate";
+  return "high";
+}
+
+/**
+ * Corrects balance_sheet.leverage when it plainly contradicts the payload's
+ * own debtToEquity/totalDebt. Gross leverage banding is a fixed arithmetic
+ * rule the prompt already states, not a judgment call, so a mismatch is
+ * treated as a correction here rather than spent on a second model
+ * round-trip. Never overrides "unk": that value is a deliberate sector-
+ * structural call (e.g. a lender, where leverage isn't meaningful the usual
+ * way) the model is better placed to make than this arithmetic check.
+ */
+function reconcileLeverageBand(
+  result: FundamentalsAnalysisResult,
+  payload: InstrumentFundamentals,
+): FundamentalsAnalysisResult {
+  if (result.balance_sheet.leverage === "unk") return result;
+
+  const band = computeGrossLeverageBand(payload);
+  if (band === null || band === result.balance_sheet.leverage) return result;
+
+  logger.warn("fundamentals leverage band corrected against supplied debtToEquity", {
+    symbol: payload.instrument.symbol,
+    modelBand: result.balance_sheet.leverage,
+    correctedBand: band,
+    totalDebt: payload.health.totalDebt,
+    debtToEquity: payload.health.debtToEquity,
+  });
+
+  return {
+    ...result,
+    balance_sheet: { ...result.balance_sheet, leverage: band },
+    meta: {
+      ...result.meta,
+      data_issues: [
+        ...result.meta.data_issues,
+        `balance_sheet.leverage was reported as "${result.balance_sheet.leverage}" but health.debtToEquity (${payload.health.debtToEquity}) bands to "${band}"; corrected.`,
+      ],
+    },
+  };
+}
+
+/**
+ * The prompt's own tolerance rule (TOLERANCE section): a relative difference
+ * within 2%, or an absolute difference below 0.005 for a fraction-valued
+ * field, is reconciliation — not a discrepancy. Reused here so the dividend
+ * guard below fires on exactly the same threshold the model was told to use,
+ * not a second, drifted definition of "discordant".
+ */
+function isFractionDiscordant(supplied: number, recomputed: number): boolean {
+  const absDiff = Math.abs(recomputed - supplied);
+  if (absDiff < 0.005) return false;
+  if (supplied === 0) return true;
+  return absDiff / Math.abs(supplied) > 0.02;
+}
+
+/**
+ * Phrases that name a SPECIFIC one of the four causes the DIVIDEND prompt
+ * section requires a payout-ratio-vs-recomputed gap to be attributed to:
+ * special/one-off dividend, interim-vs-final timing, a per-share definition
+ * difference, or a source/accounting-period difference. Deliberately does
+ * NOT include a bare "unresolved" — the prompt's own rule is that an
+ * unresolved gap must set sustainability to "unk", so a statement that
+ * admits the gap is unresolved without naming a cause is exactly the
+ * violation this guard exists to catch, not an exemption from it. A
+ * case-insensitive substring scan, matching the BANNED_PHRASES scan's style
+ * in fundamentals-analysis-schema.ts.
+ */
+const DIVIDEND_ATTRIBUTION_KEYWORDS = [
+  "special dividend",
+  "one-off dividend",
+  "one-time dividend",
+  "extraordinary dividend",
+  "interim dividend",
+  "interim-vs-final",
+  "interim payment",
+  "final dividend",
+  "timing mismatch",
+  "timing difference",
+  "per-share definition",
+  "diluted eps",
+  "basic eps",
+  "different share count",
+  "share count difference",
+  "different accounting period",
+  "accounting-period difference",
+  "different source",
+  "source difference",
+] as const;
+
+function isDividendDiscrepancyExplained(statement: string): boolean {
+  const lower = statement.toLowerCase();
+  return DIVIDEND_ATTRIBUTION_KEYWORDS.some((keyword) => lower.includes(keyword));
+}
+
+/**
+ * Corrects dividend.tag and dividend.sustainability to "unk" together when
+ * the payload's own payoutRatio disagrees with dividendRate/trailingEps
+ * beyond the prompt's own tolerance AND the statement gives no attributable
+ * cause — the DIVIDEND section's own rule ("never assert 'conservative' or
+ * 'aggressive' over an unexplained gap... tag dividend 'unk' and set
+ * sustainability 'unk' to match"), enforced here rather than only hoped for,
+ * since a model can satisfy the schema's shape while quietly skipping the
+ * attribution step (observed in production: a statement calling the gap
+ * itself "unresolved" while still keeping sustainability "conservative" and
+ * tag "inf"). Both fields move together, matching the ENUM DECISION RULES
+ * invariant that an enum sibling is "unk" only when its own section's tag is
+ * "unk". Downgrading is the safe direction — it can only make the report
+ * less confident than it otherwise would be, never more.
+ */
+function reconcileDividendSustainability(
+  result: FundamentalsAnalysisResult,
+  payload: InstrumentFundamentals,
+): FundamentalsAnalysisResult {
+  if (result.dividend.sustainability === "unk" && result.dividend.tag === "unk") return result;
+
+  const { payoutRatio, dividendRate, trailingEps } = payload.valuation;
+  if (payoutRatio === null || dividendRate === null || trailingEps === null || trailingEps === 0) {
+    return result;
+  }
+
+  const recomputed = dividendRate / trailingEps;
+  if (!isFractionDiscordant(payoutRatio, recomputed)) return result;
+  if (isDividendDiscrepancyExplained(result.dividend.statement)) return result;
+
+  logger.warn("fundamentals dividend sustainability corrected for an unexplained payout discrepancy", {
+    symbol: payload.instrument.symbol,
+    modelSustainability: result.dividend.sustainability,
+    modelTag: result.dividend.tag,
+    payoutRatio,
+    recomputed,
+  });
+
+  return {
+    ...result,
+    dividend: { ...result.dividend, tag: "unk", sustainability: "unk" },
+    meta: {
+      ...result.meta,
+      data_issues: [
+        ...result.meta.data_issues,
+        `dividend.sustainability was reported as "${result.dividend.sustainability}" (tag "${result.dividend.tag}") but valuation.payoutRatio (${payoutRatio}) disagrees with dividendRate/trailingEps (${recomputed.toFixed(4)}) with no attributable cause named; corrected to "unk"/"unk".`,
+      ],
+    },
+  };
+}
+
+/**
+ * The prompt's own unambiguous "no" test for growth_supports_earnings:
+ * earningsGrowth negative while revenueGrowth is positive, or earningsGrowth
+ * trailing revenueGrowth by more than 5 percentage points. Deliberately does
+ * NOT encode the "yes" or "mixed" branches — those depend on
+ * earningsQuarterlyGrowth agreeing or contradicting, which is a judgment call
+ * this function leaves to the model. Only the "no" branch is cheap enough
+ * arithmetic, on few enough inputs, to correct with confidence.
+ */
+function isGrowthSupportsEarningsUnambiguouslyNo(payload: InstrumentFundamentals): boolean {
+  const { revenueGrowth, earningsGrowth } = payload.growth;
+  if (revenueGrowth === null || earningsGrowth === null) return false;
+  if (earningsGrowth < 0 && revenueGrowth > 0) return true;
+  return earningsGrowth < revenueGrowth - 0.05;
+}
+
+/**
+ * Corrects performance.growth_supports_earnings to "no" when the payload's
+ * own growth.revenueGrowth/earningsGrowth unambiguously call for it. Never
+ * touches "unk" (a deliberate call that an input was missing) and is a no-op
+ * when the model already said "no" — it only ever moves a "yes" or "mixed"
+ * verdict toward the one direction the prompt's rule leaves no room to argue
+ * with.
+ */
+function reconcileGrowthSupportsEarnings(
+  result: FundamentalsAnalysisResult,
+  payload: InstrumentFundamentals,
+): FundamentalsAnalysisResult {
+  if (result.performance.growth_supports_earnings === "unk") return result;
+  if (result.performance.growth_supports_earnings === "no") return result;
+  if (!isGrowthSupportsEarningsUnambiguouslyNo(payload)) return result;
+
+  logger.warn("fundamentals growth_supports_earnings corrected against revenueGrowth/earningsGrowth", {
+    symbol: payload.instrument.symbol,
+    modelVerdict: result.performance.growth_supports_earnings,
+    revenueGrowth: payload.growth.revenueGrowth,
+    earningsGrowth: payload.growth.earningsGrowth,
+  });
+
+  return {
+    ...result,
+    performance: { ...result.performance, growth_supports_earnings: "no" },
+    meta: {
+      ...result.meta,
+      data_issues: [
+        ...result.meta.data_issues,
+        `performance.growth_supports_earnings was reported as "${result.performance.growth_supports_earnings}" but growth.earningsGrowth (${payload.growth.earningsGrowth}) trails growth.revenueGrowth (${payload.growth.revenueGrowth}) by more than the "no" threshold; corrected.`,
+      ],
+    },
+  };
+}
+
 /**
  * Runs one InstrumentFundamentals payload through the AI provider — the same
  * client, JSON-mode request shape, retry policy and provider-fallback chain
@@ -250,7 +466,7 @@ export async function runFundamentalsAnalysis(
 ): Promise<VisualAnalysisOutcome<FundamentalsAnalysisResult>> {
   const prompt = buildFundamentalsAnalysisPrompt(payload);
 
-  return runAnalysisCompletion(
+  const outcome = await runAnalysisCompletion(
     [
       { role: "system", content: prompt.system },
       { role: "user", content: prompt.user },
@@ -258,6 +474,12 @@ export async function runFundamentalsAnalysis(
     false,
     validateFundamentalsResponse,
   );
+
+  let result = reconcileLeverageBand(outcome.result, payload);
+  result = reconcileGrowthSupportsEarnings(result, payload);
+  result = reconcileDividendSustainability(result, payload);
+
+  return { ...outcome, result };
 }
 
 /** The message shapes the three entry points above build. */
@@ -697,12 +919,12 @@ export async function reclaimStrandedAnalyses(): Promise<number> {
   // Served by analyses_status_created_at_idx.
   const { data, error } = await supabaseAdmin
     .from("analyses")
-    .select("id, source, profile_id")
+    .select("id, source, profile_id, created_at")
     .eq("status", "queued")
     .lt("created_at", cutoff)
     .order("created_at", { ascending: true })
     .limit(MAX_RECLAIM_BATCH)
-    .returns<{ id: string; source: string; profile_id: string }[]>();
+    .returns<{ id: string; source: string; profile_id: string; created_at: string }[]>();
 
   if (error) {
     logger.error("stranded analysis sweep query failed", { cause: String(error) });
@@ -755,6 +977,31 @@ export async function reclaimStrandedAnalyses(): Promise<number> {
       "The analysis was interrupted and could not be completed",
       { analysisId: row.id, source: row.source },
     );
+
+    // Every other failure path for a fundamentals row (a fetch error, an AI
+    // error, a save error — see runFundamentalsAnalysisPipeline in
+    // fundamentals-analysis.service.ts) refunds the entitlement it consumed.
+    // A row stranded by a process restart never reaches any of those paths —
+    // the in-flight promise chain holding that refund died with the process —
+    // so without this, an abandoned fundamentals row permanently burns the
+    // user's quota unit for a run that never produced a result. The period is
+    // derived from when the row was created (when the unit was consumed),
+    // not from now: the sweep can run well after a month boundary, and
+    // decrementing "now"'s period would credit the wrong month's counter.
+    if (row.source === "fundamentals") {
+      const period = row.created_at.slice(0, 7); // YYYY-MM, UTC — created_at is stored in UTC
+      try {
+        await callRpc<null>("decrement_fundamentals_usage", {
+          p_profile_id: row.profile_id,
+          p_period: period,
+        });
+      } catch (cause) {
+        logger.error("failed to refund stranded fundamentals entitlement", {
+          analysisId: row.id,
+          cause: String(cause),
+        });
+      }
+    }
   }
 
   for (const row of rerunnable) {

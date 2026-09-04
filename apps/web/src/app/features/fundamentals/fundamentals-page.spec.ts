@@ -79,9 +79,9 @@ const FUNDAMENTALS: InstrumentFundamentals = {
     sharesOutstanding: 39_599_800,
   },
   annual: [
-    { asOfDate: '2023-03-31', revenue: 4_000_000_000, operatingIncome: 2e8, netIncome: 1.5e8, dilutedEps: 4.1 },
-    { asOfDate: '2024-03-31', revenue: 5_000_000_000, operatingIncome: 2.4e8, netIncome: 1.9e8, dilutedEps: 5.2 },
-    { asOfDate: '2025-03-31', revenue: 6_339_800_064, operatingIncome: 2.8e8, netIncome: 2.36e8, dilutedEps: 6.0 },
+    { asOfDate: '2023-03-31', revenue: 4_000_000_000, operatingIncome: 2e8, netIncome: 1.5e8, dilutedEps: 4.1, operatingCashflow: null, freeCashflow: null },
+    { asOfDate: '2024-03-31', revenue: 5_000_000_000, operatingIncome: 2.4e8, netIncome: 1.9e8, dilutedEps: 5.2, operatingCashflow: null, freeCashflow: null },
+    { asOfDate: '2025-03-31', revenue: 6_339_800_064, operatingIncome: 2.8e8, netIncome: 2.36e8, dilutedEps: 6.0, operatingCashflow: null, freeCashflow: null },
   ],
 };
 

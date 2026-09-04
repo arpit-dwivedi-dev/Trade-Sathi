@@ -33,6 +33,15 @@ function requireEnv(name: string): string {
  * fires immediately and re-arms in its finally block — a tight loop re-running
  * the whole job. A crash on boot is far easier to diagnose than that.
  */
+/** Optional boolean env, "false" (case-insensitive) is the only way to turn
+ *  a default-true flag off; anything else, including unset, keeps the
+ *  default. */
+function optionalBoolEnv(name: string, fallback: boolean): boolean {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  return raw.toLowerCase() !== "false";
+}
+
 function optionalIntEnvInRange(name: string, fallback: number, min: number, max: number): number {
   const raw = process.env[name];
   if (!raw) return fallback;
@@ -168,4 +177,17 @@ export const env = {
   // Defaults to 8 (08:00 IST) — no prior "existing configured morning time"
   // exists in this project yet to match.
   dailyBriefingRunHourIst: optionalIntEnvInRange("DAILY_BRIEFING_RUN_HOUR_IST", 8, 0, 23),
+
+  // Master switch for the fundamentals verification middle layer (see
+  // services/fundamentals-verification.service.ts). Defaults on: even with
+  // no search provider configured, it still runs the deterministic
+  // (missing/stale/arithmetic) checks and never blocks or slows the
+  // pipeline on failure, so there is no safety reason to default it off.
+  fundamentalsVerificationEnabled: optionalBoolEnv("FUNDAMENTALS_VERIFICATION_ENABLED", true),
+
+  // Base URL of a self-hosted SearXNG instance used as the pluggable search
+  // fallback for authoritative-source corroboration. Optional — when unset,
+  // the verification layer still runs its deterministic checks, it just has
+  // no way to enrich or correct a flagged field, and marks it unverifiable.
+  searxngBaseUrl: process.env["SEARXNG_BASE_URL"] || null,
 };

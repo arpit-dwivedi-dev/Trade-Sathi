@@ -5,12 +5,14 @@ import {
   runFundamentalsAnalysis,
 } from "./ai-analysis.service.js";
 import { currentUtcPeriod } from "./analysis.service.js";
+import { verifyFundamentalsPayload } from "./fundamentals-verification.service.js";
 import {
   fetchInstrumentById,
   getFundamentalsForInstrument,
   type InstrumentRef,
 } from "./market-chart.service.js";
 import { MarketDataError } from "../lib/market-data/types.js";
+import type { VerificationResult } from "../lib/verification/types.js";
 import { logAppError } from "../lib/error-log.js";
 import { logger } from "../lib/logger.js";
 import { callRpc, supabaseAdmin } from "../lib/supabase.js";
@@ -251,9 +253,28 @@ async function runFundamentalsAnalysisPipeline(
     ...providerFundamentals,
   };
 
+  // Best-effort deterministic + authoritative-source verification layer.
+  // verifyFundamentalsPayload guarantees it never throws, but this call sits
+  // on the path to a paid entitlement spend — the extra try/catch is a
+  // second, independent guarantee that a verifier defect can never turn into
+  // a failed analysis, rather than trusting that guarantee to hold forever
+  // on the other side of a module boundary. Either way, the existing prompt
+  // below is untouched — it just receives whichever payload comes out here.
+  let verifiedPayload = payload;
+  let audit: VerificationResult | null = null;
+  try {
+    ({ payload: verifiedPayload, audit } = await verifyFundamentalsPayload(payload, ref, profileId));
+  } catch (cause) {
+    logger.error("fundamentals verification threw unexpectedly; continuing with unverified payload", {
+      profileId,
+      instrumentKey: ref.instrumentKey,
+      cause: String(cause),
+    });
+  }
+
   let outcome;
   try {
-    outcome = await runFundamentalsAnalysis(payload);
+    outcome = await runFundamentalsAnalysis(verifiedPayload);
   } catch (cause) {
     logger.error("fundamentals AI analysis failed", {
       profileId,
@@ -273,6 +294,7 @@ async function runFundamentalsAnalysisPipeline(
     .update({
       fundamentals_result: outcome.result,
       fundamentals_stance: outcome.result.executive_verdict.stance,
+      fundamentals_verification: audit,
       symbol: ref.symbol,
       summary: outcome.result.summary,
       model_id: outcome.modelId,

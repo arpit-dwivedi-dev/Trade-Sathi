@@ -203,11 +203,59 @@ const QUOTE_SUMMARY_MODULES = [
 const ANNUAL_TIMESERIES_TYPES = [
   "annualTotalRevenue",
   "annualOperatingIncome",
-  "annualNetIncome",
+  // Attributable to common shareholders (minority interest excluded), not
+  // plain "annualNetIncome" — matching the basis quoteSummary's
+  // netIncomeToCommon already gives health.netIncome (TTM) below. Yahoo
+  // reports both as distinct series; using the mismatched one here would
+  // silently mix accounting bases between the TTM and annual figures for
+  // any company where minority interest is non-trivial.
+  "annualNetIncomeCommonStockholders",
   "annualDilutedEPS",
+  "annualOperatingCashFlow",
+  "annualFreeCashFlow",
 ] as const;
 
 type AnnualTimeseriesType = (typeof ANNUAL_TIMESERIES_TYPES)[number];
+
+/**
+ * The TTM cash-flow figures, fetched from the same timeseries endpoint as a
+ * fallback for health.operatingCashflow/freeCashflow: quoteSummary's own
+ * financialData module frequently reports these two fields as null for
+ * NSE-listed companies even though the underlying filings have them (verified
+ * against Apollo Hospitals and Vodafone Idea) — the timeseries endpoint has
+ * them under a differently-named type. Requested together with
+ * ANNUAL_TIMESERIES_TYPES in one call; kept as a separate list only because
+ * they are read back into a different part of the payload (health.*, not
+ * annual[]) and TRAILING_CASHFLOW_STALE_CUTOFF_YEARS below applies to these
+ * two only.
+ */
+const TRAILING_CASHFLOW_TYPES = ["trailingOperatingCashFlow", "trailingFreeCashFlow"] as const;
+
+type TrailingCashflowType = (typeof TRAILING_CASHFLOW_TYPES)[number];
+
+/** The most recent point of a trailing-cashflow series, or null if the
+ *  series came back empty. */
+type TrailingCashflowPoint = { value: number; asOfDate: string } | null;
+
+/**
+ * A trailing cash-flow point is only trustworthy as a stand-in for
+ * health.operatingCashflow/freeCashflow when it is not itself stale — Yahoo's
+ * "trailing" cash-flow series can freeze years behind the rest of a
+ * company's data (observed on Vodafone Idea: latest trailing point 2020-09,
+ * while the same request's annual series and quoteSummary were both current
+ * to FY2026). Gated on the same 12-month threshold the prompt's own
+ * STALENESS section uses as its "low confidence" cutoff — past that, the
+ * annual series (also carried in the payload) is the better evidence than a
+ * silently-stale trailing figure.
+ */
+const TRAILING_CASHFLOW_STALE_MS = 366 * 24 * 60 * 60 * 1000;
+
+function usableTrailingCashflow(point: TrailingCashflowPoint): number | null {
+  if (point === null) return null;
+  const ageMs = Date.now() - new Date(point.asOfDate).getTime();
+  if (Number.isNaN(ageMs) || ageMs > TRAILING_CASHFLOW_STALE_MS) return null;
+  return point.value;
+}
 
 /** Yahoo rejects a timeseries request without a window; this one spans every filing. */
 const TIMESERIES_PERIOD1 = 0;
@@ -580,7 +628,7 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
    * `instrumentKey` is a Yahoo ticker, exactly as for the chart methods.
    */
   async getFundamentals(instrumentKey: string): Promise<ProviderFundamentals> {
-    const [modules, annual] = await Promise.all([
+    const [modules, timeseries] = await Promise.all([
       this.fetchQuoteSummary(instrumentKey),
       // The history is the one part of this screen that is not worth failing
       // the whole request over: the figures above it stand on their own, and
@@ -590,9 +638,14 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
           instrumentKey,
           cause: String(cause),
         });
-        return [] as FundamentalsAnnualPeriod[];
+        return {
+          annual: [] as FundamentalsAnnualPeriod[],
+          trailingOperatingCashflow: null as TrailingCashflowPoint,
+          trailingFreeCashflow: null as TrailingCashflowPoint,
+        };
       }),
     ]);
+    const { annual } = timeseries;
 
     const price = modules["price"];
     const detail = modules["summaryDetail"];
@@ -672,8 +725,18 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
         debtToEquity: readNumber(financials, "debtToEquity"),
         currentRatio: readNumber(financials, "currentRatio"),
         quickRatio: readNumber(financials, "quickRatio"),
-        freeCashflow: readNumber(financials, "freeCashflow"),
-        operatingCashflow: readNumber(financials, "operatingCashflow"),
+        // quoteSummary's financialData module frequently reports these two as
+        // null for NSE-listed companies even though the filings have them —
+        // fall back to the timeseries endpoint's own trailing series (see
+        // fetchAnnualSeries), discarding it if it is itself stale. The annual
+        // series carried below is the next fallback the AI prompt and the
+        // Fundamentals tab can both still draw on when even that fails.
+        freeCashflow:
+          readNumber(financials, "freeCashflow") ??
+          usableTrailingCashflow(timeseries.trailingFreeCashflow),
+        operatingCashflow:
+          readNumber(financials, "operatingCashflow") ??
+          usableTrailingCashflow(timeseries.trailingOperatingCashflow),
         sharesOutstanding: readNumber(stats, "sharesOutstanding"),
       },
       annual,
@@ -755,16 +818,23 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
   }
 
   /**
-   * The annual series, joined on fiscal period end. Each requested type comes
-   * back as its own result with its own list of periods, and a company can
-   * have reported one but not another for a given year, so the union of the
-   * dates is walked rather than any single series' own list.
+   * The annual series plus the TTM cash-flow fallback, in one call — both
+   * come from the same fundamentals-timeseries endpoint, so there is no
+   * reason to pay for it twice. Each requested type comes back as its own
+   * result with its own list of periods, and a company can have reported one
+   * but not another for a given year, so the union of the dates is walked
+   * rather than any single series' own list.
    */
-  private async fetchAnnualSeries(instrumentKey: string): Promise<FundamentalsAnnualPeriod[]> {
+  private async fetchAnnualSeries(instrumentKey: string): Promise<{
+    annual: FundamentalsAnnualPeriod[];
+    trailingOperatingCashflow: TrailingCashflowPoint;
+    trailingFreeCashflow: TrailingCashflowPoint;
+  }> {
     const encoded = encodeURIComponent(instrumentKey);
+    const allTypes = [...ANNUAL_TIMESERIES_TYPES, ...TRAILING_CASHFLOW_TYPES];
     const url =
       `${YAHOO_TIMESERIES_URL}/${encoded}?symbol=${encoded}` +
-      `&type=${ANNUAL_TIMESERIES_TYPES.join(",")}` +
+      `&type=${allTypes.join(",")}` +
       `&period1=${TIMESERIES_PERIOD1}&period2=${TIMESERIES_PERIOD2}`;
 
     const response = await fetchYahoo(url, instrumentKey);
@@ -786,26 +856,44 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
     }
 
     const byType = new Map<AnnualTimeseriesType, Map<string, number>>();
+    const byTrailingType = new Map<TrailingCashflowType, Map<string, number>>();
     for (const result of validation.data.timeseries.result ?? []) {
       const type = result.meta.type[0];
       if (type === undefined) continue;
-      if (!(ANNUAL_TIMESERIES_TYPES as readonly string[]).includes(type)) continue;
-      byType.set(type as AnnualTimeseriesType, readTimeseriesPoints(result));
+      if ((ANNUAL_TIMESERIES_TYPES as readonly string[]).includes(type)) {
+        byType.set(type as AnnualTimeseriesType, readTimeseriesPoints(result));
+      } else if ((TRAILING_CASHFLOW_TYPES as readonly string[]).includes(type)) {
+        byTrailingType.set(type as TrailingCashflowType, readTimeseriesPoints(result));
+      }
     }
+
+    const latestPoint = (points: Map<string, number> | undefined): TrailingCashflowPoint => {
+      if (!points || points.size === 0) return null;
+      const asOfDate = [...points.keys()].sort((a, b) => b.localeCompare(a))[0];
+      return { value: points.get(asOfDate) as number, asOfDate };
+    };
 
     const dates = new Set<string>();
     for (const points of byType.values()) {
       for (const date of points.keys()) dates.add(date);
     }
 
-    return [...dates]
+    const annual: FundamentalsAnnualPeriod[] = [...dates]
       .sort((a, b) => a.localeCompare(b))
       .map((asOfDate) => ({
         asOfDate,
         revenue: byType.get("annualTotalRevenue")?.get(asOfDate) ?? null,
         operatingIncome: byType.get("annualOperatingIncome")?.get(asOfDate) ?? null,
-        netIncome: byType.get("annualNetIncome")?.get(asOfDate) ?? null,
+        netIncome: byType.get("annualNetIncomeCommonStockholders")?.get(asOfDate) ?? null,
         dilutedEps: byType.get("annualDilutedEPS")?.get(asOfDate) ?? null,
+        operatingCashflow: byType.get("annualOperatingCashFlow")?.get(asOfDate) ?? null,
+        freeCashflow: byType.get("annualFreeCashFlow")?.get(asOfDate) ?? null,
       }));
+
+    return {
+      annual,
+      trailingOperatingCashflow: latestPoint(byTrailingType.get("trailingOperatingCashFlow")),
+      trailingFreeCashflow: latestPoint(byTrailingType.get("trailingFreeCashFlow")),
+    };
   }
 }

@@ -116,6 +116,17 @@ export interface FundamentalsAnnualPeriod {
   operatingIncome: number | null;
   netIncome: number | null;
   dilutedEps: number | null;
+  /**
+   * Operating and free cash flow for this fiscal year. Populated from the
+   * same annual filing series as the other fields above — distinct from
+   * health.operatingCashflow/freeCashflow, which are trailing-twelve-month.
+   * The provider's trailing cash-flow figure goes stale for some companies
+   * well before its other trailing figures do, so this annual series is the
+   * fallback evidence for cash generation when the TTM field is null or
+   * plainly out of date.
+   */
+  operatingCashflow: number | null;
+  freeCashflow: number | null;
 }
 
 /** Everything the Fundamentals tab draws for one instrument. */
