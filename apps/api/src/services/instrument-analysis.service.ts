@@ -1,10 +1,8 @@
 import { renderCandlestickChart } from "./chart-image.service.js";
 import {
   runSeriesAnalysis,
-  runVisualAnalysis,
   AnalysisFailure,
   SERIES_PROMPT_VERSION,
-  VISUAL_PROMPT_VERSION,
   insertAnalysisPatterns,
 } from "./ai-analysis.service.js";
 import type { AnalysisAiResult } from "./ai-analysis.service.js";
@@ -21,13 +19,16 @@ import { supabaseAdmin } from "../lib/supabase.js";
 
 /**
  * The one pipeline that turns an instrument + a lookback window into a stored
- * analysis: market data -> chart image -> the SAME visual AI call manual
- * uploads use -> an `analyses` row.
+ * analysis: market data -> the candle-series AI call -> an `analyses` row.
  *
- * The chart image is normally rendered by the browser that asked for the
- * analysis (see `providedChart`), so the model reads exactly the chart the
- * user is looking at. Server-side rendering remains the fallback and is the
- * only option for the scheduled daily briefing, which has no browser.
+ * The model reads the candles, not a picture of them, on every path here —
+ * the live view and the scheduled daily briefing alike. (Manual uploads have
+ * no candles behind them and still go through the visual prompt.)
+ *
+ * A chart image is still produced and stored, purely so the user can see and
+ * download the chart behind the result: normally the one the browser that
+ * asked for the analysis already drew (see `providedChart`), otherwise
+ * rendered here, which is the only option for the daily briefing.
  *
  * Deliberately knows nothing about entitlements. Every caller consumes its own
  * kind of quota before calling and compensates on a null return — the
@@ -202,14 +203,12 @@ export async function runInstrumentAnalysis(
   const chartCandles = window.candles.slice(-MAX_CANDLES_FOR_CHART);
   const lastCandle = chartCandles[chartCandles.length - 1];
 
-  // The candles are still fetched when the browser supplies the image: they
-  // are what dates the analysis and reports its latest price, and they are
-  // read from the same cached window the browser's own /api/market/candles
-  // call filled, so this costs the upstream provider nothing extra.
-  let chart: ProvidedChart;
-  if (providedChart) {
-    chart = providedChart;
-  } else {
+  // The image is only ever a rendering of the candles above — either the
+  // browser's own drawing of the same window (read from the cache its
+  // /api/market/candles call filled, so it costs the provider nothing extra)
+  // or one drawn here.
+  let chart: ProvidedChart | null = providedChart ?? null;
+  if (!chart) {
     try {
       chart = {
         buffer: await renderCandlestickChart(chartCandles, {
@@ -226,16 +225,17 @@ export async function runInstrumentAnalysis(
         instrumentKey: ref.instrumentKey,
         cause: String(cause),
       });
-      await markFailed("chart_render_failed", "The chart image could not be generated");
-      return null;
+      // Not fatal: the analysis reads the candles, so a missing picture costs
+      // the user the chart preview and the PDF's chart, not the result.
+      chart = null;
     }
   }
 
-  // Live runs analyse the candles themselves; the image above is rendered and
-  // stored only so the user can see and download the chart behind the result.
-  // The watchlist daily path still reads the image, which is all it has ever
-  // had — see runSeriesAnalysis for why the numbers are the better input.
-  const readsSeries = source === "live";
+  // Both generated-chart paths (live and the scheduled daily briefing) analyse
+  // the candles themselves; the image above is rendered and stored only so the
+  // user can see and download the chart behind the result. See
+  // runSeriesAnalysis for why the numbers are the better input than a picture
+  // of them.
 
   const seriesMeta = {
     symbol: ref.symbol,
@@ -246,74 +246,38 @@ export async function runInstrumentAnalysis(
   };
 
   let visual;
-  // Tracks what actually produced the result, because the fallback below can
-  // make that differ from `readsSeries`. prompt_version is written from this,
-  // so a row always names the prompt it was really analysed with.
-  let analysedSeries = readsSeries;
   try {
-    visual = readsSeries
-      ? await runSeriesAnalysis(chartCandles, seriesMeta)
-      : await runVisualAnalysis(chart.buffer, chart.mimetype);
+    visual = await runSeriesAnalysis(chartCandles, seriesMeta);
   } catch (cause) {
-    // The vision chain is short — in practice one provider — so a rate limit or
-    // an outage on it used to fail the whole run even though the candles that
-    // chart was drawn FROM are already in hand and the series prompt is the
-    // better input anyway (see runSeriesAnalysis). Falling back to the numbers
-    // turns a dead end into a real analysis.
-    //
-    // Only for generated charts. An uploaded screenshot has no candles behind
-    // it, and `providedChart` from a browser is a picture of the same window
-    // this server already fetched, so the series still describes it faithfully.
-    const canReadSeries = !readsSeries && cause instanceof AnalysisFailure;
-    if (canReadSeries) {
-      logger.error("visual analysis failed, falling back to candle series", {
-        profileId,
-        instrumentKey: ref.instrumentKey,
-        errorCode: cause.code,
-      });
-      try {
-        visual = await runSeriesAnalysis(chartCandles, seriesMeta);
-        analysedSeries = true;
-      } catch (seriesCause) {
-        logger.error("instrument AI analysis failed", {
-          profileId,
-          instrumentKey: ref.instrumentKey,
-          errorCode: seriesCause instanceof AnalysisFailure ? seriesCause.code : "unknown",
-          cause: String(seriesCause),
-        });
-        await markFailed(
-          seriesCause instanceof AnalysisFailure ? seriesCause.code : "api_error",
-          seriesCause instanceof AnalysisFailure
-            ? seriesCause.message
-            : "The analysis could not be completed",
-        );
-        return null;
-      }
-    } else {
-      logger.error("instrument AI analysis failed", {
-        profileId,
-        instrumentKey: ref.instrumentKey,
-        errorCode: cause instanceof AnalysisFailure ? cause.code : "unknown",
-        cause: String(cause),
-      });
-      await markFailed(
-        cause instanceof AnalysisFailure ? cause.code : "api_error",
-        cause instanceof AnalysisFailure ? cause.message : "The analysis could not be completed",
-      );
-      return null;
-    }
+    logger.error("instrument AI analysis failed", {
+      profileId,
+      instrumentKey: ref.instrumentKey,
+      errorCode: cause instanceof AnalysisFailure ? cause.code : "unknown",
+      cause: String(cause),
+    });
+    await markFailed(
+      cause instanceof AnalysisFailure ? cause.code : "api_error",
+      cause instanceof AnalysisFailure ? cause.message : "The analysis could not be completed",
+    );
+    return null;
   }
 
   const marketDataDate = lastCandle.timestamp.slice(0, 10);
-  const imageKey = imageKeyFor(
-    source,
-    profileId,
-    ref.instrumentId,
-    marketDataDate,
-    lookbackDays,
-    extensionForMimeType(chart.mimetype),
-  );
-  await storeGeneratedChart(imageKey, chart);
+  // "" — never null — when no image was produced: analyses.image_key is NOT
+  // NULL, and the empty string is already how a queued row spells "no image
+  // yet" (see live-analysis.service).
+  let imageKey = "";
+  if (chart) {
+    imageKey = imageKeyFor(
+      source,
+      profileId,
+      ref.instrumentId,
+      marketDataDate,
+      lookbackDays,
+      extensionForMimeType(chart.mimetype),
+    );
+    await storeGeneratedChart(imageKey, chart);
+  }
 
   // The analysis fields themselves, identical whether they are being written
   // into a row that already exists or one created here.
@@ -341,7 +305,7 @@ export async function runInstrumentAnalysis(
     // not the configured primary, which may have been failed over past. A run
     // must stay attributable to the model that produced it.
     model_id: visual.modelId,
-    prompt_version: analysedSeries ? SERIES_PROMPT_VERSION : VISUAL_PROMPT_VERSION,
+    prompt_version: SERIES_PROMPT_VERSION,
     input_tokens: visual.inputTokens,
     output_tokens: visual.outputTokens,
     // Recorded here for the same reason the manual upload path records it:

@@ -1,9 +1,10 @@
 @use './styles/typography' as type;
+@use './styles/scrollbar';
 
-// Plain CSS, so still @import — Sass's @use is for the .scss partials only.
+// Plain CSS files, so still @import — these are emitted as CSS @import rules,
+// which is not the deprecated Sass @import.
 @import './styles/tokens.css';
 @import './styles/components.css';
-@import './styles/scrollbar';
 
 *,
 *::before,
