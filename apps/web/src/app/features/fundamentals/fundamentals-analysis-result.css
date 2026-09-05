@@ -203,3 +203,55 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── data notes ─────────────────────────────────────────────────────────
+   Deterministic statements about the DATA, distinct from the model's own
+   caveats above. A "caution" note gets the warning accent; an "info" note
+   reads as ordinary context and must not look like a problem. */
+.fund-ai-data-notes li[data-severity='caution'] b {
+  color: var(--warn, #b26a00);
+}
+
+/* ── derivation trace ───────────────────────────────────────────────────
+   Collapsed by default. Deliberately plain: it is a debugging surface, not
+   part of the report's visual language. */
+.fund-ai-debug-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.fund-ai-debug-table {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+
+.fund-ai-debug-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.fund-ai-debug-table th,
+.fund-ai-debug-table td {
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border, rgb(0 0 0 / 8%));
+}
+
+.fund-ai-debug-table tr[data-state='unreliable'] td {
+  color: var(--warn, #b26a00);
+}
+
+.fund-ai-debug-table tr[data-state='missing'] td {
+  opacity: 0.6;
+}

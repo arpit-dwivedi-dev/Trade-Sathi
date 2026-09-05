@@ -10,8 +10,8 @@ const getQuote = vi.fn();
 // Only the provider class is replaced; resolveUpstreamRequest is the real
 // range/interval bucketing, which is what the cache key is built from and so
 // is part of the behaviour under test.
-vi.mock("../lib/market-data/yahoo-finance-provider.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../lib/market-data/yahoo-finance-provider.js")>()),
+vi.mock("../lib/market-data/provider/yahoo-finance-provider.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/market-data/provider/yahoo-finance-provider.js")>()),
   YahooFinanceMarketDataProvider: class {
     getHistoricalCandles = getHistoricalCandles;
     getQuote = getQuote;

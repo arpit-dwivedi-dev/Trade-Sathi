@@ -70,9 +70,16 @@ export interface VerificationRequest {
   context: Record<string, unknown>;
 }
 
+/**
+ * There is deliberately no "corrected" member.
+ *
+ * A verification layer that cannot write to the data it audits must not be
+ * able to claim it corrected anything, and removing the member makes that a
+ * compile error rather than a convention. Evidence that disagrees with a
+ * value is a "conflict": recorded, surfaced, and never applied.
+ */
 export type FieldVerificationStatus =
   | "verified_match"
-  | "corrected"
   | "conflict"
   | "unverifiable"
   | "unchecked";

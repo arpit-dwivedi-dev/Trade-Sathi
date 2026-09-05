@@ -36,6 +36,21 @@ export default tseslint.config(
     },
   },
 
+  // apps/api's golden set lives outside its build tsconfig's `include` (so the
+  // build never emits fixtures), but it is real TypeScript against real types
+  // and deserves the type-aware rules — so it gets its own project rather than
+  // being dropped to syntactic linting.
+  {
+    files: ["apps/api/tests/**/*.ts"],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: ["./apps/api/tsconfig.test.json"],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+
   // TypeScript that no tsconfig's `include` covers: the repo-level scripts,
   // and apps/web's Playwright config and e2e specs (tsconfig.app.json excludes
   // *.spec.ts and tsconfig.spec.json only covers src/). Type-aware parsing

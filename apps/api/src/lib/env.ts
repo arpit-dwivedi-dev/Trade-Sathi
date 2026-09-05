@@ -179,15 +179,20 @@ export const env = {
   dailyBriefingRunHourIst: optionalIntEnvInRange("DAILY_BRIEFING_RUN_HOUR_IST", 8, 0, 23),
 
   // Master switch for the fundamentals verification middle layer (see
-  // services/fundamentals-verification.service.ts). Defaults on: even with
-  // no search provider configured, it still runs the deterministic
-  // (missing/stale/arithmetic) checks and never blocks or slows the
-  // pipeline on failure, so there is no safety reason to default it off.
-  fundamentalsVerificationEnabled: optionalBoolEnv("FUNDAMENTALS_VERIFICATION_ENABLED", true),
+  // services/fundamentals-verification.service.ts).
+  //
+  // DEFAULTS OFF since September 2026. Snippet corroboration confirmed
+  // quarterly-basis values as verified matches on TCS — it rubber-stamped the
+  // exact errors that broke the report, because search cannot resolve period
+  // or basis semantics. Turning it back on is now harmless rather than
+  // dangerous (the service returns its input payload by reference and cannot
+  // write to it), but it costs upstream search calls for an audit nothing
+  // reads, so it stays off until the news-analysis feature reuses it.
+  fundamentalsVerificationEnabled: optionalBoolEnv("FUNDAMENTALS_VERIFICATION_ENABLED", false),
 
   // Base URL of a self-hosted SearXNG instance used as the pluggable search
-  // fallback for authoritative-source corroboration. Optional — when unset,
-  // the verification layer still runs its deterministic checks, it just has
-  // no way to enrich or correct a flagged field, and marks it unverifiable.
+  // backend (lib/search). Optional — when unset, the verification layer still
+  // runs its deterministic checks, it just has no external evidence to record
+  // against a flagged field and marks it unverifiable.
   searxngBaseUrl: process.env["SEARXNG_BASE_URL"] || null,
 };

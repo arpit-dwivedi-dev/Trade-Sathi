@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Covers only the seam this file adds: the verification layer sits between
- * the raw provider fetch and the existing, unmodified runFundamentalsAnalysis
- * call, and a verifier failure must never fail the analysis run. The
- * verification logic itself (enrichment, staleness, conflicts, and so on) is
- * covered in fundamentals-verification.service.test.ts.
+ * Covers the seams this file owns: raw statements are fetched and derived
+ * before the model call, the derived payload (never a provider-derived one)
+ * is what reaches runFundamentalsAnalysis, the data notes written into the
+ * stored result are ours rather than the model's, and a failure in the
+ * retained verification layer can never fail the analysis run.
+ *
+ * The derivation itself is covered by the golden set in tests/golden/, and
+ * the verification layer's own behaviour by
+ * fundamentals-verification.service.test.ts.
  */
 
 function chainable(result: Record<string, unknown>): PromiseLike<Record<string, unknown>> & Record<string, unknown> {
@@ -32,9 +36,21 @@ vi.mock("../lib/logger.js", () => ({
 }));
 vi.mock("../lib/error-log.js", () => ({ logAppError: vi.fn() }));
 
+// The audit layer is off by default in production; these tests keep it ON so
+// the pipeline's guard around it is actually exercised rather than skipped.
+vi.mock("../lib/env.js", () => ({ env: { fundamentalsVerificationEnabled: true } }));
+
 const fetchInstrumentById = vi.fn();
 const getFundamentalsForInstrument = vi.fn();
-vi.mock("./market-chart.service.js", () => ({ fetchInstrumentById, getFundamentalsForInstrument }));
+const getRawStatementsForInstrument = vi.fn();
+vi.mock("./market-chart.service.js", () => ({
+  fetchInstrumentById,
+  getFundamentalsForInstrument,
+  getRawStatementsForInstrument,
+}));
+
+const deriveFundamentals = vi.fn();
+vi.mock("./fundamentals/index.js", () => ({ deriveFundamentals }));
 
 const runFundamentalsAnalysis = vi.fn();
 vi.mock("./ai-analysis.service.js", () => ({
@@ -59,18 +75,34 @@ const REF = {
 };
 
 const RAW_PROVIDER_FUNDAMENTALS = { meta: { currency: "INR" } } as Record<string, unknown>;
-const VERIFIED_PAYLOAD = { meta: { currency: "INR" }, verified: true } as Record<string, unknown>;
+const RAW_STATEMENTS = { quarterly: [], annual: [], spot: {}, forward: [], corporateActions: null };
+
+const DATA_NOTES = [
+  { title: "The share price is out of date", detail: "...", severity: "caution" as const },
+];
+const DERIVED = {
+  profile: { exchange: "NSE" },
+  metrics: { revenue: { value: 1, period: "TTM x..y", reliability: "ok" } },
+  facts: { leverageBand: "low" },
+  dataNotes: DATA_NOTES,
+  findings: [{ metric: "price", rule: "price_stale", detail: "..." }],
+  quartersUsed: ["2026-03-31", "2026-06-30"],
+} as unknown as Record<string, unknown>;
 
 beforeEach(() => {
   from.mockReset();
   callRpc.mockReset();
   fetchInstrumentById.mockReset();
   getFundamentalsForInstrument.mockReset();
+  getRawStatementsForInstrument.mockReset();
+  deriveFundamentals.mockReset();
   runFundamentalsAnalysis.mockReset();
   verifyFundamentalsPayload.mockReset();
 
   fetchInstrumentById.mockResolvedValue(REF);
   getFundamentalsForInstrument.mockResolvedValue(RAW_PROVIDER_FUNDAMENTALS);
+  getRawStatementsForInstrument.mockResolvedValue(RAW_STATEMENTS);
+  deriveFundamentals.mockReturnValue(DERIVED);
   callRpc.mockResolvedValue(true);
 
   from
@@ -80,8 +112,8 @@ beforeEach(() => {
 });
 
 describe("triggerFundamentalsAnalysis", () => {
-  it("hands the verified payload, not the raw one, to runFundamentalsAnalysis", async () => {
-    verifyFundamentalsPayload.mockResolvedValue({ payload: VERIFIED_PAYLOAD, audit: { fields: [] } });
+  it("hands the DERIVED payload to runFundamentalsAnalysis, never a provider one", async () => {
+    verifyFundamentalsPayload.mockResolvedValue({ payload: {}, audit: { fields: [] } });
     runFundamentalsAnalysis.mockResolvedValue({
       result: { executive_verdict: { stance: "mixed" }, summary: "" },
       modelId: "m",
@@ -92,23 +124,61 @@ describe("triggerFundamentalsAnalysis", () => {
     });
 
     await triggerFundamentalsAnalysis("profile-1", "instrument-1");
-
     await vi.waitFor(() => expect(runFundamentalsAnalysis).toHaveBeenCalled());
 
-    const [verifyCallPayload, verifyCallRef, verifyCallProfileId] = verifyFundamentalsPayload.mock
-      .calls[0] as unknown[];
-    expect(verifyCallPayload).toMatchObject({ instrument: { id: "i1" } });
-    expect(verifyCallRef).toEqual(REF);
-    expect(verifyCallProfileId).toBe("profile-1");
-    expect(runFundamentalsAnalysis).toHaveBeenCalledWith(VERIFIED_PAYLOAD);
+    expect(getRawStatementsForInstrument).toHaveBeenCalledWith(REF);
+    expect(deriveFundamentals).toHaveBeenCalledWith(RAW_STATEMENTS, "NSE");
+
+    const [input] = runFundamentalsAnalysis.mock.calls[0] as [Record<string, unknown>];
+    expect(input.derived).toBe(DERIVED);
+    expect(input.instrument).toMatchObject({ id: "i1", symbol: "RELIANCE" });
   });
 
-  it("falls back to the raw payload and still completes when verification throws", async () => {
-    // verifyFundamentalsPayload's own contract is that it never throws (see
-    // fundamentals-verification.service.test.ts) — this exercises the
-    // pipeline's independent try/catch around that call, so a defect on the
-    // other side of that boundary still can't turn into a failed,
-    // entitlement-wasting analysis run.
+  it("writes its own data notes and debug trace into the stored result", async () => {
+    // The notes are deterministic output of the plausibility gate. Letting
+    // the model restate them would let it soften or drop one.
+    verifyFundamentalsPayload.mockResolvedValue({ payload: {}, audit: { fields: [] } });
+    runFundamentalsAnalysis.mockResolvedValue({
+      result: { executive_verdict: { stance: "mixed" }, summary: "s" },
+      modelId: "m",
+      inputTokens: 1,
+      outputTokens: 1,
+      costUsd: 0,
+      latencyMs: 1,
+    });
+
+    const updates: Record<string, unknown>[] = [];
+    from.mockReset();
+    from
+      .mockImplementationOnce(() => chainable({ data: null, error: null }))
+      .mockImplementationOnce(() => chainable({ data: { id: "analysis-1" }, error: null }))
+      .mockImplementation(() => {
+        const result: Record<string, unknown> = { error: null };
+        const obj: Record<string, unknown> = {
+          update: (payload: Record<string, unknown>) => {
+            updates.push(payload);
+            return chainable(result);
+          },
+          select: () => chainable(result),
+          eq: () => chainable(result),
+        };
+        return obj;
+      });
+
+    await triggerFundamentalsAnalysis("profile-1", "instrument-1");
+    await vi.waitFor(() => expect(updates.length).toBeGreaterThan(0));
+
+    const stored = updates[0]["fundamentals_result"] as Record<string, unknown>;
+    expect(stored["data_notes"]).toEqual(DATA_NOTES);
+    expect(stored["debug"]).toMatchObject({ quartersUsed: ["2026-03-31", "2026-06-30"] });
+  });
+
+  it("still completes when the retained verification layer throws", async () => {
+    // verifyFundamentalsPayload's own contract is that it never throws. This
+    // exercises the pipeline's independent try/catch around it, so a defect
+    // on the other side of that boundary still cannot turn into a failed,
+    // entitlement-wasting run — and, now that the layer is audit-only, its
+    // failure costs nothing but the audit.
     verifyFundamentalsPayload.mockRejectedValue(new Error("verification exploded"));
     runFundamentalsAnalysis.mockResolvedValue({
       result: { executive_verdict: { stance: "mixed" }, summary: "" },
@@ -123,10 +193,7 @@ describe("triggerFundamentalsAnalysis", () => {
     expect(result.ok).toBe(true);
 
     await vi.waitFor(() => expect(runFundamentalsAnalysis).toHaveBeenCalled());
-    // Falls back to the raw provider payload, not the (never-resolved)
-    // verified one.
-    const [calledPayload] = runFundamentalsAnalysis.mock.calls[0] as unknown[];
-    expect(calledPayload).toMatchObject({ instrument: { id: "i1" } });
-    expect(calledPayload).not.toBe(VERIFIED_PAYLOAD);
+    const [input] = runFundamentalsAnalysis.mock.calls[0] as [Record<string, unknown>];
+    expect(input.derived).toBe(DERIVED);
   });
 });

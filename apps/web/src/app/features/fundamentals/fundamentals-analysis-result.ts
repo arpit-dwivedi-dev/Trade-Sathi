@@ -1,9 +1,10 @@
-import { Component, computed, effect, input } from '@angular/core';
+import { Component, computed, effect, input, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import type {
   FundamentalsAnalysisResult as FundamentalsResult,
   FundamentalsClaim,
+  FundamentalsDataNote,
   FundamentalsScenario,
   FundamentalsScenarioId,
 } from '@chartanalyzer/shared';
@@ -27,6 +28,14 @@ interface Tile {
 /** The `{statement, tag, evidence}` shape most sections share, plus the one
  *  enum verdict that section carries — rendered generically rather than once
  *  per section, since the seven sections below differ only in that verdict. */
+/** One row of the collapsed debug trace. */
+interface DebugMetricRow {
+  key: string;
+  value: string;
+  period: string;
+  reliability: string;
+}
+
 interface TaggedSectionView {
   title: string;
   statement: string;
@@ -150,6 +159,53 @@ export class FundamentalsAnalysisResultComponent {
   });
 
   protected readonly showCaveats = computed(() => this.caveats().length > 0);
+
+  /* ── data notes ─────────────────────────────────────────────────────────
+     Written by the API's plausibility gate, not by the model: they are
+     deterministic statements about the DATA (a stale price, a share count
+     that moved with no corporate action to explain it), in plain English
+     with no field paths and no raw floats. Distinct from `caveats` above,
+     which is the model's own commentary on its reading. Absent on analyses
+     stored before the derived pipeline landed, hence the empty default. */
+  protected readonly dataNotes = computed<FundamentalsDataNote[]>(
+    () => this.result()?.data_notes ?? [],
+  );
+
+  /* ── debug trace ────────────────────────────────────────────────────────
+     The machine-readable trace behind the notes: which plausibility rules
+     fired, which quarters the trailing windows were built from, and every
+     derived metric with its period, basis and reliability. Collapsed by
+     default — it is for working out why a number reads the way it does, not
+     for the ordinary reader. */
+  protected readonly debugOpen = signal(false);
+
+  protected readonly debugTrace = computed(() => this.result()?.debug ?? null);
+
+  protected toggleDebug(): void {
+    this.debugOpen.update((open) => !open);
+  }
+
+  /** The metric rows, sorted so anything not fully reliable surfaces first. */
+  protected readonly debugMetrics = computed<DebugMetricRow[]>(() => {
+    const metrics = this.debugTrace()?.metrics;
+    if (!metrics) return [];
+    const rank = { unreliable: 0, missing: 1, ok: 2 } as const;
+    return Object.entries(metrics)
+      .map(([key, raw]) => {
+        const m = raw as { value: number | null; period: string; reliability: string };
+        return {
+          key,
+          value: m.value === null ? '—' : String(Number(m.value.toPrecision(6))),
+          period: m.period,
+          reliability: m.reliability,
+        };
+      })
+      .sort(
+        (a, b) =>
+          (rank[a.reliability as keyof typeof rank] ?? 3) -
+            (rank[b.reliability as keyof typeof rank] ?? 3) || a.key.localeCompare(b.key),
+      );
+  });
 
   /* ── the generically-rendered tagged sections ───────────────────────────
      Seven sections share the exact {statement, tag, evidence} + one enum

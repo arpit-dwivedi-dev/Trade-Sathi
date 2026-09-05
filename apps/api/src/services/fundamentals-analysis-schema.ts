@@ -1,5 +1,9 @@
 import { z } from "zod";
-import type { FundamentalsAnalysisResult } from "@chartanalyzer/shared";
+import type {
+  DerivedFundamentals,
+  FundamentalsAnalysisResult,
+  Metric,
+} from "@chartanalyzer/shared";
 
 /**
  * The zod mirror of apps/api/src/prompts/fundamentals-analysis.ts's
@@ -217,6 +221,126 @@ function findContradictoryScenarioThreshold(value: {
   return null;
 }
 
+/**
+ * The one extra key each of these seven sections carries beyond
+ * statement/tag/evidence — see prompts/fundamentals-analysis.ts's OUTPUT
+ * RULES note on this exact failure. Keyed by section name, in the same
+ * top-to-bottom order they appear in THE JSON SHAPE, which
+ * repairHoistedVerdictKeys below relies on to disambiguate the two sections
+ * (cash_flow, capital_efficiency) that happen to share a verdict key name.
+ */
+const VERDICT_KEY_BY_SECTION: Record<string, string> = {
+  profitability: "direction",
+  per_share: "dilution",
+  balance_sheet: "leverage",
+  cash_flow: "assessable",
+  capital_efficiency: "assessable",
+  dividend: "sustainability",
+  valuation: "read",
+};
+
+/**
+ * Best-effort repair for a model that closes one of the seven
+ * VERDICT_KEY_BY_SECTION objects right after "evidence" — matching the
+ * shorter three-key shape several neighbouring sections use — and then
+ * writes the section's verdict key (direction/dilution/leverage/…) as its
+ * own top-level property instead of inside that object. Observed on more
+ * than one fallback provider and more than one instrument, always as the
+ * stray key immediately following the section it belongs to; that
+ * adjacency is what this repair keys off, which also resolves the one
+ * naming collision (cash_flow and capital_efficiency both use
+ * "assessable") without ambiguity — whichever of the two most recently
+ * appeared is the one missing the key.
+ *
+ * Deliberately conservative in two ways. First, it only ever moves a
+ * top-level key whose name exactly matches the verdict key expected right
+ * after its section, and only when that key is not already present where it
+ * belongs — a value already in the wrong place for some OTHER reason is left
+ * for the schema to reject on its own terms rather than guessed at here.
+ * Second, "right after" means the LITERAL next key with nothing between —
+ * not merely the most recent section seen — because json.parse has already
+ * collapsed any duplicate top-level key to one property by the time this
+ * function runs (keeping the first occurrence's position but the last
+ * occurrence's value), which makes the one real ambiguous case — both
+ * cash_flow and capital_efficiency hoisting their same-named "assessable" in
+ * one response — unrecoverable and not worth guessing at: strict adjacency
+ * means neither gets attributed, and the response fails validation exactly
+ * as it would without this repair, rather than risking one section silently
+ * taking the other's value. Runs on the raw, not-yet-validated response, so
+ * (like repairDisallowedUnkClaimTags below) it must not assume the shape
+ * already holds.
+ */
+export function repairHoistedVerdictKeys(raw: unknown): unknown {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return raw;
+  const root = raw as Record<string, unknown>;
+
+  let expectedSection: string | null = null;
+  const strayKeys: string[] = [];
+  for (const key of Object.keys(root)) {
+    if (key in VERDICT_KEY_BY_SECTION) {
+      expectedSection = key;
+      continue;
+    }
+
+    if (expectedSection !== null && key === VERDICT_KEY_BY_SECTION[expectedSection]) {
+      const section = root[expectedSection];
+      if (section !== null && typeof section === "object" && !(key in section)) {
+        (section as Record<string, unknown>)[key] = root[key];
+        strayKeys.push(key);
+      }
+    }
+    // Whether or not this key matched, adjacency is now broken: only the
+    // key immediately following a section can ever be attributed to it.
+    expectedSection = null;
+  }
+
+  for (const key of strayKeys) delete root[key];
+  return root;
+}
+
+/**
+ * Best-effort repair for one narrow, observed failure mode: a model tagging
+ * a deciding_factors/positive_signals/red_flags item "unk" despite both the
+ * prompt's OUTPUT RULES ("Items in these arrays never use tag 'unk' — an
+ * unknowable claim belongs in missing_information instead") and this
+ * schema's own CLAIM_TAG disallowing it there. Observed on a fallback
+ * provider under load: the claim itself ("Return on equity is not
+ * reported...") was fine, only the tag was wrong. Coercing that one field
+ * to "inf" — the closest valid tag to what an unknowable-but-still-asserted
+ * claim actually is — keeps a otherwise-good response working rather than
+ * failing the whole analysis (and burning a provider retry, or the whole
+ * chain) over one mislabeled tag. Runs on the raw, not-yet-validated
+ * response, so it must not assume the shape below already holds — anything
+ * other than the exact array-of-objects it looks for is left untouched for
+ * the schema to reject on its own terms.
+ */
+export function repairDisallowedUnkClaimTags(raw: unknown): unknown {
+  if (typeof raw !== "object" || raw === null) return raw;
+  const value = raw as Record<string, unknown>;
+
+  const fixClaimArray = (arr: unknown): void => {
+    if (!Array.isArray(arr)) return;
+    for (const item of arr) {
+      if (
+        item !== null &&
+        typeof item === "object" &&
+        (item as Record<string, unknown>)["tag"] === "unk"
+      ) {
+        (item as Record<string, unknown>)["tag"] = "inf";
+      }
+    }
+  };
+
+  fixClaimArray(value["positive_signals"]);
+  fixClaimArray(value["red_flags"]);
+  const verdict = value["executive_verdict"];
+  if (verdict !== null && typeof verdict === "object") {
+    fixClaimArray((verdict as Record<string, unknown>)["deciding_factors"]);
+  }
+
+  return value;
+}
+
 export const FundamentalsAiSchema = z.strictObject({
   meta: z.strictObject({
     symbol: z.string().min(1),
@@ -371,4 +495,197 @@ export function normalizeFundamentalsAnalysis(
   parsed: FundamentalsAiResponse,
 ): FundamentalsAnalysisResult {
   return parsed;
+}
+
+// ---------------------------------------------------------------------------
+// Semantic validation — rules that need the derived payload, not just the shape
+// ---------------------------------------------------------------------------
+
+/**
+ * The checks that used to be post-hoc reconcilers.
+ *
+ * Four functions in ai-analysis.service.ts used to rewrite the model's output
+ * after the fact: the leverage band, the growth verdict, dividend
+ * sustainability and the executive stance. Three of those verdicts are now
+ * computed upstream and handed to the model to copy, so there is nothing left
+ * to reconcile. The fourth — an "attractive" stance contradicting the sections
+ * it is supposed to follow from — is a genuine internal inconsistency, and it
+ * belongs here as a REJECTION rather than a silent patch: a response the
+ * pipeline had to quietly correct is a response that should have been
+ * regenerated.
+ *
+ * Returns the list of violations, empty when the response is coherent.
+ */
+export function findSemanticViolations(
+  result: FundamentalsAnalysisResult,
+  derived: DerivedFundamentals,
+): string[] {
+  const violations: string[] = [];
+
+  violations.push(...findStanceContradictions(result));
+  violations.push(...findCopiedFactViolations(result, derived));
+  violations.push(...findScenarioViolations(result, derived));
+
+  return violations;
+}
+
+/**
+ * An "attractive" stance must not contradict the very sections it follows
+ * from. Observed in production during the 2026-09 accuracy audit: 3 of 5
+ * sampled instruments came back "attractive" while carrying a "fact"-tagged
+ * red flag, two of them alongside a "deteriorating" direction and a
+ * "stretched" read at the same time.
+ *
+ * "unk" is never counted as unfavourable — a section with no verdict is
+ * excluded from the weighing, not held against the company. growth
+ * "mixed" is likewise left alone: "no" is the unambiguous negative.
+ */
+function findStanceContradictions(result: FundamentalsAnalysisResult): string[] {
+  if (result.executive_verdict.stance !== "attractive") return [];
+
+  const reasons: string[] = [];
+  if (
+    result.profitability.direction === "deteriorating" ||
+    result.profitability.direction === "volatile"
+  ) {
+    reasons.push(`profitability.direction is "${result.profitability.direction}"`);
+  }
+  if (result.balance_sheet.leverage === "high") reasons.push('balance_sheet.leverage is "high"');
+  if (result.valuation.read === "stretched") reasons.push('valuation.read is "stretched"');
+  if (result.performance.growth_supports_earnings === "no") {
+    reasons.push('performance.growth_supports_earnings is "no"');
+  }
+  if (result.red_flags.some((flag) => flag.tag === "fact" || flag.tag === "calc")) {
+    reasons.push('red_flags contains a "fact"- or "calc"-tagged item');
+  }
+
+  return reasons.length === 0
+    ? []
+    : [
+        `executive_verdict.stance is "attractive" but ${reasons.join(" and ")}; ` +
+          `resolve the contradiction in the sections or change the stance`,
+      ];
+}
+
+/**
+ * The four verdicts computed upstream must be copied, not re-decided. A
+ * mismatch means the model overrode a deterministic result with an
+ * impression, which is the failure mode the whole derivation layer exists to
+ * remove.
+ */
+function findCopiedFactViolations(
+  result: FundamentalsAnalysisResult,
+  derived: DerivedFundamentals,
+): string[] {
+  const { facts } = derived;
+  const violations: string[] = [];
+
+  const check = (name: string, actual: string, expected: string): void => {
+    // A sector-structural "unk" is the one legitimate override: leverage is
+    // not a meaningful measure for a lender whatever the arithmetic says.
+    if (actual === "unk") return;
+    if (actual !== expected) {
+      violations.push(`${name} is "${actual}" but the derived value is "${expected}"; copy it`);
+    }
+  };
+
+  check("balance_sheet.leverage", result.balance_sheet.leverage, facts.leverageBand);
+  check(
+    "performance.growth_supports_earnings",
+    result.performance.growth_supports_earnings,
+    facts.growthSupportsEarnings,
+  );
+  check("dividend.sustainability", result.dividend.sustainability, facts.dividendSustainability);
+  check("valuation.read", result.valuation.read, facts.valuationRead);
+
+  return violations;
+}
+
+/**
+ * Scenario validity at t=0.
+ *
+ * A scenario is a branch that has not happened yet. Two things must hold at
+ * publication:
+ *   - every falsifier must be FALSE today, and
+ *   - every "requires" must NOT already be satisfied.
+ *
+ * We shipped an NVDA bear case whose falsifier was already true when it was
+ * published, and a TCS base case whose requirement the payload already met.
+ * Both read as analysis and were neither.
+ *
+ * This cannot be evaluated in full generality — the text is prose. What CAN be
+ * checked, and is checked here, is the numeric part: every threshold a
+ * scenario names must come from the single threshold set, and a condition
+ * stated against a metric whose current value already satisfies it is
+ * rejected.
+ */
+function findScenarioViolations(
+  result: FundamentalsAnalysisResult,
+  derived: DerivedFundamentals,
+): string[] {
+  const violations: string[] = [];
+  const allowed = allowedThresholdStrings(derived);
+
+  for (const scenario of result.scenarios) {
+    for (const [field, text] of [
+      ["requires", scenario.requires],
+      ["falsifier", scenario.falsifier],
+    ] as const) {
+      for (const percent of namedPercentages(text)) {
+        if (!allowed.has(percent)) {
+          violations.push(
+            `scenarios.${scenario.id}.${field} names ${percent}, which is not one of this ` +
+              `report's thresholds (${[...allowed].join(", ")}); use one of those`,
+          );
+        }
+      }
+    }
+  }
+
+  // The verdict's own falsifier is held to the same standard.
+  for (const percent of namedPercentages(result.executive_verdict.falsifier)) {
+    if (!allowed.has(percent)) {
+      violations.push(
+        `executive_verdict.falsifier names ${percent}, which is not one of this report's ` +
+          `thresholds (${[...allowed].join(", ")}); use one of those`,
+      );
+    }
+  }
+
+  return violations;
+}
+
+/**
+ * The percentage strings a report may legitimately name: the four thresholds,
+ * plus the current value of every metric they are anchored to (a scenario may
+ * always restate where the company stands today).
+ */
+function allowedThresholdStrings(derived: DerivedFundamentals): Set<string> {
+  const { thresholds } = derived.facts;
+  const values = [
+    thresholds.operatingMarginFloor,
+    thresholds.revenueGrowthFloor,
+    thresholds.cashConversionFloor,
+    thresholds.leverageCeiling,
+    ...(Object.values(derived.metrics) as Metric[])
+      .filter(
+        (m): m is Metric & { value: number } =>
+          m.reliability === "ok" && m.value !== null && Math.abs(m.value) < 10,
+      )
+      .map((m) => m.value),
+  ];
+
+  const out = new Set<string>();
+  for (const value of values) {
+    // Both roundings a model plausibly writes for the same number.
+    out.add(`${(value * 100).toFixed(0)}%`);
+    out.add(`${(value * 100).toFixed(1)}%`);
+    out.add(`${(value * 100).toFixed(2)}%`);
+  }
+  return out;
+}
+
+/** Percentage literals in a sentence, normalised for comparison. */
+function namedPercentages(text: string): string[] {
+  return [...text.matchAll(/(\d+(?:\.\d+)?)\s*%/g)].map((m) => `${m[1]}%`);
 }

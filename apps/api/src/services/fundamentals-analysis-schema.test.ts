@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { FundamentalsAiSchema } from "./fundamentals-analysis-schema.js";
+import {
+  FundamentalsAiSchema,
+  repairDisallowedUnkClaimTags,
+  repairHoistedVerdictKeys,
+} from "./fundamentals-analysis-schema.js";
 
 /** A schema-valid response, per prompts/fundamentals-analysis.ts's json shape. */
 function validResponse(overrides: Record<string, unknown> = {}) {
@@ -239,5 +243,128 @@ describe("FundamentalsAiSchema", () => {
       }),
     );
     expect(result.success).toBe(true);
+  });
+});
+
+describe("repairHoistedVerdictKeys", () => {
+  it("moves a verdict key back inside its section when the model closed the object one key early", () => {
+    // Reproduces a response observed on a fallback provider: profitability's
+    // object closed right after "evidence", and "direction" landed as its
+    // own top-level property immediately after it.
+    const raw = {
+      meta: { symbol: "HDFCBANK" },
+      profitability: { statement: "x", tag: "calc", evidence: "e" },
+      direction: "stable",
+      per_share: { statement: "x", tag: "calc", evidence: "e" },
+    };
+
+    const repaired = repairHoistedVerdictKeys(raw) as Record<string, unknown>;
+
+    expect(repaired["profitability"]).toEqual({ statement: "x", tag: "calc", evidence: "e", direction: "stable" });
+    expect(repaired).not.toHaveProperty("direction");
+  });
+
+  it("resolves cash_flow's 'assessable' correctly when capital_efficiency's own copy is nested normally", () => {
+    // cash_flow and capital_efficiency share a verdict key name
+    // ("assessable"); this only exercises the repair correctly when at most
+    // one of the two is actually hoisted, which is what strict adjacency
+    // guarantees — see the doc comment above repairHoistedVerdictKeys for
+    // why the reverse (both hoisted in the same response) is left unrepaired
+    // rather than guessed at.
+    const raw = {
+      cash_flow: { statement: "x", tag: "calc", evidence: "e" },
+      assessable: "yes",
+      capital_efficiency: { statement: "y", tag: "calc", evidence: "e", assessable: "no" },
+    };
+
+    const repaired = repairHoistedVerdictKeys(raw) as Record<string, unknown>;
+
+    expect(repaired["cash_flow"]).toMatchObject({ assessable: "yes" });
+    expect(repaired["capital_efficiency"]).toMatchObject({ assessable: "no" });
+    expect(repaired).not.toHaveProperty("assessable");
+  });
+
+  it("leaves an already-correctly-nested response untouched", () => {
+    const raw = validResponse();
+
+    const repaired = repairHoistedVerdictKeys(raw) as typeof raw;
+
+    expect(repaired).toEqual(raw);
+  });
+
+  it("does not move a stray key that does not immediately follow its matching section", () => {
+    const raw = {
+      profitability: { statement: "x", tag: "calc", evidence: "e" },
+      business: { statement: "y", tag: "fact", evidence: "e" },
+      direction: "stable", // no longer adjacent to profitability — left alone
+    };
+
+    const repaired = repairHoistedVerdictKeys(raw) as Record<string, unknown>;
+
+    expect(repaired["profitability"]).toEqual({ statement: "x", tag: "calc", evidence: "e" });
+    expect(repaired).toHaveProperty("direction", "stable");
+  });
+
+  it("is a no-op on a non-object input", () => {
+    expect(repairHoistedVerdictKeys(null)).toBe(null);
+    expect(repairHoistedVerdictKeys("not an object")).toBe("not an object");
+  });
+});
+
+describe("repairDisallowedUnkClaimTags", () => {
+  it("coerces an 'unk' tag on a red_flags item to 'inf'", () => {
+    const raw = validResponse({
+      red_flags: [{ claim: "Return on equity is not reported.", tag: "unk", evidence: "profitability.returnOnEquity null" }],
+    });
+
+    const repaired = repairDisallowedUnkClaimTags(raw) as typeof raw;
+
+    expect(repaired.red_flags[0]).toEqual({
+      claim: "Return on equity is not reported.",
+      tag: "inf",
+      evidence: "profitability.returnOnEquity null",
+    });
+    expect(FundamentalsAiSchema.safeParse(repaired).success).toBe(true);
+  });
+
+  it("coerces an 'unk' tag on a positive_signals item to 'inf'", () => {
+    const raw = validResponse({
+      positive_signals: [{ claim: "Net cash position.", tag: "unk", evidence: "health.totalCash 200000000000" }],
+    });
+
+    const repaired = repairDisallowedUnkClaimTags(raw) as typeof raw;
+
+    expect(repaired.positive_signals[0].tag).toBe("inf");
+  });
+
+  it("coerces an 'unk' tag on an executive_verdict.deciding_factors item to 'inf'", () => {
+    const base = validResponse();
+    const raw = validResponse({
+      executive_verdict: {
+        ...base.executive_verdict,
+        deciding_factors: [
+          base.executive_verdict.deciding_factors[0],
+          { claim: "Dividend cover is unclear.", tag: "unk", evidence: "valuation.payoutRatio 0.4" },
+        ],
+      },
+    });
+
+    const repaired = repairDisallowedUnkClaimTags(raw) as typeof raw;
+
+    expect(repaired.executive_verdict.deciding_factors[1].tag).toBe("inf");
+  });
+
+  it("leaves a valid 'fact'/'calc'/'inf' tag untouched", () => {
+    const raw = validResponse();
+
+    const repaired = repairDisallowedUnkClaimTags(raw) as typeof raw;
+
+    expect(repaired).toEqual(raw);
+  });
+
+  it("is a no-op on a non-object input, for a caller that has not yet checked the response shape", () => {
+    expect(repairDisallowedUnkClaimTags(null)).toBe(null);
+    expect(repairDisallowedUnkClaimTags("not an object")).toBe("not an object");
+    expect(repairDisallowedUnkClaimTags(42)).toBe(42);
   });
 });

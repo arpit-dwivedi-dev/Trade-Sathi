@@ -172,4 +172,39 @@ export interface FundamentalsAnalysisResult {
   missing_information: FundamentalsMissingInformationItem[];
   /** Two or three sentences, pure prose, no numbers. */
   summary: string;
+  /**
+   * The user-facing "Data notes" section.
+   *
+   * Written by the plausibility gate, NOT by the model — they are
+   * deterministic output, and letting the model restate them would let it
+   * soften or drop one. Optional because analyses stored before the derived
+   * pipeline landed do not carry them.
+   */
+  data_notes?: FundamentalsDataNote[];
+  /** The machine trace, rendered behind a debug toggle. */
+  debug?: FundamentalsDebugTrace;
+}
+
+/** One plain-English note about the data. Never a field path, never a raw float. */
+export interface FundamentalsDataNote {
+  title: string;
+  detail: string;
+  severity: 'info' | 'caution';
+}
+
+/**
+ * Everything behind the debug toggle: which plausibility rules fired, which
+ * quarters the trailing windows were built from, and every derived metric
+ * with its period, basis and reliability.
+ *
+ * Deliberately untyped-ish at this boundary — it mirrors the derivation
+ * layer's own shapes, which apps/web renders generically rather than field by
+ * field.
+ */
+export interface FundamentalsDebugTrace {
+  findings: { metric: string; rule: string; detail: string }[];
+  quartersUsed: string[];
+  metrics: Record<string, unknown>;
+  facts: Record<string, unknown>;
+  profile: Record<string, unknown>;
 }

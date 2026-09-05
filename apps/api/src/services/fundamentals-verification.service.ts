@@ -1,8 +1,33 @@
+/**
+ * DISABLED FOR FUNDAMENTALS — September 2026.
+ *
+ * Snippet corroboration confirmed quarterly-basis values as `verified_match`
+ * on TCS: it rubber-stamped the exact errors that broke the report. Search
+ * cannot resolve period or basis semantics — a web page saying "revenue grew
+ * 13.9%" agrees with a payload field saying 0.139 whether that field is a
+ * quarterly figure or a trailing one, and the whole defect was that it was
+ * quarterly wearing a trailing label.
+ *
+ * This module is RETAINED for reuse by the news-analysis feature. It has been
+ * made structurally incapable of changing fundamentals data: see
+ * verifyFundamentalsPayload, which now returns the caller's own payload
+ * object by reference. That, not the environment flag, is the actual safety
+ * property — a flag gets switched back on by accident one day, and this makes
+ * that harmless.
+ *
+ * The reusable pieces have moved to lib/search/ (the SearXNG client,
+ * classifyHost, the result cache). The fundamentals-specific pieces below —
+ * the 60-character window extraction, interpretNumber, value clustering and
+ * the verdict ladder — stay here on purpose: news will not need them, and
+ * keeping them separated prevents them being reused by accident.
+ */
+
 import type { InstrumentFundamentals } from "@chartanalyzer/shared";
 import { env } from "../lib/env.js";
 import { logAppError } from "../lib/error-log.js";
 import { logger } from "../lib/logger.js";
-import { SearxngSearchProvider } from "../lib/verification/searxng-search-provider.js";
+import { SearchResultCache } from "../lib/search/search-cache.js";
+import { SearxngSearchProvider } from "../lib/search/searxng-search-provider.js";
 import type {
   AccountingBasis,
   Evidence,
@@ -59,7 +84,6 @@ interface FieldSpec {
    *  value inside a search snippet. */
   synonyms: string[];
   get: (p: InstrumentFundamentals) => number | null;
-  set: (p: InstrumentFundamentals, value: number) => void;
 }
 
 function latestAnnual(p: InstrumentFundamentals) {
@@ -74,7 +98,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "point_in_time",
     synonyms: ["share price", "stock price", "current price"],
     get: (p) => p.snapshot.price,
-    set: (p, v) => (p.snapshot.price = v),
   },
   {
     path: "snapshot.marketCap",
@@ -83,7 +106,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "point_in_time",
     synonyms: ["market cap", "market capitalisation", "market capitalization"],
     get: (p) => p.snapshot.marketCap,
-    set: (p, v) => (p.snapshot.marketCap = v),
   },
   {
     path: "snapshot.fiftyTwoWeekLow",
@@ -92,7 +114,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "point_in_time",
     synonyms: ["52 week low", "52-week low"],
     get: (p) => p.snapshot.fiftyTwoWeekLow,
-    set: (p, v) => (p.snapshot.fiftyTwoWeekLow = v),
   },
   {
     path: "snapshot.fiftyTwoWeekHigh",
@@ -101,7 +122,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "point_in_time",
     synonyms: ["52 week high", "52-week high"],
     get: (p) => p.snapshot.fiftyTwoWeekHigh,
-    set: (p, v) => (p.snapshot.fiftyTwoWeekHigh = v),
   },
   {
     path: "health.sharesOutstanding",
@@ -110,7 +130,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "quarterly",
     synonyms: ["shares outstanding", "outstanding shares"],
     get: (p) => p.health.sharesOutstanding,
-    set: (p, v) => (p.health.sharesOutstanding = v),
   },
   {
     path: "valuation.trailingEps",
@@ -119,7 +138,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "trailing",
     synonyms: ["trailing eps", "eps (ttm)", "eps ttm"],
     get: (p) => p.valuation.trailingEps,
-    set: (p, v) => (p.valuation.trailingEps = v),
   },
   {
     path: "valuation.trailingPe",
@@ -128,7 +146,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "trailing",
     synonyms: ["trailing pe", "p/e ratio", "pe ratio"],
     get: (p) => p.valuation.trailingPe,
-    set: (p, v) => (p.valuation.trailingPe = v),
   },
   {
     path: "valuation.forwardPe",
@@ -137,7 +154,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "trailing",
     synonyms: ["forward pe", "forward p/e"],
     get: (p) => p.valuation.forwardPe,
-    set: (p, v) => (p.valuation.forwardPe = v),
   },
   {
     path: "health.totalDebt",
@@ -146,7 +162,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "quarterly",
     synonyms: ["total debt"],
     get: (p) => p.health.totalDebt,
-    set: (p, v) => (p.health.totalDebt = v),
   },
   {
     path: "health.totalCash",
@@ -155,7 +170,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "quarterly",
     synonyms: ["total cash"],
     get: (p) => p.health.totalCash,
-    set: (p, v) => (p.health.totalCash = v),
   },
   {
     path: "health.debtToEquity",
@@ -164,7 +178,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "quarterly",
     synonyms: ["debt to equity", "debt/equity", "d/e ratio"],
     get: (p) => p.health.debtToEquity,
-    set: (p, v) => (p.health.debtToEquity = v),
   },
   {
     path: "valuation.dividendRate",
@@ -173,7 +186,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "trailing",
     synonyms: ["dividend rate", "dividend per share", "dps"],
     get: (p) => p.valuation.dividendRate,
-    set: (p, v) => (p.valuation.dividendRate = v),
   },
   {
     path: "valuation.dividendYield",
@@ -182,16 +194,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "trailing",
     synonyms: ["dividend yield"],
     get: (p) => p.valuation.dividendYield,
-    set: (p, v) => (p.valuation.dividendYield = v),
-  },
-  {
-    path: "valuation.payoutRatio",
-    kind: "fraction",
-    group: "dividend",
-    periodClass: "trailing",
-    synonyms: ["payout ratio", "dividend payout"],
-    get: (p) => p.valuation.payoutRatio,
-    set: (p, v) => (p.valuation.payoutRatio = v),
   },
   {
     path: "health.operatingCashflow",
@@ -200,16 +202,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "trailing",
     synonyms: ["operating cash flow", "cash from operations"],
     get: (p) => p.health.operatingCashflow,
-    set: (p, v) => (p.health.operatingCashflow = v),
-  },
-  {
-    path: "health.freeCashflow",
-    kind: "absolute",
-    group: "cash_flow",
-    periodClass: "trailing",
-    synonyms: ["free cash flow"],
-    get: (p) => p.health.freeCashflow,
-    set: (p, v) => (p.health.freeCashflow = v),
   },
   {
     path: "annual.latest.revenue",
@@ -218,10 +210,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "annual_latest",
     synonyms: ["annual revenue", "total revenue", "net sales"],
     get: (p) => latestAnnual(p)?.revenue ?? null,
-    set: (p, v) => {
-      const last = latestAnnual(p);
-      if (last) last.revenue = v;
-    },
   },
   {
     path: "annual.latest.netIncome",
@@ -230,10 +218,6 @@ const FIELD_SPECS: FieldSpec[] = [
     periodClass: "annual_latest",
     synonyms: ["net income", "net profit", "annual profit"],
     get: (p) => latestAnnual(p)?.netIncome ?? null,
-    set: (p, v) => {
-      const last = latestAnnual(p);
-      if (last) last.netIncome = v;
-    },
   },
 ];
 
@@ -312,7 +296,6 @@ function deterministicFlags(spec: FieldSpec, p: InstrumentFundamentals): string[
     "valuation.trailingPe",
     "valuation.forwardPe",
     "valuation.dividendYield",
-    "valuation.payoutRatio",
     "valuation.dividendRate",
   ]);
   if (CURRENCY_GATED_PATHS.has(spec.path) && !currencyGateOpen(p)) {
@@ -334,31 +317,11 @@ function deterministicFlags(spec: FieldSpec, p: InstrumentFundamentals): string[
     const recomputed = p.snapshot.price / p.valuation.trailingEps;
     if (!reconciled(value, recomputed, spec.kind)) flags.push("arithmetic_inconsistent");
   }
-  if (
-    spec.path === "valuation.payoutRatio" &&
-    currencyGateOpen(p) &&
-    p.valuation.dividendRate !== null &&
-    p.valuation.trailingEps
-  ) {
-    const recomputed = p.valuation.dividendRate / p.valuation.trailingEps;
-    if (!reconciled(value, recomputed, spec.kind)) flags.push("arithmetic_inconsistent");
-  }
-  // The same cross-check as above, run from dividendRate's own side. Without
-  // this, a dividendRate that is itself the wrong number (e.g. a provider
-  // that silently drops a special/one-off dividend from its "annual rate")
-  // never gets flagged at all: nothing else checks dividendRate directly,
-  // so it would sail through as "unchecked" and never reach external
-  // corroboration, even though payoutRatio's check above already proves the
-  // two numbers disagree.
-  if (
-    spec.path === "valuation.dividendRate" &&
-    currencyGateOpen(p) &&
-    p.valuation.payoutRatio !== null &&
-    p.valuation.trailingEps !== null
-  ) {
-    const recomputed = p.valuation.payoutRatio * p.valuation.trailingEps;
-    if (!reconciled(value, recomputed, spec.kind)) flags.push("arithmetic_inconsistent");
-  }
+  // The provider's own payout-ratio field used to be audited here, and
+  // dividendRate cross-checked against it. Both are gone: a provider-computed
+  // ratio is exactly the class of value this pipeline no longer consumes, and
+  // the report derives its two payout bases from raw statements instead.
+  // dividendRate is still audited on its own, as a reported per-share figure.
   if (
     spec.path === "valuation.dividendYield" &&
     p.valuation.dividendRate !== null &&
@@ -542,34 +505,9 @@ function clusterByValue(candidates: ExtractedCandidate[]): ExtractedCandidate[][
 }
 
 // ---------------------------------------------------------------------------
-// Search-result caching — a small in-process TTL cache local to this
-// service. market-chart.service.ts has a private cache of the same shape,
-// but it is left untouched here deliberately: it belongs to the chart/quote
-// path and is explicitly out of scope for this layer to modify.
+// Search-result caching — now the shared implementation in lib/search, kept
+// as a module-local instance so this service's cache stays its own.
 // ---------------------------------------------------------------------------
-
-const SEARCH_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-
-interface CacheEntry {
-  value: SearchResult[];
-  fetchedAt: number;
-}
-
-class SearchResultCache {
-  private readonly entries = new Map<string, CacheEntry>();
-
-  async resolve(key: string, load: () => Promise<SearchResult[]>): Promise<SearchResult[]> {
-    const entry = this.entries.get(key);
-    if (entry && Date.now() - entry.fetchedAt < SEARCH_CACHE_TTL_MS) return entry.value;
-    const value = await load();
-    this.entries.set(key, { value, fetchedAt: Date.now() });
-    return value;
-  }
-
-  clear(): void {
-    this.entries.clear();
-  }
-}
 
 const searchCache = new SearchResultCache();
 
@@ -618,7 +556,7 @@ async function runVerification(
   payload: InstrumentFundamentals,
   ref: InstrumentRef,
   searchProvider: SearchProvider,
-): Promise<{ fields: FieldVerification[]; corrections: Map<string, number> }> {
+): Promise<{ fields: FieldVerification[] }> {
   const flagsByPath = new Map<string, string[]>();
   for (const spec of FIELD_SPECS) {
     flagsByPath.set(spec.path, deterministicFlags(spec, payload));
@@ -650,7 +588,6 @@ async function runVerification(
   }
 
   const fields: FieldVerification[] = [];
-  const corrections = new Map<string, number>();
 
   for (const spec of FIELD_SPECS) {
     const flags = flagsByPath.get(spec.path) ?? [];
@@ -718,19 +655,19 @@ async function runVerification(
     const basis = clusters[0][0].basis;
 
     if (value === null) {
-      corrections.set(spec.path, agreedValue);
       fields.push({
         field: spec.path,
         originalValue: null,
         verifiedValue: agreedValue,
-        status: "corrected",
+        status: "conflict",
         confidence: "medium",
         evidence,
         period: periodLabelFor(spec, payload),
         asOfDate: asOfDateFor(spec, payload),
         basis,
         discrepancy: null,
-        reason: "missing field enriched from an unambiguous authoritative source",
+        reason:
+          "an authoritative source carries a value for this unreported field; recorded in the audit only and never applied to the payload",
         deterministicFlags: flags,
       });
       continue;
@@ -755,24 +692,24 @@ async function runVerification(
       continue;
     }
 
-    corrections.set(spec.path, agreedValue);
     fields.push({
       field: spec.path,
       originalValue: value,
       verifiedValue: agreedValue,
-      status: "corrected",
+      status: "conflict",
       confidence: "medium",
       evidence,
       period: periodLabelFor(spec, payload),
       asOfDate: asOfDateFor(spec, payload),
       basis,
       discrepancy,
-      reason: "unambiguous authoritative evidence differs materially from the supplied value; corrected",
+      reason:
+        "authoritative evidence differs materially from the supplied value; recorded in the audit only and never applied to the payload",
       deterministicFlags: flags,
     });
   }
 
-  return { fields, corrections };
+  return { fields };
 }
 
 function extractHost(url: string | null): string | null {
@@ -809,16 +746,11 @@ export async function verifyFundamentalsPayload(
       companyDomain ? [companyDomain] : [],
     );
 
-    const { fields, corrections } = await runVerification(payload, ref, searchProvider);
-
-    const enriched: InstrumentFundamentals =
-      corrections.size > 0 ? structuredClone(payload) : payload;
-    if (corrections.size > 0) {
-      for (const spec of FIELD_SPECS) {
-        const value = corrections.get(spec.path);
-        if (value !== undefined) spec.set(enriched, value);
-      }
-    }
+    // This function returns the caller's OWN payload object, by reference:
+    // no clone, no setter call, no correction map. There is no code path by
+    // which a verdict reached here can alter a number the report reads.
+    // Verdicts live in the audit; they no longer touch data.
+    const { fields } = await runVerification(payload, ref, searchProvider);
 
     const audit: VerificationResult = {
       fields,
@@ -827,7 +759,7 @@ export async function verifyFundamentalsPayload(
       latencyMs: Date.now() - startedAt,
     };
 
-    return { payload: enriched, audit };
+    return { payload, audit };
   } catch (cause) {
     logger.error("fundamentals verification failed; continuing with unverified payload", {
       instrumentKey: ref.instrumentKey,

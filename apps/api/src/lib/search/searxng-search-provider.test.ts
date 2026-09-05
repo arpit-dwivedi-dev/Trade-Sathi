@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyHost } from "./searxng-search-provider.js";
+import { classifyHost } from "./classify-host.js";
 
 describe("classifyHost", () => {
   it("classifies India exchange/regulator domains as tier1", () => {

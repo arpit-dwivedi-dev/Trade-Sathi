@@ -4,7 +4,7 @@ import type { InstrumentFundamentals } from "@chartanalyzer/shared";
 const search = vi.fn();
 const isConfigured = vi.fn(() => true);
 
-vi.mock("../lib/verification/searxng-search-provider.js", () => ({
+vi.mock("../lib/search/searxng-search-provider.js", () => ({
   SearxngSearchProvider: class {
     isConfigured = isConfigured;
     search = search;
@@ -71,6 +71,7 @@ function basePayload(overrides: Partial<InstrumentFundamentals> = {}): Instrumen
       trailingPe: 10,
       forwardPe: null,
       pegRatio: null,
+      payoutRatio: 0.2,
       priceToBook: null,
       priceToSales: null,
       enterpriseValue: null,
@@ -81,7 +82,6 @@ function basePayload(overrides: Partial<InstrumentFundamentals> = {}): Instrumen
       bookValue: null,
       dividendYield: 0.02,
       dividendRate: 2,
-      payoutRatio: 0.2,
       beta: null,
     },
     profitability: {
@@ -138,7 +138,7 @@ beforeEach(() => {
 });
 
 describe("verifyFundamentalsPayload", () => {
-  it("enriches a missing field from one clean authoritative hit", async () => {
+  it("records a clean authoritative hit for a missing field without applying it", async () => {
     const payload = basePayload({
       health: { ...basePayload().health, sharesOutstanding: null },
     });
@@ -148,13 +148,14 @@ describe("verifyFundamentalsPayload", () => {
 
     const { payload: result, audit } = await verifyFundamentalsPayload(payload, REF);
 
-    expect(result.health.sharesOutstanding).toBe(6765000000);
+    // The evidence is kept in the audit; the field stays unreported. This
+    // layer used to enrich a null here, and enrichment is a write.
     const field = audit?.fields.find((f) => f.field === "health.sharesOutstanding");
-    expect(field?.status).toBe("corrected");
+    expect(field?.status).toBe("conflict");
     expect(field?.originalValue).toBeNull();
     expect(field?.verifiedValue).toBe(6765000000);
     expect(field?.evidence).toHaveLength(1);
-    // The original object is never mutated in place.
+    expect(result.health.sharesOutstanding).toBeNull();
     expect(payload.health.sharesOutstanding).toBeNull();
   });
 
@@ -228,11 +229,11 @@ describe("verifyFundamentalsPayload", () => {
     expect(result.health.sharesOutstanding).toBeNull();
   });
 
-  it("corrects a present but wrong value on unambiguous authoritative evidence", async () => {
+  it("records a disagreement on a present value without overwriting it", async () => {
     // sharesOutstanding is present (10) but stale — MRQ is 220 days behind
     // asOf — which is what earns it an external lookup at all; a single
     // clean tier1 source then reports a materially different value (20),
-    // well past the 5% tolerance, which is applied as a correction.
+    // well past the 5% tolerance. That used to be applied as a correction.
     const payload = basePayload({
       meta: { ...basePayload().meta, mostRecentQuarter: daysAgo(220) },
       health: { ...basePayload().health, sharesOutstanding: 10 },
@@ -242,31 +243,23 @@ describe("verifyFundamentalsPayload", () => {
     const { payload: result, audit } = await verifyFundamentalsPayload(payload, REF);
 
     const field = audit?.fields.find((f) => f.field === "health.sharesOutstanding");
-    expect(field?.status).toBe("corrected");
+    expect(field?.status).toBe("conflict");
     expect(field?.originalValue).toBe(10);
     expect(field?.verifiedValue).toBe(20);
-    expect(result.health.sharesOutstanding).toBe(20);
+    expect(result.health.sharesOutstanding).toBe(10);
   });
 
-  it("flags and corrects dividendRate itself when it disagrees with payoutRatio x trailingEps", async () => {
-    // dividendRate (2) is internally self-consistent with the base payload's
-    // own trailingEps (10) only because payoutRatio is also 2/10 = 0.2 here.
-    // Overriding payoutRatio to 0.5 breaks that relationship on dividendRate's
-    // side too — the regression this test guards is that only payoutRatio's
-    // own check used to fire, leaving a wrong dividendRate "unchecked" and
-    // therefore impossible to correct even when authoritative evidence exists.
-    const payload = basePayload({
-      valuation: { ...basePayload().valuation, payoutRatio: 0.5 },
-    });
-    search.mockResolvedValue([tier1Result("Reliance Industries dividend rate: 5 per share.")]);
-
-    const { payload: result, audit } = await verifyFundamentalsPayload(payload, REF);
-
-    const field = audit?.fields.find((f) => f.field === "valuation.dividendRate");
-    expect(field?.deterministicFlags).toContain("arithmetic_inconsistent");
-    expect(field?.status).toBe("corrected");
-    expect(field?.verifiedValue).toBe(5);
-    expect(result.valuation.dividendRate).toBe(5);
+  it("no longer audits the provider's payout-ratio field at all", async () => {
+    // The provider-computed payout ratio used to be a checked field, and
+    // dividendRate was cross-checked against it. Both are gone: the report
+    // derives its two payout bases from raw statements, so auditing the
+    // provider's version corroborates a number nothing reads.
+    const { audit } = await verifyFundamentalsPayload(basePayload(), REF);
+    const paths = (audit?.fields ?? []).map((f) => f.field);
+    expect(paths).not.toContain("valuation.payoutRatio");
+    expect(paths).not.toContain("health.freeCashflow");
+    // Reported per-share figures are still audited on their own terms.
+    expect(paths).toContain("valuation.dividendRate");
   });
 
   it("keeps a field unverifiable when no usable evidence exists", async () => {
@@ -320,5 +313,88 @@ describe("verifyFundamentalsPayload", () => {
     expect(result).toBe(payload);
     expect(audit).toBeNull();
     expect(search).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * THE LOCK.
+ *
+ * This layer is retained for reuse by the news-analysis feature, but it must
+ * never again be able to change a fundamentals number. Reference equality is
+ * the assertion on purpose: a deep-equality check would still pass if the
+ * function cloned the payload and wrote a "correction" that happened to match,
+ * and it is precisely the clone-and-write path that let snippet corroboration
+ * stamp quarterly-basis values as verified.
+ *
+ * If this test ever fails, the write path has come back. Do not relax it.
+ */
+describe("the fundamentals path is structurally non-mutating", () => {
+  beforeEach(() => {
+    envState.fundamentalsVerificationEnabled = true;
+    clearFundamentalsVerificationCache();
+    search.mockReset();
+    isConfigured.mockReturnValue(true);
+  });
+
+  it("fundamentals path never mutates the payload", async () => {
+    const input = basePayload();
+    const { payload } = await verifyFundamentalsPayload(input, REF);
+    expect(payload).toBe(input);
+  });
+
+  it("returns the same object even when evidence disagrees with a field", async () => {
+    // A stale field, plus an unambiguous tier1 source stating a different
+    // value — the exact shape that used to produce a "corrected" write.
+    const input = basePayload({
+      meta: {
+        currency: "INR",
+        financialCurrency: "INR",
+        asOf: daysAgo(0),
+        mostRecentQuarter: daysAgo(400),
+      },
+    });
+    const before = JSON.stringify(input);
+    search.mockResolvedValue([
+      {
+        source: { tier: "tier1", name: "NSE India", url: "https://nseindia.com/x" },
+        title: "Total debt",
+        snippet: "Total debt stood at 999 crore for the period.",
+      },
+    ]);
+
+    const { payload, audit } = await verifyFundamentalsPayload(input, REF);
+
+    expect(payload).toBe(input);
+    expect(JSON.stringify(input)).toBe(before);
+    // The audit is still produced — verdicts are kept, they just no longer
+    // reach the data.
+    expect(audit).not.toBeNull();
+  });
+
+  it("records disagreement as a conflict, never as a correction", async () => {
+    // "corrected" is no longer a member of FieldVerificationStatus at all, so
+    // this asserts the behaviour the type change guarantees: the audit still
+    // surfaces the disagreement, and the payload keeps its own value.
+    const input = basePayload({
+      meta: {
+        currency: "INR",
+        financialCurrency: "INR",
+        asOf: daysAgo(0),
+        mostRecentQuarter: daysAgo(400),
+      },
+    });
+    search.mockResolvedValue([
+      {
+        source: { tier: "tier1", name: "NSE India", url: "https://nseindia.com/x" },
+        title: "Total debt",
+        snippet: "Total debt stood at 999 crore for the period.",
+      },
+    ]);
+
+    const { payload, audit } = await verifyFundamentalsPayload(input, REF);
+
+    expect(payload.health.totalDebt).toBe(input.health.totalDebt);
+    const statuses = new Set((audit?.fields ?? []).map((f) => f.status));
+    expect(statuses.has("conflict" as const)).toBe(true);
   });
 });

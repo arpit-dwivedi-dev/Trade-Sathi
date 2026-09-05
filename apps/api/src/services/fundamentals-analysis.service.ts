@@ -1,4 +1,4 @@
-import type { InstrumentFundamentals } from "@chartanalyzer/shared";
+import type { DataNote, InstrumentFundamentals, Metric } from "@chartanalyzer/shared";
 import {
   AnalysisFailure,
   FUNDAMENTALS_PROMPT_VERSION,
@@ -6,11 +6,14 @@ import {
 } from "./ai-analysis.service.js";
 import { currentUtcPeriod } from "./analysis.service.js";
 import { verifyFundamentalsPayload } from "./fundamentals-verification.service.js";
+import { deriveFundamentals } from "./fundamentals/index.js";
 import {
   fetchInstrumentById,
   getFundamentalsForInstrument,
+  getRawStatementsForInstrument,
   type InstrumentRef,
 } from "./market-chart.service.js";
+import { env } from "../lib/env.js";
 import { MarketDataError } from "../lib/market-data/types.js";
 import type { VerificationResult } from "../lib/verification/types.js";
 import { logAppError } from "../lib/error-log.js";
@@ -18,8 +21,10 @@ import { logger } from "../lib/logger.js";
 import { callRpc, supabaseAdmin } from "../lib/supabase.js";
 
 /**
- * "Analyze with AI" from the Fundamentals tab: reads the InstrumentFundamentals
- * payload the tab already fetched and turns it into a stored verdict, reusing
+ * "Analyze with AI" from the Fundamentals tab: reads the RAW financial
+ * statements for the instrument, derives every metric the report reasons
+ * about from them (see services/fundamentals/), and turns that into a stored
+ * verdict — reusing
  * the analyses table (Realtime, History, the stranded sweeper) and the
  * provider-chain machinery in ai-analysis.service.ts.
  *
@@ -28,6 +33,10 @@ import { callRpc, supabaseAdmin } from "../lib/supabase.js";
  * this feature is not decided yet, so it is kept separate rather than
  * borrowed from a pool it may not end up billed the same as.
  */
+
+/** Control-flow marker for "the audit layer is switched off", so the skip is
+ *  not logged as a failure. */
+class SkipVerification extends Error {}
 
 export type TriggerFundamentalsResult =
   | { ok: true; analysisId: string; instrumentId: string; startedAt: string }
@@ -228,11 +237,14 @@ async function runFundamentalsAnalysisPipeline(
     instrumentKey: ref.instrumentKey,
   });
 
-  let providerFundamentals;
+  // RAW STATEMENTS, not the provider's pre-computed ratio fields. Everything
+  // the report reasons about is derived from these downstream — see
+  // services/fundamentals/.
+  let statements;
   try {
-    providerFundamentals = await getFundamentalsForInstrument(ref);
+    statements = await getRawStatementsForInstrument(ref);
   } catch (cause) {
-    logger.error("fundamentals data fetch failed", {
+    logger.error("fundamentals statement fetch failed", {
       profileId,
       instrumentKey: ref.instrumentKey,
       reason: cause instanceof MarketDataError ? cause.reason : "unknown",
@@ -245,36 +257,61 @@ async function runFundamentalsAnalysisPipeline(
     return false;
   }
 
-  // The provider only ever saw a ticker; the instrument identity this route
-  // resolved is what fills in the `instrument` block — same composition the
-  // GET /api/market/fundamentals route does.
-  const payload: InstrumentFundamentals = {
-    instrument: { id: ref.instrumentId, symbol: ref.symbol, name: ref.name, exchange: ref.exchange },
-    ...providerFundamentals,
-  };
+  const derived = deriveFundamentals(statements, ref.exchange);
 
-  // Best-effort deterministic + authoritative-source verification layer.
-  // verifyFundamentalsPayload guarantees it never throws, but this call sits
-  // on the path to a paid entitlement spend — the extra try/catch is a
-  // second, independent guarantee that a verifier defect can never turn into
-  // a failed analysis, rather than trusting that guarantee to hold forever
-  // on the other side of a module boundary. Either way, the existing prompt
-  // below is untouched — it just receives whichever payload comes out here.
-  let verifiedPayload = payload;
+  logger.info("fundamentals derived", {
+    analysisId,
+    instrumentKey: ref.instrumentKey,
+    quarters: derived.quartersUsed.length,
+    unreliable: Object.entries(derived.metrics)
+      .filter(([, metric]) => (metric as Metric).reliability === "unreliable")
+      .map(([key]) => key),
+    dataNotes: derived.dataNotes.length,
+  });
+
+  // The verification layer is retained for reuse by the news-analysis feature
+  // and is disabled for fundamentals (see the dated note at the top of
+  // fundamentals-verification.service.ts). It is now structurally incapable of
+  // changing data — it returns its input payload by reference — so it is run
+  // only for its audit trail, against the legacy provider payload, and its
+  // output never reaches the derivation above.
   let audit: VerificationResult | null = null;
   try {
-    ({ payload: verifiedPayload, audit } = await verifyFundamentalsPayload(payload, ref, profileId));
+    // Guarded on the flag HERE, not just inside the verifier: the legacy
+    // payload costs its own upstream call, and fetching it only to hand it to
+    // a disabled audit would spend that call for nothing.
+    if (!env.fundamentalsVerificationEnabled) throw new SkipVerification();
+    const legacyPayload: InstrumentFundamentals = {
+      instrument: {
+        id: ref.instrumentId,
+        symbol: ref.symbol,
+        name: ref.name,
+        exchange: ref.exchange,
+      },
+      ...(await getFundamentalsForInstrument(ref)),
+    };
+    ({ audit } = await verifyFundamentalsPayload(legacyPayload, ref, profileId));
   } catch (cause) {
-    logger.error("fundamentals verification threw unexpectedly; continuing with unverified payload", {
-      profileId,
-      instrumentKey: ref.instrumentKey,
-      cause: String(cause),
-    });
+    if (!(cause instanceof SkipVerification)) {
+      logger.warn("fundamentals verification audit unavailable", {
+        profileId,
+        instrumentKey: ref.instrumentKey,
+        cause: String(cause),
+      });
+    }
   }
 
   let outcome;
   try {
-    outcome = await runFundamentalsAnalysis(verifiedPayload);
+    outcome = await runFundamentalsAnalysis({
+      instrument: {
+        id: ref.instrumentId,
+        symbol: ref.symbol,
+        name: ref.name,
+        exchange: ref.exchange,
+      },
+      derived,
+    });
   } catch (cause) {
     logger.error("fundamentals AI analysis failed", {
       profileId,
@@ -289,14 +326,29 @@ async function runFundamentalsAnalysisPipeline(
     return false;
   }
 
+  // The data notes and the machine trace are OURS, not the model's: they are
+  // deterministic output of the plausibility gate, and letting the model
+  // restate them would let it soften or drop one.
+  const result = {
+    ...outcome.result,
+    data_notes: derived.dataNotes satisfies DataNote[],
+    debug: {
+      findings: derived.findings,
+      quartersUsed: derived.quartersUsed,
+      metrics: derived.metrics,
+      facts: derived.facts,
+      profile: derived.profile,
+    },
+  };
+
   const { error: updateError } = await supabaseAdmin
     .from("analyses")
     .update({
-      fundamentals_result: outcome.result,
-      fundamentals_stance: outcome.result.executive_verdict.stance,
+      fundamentals_result: result,
+      fundamentals_stance: result.executive_verdict.stance,
       fundamentals_verification: audit,
       symbol: ref.symbol,
-      summary: outcome.result.summary,
+      summary: result.summary,
       model_id: outcome.modelId,
       prompt_version: FUNDAMENTALS_PROMPT_VERSION,
       input_tokens: outcome.inputTokens,

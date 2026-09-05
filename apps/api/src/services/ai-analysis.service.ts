@@ -16,12 +16,18 @@ import {
   type CandleAnalysisContext,
   type PromptCandle,
 } from "../prompts/candle-analysis.js";
-import { buildFundamentalsAnalysisPrompt } from "../prompts/fundamentals-analysis.js";
 import {
+  buildFundamentalsAnalysisPrompt,
+  type FundamentalsPromptInput,
+} from "../prompts/fundamentals-analysis.js";
+import {
+  findSemanticViolations,
   FundamentalsAiSchema,
   normalizeFundamentalsAnalysis,
+  repairDisallowedUnkClaimTags,
+  repairHoistedVerdictKeys,
 } from "./fundamentals-analysis-schema.js";
-import type { InstrumentFundamentals, FundamentalsAnalysisResult } from "@chartanalyzer/shared";
+import type { DerivedFundamentals, FundamentalsAnalysisResult } from "@chartanalyzer/shared";
 import { APIConnectionTimeoutError, AuthenticationError, RateLimitError } from "openai";
 import { aiProviders, type AiProvider } from "../lib/ai-client.js";
 import { logAppError } from "../lib/error-log.js";
@@ -112,10 +118,44 @@ function validatorFor<T, R>(
 
 const validateVisionResponse = validatorFor(VisionAnalysisSchema, normalizeVisionAnalysis);
 const validateSeriesResponse = validatorFor(SeriesAnalysisSchema, normalizeSeriesAnalysis);
-const validateFundamentalsResponse = validatorFor(
-  FundamentalsAiSchema,
-  normalizeFundamentalsAnalysis,
-);
+
+/**
+ * Fundamentals gets its own validator, not the generic validatorFor above,
+ * because it runs two repair steps first — see repairHoistedVerdictKeys and
+ * repairDisallowedUnkClaimTags in fundamentals-analysis-schema.ts. Structural
+ * repair (putting a wrongly-placed key back inside its section) runs before
+ * content repair (fixing a disallowed tag value) so the second step sees
+ * sections in their intended shape.
+ */
+function validateFundamentalsResponse(
+  payload: unknown,
+  derived: DerivedFundamentals,
+): { ok: true; result: FundamentalsAnalysisResult } | { ok: false; issues: string } {
+  const repaired = repairDisallowedUnkClaimTags(repairHoistedVerdictKeys(payload));
+  const validation = FundamentalsAiSchema.safeParse(repaired);
+  if (!validation.success) {
+    return {
+      ok: false,
+      issues: validation.error.issues.map((issue) => issue.path.join(".")).join(", "),
+    };
+  }
+
+  const result = normalizeFundamentalsAnalysis(validation.data);
+
+  // Semantic checks that need the derived payload: the verdicts the model was
+  // told to copy, stance coherence, and scenario validity at publication. A
+  // violation is reported as a validation failure so the retry loop
+  // regenerates — the pipeline no longer silently patches a bad response.
+  const violations = findSemanticViolations(result, derived);
+  if (violations.length > 0) {
+    logger.warn("fundamentals response rejected on semantic validation", {
+      violations,
+    });
+    return { ok: false, issues: violations.join("; ") };
+  }
+
+  return { ok: true, result };
+}
 
 /**
  * The columns a completed analysis writes outside of `analysis_result`.
@@ -238,248 +278,36 @@ export async function runSeriesAnalysis(
   );
 }
 
-type LeverageBand = "zero" | "low" | "moderate" | "high";
-
 /**
- * Gross leverage, banded purely on health.debtToEquity/totalDebt — never
- * adjusted for net cash. A net-cash position is a real and worth stating,
- * but it is a DIFFERENT concept from gross indebtedness, and the prompt used
- * to instruct moving the band down a step for it — which is exactly how a
- * company with real, positive gross debt (health.totalDebt > 0) ended up
- * labeled "zero" leverage in production. Returns null when debtToEquity is
- * unreported, since banding then is a judgment call the model is better
- * placed to make (e.g. deriving it, or calling leverage "unk").
- */
-function computeGrossLeverageBand(payload: InstrumentFundamentals): LeverageBand | null {
-  const { totalDebt, debtToEquity } = payload.health;
-  if (totalDebt === 0 || debtToEquity === 0) return "zero";
-  if (debtToEquity === null) return null;
-  if (debtToEquity < 50) return "low";
-  if (debtToEquity <= 100) return "moderate";
-  return "high";
-}
-
-/**
- * Corrects balance_sheet.leverage when it plainly contradicts the payload's
- * own debtToEquity/totalDebt. Gross leverage banding is a fixed arithmetic
- * rule the prompt already states, not a judgment call, so a mismatch is
- * treated as a correction here rather than spent on a second model
- * round-trip. Never overrides "unk": that value is a deliberate sector-
- * structural call (e.g. a lender, where leverage isn't meaningful the usual
- * way) the model is better placed to make than this arithmetic check.
- */
-function reconcileLeverageBand(
-  result: FundamentalsAnalysisResult,
-  payload: InstrumentFundamentals,
-): FundamentalsAnalysisResult {
-  if (result.balance_sheet.leverage === "unk") return result;
-
-  const band = computeGrossLeverageBand(payload);
-  if (band === null || band === result.balance_sheet.leverage) return result;
-
-  logger.warn("fundamentals leverage band corrected against supplied debtToEquity", {
-    symbol: payload.instrument.symbol,
-    modelBand: result.balance_sheet.leverage,
-    correctedBand: band,
-    totalDebt: payload.health.totalDebt,
-    debtToEquity: payload.health.debtToEquity,
-  });
-
-  return {
-    ...result,
-    balance_sheet: { ...result.balance_sheet, leverage: band },
-    meta: {
-      ...result.meta,
-      data_issues: [
-        ...result.meta.data_issues,
-        `balance_sheet.leverage was reported as "${result.balance_sheet.leverage}" but health.debtToEquity (${payload.health.debtToEquity}) bands to "${band}"; corrected.`,
-      ],
-    },
-  };
-}
-
-/**
- * The prompt's own tolerance rule (TOLERANCE section): a relative difference
- * within 2%, or an absolute difference below 0.005 for a fraction-valued
- * field, is reconciliation — not a discrepancy. Reused here so the dividend
- * guard below fires on exactly the same threshold the model was told to use,
- * not a second, drifted definition of "discordant".
- */
-function isFractionDiscordant(supplied: number, recomputed: number): boolean {
-  const absDiff = Math.abs(recomputed - supplied);
-  if (absDiff < 0.005) return false;
-  if (supplied === 0) return true;
-  return absDiff / Math.abs(supplied) > 0.02;
-}
-
-/**
- * Phrases that name a SPECIFIC one of the four causes the DIVIDEND prompt
- * section requires a payout-ratio-vs-recomputed gap to be attributed to:
- * special/one-off dividend, interim-vs-final timing, a per-share definition
- * difference, or a source/accounting-period difference. Deliberately does
- * NOT include a bare "unresolved" — the prompt's own rule is that an
- * unresolved gap must set sustainability to "unk", so a statement that
- * admits the gap is unresolved without naming a cause is exactly the
- * violation this guard exists to catch, not an exemption from it. A
- * case-insensitive substring scan, matching the BANNED_PHRASES scan's style
- * in fundamentals-analysis-schema.ts.
- */
-const DIVIDEND_ATTRIBUTION_KEYWORDS = [
-  "special dividend",
-  "one-off dividend",
-  "one-time dividend",
-  "extraordinary dividend",
-  "interim dividend",
-  "interim-vs-final",
-  "interim payment",
-  "final dividend",
-  "timing mismatch",
-  "timing difference",
-  "per-share definition",
-  "diluted eps",
-  "basic eps",
-  "different share count",
-  "share count difference",
-  "different accounting period",
-  "accounting-period difference",
-  "different source",
-  "source difference",
-] as const;
-
-function isDividendDiscrepancyExplained(statement: string): boolean {
-  const lower = statement.toLowerCase();
-  return DIVIDEND_ATTRIBUTION_KEYWORDS.some((keyword) => lower.includes(keyword));
-}
-
-/**
- * Corrects dividend.tag and dividend.sustainability to "unk" together when
- * the payload's own payoutRatio disagrees with dividendRate/trailingEps
- * beyond the prompt's own tolerance AND the statement gives no attributable
- * cause — the DIVIDEND section's own rule ("never assert 'conservative' or
- * 'aggressive' over an unexplained gap... tag dividend 'unk' and set
- * sustainability 'unk' to match"), enforced here rather than only hoped for,
- * since a model can satisfy the schema's shape while quietly skipping the
- * attribution step (observed in production: a statement calling the gap
- * itself "unresolved" while still keeping sustainability "conservative" and
- * tag "inf"). Both fields move together, matching the ENUM DECISION RULES
- * invariant that an enum sibling is "unk" only when its own section's tag is
- * "unk". Downgrading is the safe direction — it can only make the report
- * less confident than it otherwise would be, never more.
- */
-function reconcileDividendSustainability(
-  result: FundamentalsAnalysisResult,
-  payload: InstrumentFundamentals,
-): FundamentalsAnalysisResult {
-  if (result.dividend.sustainability === "unk" && result.dividend.tag === "unk") return result;
-
-  const { payoutRatio, dividendRate, trailingEps } = payload.valuation;
-  if (payoutRatio === null || dividendRate === null || trailingEps === null || trailingEps === 0) {
-    return result;
-  }
-
-  const recomputed = dividendRate / trailingEps;
-  if (!isFractionDiscordant(payoutRatio, recomputed)) return result;
-  if (isDividendDiscrepancyExplained(result.dividend.statement)) return result;
-
-  logger.warn("fundamentals dividend sustainability corrected for an unexplained payout discrepancy", {
-    symbol: payload.instrument.symbol,
-    modelSustainability: result.dividend.sustainability,
-    modelTag: result.dividend.tag,
-    payoutRatio,
-    recomputed,
-  });
-
-  return {
-    ...result,
-    dividend: { ...result.dividend, tag: "unk", sustainability: "unk" },
-    meta: {
-      ...result.meta,
-      data_issues: [
-        ...result.meta.data_issues,
-        `dividend.sustainability was reported as "${result.dividend.sustainability}" (tag "${result.dividend.tag}") but valuation.payoutRatio (${payoutRatio}) disagrees with dividendRate/trailingEps (${recomputed.toFixed(4)}) with no attributable cause named; corrected to "unk"/"unk".`,
-      ],
-    },
-  };
-}
-
-/**
- * The prompt's own unambiguous "no" test for growth_supports_earnings:
- * earningsGrowth negative while revenueGrowth is positive, or earningsGrowth
- * trailing revenueGrowth by more than 5 percentage points. Deliberately does
- * NOT encode the "yes" or "mixed" branches — those depend on
- * earningsQuarterlyGrowth agreeing or contradicting, which is a judgment call
- * this function leaves to the model. Only the "no" branch is cheap enough
- * arithmetic, on few enough inputs, to correct with confidence.
- */
-function isGrowthSupportsEarningsUnambiguouslyNo(payload: InstrumentFundamentals): boolean {
-  const { revenueGrowth, earningsGrowth } = payload.growth;
-  if (revenueGrowth === null || earningsGrowth === null) return false;
-  if (earningsGrowth < 0 && revenueGrowth > 0) return true;
-  return earningsGrowth < revenueGrowth - 0.05;
-}
-
-/**
- * Corrects performance.growth_supports_earnings to "no" when the payload's
- * own growth.revenueGrowth/earningsGrowth unambiguously call for it. Never
- * touches "unk" (a deliberate call that an input was missing) and is a no-op
- * when the model already said "no" — it only ever moves a "yes" or "mixed"
- * verdict toward the one direction the prompt's rule leaves no room to argue
- * with.
- */
-function reconcileGrowthSupportsEarnings(
-  result: FundamentalsAnalysisResult,
-  payload: InstrumentFundamentals,
-): FundamentalsAnalysisResult {
-  if (result.performance.growth_supports_earnings === "unk") return result;
-  if (result.performance.growth_supports_earnings === "no") return result;
-  if (!isGrowthSupportsEarningsUnambiguouslyNo(payload)) return result;
-
-  logger.warn("fundamentals growth_supports_earnings corrected against revenueGrowth/earningsGrowth", {
-    symbol: payload.instrument.symbol,
-    modelVerdict: result.performance.growth_supports_earnings,
-    revenueGrowth: payload.growth.revenueGrowth,
-    earningsGrowth: payload.growth.earningsGrowth,
-  });
-
-  return {
-    ...result,
-    performance: { ...result.performance, growth_supports_earnings: "no" },
-    meta: {
-      ...result.meta,
-      data_issues: [
-        ...result.meta.data_issues,
-        `performance.growth_supports_earnings was reported as "${result.performance.growth_supports_earnings}" but growth.earningsGrowth (${payload.growth.earningsGrowth}) trails growth.revenueGrowth (${payload.growth.revenueGrowth}) by more than the "no" threshold; corrected.`,
-      ],
-    },
-  };
-}
-
-/**
- * Runs one InstrumentFundamentals payload through the AI provider — the same
+ * Runs one derived-fundamentals payload through the AI provider — the same
  * client, JSON-mode request shape, retry policy and provider-fallback chain
- * as runVisualAnalysis/runSeriesAnalysis, against the single finalized
- * fundamentals prompt (see prompts/fundamentals-analysis.ts) instead of a
- * chart read. Text/JSON only, so needsVision is false: no image is ever sent.
+ * as runVisualAnalysis/runSeriesAnalysis, against the fundamentals prompt
+ * (see prompts/fundamentals-analysis.ts) instead of a chart read. Text/JSON
+ * only, so needsVision is false: no image is ever sent.
+ *
+ * NO POST-HOC RECONCILIATION. Four reconcilers used to sit here, rewriting
+ * the model's leverage band, growth verdict, dividend sustainability and
+ * executive stance after the fact. They existed only because the model was
+ * allowed to derive those verdicts in the first place; the derivation layer
+ * now computes them and the prompt hands them over to be copied, so there is
+ * nothing left to correct. The one rule worth keeping — that an "attractive"
+ * stance must not contradict the very sections it follows from — moved into
+ * schema validation, where a violation is a rejected response rather than a
+ * silently patched one.
  */
 export async function runFundamentalsAnalysis(
-  payload: InstrumentFundamentals,
+  input: FundamentalsPromptInput,
 ): Promise<VisualAnalysisOutcome<FundamentalsAnalysisResult>> {
-  const prompt = buildFundamentalsAnalysisPrompt(payload);
+  const prompt = buildFundamentalsAnalysisPrompt(input);
 
-  const outcome = await runAnalysisCompletion(
+  return runAnalysisCompletion(
     [
       { role: "system", content: prompt.system },
       { role: "user", content: prompt.user },
     ],
     false,
-    validateFundamentalsResponse,
+    (raw) => validateFundamentalsResponse(raw, input.derived),
   );
-
-  let result = reconcileLeverageBand(outcome.result, payload);
-  result = reconcileGrowthSupportsEarnings(result, payload);
-  result = reconcileDividendSustainability(result, payload);
-
-  return { ...outcome, result };
 }
 
 /** The message shapes the three entry points above build. */
@@ -493,6 +321,61 @@ type AnalysisMessage =
         | { type: "image_url"; image_url: { url: string } }
       )[];
     };
+
+/**
+ * Escapes a literal newline, carriage return or tab found INSIDE a json
+ * string literal, leaving everything outside of string literals (including
+ * legitimate structural whitespace between tokens) untouched. json.parse
+ * rejects a raw control character inside a string per spec; this repairs
+ * exactly that one violation without altering the parsed value.
+ *
+ * A linear scan tracking only "currently inside a string, and was the
+ * previous character an unconsumed backslash" is sufficient here — this
+ * does not need to understand json structure beyond string boundaries, only
+ * to avoid rewriting a character that is already a valid two-character
+ * escape sequence (e.g. an existing "\n").
+ */
+function escapeControlCharsInsideJsonStrings(text: string): string {
+  let result = "";
+  let inString = false;
+  let escapedNext = false;
+  for (const ch of text) {
+    if (!inString) {
+      if (ch === '"') inString = true;
+      result += ch;
+      continue;
+    }
+    if (escapedNext) {
+      result += ch;
+      escapedNext = false;
+      continue;
+    }
+    if (ch === "\\") {
+      result += ch;
+      escapedNext = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = false;
+      result += ch;
+      continue;
+    }
+    if (ch === "\n") {
+      result += "\\n";
+      continue;
+    }
+    if (ch === "\r") {
+      result += "\\r";
+      continue;
+    }
+    if (ch === "\t") {
+      result += "\\t";
+      continue;
+    }
+    result += ch;
+  }
+  return result;
+}
 
 /**
  * Pause before a retry. Without this the second attempt left immediately,
@@ -635,11 +518,24 @@ async function runOnProvider<T>(
     try {
       parsed = JSON.parse(content);
     } catch {
-      lastFailure = new AnalysisFailure(
-        "invalid_json",
-        "The AI provider returned a response that was not valid JSON",
-      );
-      continue;
+      // Observed in production (a weaker fallback model on a fundamentals
+      // call): a model asked for "one json object and nothing else" instead
+      // writes its reasoning directly into a string field — most often
+      // meta.confidence_reason, which the prompt invites a justification
+      // into — as literal, un-escaped newlines, which JSON.parse rejects
+      // outright even though the content is otherwise well-formed. One
+      // retry against the repaired text recovers a response that would
+      // otherwise burn this provider's whole turn over a punctuation-level
+      // slip, not a content problem.
+      try {
+        parsed = JSON.parse(escapeControlCharsInsideJsonStrings(content));
+      } catch {
+        lastFailure = new AnalysisFailure(
+          "invalid_json",
+          "The AI provider returned a response that was not valid JSON",
+        );
+        continue;
+      }
     }
 
     const validation = validate(parsed);

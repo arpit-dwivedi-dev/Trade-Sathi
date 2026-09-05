@@ -13,6 +13,11 @@ export * from './fundamentals.js';
 // fundamentals-analysis.ts.
 export * from './fundamentals-analysis.js';
 
+// The derived-fundamentals contract: every ratio the report reasons about,
+// computed by apps/api from period-stamped raw statements rather than read
+// from a provider's pre-computed field. See fundamentals-derived.ts.
+export * from './fundamentals-derived.js';
+
 /** A row from public.instruments — the canonical symbol identity used by the watchlist. */
 export interface Instrument {
   id: string;

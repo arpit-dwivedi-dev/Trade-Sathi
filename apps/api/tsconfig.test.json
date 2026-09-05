@@ -1,0 +1,18 @@
+/* The golden set and its harness.
+ *
+ * Kept out of tsconfig.json's `include` so `pnpm build` never emits test
+ * files or their fixtures into dist, while still giving the type-aware lint
+ * rules a project that covers them — referenced from tsconfig.json below for
+ * exactly that reason: eslint.config.mjs points the type-aware rules at this
+ * file for apps/api/tests. It is NOT referenced from tsconfig.json — that
+ * would put tsc into solution-build mode and break `pnpm build`.
+ */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "resolveJsonModule": true
+  },
+  "include": ["tests/**/*.ts", "src/**/*.ts"]
+}

@@ -1,8 +1,10 @@
 import {
   resolveUpstreamRequest,
   YahooFinanceMarketDataProvider,
-} from "../lib/market-data/yahoo-finance-provider.js";
-import type { ProviderFundamentals } from "../lib/market-data/yahoo-finance-provider.js";
+} from "../lib/market-data/provider/yahoo-finance-provider.js";
+import { getRawStatements } from "../lib/market-data/provider/yahoo-statements.js";
+import type { RawStatements } from "../lib/market-data/statements.js";
+import type { ProviderFundamentals } from "../lib/market-data/provider/yahoo-finance-provider.js";
 import type { Candle, MarketDataProvider, Quote } from "../lib/market-data/types.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { toYahooSymbol } from "./watchlist.service.js";
@@ -259,12 +261,16 @@ const quoteCache = new TtlCache<Quote>();
  */
 const FUNDAMENTALS_TTL_MS = 15 * 60_000;
 const fundamentalsCache = new TtlCache<ProviderFundamentals>(FUNDAMENTALS_TTL_MS);
+/** Raw statements, cached separately: a different upstream shape on the same
+ *  terms, read by the analysis pipeline rather than the Fundamentals tab. */
+const statementsCache = new TtlCache<RawStatements>(FUNDAMENTALS_TTL_MS);
 
 /** Test seam: the caches are process-global, which would otherwise leak between tests. */
 export function clearCandleCache(): void {
   candleCache.clear();
   quoteCache.clear();
   fundamentalsCache.clear();
+  statementsCache.clear();
 }
 
 export interface CandleWindow {
@@ -350,6 +356,20 @@ export async function getQuoteForInstrument(ref: InstrumentRef): Promise<Quote> 
  *
  * Throws MarketDataError from the provider; callers decide policy.
  */
+/**
+ * The RAW financial statements for one instrument, cached on the same terms
+ * as the fundamentals payload above.
+ *
+ * This is what the analysis pipeline reads. getFundamentalsForInstrument
+ * below still serves the Fundamentals TAB, which renders the provider's own
+ * figures as a data screen — but no report metric is derived from them.
+ */
+export async function getRawStatementsForInstrument(ref: InstrumentRef): Promise<RawStatements> {
+  return statementsCache.resolve(ref.instrumentKey, FUNDAMENTALS_TTL_MS, () =>
+    getRawStatements(ref.instrumentKey),
+  );
+}
+
 export async function getFundamentalsForInstrument(
   ref: InstrumentRef,
 ): Promise<ProviderFundamentals> {

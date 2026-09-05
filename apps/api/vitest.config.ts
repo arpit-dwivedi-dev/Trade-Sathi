@@ -6,7 +6,9 @@ export default defineConfig({
     // "vitest/globals"), so describe/it/expect need no per-file import.
     globals: true,
     environment: "node",
-    include: ["src/**/*.{test,spec}.ts"],
+    // Unit tests live beside the code in src/; the golden set lives in
+    // tests/golden/ so its fixtures stay out of the compiled build.
+    include: ["src/**/*.{test,spec}.ts", "tests/**/*.test.ts"],
     // No API tests exist yet; an empty suite is a pass, not a failure.
     passWithNoTests: true,
   },

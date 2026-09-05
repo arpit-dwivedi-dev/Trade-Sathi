@@ -1,4 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { deriveFundamentals } from "./fundamentals/index.js";
+
+/** Eight contiguous March-quarter ends, oldest first. */
+const EIGHT_QUARTER_ENDS = [
+  "2024-09-30",
+  "2024-12-31",
+  "2025-03-31",
+  "2025-06-30",
+  "2025-09-30",
+  "2025-12-31",
+  "2026-03-31",
+  "2026-06-30",
+];
 import { callDirectionFor } from "@chartanalyzer/shared";
 
 const create = vi.fn();
@@ -163,50 +176,73 @@ function visionPayload(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** A minimal InstrumentFundamentals payload — runFundamentalsAnalysis only
- *  serializes it into the prompt, so its exact figures don't matter here. */
-const FUNDAMENTALS_INPUT = {
-  instrument: { id: "i1", symbol: "RELIANCE", name: "Reliance Industries", exchange: "NSE" },
-  meta: { currency: "INR", financialCurrency: "INR", asOf: "2026-08-31", mostRecentQuarter: "2026-06-30" },
-  profile: { sector: "Energy", industry: "Refining", employees: 100000, website: null, summary: "A conglomerate." },
-  snapshot: {
-    price: 1400, change: 5, changePercent: 0.0036, previousClose: 1395, dayLow: 1390, dayHigh: 1410,
-    fiftyTwoWeekLow: 1200, fiftyTwoWeekHigh: 1550, fiftyDayAverage: 1380, twoHundredDayAverage: 1350,
-    volume: 5_000_000, averageVolume: 4_000_000, marketCap: 18_000_000_000_000,
-  },
-  valuation: {
-    trailingPe: 24, forwardPe: 20, pegRatio: null, priceToBook: 2.1, priceToSales: 1.8,
-    enterpriseValue: 19_000_000_000_000, enterpriseToRevenue: 2, enterpriseToEbitda: 12,
-    trailingEps: 58.3, forwardEps: 70, bookValue: 666, dividendYield: 0.004, dividendRate: 5.5,
-    payoutRatio: 0.09, beta: 1.1,
-  },
-  profitability: {
-    grossMargin: 0.3, operatingMargin: 0.12, ebitdaMargin: 0.15, profitMargin: 0.08,
-    returnOnEquity: 0.09, returnOnAssets: 0.05,
-  },
-  growth: { revenueGrowth: 0.1, earningsGrowth: 0.07, earningsQuarterlyGrowth: 0.05 },
-  health: {
-    totalRevenue: 9_000_000_000_000, ebitda: 1_350_000_000_000, netIncome: 720_000_000_000,
-    totalCash: 200_000_000_000, totalDebt: 1_200_000_000_000, debtToEquity: 41.2, currentRatio: 1.1,
-    quickRatio: 0.8, freeCashflow: 300_000_000_000, operatingCashflow: 900_000_000_000,
+/**
+ * A derived-fundamentals input for runFundamentalsAnalysis.
+ *
+ * Built through the real derivation path from synthetic raw statements, so
+ * the facts the prompt hands the model — and the semantic validator checks it
+ * copied — are the ones the production code would compute, not hand-written
+ * constants that could drift away from it.
+ */
+function fundamentalsInput() {
+  const quarters = EIGHT_QUARTER_ENDS.map((periodEnd, i) => ({
+    periodEnd,
+    months: 3 as const,
+    basis: "consolidated" as const,
+    currency: "INR",
+    revenue: 2_000_000_000_000 + i * 50_000_000_000,
+    totalIncome: 2_000_000_000_000 + i * 50_000_000_000,
+    otherIncome: null,
+    costOfRevenue: null,
+    grossProfit: 600_000_000_000 + i * 15_000_000_000,
+    operatingIncome: 240_000_000_000 + i * 6_000_000_000,
+    pretaxIncome: 230_000_000_000 + i * 6_000_000_000,
+    netIncome: 160_000_000_000 + i * 4_000_000_000,
+    dilutedShares: 6_766_000_000,
+    operatingCashFlow: 220_000_000_000,
+    capex: 60_000_000_000,
+    dividendsPaid: 14_000_000_000,
+    equity: 2_900_000_000_000,
+    totalDebt: 1_200_000_000_000,
+    cash: 200_000_000_000,
     sharesOutstanding: 6_766_000_000,
-  },
-  annual: [
-    { asOfDate: "2024-03-31", revenue: 8_000_000_000_000, operatingIncome: 900_000_000_000, netIncome: 650_000_000_000, dilutedEps: 48, operatingCashflow: 800_000_000_000, freeCashflow: 250_000_000_000 },
-    { asOfDate: "2025-03-31", revenue: 8_500_000_000_000, operatingIncome: 950_000_000_000, netIncome: 690_000_000_000, dilutedEps: 51, operatingCashflow: 850_000_000_000, freeCashflow: 280_000_000_000 },
-    { asOfDate: "2026-03-31", revenue: 9_000_000_000_000, operatingIncome: 1_000_000_000_000, netIncome: 720_000_000_000, dilutedEps: 58.3, operatingCashflow: 900_000_000_000, freeCashflow: 300_000_000_000 },
-  ],
-};
+  }));
+
+  const statements = {
+    quarterly: quarters,
+    annual: [],
+    spot: {
+      price: 1_400,
+      asOf: "2026-09-04T10:00:00.000Z",
+      marketCap: 18_000_000_000_000,
+      currency: "INR",
+      financialCurrency: "INR",
+      dividendDeclaredPerShare: 5.5,
+      dividendYield: 0.0039,
+      mostRecentQuarter: "2026-06-30",
+    },
+    forward: [{ epsAvg: 70, periodEnd: "2027-03-31" }],
+    corporateActions: [],
+  };
+
+  return {
+    instrument: { id: "i1", symbol: "RELIANCE", name: "Reliance Industries", exchange: "NSE" },
+    derived: deriveFundamentals(statements, "NSE"),
+  };
+}
+
+const FUNDAMENTALS_INPUT = fundamentalsInput();
+
+/** One `{statement, tag, evidence}` section, plus its verdict key. */
+const taggedStatement = (extra: Record<string, unknown> = {}) => ({
+  statement: "A statement grounded in the payload.",
+  tag: "fact",
+  evidence: "revenue 8500000000000 (TTM 2025-07-01..2026-06-30)",
+  ...extra,
+});
 
 /** A schema-valid response, per prompts/fundamentals-analysis.ts's json shape. */
 function fundamentalsPayload(overrides: Record<string, unknown> = {}) {
-  const taggedStatement = (extra: Record<string, unknown> = {}) => ({
-    statement: "A statement grounded in the payload.",
-    tag: "fact",
-    evidence: "health.totalRevenue 9000000000000",
-    ...extra,
-  });
-
   return {
     meta: {
       symbol: "RELIANCE",
@@ -224,7 +260,7 @@ function fundamentalsPayload(overrides: Record<string, unknown> = {}) {
         { claim: "Operating margin held near 12% across three years.", tag: "calc", evidence: "profitability.operatingMargin 0.12" },
         { claim: "Revenue grew 10% year on year.", tag: "fact", evidence: "growth.revenueGrowth 0.1" },
       ],
-      falsifier: "A quarter of margin compression below 9% operating margin.",
+      falsifier: "Operating margin compressing below 9.00%.",
     },
     business: taggedStatement({ tag: "fact" }),
     performance: {
@@ -256,9 +292,11 @@ function fundamentalsPayload(overrides: Record<string, unknown> = {}) {
     ],
     red_flags: [],
     scenarios: [
-      { id: "bull", view: "Margins expand as refining spreads improve.", requires: "Operating margin above 13%.", falsifier: "Margin falls below 10%." },
-      { id: "base", view: "Margins hold near current levels.", requires: "Revenue growth continues near 10%.", falsifier: "Revenue growth turns negative." },
-      { id: "bear", view: "Margins compress on rising input costs.", requires: "Operating margin below 9%.", falsifier: "Margin recovers above 11%." },
+      // Every threshold named here is one of the report's own four — see
+      // buildThresholds. A scenario naming any other number is rejected.
+      { id: "bull", view: "Margins expand as refining spreads improve.", requires: "Cash conversion holding above 70.33%.", falsifier: "Operating margin falls below 9.00%." },
+      { id: "base", view: "Margins hold near current levels.", requires: "Revenue growth holding above 4.82%.", falsifier: "Revenue growth turns negative." },
+      { id: "bear", view: "Margins compress on rising input costs.", requires: "Operating margin falling below 9.00%.", falsifier: "Gross debt to equity stays under 82.76%." },
     ],
     missing_information: [],
     summary: "A stable, moderately levered business with consistent margins and growth.",
@@ -707,186 +745,203 @@ describe("fundamentals analysis", () => {
     expect(outcome.modelId).toBe("fallback-model");
   });
 
-  describe("leverage band reconciliation", () => {
-    it("corrects a leverage band that contradicts the payload's own debtToEquity", async () => {
-      // FUNDAMENTALS_INPUT.health.debtToEquity is 41.2 (bands to "low") and
-      // totalDebt is a real, positive figure — "zero" is the exact
-      // mislabeling observed in production (positive gross debt called "zero"
-      // leverage), which this guard exists to correct without a retry.
-      create.mockResolvedValue(completion(fundamentalsPayload({ balance_sheet: { statement: "x", tag: "fact", evidence: "e", leverage: "zero" } })));
+  describe("semantic validation replaces the post-hoc reconcilers", () => {
+    // Four reconcilers used to sit downstream of the model, rewriting its
+    // leverage band, growth verdict, dividend sustainability and executive
+    // stance. Three of those verdicts are now computed upstream and handed to
+    // the model to copy; a mismatch is a rejected response, not a silent
+    // patch. These tests assert the rejection.
 
-      const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
-
-      expect(outcome.result.balance_sheet.leverage).toBe("low");
-      expect(outcome.result.meta.data_issues.some((line) => line.includes('"zero"') && line.includes('"low"'))).toBe(
-        true,
+    it("rejects a leverage band that disagrees with the derived one", async () => {
+      // The derived payload bands to "low"; the model says "high".
+      const payload = completion(
+        fundamentalsPayload({ balance_sheet: taggedStatement({ leverage: "high" }) }),
       );
-      // Corrected via post-processing, not a retry.
-      expect(create).toHaveBeenCalledTimes(1);
+      create.mockResolvedValue(payload);
+      fallbackCreate.mockResolvedValue(payload);
+
+      await expect(runFundamentalsAnalysis(FUNDAMENTALS_INPUT)).rejects.toMatchObject({
+        code: "schema_validation",
+      });
     });
 
-    it("leaves an already-correct leverage band untouched, with no spurious note", async () => {
-      create.mockResolvedValue(completion(fundamentalsPayload())); // leverage: "low", matching debtToEquity 41.2
-
-      const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
-
-      expect(outcome.result.balance_sheet.leverage).toBe("low");
-      expect(outcome.result.meta.data_issues).toHaveLength(0);
-    });
-
-    it("never overrides 'unk' — a deliberate sector-structural call, not a miscalculation", async () => {
-      create.mockResolvedValue(
-        completion(fundamentalsPayload({ balance_sheet: { statement: "x", tag: "unk", evidence: "e", leverage: "unk" } })),
-      );
-
-      const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
-
-      expect(outcome.result.balance_sheet.leverage).toBe("unk");
-      expect(outcome.result.meta.data_issues).toHaveLength(0);
-    });
-
-    it("leaves the band alone when debtToEquity is unreported — banding is then a judgment call", async () => {
-      const noDebtToEquity = { ...FUNDAMENTALS_INPUT, health: { ...FUNDAMENTALS_INPUT.health, debtToEquity: null } };
-      create.mockResolvedValue(
-        completion(fundamentalsPayload({ balance_sheet: { statement: "x", tag: "calc", evidence: "e", leverage: "zero" } })),
-      );
-
-      const outcome = await runFundamentalsAnalysis(noDebtToEquity);
-
-      expect(outcome.result.balance_sheet.leverage).toBe("zero");
-      expect(outcome.result.meta.data_issues).toHaveLength(0);
-    });
-  });
-
-  describe("growth_supports_earnings reconciliation", () => {
-    it("corrects 'yes' to 'no' when earningsGrowth is negative while revenueGrowth is positive", async () => {
-      const negativeEarnings = {
-        ...FUNDAMENTALS_INPUT,
-        growth: { ...FUNDAMENTALS_INPUT.growth, revenueGrowth: 0.1, earningsGrowth: -0.02 },
-      };
-      create.mockResolvedValue(completion(fundamentalsPayload())); // growth_supports_earnings: "yes"
-
-      const outcome = await runFundamentalsAnalysis(negativeEarnings);
-
-      expect(outcome.result.performance.growth_supports_earnings).toBe("no");
-      expect(
-        outcome.result.meta.data_issues.some((line) => line.includes("growth_supports_earnings")),
-      ).toBe(true);
-    });
-
-    it("corrects 'yes' to 'no' when earningsGrowth trails revenueGrowth by more than 5 points", async () => {
-      const laggingEarnings = {
-        ...FUNDAMENTALS_INPUT,
-        growth: { ...FUNDAMENTALS_INPUT.growth, revenueGrowth: 0.139, earningsGrowth: 0.046 },
-      };
-      create.mockResolvedValue(completion(fundamentalsPayload({ performance: {
-        revenue_trend: { statement: "x", tag: "fact", evidence: "e" },
-        earnings_trend: { statement: "x", tag: "fact", evidence: "e" },
-        growth_supports_earnings: "mixed",
-      } })));
-
-      const outcome = await runFundamentalsAnalysis(laggingEarnings);
-
-      expect(outcome.result.performance.growth_supports_earnings).toBe("no");
-    });
-
-    it("leaves 'yes' untouched when earnings growth genuinely keeps pace", async () => {
-      create.mockResolvedValue(completion(fundamentalsPayload())); // FUNDAMENTALS_INPUT: revenueGrowth 0.1, earningsGrowth 0.07
-
-      const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
-
-      expect(outcome.result.performance.growth_supports_earnings).toBe("yes");
-      expect(outcome.result.meta.data_issues).toHaveLength(0);
-    });
-
-    it("never overrides 'unk'", async () => {
-      const negativeEarnings = {
-        ...FUNDAMENTALS_INPUT,
-        growth: { ...FUNDAMENTALS_INPUT.growth, revenueGrowth: 0.1, earningsGrowth: -0.02 },
-      };
-      create.mockResolvedValue(completion(fundamentalsPayload({ performance: {
-        revenue_trend: { statement: "x", tag: "fact", evidence: "e" },
-        earnings_trend: { statement: "x", tag: "unk", evidence: "e" },
-        growth_supports_earnings: "unk",
-      } })));
-
-      const outcome = await runFundamentalsAnalysis(negativeEarnings);
-
-      expect(outcome.result.performance.growth_supports_earnings).toBe("unk");
-      expect(outcome.result.meta.data_issues).toHaveLength(0);
-    });
-  });
-
-  describe("dividend sustainability reconciliation", () => {
-    it("corrects an unexplained payout discrepancy to 'unk'", async () => {
-      // dividendRate 20 / trailingEps 58.3 = 0.343, badly disagreeing with the
-      // supplied payoutRatio of 0.09 — no attribution keyword in the statement.
-      const discordantPayout = {
-        ...FUNDAMENTALS_INPUT,
-        valuation: { ...FUNDAMENTALS_INPUT.valuation, dividendRate: 20 },
-      };
-      create.mockResolvedValue(completion(fundamentalsPayload())); // sustainability: "conservative"
-
-      const outcome = await runFundamentalsAnalysis(discordantPayout);
-
-      expect(outcome.result.dividend.sustainability).toBe("unk");
-      expect(
-        outcome.result.meta.data_issues.some((line) => line.includes("dividend.sustainability")),
-      ).toBe(true);
-    });
-
-    it("leaves the call alone when the statement attributes the discrepancy", async () => {
-      const discordantPayout = {
-        ...FUNDAMENTALS_INPUT,
-        valuation: { ...FUNDAMENTALS_INPUT.valuation, dividendRate: 20 },
-      };
-      create.mockResolvedValue(
-        completion(
-          fundamentalsPayload({
-            dividend: {
-              statement: "The gap is consistent with a special dividend included in dividendRate.",
-              tag: "calc",
-              evidence: "valuation.payoutRatio 0.09 vs dividendRate/trailingEps 0.343",
-              sustainability: "conservative",
-            },
-          }),
-        ),
-      );
-
-      const outcome = await runFundamentalsAnalysis(discordantPayout);
-
-      expect(outcome.result.dividend.sustainability).toBe("conservative");
-      expect(outcome.result.meta.data_issues).toHaveLength(0);
-    });
-
-    it("leaves an already-'unk' call untouched", async () => {
-      const discordantPayout = {
-        ...FUNDAMENTALS_INPUT,
-        valuation: { ...FUNDAMENTALS_INPUT.valuation, dividendRate: 20 },
-      };
-      create.mockResolvedValue(
-        completion(
-          fundamentalsPayload({
-            dividend: { statement: "x", tag: "unk", evidence: "e", sustainability: "unk" },
-          }),
-        ),
-      );
-
-      const outcome = await runFundamentalsAnalysis(discordantPayout);
-
-      expect(outcome.result.dividend.sustainability).toBe("unk");
-      expect(outcome.result.meta.data_issues).toHaveLength(0);
-    });
-
-    it("leaves a reconciled payout ratio untouched — FUNDAMENTALS_INPUT's own figures", async () => {
-      // 5.5 / 58.3 = 0.0943, an absolute difference of 0.0043 from the
-      // supplied 0.09 — below the 0.005 floor TOLERANCE treats as noise.
+    it("accepts the derived band when the model copies it", async () => {
       create.mockResolvedValue(completion(fundamentalsPayload()));
+      const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
+      expect(outcome.result.balance_sheet.leverage).toBe("low");
+    });
+
+    it("allows a sector-structural unk to override a derived band", async () => {
+      // Leverage is not a meaningful measure for a lender whatever the
+      // arithmetic says, so "unk" is the one legitimate override.
+      create.mockResolvedValue(
+        completion(fundamentalsPayload({ balance_sheet: taggedStatement({ leverage: "unk" }) })),
+      );
+      const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
+      expect(outcome.result.balance_sheet.leverage).toBe("unk");
+    });
+
+    it("rejects a growth verdict that disagrees with the derived one", async () => {
+      const payload = completion(
+        fundamentalsPayload({
+            performance: {
+              revenue_trend: taggedStatement(),
+              earnings_trend: taggedStatement(),
+              growth_supports_earnings: "no",
+            },
+        }),
+      );
+      create.mockResolvedValue(payload);
+      fallbackCreate.mockResolvedValue(payload);
+
+      await expect(runFundamentalsAnalysis(FUNDAMENTALS_INPUT)).rejects.toMatchObject({
+        code: "schema_validation",
+      });
+    });
+
+    it("rejects an attractive stance that contradicts its own sections", async () => {
+      // Observed in production: "attractive" alongside a fact-tagged red flag
+      // and a stretched read. It used to be silently downgraded to "mixed";
+      // now the response is regenerated instead.
+      const payload = completion(
+        fundamentalsPayload({
+            red_flags: [
+              {
+                claim: "Free cash flow fell year on year.",
+                tag: "fact",
+                evidence: "fcf 300000000000",
+              },
+            ],
+        }),
+      );
+      create.mockResolvedValue(payload);
+      fallbackCreate.mockResolvedValue(payload);
+
+      await expect(runFundamentalsAnalysis(FUNDAMENTALS_INPUT)).rejects.toMatchObject({
+        code: "schema_validation",
+      });
+    });
+
+    it("leaves a non-attractive stance alone even with a fact-tagged red flag", async () => {
+      create.mockResolvedValue(
+        completion(
+          fundamentalsPayload({
+            executive_verdict: {
+              stance: "mixed",
+              commitment:
+                "Margins are stable and leverage is moderate against steady revenue growth.",
+              deciding_factors: [
+                { claim: "Operating margin held steady.", tag: "calc", evidence: "operatingMargin 0.12" },
+                { claim: "Revenue grew year on year.", tag: "fact", evidence: "revenueGrowthFy 0.1" },
+              ],
+              falsifier: "Operating margin falls below 9.00%.",
+            },
+            red_flags: [
+              { claim: "Free cash flow fell.", tag: "fact", evidence: "fcf 300000000000" },
+            ],
+          }),
+        ),
+      );
+
+      const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
+      expect(outcome.result.executive_verdict.stance).toBe("mixed");
+    });
+
+    it("rejects a scenario naming a threshold outside the report's own set", async () => {
+      // One threshold set per report, reused everywhere. We shipped 25% and
+      // 30% for the same NVDA condition, and 10%/12%/13.9% for the same TCS
+      // one, inside single reports.
+      const payload = completion(
+        fundamentalsPayload({
+            scenarios: [
+              { id: "bull", view: "Margins expand.", requires: "Operating margin holds up.", falsifier: "Margins compress." },
+              { id: "base", view: "Margins hold.", requires: "Revenue growth persists.", falsifier: "Revenue growth stalls." },
+              { id: "bear", view: "Margins compress.", requires: "Pricing weakens.", falsifier: "Operating margin holds above 37.4%." },
+            ],
+        }),
+      );
+      create.mockResolvedValue(payload);
+      fallbackCreate.mockResolvedValue(payload);
+
+      await expect(runFundamentalsAnalysis(FUNDAMENTALS_INPUT)).rejects.toMatchObject({
+        code: "schema_validation",
+      });
+    });
+  });
+
+
+  describe("recovery from three failure modes observed on a fallback provider under load", () => {
+    it("recovers when a verdict key (e.g. profitability.direction) is hoisted to the top level", async () => {
+      // Reproduces a response observed in production on more than one
+      // instrument: the model closed profitability's object right after
+      // "evidence" and wrote "direction" as its own top-level key straight
+      // after it, instead of nesting it inside profitability.
+      const payload = fundamentalsPayload() as Record<string, unknown>;
+      const profitability = payload["profitability"] as Record<string, unknown>;
+      const { direction, ...profitabilityWithoutDirection } = profitability;
+      const entries = Object.entries(payload).flatMap(([key, value]) =>
+        key === "profitability"
+          ? ([
+              ["profitability", profitabilityWithoutDirection],
+              ["direction", direction],
+            ] as [string, unknown][])
+          : ([[key, value]] as [string, unknown][]),
+      );
+      const content = JSON.stringify(Object.fromEntries(entries));
+      create.mockResolvedValue({
+        choices: [{ message: { content } }],
+        usage: { prompt_tokens: 1_000, completion_tokens: 500 },
+      });
 
       const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
 
-      expect(outcome.result.dividend.sustainability).toBe("conservative");
-      expect(outcome.result.meta.data_issues).toHaveLength(0);
+      expect(outcome.result.profitability.direction).toBe("stable");
+    });
+
+    it("recovers when the model writes a literal, un-escaped newline inside a json string instead of \\n", async () => {
+      // Observed in production: a weaker fallback model asked for "one json
+      // object and nothing else" instead wrote its reasoning straight into
+      // meta.confidence_reason, as a raw newline rather than an escaped one —
+      // syntactically invalid JSON even though the content itself was fine.
+      const payload = fundamentalsPayload();
+      const leakedReason = `${payload.meta.confidence_reason}\nLet me reconsider: recheck check 3.`;
+      const content = JSON.stringify(payload).replace(
+        JSON.stringify(payload.meta.confidence_reason),
+        JSON.stringify(leakedReason).replace(/\\n/g, "\n"),
+      );
+      create.mockResolvedValue({
+        choices: [{ message: { content } }],
+        usage: { prompt_tokens: 1_000, completion_tokens: 500 },
+      });
+
+      const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
+
+      expect(outcome.result.meta.confidence_reason).toContain("Let me reconsider");
+      expect(outcome.result.executive_verdict.stance).toBe("attractive");
+    });
+
+    it("repairs a red_flags item the model tagged 'unk' instead of failing the analysis outright", async () => {
+      // Observed in production: a fallback model tagged one
+      // executive_verdict.deciding_factors item "unk", which the schema
+      // disallows there — the whole response failed validation and, being
+      // the last provider in the chain, the analysis failed outright.
+      create.mockResolvedValue(
+        completion(
+          fundamentalsPayload({
+            red_flags: [
+              { claim: "Return on equity is not reported.", tag: "unk", evidence: "profitability.returnOnEquity null" },
+            ],
+          }),
+        ),
+      );
+
+      const outcome = await runFundamentalsAnalysis(FUNDAMENTALS_INPUT);
+
+      expect(outcome.result.red_flags[0]).toEqual({
+        claim: "Return on equity is not reported.",
+        tag: "inf",
+        evidence: "profitability.returnOnEquity null",
+      });
     });
   });
 });
