@@ -12,7 +12,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
-import type { Instrument } from '@chartanalyzer/shared';
+import type { Instrument, MarketCode, MarketStatus } from '@chartanalyzer/shared';
 import { AccountPage } from '../account/account-page';
 import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingPage } from '../billing/billing-page';
@@ -27,7 +27,26 @@ import { WorkspacePage } from '../workspace/workspace-page';
 import { NavRail, type NavTab } from '../../shared/nav-rail/nav-rail';
 import { SymbolSearch, type SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import { AuthService } from '../../core/auth.service';
+import { MarketStatusService } from '../../core/market-status.service';
 import { ThemeService } from '../../core/theme.service';
+
+/**
+ * Fallback poll cadence, used only when a status has no nextChangeAt to
+ * schedule against (already closed for the day, with tomorrow's calendar
+ * unknown — see MarketStatus). Otherwise the badge updates itself with a
+ * one-shot timer fired exactly at the known open/close boundary, which is
+ * both more accurate and far cheaper than polling every minute while a
+ * session is quietly in progress for hours.
+ */
+const MARKET_STATUS_FALLBACK_POLL_MS = 5 * 60_000;
+
+/** apps/api's two session calendars — see market-status.service.ts. */
+const STATUS_MARKET_BY_CODE: Readonly<Record<MarketCode, 'NSE' | 'NASDAQ'>> = {
+  NSE: 'NSE',
+  BSE: 'NSE',
+  NASDAQ: 'NASDAQ',
+  NYSE: 'NASDAQ',
+};
 
 /** The rail owns this list — it is the set of destinations it links to. */
 type Tab = NavTab;
@@ -105,6 +124,7 @@ function parseTab(value: string | null): Tab {
 export class AppPage implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly billing = inject(BillingService);
+  private readonly marketStatusService = inject(MarketStatusService);
   private readonly router = inject(Router);
   private readonly themeService = inject(ThemeService);
   private readonly route = inject(ActivatedRoute);
@@ -113,6 +133,16 @@ export class AppPage implements OnInit {
   protected readonly user = this.auth.user;
   protected readonly tab = signal<Tab>('analyze');
   protected readonly theme = this.themeService.theme;
+  /**
+   * The badge shows only the market currently selected in the top bar's
+   * search (see SymbolSearch.marketChanged) — not every market at once.
+   * Null until the first read completes, or if it fails, or before the
+   * search has reported an initial market — the badge hides rather than
+   * guessing.
+   */
+  protected readonly selectedStatusMarket = signal<'NSE' | 'NASDAQ' | null>(null);
+  protected readonly marketStatus = signal<MarketStatus | null>(null);
+  private marketStatusTimerId: ReturnType<typeof setTimeout> | null = null;
   protected readonly plansOpen = signal(false);
   /** Drawer state. Only consulted below 900px, where the rail is off-canvas. */
   protected readonly navOpen = signal(false);
@@ -181,6 +211,61 @@ export class AppPage implements OnInit {
     // rail's CTA label, the overlay, the plan picker's "Current plan" marker —
     // reads the cache it fills rather than querying again.
     void this.billing.ensurePlanSummary();
+
+    this.destroyRef.onDestroy(() => this.clearMarketStatusTimer());
+  }
+
+  /**
+   * The top bar search reporting which market it's scoped to (see
+   * SymbolSearch.marketChanged) — fires once on init and again on every
+   * manual switch. A switch drops whatever timer was scheduled for the old
+   * market and reads the new one immediately rather than waiting for it.
+   */
+  protected onSearchMarketChanged(market: MarketCode): void {
+    const statusMarket = STATUS_MARKET_BY_CODE[market];
+    if (statusMarket === this.selectedStatusMarket()) return;
+    this.selectedStatusMarket.set(statusMarket);
+    this.clearMarketStatusTimer();
+    void this.refreshMarketStatus();
+  }
+
+  private async refreshMarketStatus(): Promise<void> {
+    const market = this.selectedStatusMarket();
+    if (!market) return;
+    const status = await this.marketStatusService.fetchStatus(market);
+    // The selection may have changed while the request was in flight; a
+    // stale response for the market just switched away from must not
+    // overwrite what the new one already set.
+    if (this.selectedStatusMarket() !== market) return;
+    this.marketStatus.set(status);
+    this.scheduleNextMarketStatusRead(status);
+  }
+
+  /**
+   * One-shot timer instead of a fixed poll: nextChangeAt is the exact moment
+   * NSE/Yahoo's own published session boundary flips this market's state, so
+   * there is nothing to gain from checking any earlier — and no third-party
+   * webhook exists for "market just opened/closed" to push it instead. Only
+   * when the boundary is unknown (already closed for the day, with
+   * tomorrow's calendar not given by this endpoint) does this fall back to a
+   * plain interval.
+   */
+  private scheduleNextMarketStatusRead(status: MarketStatus | null): void {
+    this.clearMarketStatusTimer();
+    const delayMs = status?.nextChangeAt
+      ? new Date(status.nextChangeAt).getTime() - Date.now() + 1_000
+      : MARKET_STATUS_FALLBACK_POLL_MS;
+    this.marketStatusTimerId = setTimeout(
+      () => void this.refreshMarketStatus(),
+      Math.max(delayMs, 1_000),
+    );
+  }
+
+  private clearMarketStatusTimer(): void {
+    if (this.marketStatusTimerId !== null) {
+      clearTimeout(this.marketStatusTimerId);
+      this.marketStatusTimerId = null;
+    }
   }
 
   /** Names the current screen in the top bar, beside the drawer toggle. */

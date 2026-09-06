@@ -77,6 +77,8 @@ export class SymbolSearch {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly instrumentSelected = output<Instrument>();
+  /** Fires on init (once the geo default resolves) and on every manual switch. */
+  readonly marketChanged = output<MarketCode>();
   readonly placeholder = input('Search symbol or company, e.g. RELIANCE');
 
   protected readonly markets = MARKETS;
@@ -106,6 +108,11 @@ export class SymbolSearch {
     void this.applyGeoDefaultMarket();
   }
 
+  /** The default 'NSE' the market signal starts with, before geo resolves. */
+  ngAfterViewInit(): void {
+    this.marketChanged.emit(this.market());
+  }
+
   /**
    * Picks the market a trader from the detected region almost certainly
    * means, so they don't have to switch it manually every session. Only
@@ -116,8 +123,9 @@ export class SymbolSearch {
   private async applyGeoDefaultMarket(): Promise<void> {
     const geo = await this.profileService.getSessionGeo();
     const inferred = geo?.country ? MARKET_BY_COUNTRY[geo.country] : undefined;
-    if (inferred && this.queryInput().trim().length === 0) {
+    if (inferred && this.queryInput().trim().length === 0 && inferred !== this.market()) {
       this.market.set(inferred);
+      this.marketChanged.emit(inferred);
     }
   }
 
@@ -149,6 +157,7 @@ export class SymbolSearch {
    */
   protected onMarketChange(value: MarketCode): void {
     this.market.set(value);
+    this.marketChanged.emit(value);
     const trimmed = this.queryInput().trim();
     if (trimmed.length < MIN_QUERY_LENGTH) {
       this.results.set([]);

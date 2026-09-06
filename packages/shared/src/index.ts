@@ -229,3 +229,19 @@ export interface ProfileUpdatePayload {
   profession?: string;
   location?: string;
 }
+
+/** A market's session state, as returned by GET /api/market/status?market=. */
+export interface MarketStatus {
+  isOpen: boolean;
+  message: string;
+  /** ISO timestamp the status was read at, not when the market itself changed state. */
+  asOf: string;
+  /**
+   * ISO timestamp of the next known state flip — today's close if open, or
+   * today's open if still ahead of it. Null once there is no more of today's
+   * session left to schedule against (already closed for the day, or the
+   * exchange has no session today at all) — the caller falls back to
+   * ordinary polling for those cases rather than guessing tomorrow's hours.
+   */
+  nextChangeAt: string | null;
+}

@@ -33,10 +33,23 @@ const YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
 // Upstox response was, so an upstream shape change surfaces as a clear
 // MarketDataError rather than silently wrong numbers reaching a chart or the
 // AI model.
+const YahooTradingSessionSchema = z.object({
+  start: z.number(),
+  end: z.number(),
+});
+
 const YahooChartResultSchema = z.object({
   meta: z.object({
     regularMarketPrice: z.number().optional(),
     regularMarketTime: z.number().optional(),
+    exchangeTimezoneName: z.string().optional(),
+    // Yahoo's own view of today's regular session window (epoch seconds),
+    // absent the day the market is fully closed (weekend/holiday) — used to
+    // derive open/closed rather than trusting a single "marketState" flag,
+    // which this endpoint doesn't reliably return across exchanges.
+    currentTradingPeriod: z
+      .object({ regular: YahooTradingSessionSchema })
+      .optional(),
   }),
   timestamp: z.array(z.number()),
   indicators: z.object({
@@ -411,6 +424,37 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
       lastPrice: regularMarketPrice,
       asOf: new Date(regularMarketTime * 1000).toISOString(),
     };
+  }
+
+  /**
+   * Whether `instrumentKey`'s exchange is inside today's regular trading
+   * session right now. `instrumentKey` is any Yahoo ticker on that exchange —
+   * an index symbol is enough, since the session window is exchange-wide, not
+   * per-instrument.
+   *
+   * `currentTradingPeriod.regular` is absent on a day with no regular session
+   * at all (weekend/holiday), which reads as closed rather than an error.
+   */
+  async getMarketState(
+    instrumentKey: string,
+  ): Promise<{ isOpen: boolean; asOf: string; nextChangeAt: string | null }> {
+    const chartResult = await this.fetchChart(instrumentKey, "1d", "1d");
+    const regular = chartResult.meta.currentTradingPeriod?.regular;
+    const nowSeconds = Date.now() / 1000;
+    const isOpen = regular != null && nowSeconds >= regular.start && nowSeconds < regular.end;
+
+    // Only today's boundary is known here (see the schema comment on
+    // currentTradingPeriod) — a close is always schedulable (regular.end),
+    // an open only if today's session hasn't started yet; past today's
+    // close, the next open depends on tomorrow's calendar (weekend, a
+    // holiday) which this endpoint doesn't give us for a future date.
+    let nextChangeAt: string | null = null;
+    if (regular != null) {
+      if (isOpen) nextChangeAt = new Date(regular.end * 1000).toISOString();
+      else if (nowSeconds < regular.start) nextChangeAt = new Date(regular.start * 1000).toISOString();
+    }
+
+    return { isOpen, asOf: new Date().toISOString(), nextChangeAt };
   }
 
   /**

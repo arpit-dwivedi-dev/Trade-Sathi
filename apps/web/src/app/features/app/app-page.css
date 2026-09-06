@@ -13,6 +13,41 @@
   padding: var(--s16);
 }
 
+.market-status-badge {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  gap: var(--s1);
+  padding: var(--s1) var(--s3);
+  white-space: nowrap;
+}
+
+.market-status-dot {
+  border-radius: 50%;
+  block-size: 6px;
+  inline-size: 6px;
+}
+
+.market-status-open {
+  background: color-mix(in srgb, var(--up) 14%, transparent);
+  color: var(--up);
+}
+
+.market-status-open .market-status-dot {
+  background: var(--up);
+}
+
+.market-status-closed {
+  background: color-mix(in srgb, var(--down) 14%, transparent);
+  color: var(--down);
+}
+
+.market-status-closed .market-status-dot {
+  background: var(--down);
+}
+
 /* Shown only while a deferred tab's chunk is in flight — after 150ms, so a
    warm cache never flashes it, and for at least 300ms so it cannot strobe. */
 .tab-loading {

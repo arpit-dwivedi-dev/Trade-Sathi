@@ -29,9 +29,22 @@
           [hidden]="!searchVisible()"
           placeholder="Search symbol or company"
           (instrumentSelected)="onInstrumentSelected($event)"
+          (marketChanged)="onSearchMarketChanged($event)"
         />
 
         <div class="topbar-end">
+          @if (marketStatus(); as status) {
+            <span
+              class="market-status-badge"
+              [class.market-status-open]="status.isOpen"
+              [class.market-status-closed]="!status.isOpen"
+              [attr.title]="status.message"
+            >
+              <span class="market-status-dot" aria-hidden="true"></span>
+              {{ selectedStatusMarket() }} {{ status.isOpen ? 'Open' : 'Closed' }}
+            </span>
+          }
+
           <button mat-icon-button (click)="toggleTheme()"
                   [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                   [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">

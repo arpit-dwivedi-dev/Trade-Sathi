@@ -15,6 +15,7 @@ import {
   WORKSPACE_INTERVALS,
   type WorkspaceInterval,
 } from "../services/market-chart.service.js";
+import { getMarketStatus, isStatusMarket, STATUS_MARKETS } from "../services/market-status.service.js";
 
 /**
  * Market data for the live chart view. The candles/quote reads are proxied
@@ -123,6 +124,26 @@ marketRouter.get(
       res.json({ lastPrice: quote.lastPrice, asOf: quote.asOf });
     } catch (cause) {
       sendMarketDataError(res, cause, "live quote request failed");
+    }
+  }),
+);
+
+marketRouter.get(
+  "/api/market/status",
+  asyncRoute(requireAuth),
+  asyncRoute(async (req: Request, res: Response) => {
+    const market = typeof req.query["market"] === "string" ? req.query["market"] : "";
+    if (!isStatusMarket(market)) {
+      res.status(400).json({ error: `market must be one of ${STATUS_MARKETS.join("/")}` });
+      return;
+    }
+
+    try {
+      const status = await getMarketStatus(market);
+      res.json(status);
+    } catch (cause) {
+      logger.error("market status request failed", { cause: String(cause), market });
+      res.status(502).json({ error: "Market status is temporarily unavailable" });
     }
   }),
 );
