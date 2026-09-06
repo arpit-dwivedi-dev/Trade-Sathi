@@ -25,6 +25,8 @@ export interface Instrument {
   symbol: string;
   name: string;
   instrumentType: string;
+  /** Resolved once per instrument and cached in the DB — see instrument-logo.service.ts. Absent until resolved, or if no logo could be found. */
+  logoUrl?: string;
 }
 
 /**
@@ -34,10 +36,10 @@ export interface Instrument {
  * apps/api/src/services/instruments.service.ts.
  */
 export const MARKETS = [
-  { code: 'NSE', label: 'NSE (India)' },
-  { code: 'BSE', label: 'BSE (India)' },
-  { code: 'NASDAQ', label: 'NASDAQ (US)' },
-  { code: 'NYSE', label: 'NYSE (US)' },
+  { code: 'NSE', label: 'NSE (India)', flag: '🇮🇳' },
+  { code: 'BSE', label: 'BSE (India)', flag: '🇮🇳' },
+  { code: 'NASDAQ', label: 'NASDAQ (US)', flag: '🇺🇸' },
+  { code: 'NYSE', label: 'NYSE (US)', flag: '🇺🇸' },
 ] as const;
 
 export type MarketCode = (typeof MARKETS)[number]['code'];

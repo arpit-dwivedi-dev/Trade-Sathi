@@ -191,6 +191,56 @@ export class SymbolSearch {
     this.searchInput()?.nativeElement.focus();
   }
 
+  /**
+   * A palette to color each instrument's initials avatar with, so results
+   * don't all render as identical gray circles. Chosen deterministically
+   * from the symbol below rather than randomly, so the same instrument
+   * always gets the same color across searches and re-renders.
+   */
+  private static readonly AVATAR_COLORS = [
+    '#2563eb',
+    '#7c3aed',
+    '#db2777',
+    '#dc2626',
+    '#d97706',
+    '#65a30d',
+    '#059669',
+    '#0891b2',
+  ];
+
+  /**
+   * Two-letter initials avatar in place of a real company logo. A remote
+   * logo (Clearbit, then Google's favicon service keyed by a guessed
+   * domain) was tried first, but both approaches either don't resolve at
+   * all (Clearbit's logo API was shut down after its HubSpot acquisition)
+   * or fail for the majority of NSE/BSE tickers whose domain can't be
+   * guessed from the company name (abbreviations, group names) — Google's
+   * favicon endpoint also never 404s, so a bad guess couldn't even be
+   * reliably detected. This has no such gap: it renders from data already
+   * on the instrument and needs no network round trip per result, per
+   * keystroke.
+   */
+  protected initials(instrument: Instrument): string {
+    return instrument.symbol.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase();
+  }
+
+  /** Deterministic color pick so the same symbol always renders the same. */
+  protected avatarColor(instrument: Instrument): string {
+    let hash = 0;
+    for (const ch of instrument.symbol) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+    const colors = SymbolSearch.AVATAR_COLORS;
+    return colors[Math.abs(hash) % colors.length];
+  }
+
+  /**
+   * The server already checked the logo URL resolves before caching it, so
+   * this is only for a transient failure (network blip, the external host
+   * going down after the fact) — hide the broken image rather than show one.
+   */
+  protected onLogoError(event: Event): void {
+    (event.target as HTMLImageElement).style.visibility = 'hidden';
+  }
+
   protected onOptionSelected(instrument: Instrument): void {
     this.queryInput.set(`${instrument.symbol} — ${instrument.name}`);
     this.results.set([]);

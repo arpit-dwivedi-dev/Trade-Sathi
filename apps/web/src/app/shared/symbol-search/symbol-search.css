@@ -96,6 +96,25 @@
   width: 100%;
 }
 
+.symbol-search-logo {
+  align-items: center;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  flex: none;
+  font-size: 9px;
+  font-weight: 700;
+  height: 20px;
+  justify-content: center;
+  letter-spacing: 0;
+  width: 20px;
+}
+
+.symbol-search-logo-img {
+  background: none;
+  object-fit: contain;
+}
+
 .symbol-search-sym {
   flex: none;
   font-size: var(--t-sm);

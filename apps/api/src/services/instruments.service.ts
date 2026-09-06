@@ -2,6 +2,7 @@ import type { Instrument, MarketCode } from "@chartanalyzer/shared";
 import { logger } from "../lib/logger.js";
 import { searchYahooSymbols } from "../lib/market-data/yahoo-search-provider.js";
 import { supabaseAdmin } from "../lib/supabase.js";
+import { resolveInstrumentLogo } from "./instrument-logo.service.js";
 
 /**
  * Markets backed by the imported catalogue (searched in-memory below) vs.
@@ -39,6 +40,8 @@ interface InstrumentRow {
   symbol: string;
   name: string;
   instrument_type: string;
+  logo_url: string | null;
+  logo_checked_at: string | null;
 }
 
 function toInstrument(row: InstrumentRow): Instrument {
@@ -48,17 +51,25 @@ function toInstrument(row: InstrumentRow): Instrument {
     symbol: row.symbol,
     name: row.name,
     instrumentType: row.instrument_type,
+    logoUrl: row.logo_url ?? undefined,
   };
 }
 
-/** An instrument plus the lowercased fields the matcher compares against. */
+/**
+ * An instrument plus the lowercased fields the matcher compares against, and
+ * whether a logo lookup has already run for it — `instrument` is the exact
+ * object handed back from search, so resolveLogosFor mutating its `logoUrl`
+ * in place updates this cache for free, with no separate write-back step.
+ */
 interface IndexedInstrument {
   instrument: Instrument;
   symbolLower: string;
   nameLower: string;
+  logoChecked: boolean;
 }
 
 let cache: IndexedInstrument[] | null = null;
+let indexById: Map<string, IndexedInstrument> | null = null;
 let fetchedAt = 0;
 let inFlight: Promise<IndexedInstrument[]> | null = null;
 
@@ -68,7 +79,7 @@ async function fetchAllInstruments(): Promise<IndexedInstrument[]> {
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await supabaseAdmin
       .from("instruments")
-      .select("id, exchange, symbol, name, instrument_type")
+      .select("id, exchange, symbol, name, instrument_type, logo_url, logo_checked_at")
       // Ordered so paging is stable: without it Postgres may return rows in a
       // different order per page and the pages would overlap or skip.
       .order("id", { ascending: true })
@@ -82,6 +93,7 @@ async function fetchAllInstruments(): Promise<IndexedInstrument[]> {
         instrument: toInstrument(row),
         symbolLower: row.symbol.toLowerCase(),
         nameLower: row.name.toLowerCase(),
+        logoChecked: row.logo_checked_at !== null,
       });
     }
     if (rows.length < PAGE_SIZE) break;
@@ -104,6 +116,7 @@ async function getCatalogue(): Promise<IndexedInstrument[]> {
   inFlight = fetchAllInstruments()
     .then((loaded) => {
       cache = loaded;
+      indexById = new Map(loaded.map((entry) => [entry.instrument.id, entry]));
       fetchedAt = Date.now();
       logger.info("instrument catalogue loaded", { count: loaded.length });
       return loaded;
@@ -142,8 +155,51 @@ export async function warmInstrumentCache(): Promise<void> {
 /** Test seam: the catalogue is process-global, which would otherwise leak between tests. */
 export function clearInstrumentCache(): void {
   cache = null;
+  indexById = null;
   fetchedAt = 0;
   inFlight = null;
+}
+
+/**
+ * Resolves and persists a logo for whichever of the given instruments don't
+ * have one cached yet, mutating each `logoUrl` in place before the caller
+ * returns them. A catalogue entry already marked `logoChecked` (found or
+ * not) is skipped rather than retried every search — Yahoo-sourced
+ * instruments (NASDAQ/NYSE) aren't in the catalogue index and so get
+ * rechecked until the next catalogue reload picks up their persisted
+ * `logo_checked_at`, at most every CACHE_TTL_MS.
+ */
+async function resolveLogosFor(instruments: Instrument[]): Promise<void> {
+  const pending = instruments.filter((instrument) => {
+    if (instrument.logoUrl !== undefined) return false;
+    const entry = indexById?.get(instrument.id);
+    return !entry?.logoChecked;
+  });
+  if (pending.length === 0) return;
+
+  await Promise.all(
+    pending.map(async (instrument) => {
+      const logoUrl = await resolveInstrumentLogo(
+        instrument.exchange as MarketCode,
+        instrument.symbol,
+      );
+
+      const { error } = await supabaseAdmin
+        .from("instruments")
+        .update({ logo_url: logoUrl, logo_checked_at: new Date().toISOString() })
+        .eq("id", instrument.id);
+      if (error) {
+        logger.error("failed to persist resolved instrument logo", {
+          id: instrument.id,
+          cause: error.message,
+        });
+      }
+
+      if (logoUrl) instrument.logoUrl = logoUrl;
+      const entry = indexById?.get(instrument.id);
+      if (entry) entry.logoChecked = true;
+    }),
+  );
 }
 
 /**
@@ -187,6 +243,7 @@ interface UpsertRow {
   exchange: string;
   symbol: string;
   name: string;
+  logo_url: string | null;
 }
 
 /**
@@ -214,7 +271,7 @@ async function upsertYahooInstruments(
       })),
       { onConflict: "exchange,symbol" },
     )
-    .select("id, exchange, symbol, name");
+    .select("id, exchange, symbol, name, logo_url");
 
   if (error) {
     logger.error("failed to persist yahoo search results", { cause: error.message });
@@ -227,6 +284,7 @@ async function upsertYahooInstruments(
     symbol: row.symbol,
     name: row.name,
     instrumentType: "EQUITY",
+    logoUrl: row.logo_url ?? undefined,
   }));
 }
 
@@ -242,12 +300,17 @@ export async function searchInstruments(
   query: string,
   market?: MarketCode,
 ): Promise<Instrument[]> {
+  let instruments: Instrument[];
+
   if (market && YAHOO_SEARCH_MARKETS.has(market)) {
     const q = query.trim();
     if (!q) return [];
     const results = await searchYahooSymbols(q);
-    return upsertYahooInstruments(results.filter((r) => r.exchange === market));
+    instruments = await upsertYahooInstruments(results.filter((r) => r.exchange === market));
+  } else {
+    instruments = await searchCatalogue(query, market);
   }
 
-  return searchCatalogue(query, market);
+  await resolveLogosFor(instruments);
+  return instruments;
 }

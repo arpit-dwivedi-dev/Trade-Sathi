@@ -2,7 +2,7 @@
   <mat-form-field appearance="outline" class="symbol-search-market" subscriptSizing="dynamic">
     <mat-select [value]="market()" (selectionChange)="onMarketChange($event.value)" aria-label="Stock market">
       @for (m of markets; track m.code) {
-        <mat-option [value]="m.code">{{ m.label }}</mat-option>
+        <mat-option [value]="m.code">{{ m.flag }} {{ m.label }}</mat-option>
       }
     </mat-select>
   </mat-form-field>
@@ -41,6 +41,22 @@
       @for (result of results(); track result.id) {
         <mat-option [value]="result">
           <span class="symbol-search-row-content">
+            @if (result.logoUrl) {
+              <img
+                class="symbol-search-logo symbol-search-logo-img"
+                [src]="result.logoUrl"
+                (error)="onLogoError($event)"
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+              />
+            } @else {
+              <span
+                class="symbol-search-logo"
+                [style.background]="avatarColor(result)"
+                aria-hidden="true"
+              >{{ initials(result) }}</span>
+            }
             <span class="tnum symbol-search-sym">{{ result.symbol }}</span>
             <span class="symbol-search-name trunc">{{ result.name }}</span>
             <span class="symbol-search-exchange">{{ result.exchange }}</span>
