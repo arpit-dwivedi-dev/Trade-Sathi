@@ -1637,3 +1637,18 @@ button.nav-toggle {
     transition: none;
   }
 }
+
+/*
+ * Every Material button (flat, stroked, icon, ...) wraps its projected
+ * content in .mdc-button__label, which Material leaves as display:block.
+ * That's invisible for plain text, but a button showing a busy state as
+ * <mat-progress-spinner /> + text stacks the (block-level) spinner above
+ * the label instead of beside it. Global, not per-button, because every
+ * "spinner inside a button" case in the app hits the same wrapper.
+ */
+.mat-mdc-button-base .mdc-button__label {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+  justify-content: center;
+}
