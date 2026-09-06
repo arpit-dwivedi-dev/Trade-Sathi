@@ -3,9 +3,13 @@ import {
   YahooFinanceMarketDataProvider,
 } from "../lib/market-data/provider/yahoo-finance-provider.js";
 import { getRawStatements } from "../lib/market-data/provider/yahoo-statements.js";
+import { getSecEdgarStatements } from "../lib/market-data/provider/sec-edgar-statements.js";
+import { getNseStatements } from "../lib/market-data/provider/nse-statements.js";
+import { mergeStatementSources } from "../lib/market-data/statements-merge.js";
 import type { RawStatements } from "../lib/market-data/statements.js";
 import type { ProviderFundamentals } from "../lib/market-data/provider/yahoo-finance-provider.js";
 import type { Candle, MarketDataProvider, Quote } from "../lib/market-data/types.js";
+import { logger } from "../lib/logger.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { toYahooSymbol } from "./watchlist.service.js";
 
@@ -366,8 +370,60 @@ export async function getQuoteForInstrument(ref: InstrumentRef): Promise<Quote> 
  */
 export async function getRawStatementsForInstrument(ref: InstrumentRef): Promise<RawStatements> {
   return statementsCache.resolve(ref.instrumentKey, FUNDAMENTALS_TTL_MS, () =>
-    getRawStatements(ref.instrumentKey),
+    getMultiSourceStatements(ref),
   );
+}
+
+interface OfficialSourceAdapter {
+  id: "sec-edgar" | "nse-bse";
+  fetch(symbol: string): Promise<RawStatements | null>;
+}
+
+const SEC_EDGAR_ADAPTER: OfficialSourceAdapter = { id: "sec-edgar", fetch: getSecEdgarStatements };
+const NSE_BSE_ADAPTER: OfficialSourceAdapter = { id: "nse-bse", fetch: getNseStatements };
+
+/**
+ * Official-filing sources ahead of Yahoo, by exchange. NASDAQ/NYSE route
+ * through SEC EDGAR; NSE/BSE route through NSE (BSE-listed symbols are tried
+ * against NSE too, best-effort, since most dual-listed large caps share the
+ * same trading symbol on both — there is no separate BSE corpfiling client).
+ * Any other exchange gets no official source, matching today's Yahoo-only
+ * behaviour exactly.
+ */
+function officialAdaptersFor(exchange: string): OfficialSourceAdapter[] {
+  if (exchange === "NASDAQ" || exchange === "NYSE") return [SEC_EDGAR_ADAPTER];
+  if (exchange === "NSE" || exchange === "BSE") return [NSE_BSE_ADAPTER];
+  return [];
+}
+
+/**
+ * Official filings first, Yahoo always alongside as the required fallback —
+ * merged with official values winning per period. See statements-merge.ts.
+ *
+ * Yahoo stays a hard dependency exactly as before this fallback chain
+ * existed: if it throws, this still throws. Official sources are strictly
+ * additive — a failure there is logged and simply leaves fewer periods to
+ * prefer, never a new failure mode for the caller.
+ */
+async function getMultiSourceStatements(ref: InstrumentRef): Promise<RawStatements> {
+  const officialAdapters = officialAdaptersFor(ref.exchange);
+  const settled = await Promise.allSettled(officialAdapters.map((adapter) => adapter.fetch(ref.symbol)));
+
+  const officialStatements: RawStatements[] = [];
+  settled.forEach((result, index) => {
+    if (result.status === "fulfilled") {
+      if (result.value) officialStatements.push(result.value);
+    } else {
+      logger.warn("official statements source failed", {
+        source: officialAdapters[index].id,
+        instrumentKey: ref.instrumentKey,
+        cause: String(result.reason),
+      });
+    }
+  });
+
+  const yahoo = await getRawStatements(ref.instrumentKey);
+  return mergeStatementSources([...officialStatements, yahoo]);
 }
 
 export async function getFundamentalsForInstrument(

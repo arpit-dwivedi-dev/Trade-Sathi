@@ -75,9 +75,11 @@ export function runPlausibilityGate(input: PlausibilityInput): PlausibilityOutpu
     note: DataNote,
   ): void => {
     const metric = metrics[key];
-    // 'missing' already says the value cannot be used; downgrading it to
-    // 'unreliable' would be an upgrade in confidence, not a downgrade.
-    if (metric.reliability === "missing") return;
+    // A metric the derivation layer did not emit at all has nothing to
+    // downgrade, and 'missing' already says the value cannot be used —
+    // downgrading that to 'unreliable' would be an upgrade in confidence,
+    // not a downgrade.
+    if (!metric || metric.reliability === "missing") return;
     metric.reliability = "unreliable";
     findings.push({ metric: key, rule, detail: machineDetail });
     notes.push(note);
@@ -85,6 +87,7 @@ export function runPlausibilityGate(input: PlausibilityInput): PlausibilityOutpu
 
   const value = (key: DerivedMetricKey): number | null => {
     const metric = metrics[key];
+    if (!metric) return null;
     return metric.reliability === "missing" ? null : metric.value;
   };
 

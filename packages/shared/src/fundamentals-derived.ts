@@ -118,8 +118,6 @@ export interface DerivedMetrics {
 
   // Growth
   revenueGrowth: Metric;
-  /** Sibling of revenueGrowth when a USD figure exists. */
-  revenueGrowthUsd: Metric;
   earningsGrowth: Metric;
   /**
    * Fiscal-year-over-fiscal-year growth, from the audited annual statements.
@@ -205,11 +203,35 @@ export interface ReportThresholds {
   leverageCeiling: number;
 }
 
+/**
+ * One audited fiscal year, for multi-year trend reading only.
+ *
+ * Deliberately a handful of headline lines and not a full RawPeriod: this
+ * exists so a report can say whether growth is accelerating or where an
+ * earlier trough sat, not to be re-derived from. Every trailing figure still
+ * comes from the metrics, which carry their own periods and reliability.
+ */
+export interface AnnualHistoryEntry {
+  /** Fiscal year end, YYYY-MM-DD. */
+  periodEnd: string;
+  /** Carried so a consumer can never compare a consolidated year to a standalone one. */
+  basis: ReportingBasis;
+  revenue: number | null;
+  netIncome: number | null;
+  operatingIncome: number | null;
+  operatingCashFlow: number | null;
+}
+
 /** Everything the derivation layer hands downstream. */
 export interface DerivedFundamentals {
   profile: ReportingProfile;
   metrics: DerivedMetrics;
   facts: DerivedFacts;
+  /**
+   * The most recent audited fiscal years, oldest first, capped at five.
+   * Empty when the sources supply no annual statements.
+   */
+  annualHistory: AnnualHistoryEntry[];
   /** User-facing "Data notes". */
   dataNotes: DataNote[];
   /** Machine trace behind the notes, for the debug toggle. */

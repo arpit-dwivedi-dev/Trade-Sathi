@@ -1,5 +1,8 @@
 import type { ReportingBasis } from "@chartanalyzer/shared";
 
+/** Which upstream produced a period's figures. See statements-merge.ts. */
+export type StatementSource = "yahoo" | "sec-edgar" | "nse-bse";
+
 /**
  * Provider-agnostic RAW financial statements.
  *
@@ -21,6 +24,14 @@ export interface RawPeriod {
   months: 3 | 12;
   basis: ReportingBasis;
   currency: string | null;
+
+  /** Which upstream produced this period's figures. */
+  source: StatementSource;
+  /**
+   * Date the filing was made/accepted, YYYY-MM-DD, or null when the source
+   * does not state one (Yahoo never does).
+   */
+  filingDate: string | null;
 
   // --- Income statement ---
   /**
@@ -65,6 +76,15 @@ export interface RawPeriod {
    * recorded so the trace can show it.
    */
   reconstructed?: boolean;
+
+  /**
+   * Sources that supplied lines this period's own source does not report —
+   * an official filing completed with the vendor's balance sheet and cash
+   * flow, say. Present only when such a fill actually happened, and only
+   * ever after the two series were proved to be the same one. See
+   * statements-merge.ts.
+   */
+  completedFrom?: StatementSource[];
 }
 
 /** Point-in-time market data — the only non-statement input. */

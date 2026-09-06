@@ -42,8 +42,22 @@ type FlowLine =
 /** Balance-sheet lines, which are point-in-time stocks and never summed. */
 type StockLine = "equity" | "totalDebt" | "cash" | "sharesOutstanding" | "dilutedShares";
 
+/**
+ * How far apart two consecutive quarter ends may be.
+ *
+ * The ceiling is set by the 16-week fiscal quarter, not the 13-week one.
+ * Costco's fiscal year runs 12/12/12/16 weeks, so the gap into its fourth
+ * quarter is 112 days — outside a 100-day ceiling, which silently declared
+ * the company's own consecutive quarters non-contiguous and left every
+ * trailing comparison unreportable. Retail and food-service filers on 52/53
+ * week calendars do this routinely.
+ *
+ * Still nowhere near ambiguous: a genuinely SKIPPED quarter puts two ends at
+ * least 168 days apart, so the band cannot mistake a gap in coverage for a
+ * long quarter.
+ */
 const MIN_QUARTER_GAP_DAYS = 80;
-const MAX_QUARTER_GAP_DAYS = 100;
+const MAX_QUARTER_GAP_DAYS = 120;
 
 function daysBetween(earlier: string, later: string): number {
   return (Date.parse(`${later}T00:00:00Z`) - Date.parse(`${earlier}T00:00:00Z`)) / 86_400_000;
@@ -142,6 +156,26 @@ function ttmLabel(window: Window): string {
   return `TTM ${start.toISOString().slice(0, 10)}..${last}`;
 }
 
+/**
+ * One twelve-month figure and where it came from: a quarterly window, or the
+ * audited fiscal year that stood in for one. `year` is non-null only in the
+ * second case, and exists so a ratio built on this figure can take its other
+ * leg from the same span.
+ */
+interface Trailing {
+  metric: Metric;
+  window: Window | null;
+  year: RawPeriod | null;
+}
+
+/** The most recent audited fiscal year reporting every named line. */
+function latestFiscalYear(annual: RawPeriod[], lines: FlowLine[]): RawPeriod | null {
+  for (let i = annual.length - 1; i >= 0; i--) {
+    if (lines.every((line) => annual[i][line] !== null)) return annual[i];
+  }
+  return null;
+}
+
 function derivedFrom(window: Window, lines: string[]): string[] {
   const span = `${window.quarters[0].periodEnd}..${window.quarters[window.quarters.length - 1].periodEnd}`;
   return lines.map((line) => `${line} (4 quarters ${span})`);
@@ -226,14 +260,50 @@ export function deriveMetrics(input: DeriveMetricsInput): DerivedMetrics {
     };
   };
 
+  /**
+   * A twelve-month figure for a CASH-FLOW line, from four contiguous quarters
+   * where they exist and from the audited fiscal year where they cannot.
+   *
+   * India files no quarterly cash flow. SEBI requires the statement twice a
+   * year, so no source — the filings, the vendor, or any combination of them
+   * — can produce four contiguous quarters of operating cash flow for an
+   * Indian company, and operating cash flow, capex, dividends paid, free cash
+   * flow and the cash payout ratio came back missing for every one of them.
+   * The audited fiscal year is a genuine twelve-month figure and it is
+   * published; the only thing that was missing was a route to it.
+   *
+   * The span is never disguised. A fiscal-year figure is labelled with its
+   * fiscal year, not as TTM, so the two can never be read as the same window
+   * — which is the defect this whole layer was rebuilt to remove.
+   */
+  const trailingCash = (line: FlowLine, label: string): Trailing => {
+    const ttm = ttmSum(line, label);
+    if (ttm.metric.value !== null) return { ...ttm, year: null };
+
+    const year = latestFiscalYear(annual, [line]);
+    if (!year) return { ...ttm, year: null };
+    return {
+      metric: ok(
+        year[line] as number,
+        formatFiscalYearLabel(year.periodEnd, profile),
+        year.basis,
+        cur,
+        [`${label} (fiscal year ended ${year.periodEnd})`],
+        { note: `audited fiscal year, not a trailing twelve months: ${label} is not filed quarterly` },
+      ),
+      window: null,
+      year,
+    };
+  };
+
   const revenueRes = ttmSum("revenue", "revenue");
   const netIncomeRes = ttmSum("netIncome", "net income");
   const grossProfitRes = ttmSum("grossProfit", "gross profit");
   const operatingIncomeRes = ttmSum("operatingIncome", "operating income");
   const pretaxRes = ttmSum("pretaxIncome", "pretax income");
-  const ocfRes = ttmSum("operatingCashFlow", "operating cash flow");
-  const capexRes = ttmSum("capex", "capital expenditure");
-  const dividendsPaidRes = ttmSum("dividendsPaid", "dividends paid");
+  const ocfRes = trailingCash("operatingCashFlow", "operating cash flow");
+  const capexRes = trailingCash("capex", "capital expenditure");
+  const dividendsPaidRes = trailingCash("dividendsPaid", "dividends paid");
 
   // --- Revenue-line integrity -------------------------------------------
   // Ind AS filers report revenue from operations and total income as
@@ -293,17 +363,16 @@ export function deriveMetrics(input: DeriveMetricsInput): DerivedMetrics {
   const revenueGrowth = growth("revenue", "revenue");
   const earningsGrowth = growth("netIncome", "net income");
 
-  // A USD-denominated revenue figure is not in these statements. Emitting it
-  // as missing rather than omitting it keeps the FX caveat legible: TCS's
-  // rupee revenue grew 13.9% in a period its USD revenue grew 2.7%, and the
-  // gap is currency, not business.
-  const revenueGrowthUsd = missing(
-    revenueGrowth.period,
-    "USD",
-    cur === "USD"
-      ? "reporting currency is already USD; see revenueGrowth"
-      : "no USD-denominated revenue is reported in these filings, so the currency effect on growth cannot be isolated",
-  );
+  // A USD-denominated revenue figure appears in NO source this pipeline
+  // reads, for any filer, in any currency — so a metric for it can never be
+  // anything but missing, and was reported as a data gap on every non-USD
+  // instrument forever. It is not a gap: nobody files it.
+  //
+  // The caveat it existed to raise is already carried where it belongs, on
+  // the growth figures themselves — revenueGrowth and earningsGrowth are
+  // stamped fxUnadjusted with a note for every non-USD filer (see fxNote
+  // above), so a reader of TCS's 13.9% rupee growth is told in the same
+  // breath that the currency effect is not isolated from it.
 
   // --- Fiscal-year growth, from the audited annual statements ------------
   // Emitted alongside the trailing figures, never as a substitute for them.
@@ -379,10 +448,13 @@ export function deriveMetrics(input: DeriveMetricsInput): DerivedMetrics {
   // free-cash-flow field additionally nets off acquisitions and purchases of
   // securities, which is how a fabless company came out with $92B of implied
   // capital expenditure against ~$7B of real capex.
+  // Both legs must come from ONE span, so this resolves its own rather than
+  // subtracting the capex metric from the cash-flow metric — those two can
+  // legitimately land on different windows when coverage is ragged.
   const fcfWindow = findWindow(quarterly, ["operatingCashFlow", "capex"]);
-  const fcf = !fcfWindow
-    ? missing("TTM unavailable", cur, "fewer than four contiguous quarters report both operating cash flow and capital expenditure")
-    : fcfWindow.mixedBasis
+  const fcfYear = fcfWindow ? null : latestFiscalYear(annual, ["operatingCashFlow", "capex"]);
+  const fcf = fcfWindow
+    ? fcfWindow.mixedBasis
       ? missing(ttmLabel(fcfWindow), cur, mixedBasisNote)
       : ok(
           sum(fcfWindow, "operatingCashFlow") - sum(fcfWindow, "capex"),
@@ -391,6 +463,22 @@ export function deriveMetrics(input: DeriveMetricsInput): DerivedMetrics {
           cur,
           derivedFrom(fcfWindow, ["operating cash flow", "capital expenditure"]),
           { note: "operating cash flow less capital expenditure only" },
+        )
+    : fcfYear
+      ? ok(
+          (fcfYear.operatingCashFlow as number) - (fcfYear.capex as number),
+          formatFiscalYearLabel(fcfYear.periodEnd, profile),
+          fcfYear.basis,
+          cur,
+          [`operating cash flow and capital expenditure (fiscal year ended ${fcfYear.periodEnd})`],
+          {
+            note: "operating cash flow less capital expenditure only; audited fiscal year, not a trailing twelve months",
+          },
+        )
+      : missing(
+          "TTM unavailable",
+          cur,
+          "neither four contiguous quarters nor an audited fiscal year reports both operating cash flow and capital expenditure",
         );
 
   // --- Return on equity --------------------------------------------------
@@ -497,21 +585,30 @@ export function deriveMetrics(input: DeriveMetricsInput): DerivedMetrics {
   // basis. A gap between these two is EXPECTED and is never a data conflict —
   // treating it as one is what produced the spurious "unk" downgrade on both
   // TCS and NVDA.
+  // A ratio's two legs must span the same period. Where dividends paid came
+  // from an audited fiscal year rather than a trailing window, the earnings
+  // it is measured against come from THAT year — dividing a fiscal year's
+  // dividends by a trailing year's earnings would compare two different
+  // twelve-month spans and label the result as one of them.
+  const payoutEarnings = dividendsPaidRes.year
+    ? { value: dividendsPaidRes.year.netIncome, period: formatFiscalYearLabel(dividendsPaidRes.year.periodEnd, profile) }
+    : { value: netIncomeRes.metric.value, period: netIncomeRes.metric.period };
+
   const payoutRatioCash =
-    dividendsPaidRes.metric.value === null || netIncomeRes.metric.value === null
+    dividendsPaidRes.metric.value === null || payoutEarnings.value === null
       ? missing(
           dividendsPaidRes.metric.period,
           cur,
-          "the cash payout basis needs both dividends paid and trailing net income",
+          "the cash payout basis needs both dividends paid and net income over the same period",
         )
-      : netIncomeRes.metric.value <= 0
-        ? missing(netIncomeRes.metric.period, cur, "trailing net income is not positive, so a payout ratio is not meaningful")
+      : payoutEarnings.value <= 0
+        ? missing(payoutEarnings.period, cur, "net income is not positive, so a payout ratio is not meaningful")
         : ok(
-            dividendsPaidRes.metric.value / netIncomeRes.metric.value,
-            `${dividendsPaidRes.metric.period} dividends paid ÷ ${netIncomeRes.metric.period} net income`,
+            dividendsPaidRes.metric.value / payoutEarnings.value,
+            `${dividendsPaidRes.metric.period} dividends paid ÷ ${payoutEarnings.period} net income`,
             dividendsPaidRes.metric.basis,
             cur,
-            ["dividends paid ÷ trailing net income"],
+            ["dividends paid ÷ net income over the same period"],
             { note: "cash basis: dividends actually paid in the window" },
           );
 
@@ -566,7 +663,6 @@ export function deriveMetrics(input: DeriveMetricsInput): DerivedMetrics {
     operatingIncome: operatingIncomeRes.metric,
     pretaxIncome: pretaxRes.metric,
     revenueGrowth,
-    revenueGrowthUsd,
     earningsGrowth,
     revenueGrowthFy,
     earningsGrowthFy,
@@ -618,6 +714,8 @@ export function deriveMetrics(input: DeriveMetricsInput): DerivedMetrics {
 function appendNote(metrics: DerivedMetrics, keys: (keyof DerivedMetrics)[], note: string): void {
   for (const key of keys) {
     const metric = metrics[key];
+    // Not every key is guaranteed to be emitted for every filer.
+    if (!metric) continue;
     metric.note = metric.note ? `${metric.note}; ${note}` : note;
   }
 }
@@ -656,33 +754,54 @@ function deriveRoe(
   currency: string,
   mixedBasisNote: string,
 ): Metric {
-  // The window must carry net income AND equity in all four quarters: the
-  // numerator spans the window and the denominator is averaged across it, so
-  // a quarter missing either one makes the ratio undefined rather than
-  // approximate.
-  const window = findWindow(quarters, ["netIncome", "equity"]);
+  // Preferred: every quarter of the window carries both legs, so the
+  // denominator is a four-point average across exactly the span the
+  // numerator covers.
+  //
+  // Fallback: the window carries net income throughout but a balance sheet
+  // only at some of its ends. That is not a degraded case, it is the normal
+  // one outside the US — SEBI requires an Indian company to publish a balance
+  // sheet twice a year, so no Indian company will ever have four, and return
+  // on equity was unreportable for all of them. Opening-and-closing average
+  // equity is the textbook denominator, not an approximation of one; two
+  // observations inside the window are enough, and the label says how many
+  // were used.
+  const window = findWindow(quarters, ["netIncome", "equity"]) ?? findWindow(quarters, ["netIncome"]);
   if (!window) {
     return missing(
       "TTM unavailable",
       currency,
-      "return on equity needs four contiguous quarters reporting both net income and shareholders' equity",
+      "return on equity needs four contiguous quarters reporting net income",
     );
   }
   if (window.mixedBasis) return missing(ttmLabel(window), currency, mixedBasisNote);
 
-  const equities = window.quarters.map((q) => q.equity as number);
+  const equities = window.quarters
+    .filter((q) => q.equity !== null)
+    .map((q) => q.equity as number);
+  if (equities.length < MIN_EQUITY_OBSERVATIONS) {
+    return missing(
+      ttmLabel(window),
+      currency,
+      `return on equity needs at least ${MIN_EQUITY_OBSERVATIONS} balance sheets inside the window to average; this one carries ${equities.length}`,
+    );
+  }
+
   const averageEquity = equities.reduce((a, b) => a + b, 0) / equities.length;
   if (averageEquity === 0) {
     return missing(ttmLabel(window), currency, "average shareholders' equity is zero");
   }
   return ok(
     sum(window, "netIncome") / averageEquity,
-    `${ttmLabel(window)}, average equity across the four quarters`,
+    `${ttmLabel(window)}, average of the ${equities.length} balance sheets filed in the window`,
     window.basis,
     currency,
     derivedFrom(window, ["net income", "shareholders' equity (averaged)"]),
   );
 }
+
+/** Below two, the denominator is a point in time rather than an average. */
+const MIN_EQUITY_OBSERVATIONS = 2;
 
 /**
  * A forward multiple, or nothing.

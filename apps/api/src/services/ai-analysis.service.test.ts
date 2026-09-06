@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { RateLimitError } from "openai";
 import { deriveFundamentals } from "./fundamentals/index.js";
 
 /** Eight contiguous March-quarter ends, oldest first. */
@@ -190,6 +191,8 @@ function fundamentalsInput() {
     months: 3 as const,
     basis: "consolidated" as const,
     currency: "INR",
+    source: "yahoo" as const,
+    filingDate: null,
     revenue: 2_000_000_000_000 + i * 50_000_000_000,
     totalIncome: 2_000_000_000_000 + i * 50_000_000_000,
     otherIncome: null,
@@ -670,12 +673,34 @@ describe("provider fallback", () => {
     expect(fallbackCreate).not.toHaveBeenCalled();
   });
 
-  it("throws the LAST provider's failure once the chain is exhausted", async () => {
+  it("once the chain is exhausted, prefers an infrastructure failure over a content one", async () => {
+    // The primary's plain network error is reported as api_error; the
+    // fallback then hands back empty content, reported as invalid_json. The
+    // infrastructure failure is the more actionable of the two — "invalid
+    // json" invites a pointless retry against a provider that was never
+    // reached in the first place — so it is the one surfaced, even though it
+    // was not the last provider tried.
     create.mockRejectedValue(new Error("upstream down"));
     fallbackCreate.mockResolvedValue({ choices: [{ message: { content: "" } }] });
 
     await expect(runSeriesAnalysis(CANDLES, CONTEXT)).rejects.toMatchObject({
-      code: "invalid_json",
+      code: "api_error",
+    });
+  });
+
+  it("surfaces a rate limit over a later content failure, wherever in the chain it happened", async () => {
+    // Reproduces a live incident: a free-tier provider's daily quota (20
+    // requests/day/model) is exhausted, the chain falls through to the one
+    // remaining provider, and that provider produces a genuine but unrelated
+    // schema mismatch. Reporting the schema failure told the user "try
+    // again, this is transient" for a problem that would not resolve on its
+    // own — the account was simply out of quota.
+    const rateLimitError = new RateLimitError(429, { message: "quota exceeded" }, "quota exceeded", new Headers());
+    create.mockRejectedValue(rateLimitError);
+    fallbackCreate.mockResolvedValue({ choices: [{ message: { content: "not json" } }] });
+
+    await expect(runSeriesAnalysis(CANDLES, CONTEXT)).rejects.toMatchObject({
+      code: "rate_limited",
     });
   });
 

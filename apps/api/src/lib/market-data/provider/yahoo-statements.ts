@@ -8,6 +8,7 @@ import type {
   RawSpot,
   RawStatements,
 } from "../statements.js";
+import { reconstructMissingQuarters } from "../statement-reconstruction.js";
 import {
   fetchYahoo,
   getCrumbSession,
@@ -210,6 +211,8 @@ function buildPeriod(
     months,
     basis,
     currency,
+    source: "yahoo",
+    filingDate: null,
     revenue,
     totalIncome,
     otherIncome,
@@ -386,138 +389,6 @@ function readForwardEstimates(modules: Modules): RawForwardEstimate[] {
 }
 
 // ---------------------------------------------------------------------------
-// Gap reconstruction
-// ---------------------------------------------------------------------------
-
-const RECONSTRUCTABLE_LINES = [
-  "revenue",
-  "totalIncome",
-  "costOfRevenue",
-  "grossProfit",
-  "operatingIncome",
-  "pretaxIncome",
-  "netIncome",
-  "operatingCashFlow",
-  "capex",
-  "dividendsPaid",
-] as const;
-
-/** An empty quarter, ready to be filled in. */
-function blankQuarter(periodEnd: string, template: RawPeriod): RawPeriod {
-  return {
-    periodEnd,
-    months: 3,
-    basis: template.basis,
-    currency: template.currency,
-    revenue: null,
-    totalIncome: null,
-    otherIncome: null,
-    costOfRevenue: null,
-    grossProfit: null,
-    operatingIncome: null,
-    pretaxIncome: null,
-    netIncome: null,
-    dilutedShares: null,
-    operatingCashFlow: null,
-    capex: null,
-    dividendsPaid: null,
-    equity: null,
-    totalDebt: null,
-    cash: null,
-    sharesOutstanding: null,
-    reconstructed: true,
-  };
-}
-
-/**
- * Fills a missing quarterly FLOW figure as (fiscal year − the other three
- * quarters of that year).
- *
- * Applied PER LINE, not per period. Yahoo's coverage is ragged within a
- * quarter as well as across quarters: TCS's 2025-09-30 arrives from
- * quoteSummary carrying revenue and net income but no operating income, no
- * cash flow and no dividend line, so a whole-period test would see the
- * quarter as present and leave four trailing metrics unresolvable. Per line,
- * the same fiscal year reconstructs each of those from the audited annual
- * figure.
- *
- * Only ever applied where exactly one quarter of a fiscal year lacks the
- * line — with two unknowns the system is underdetermined and nothing is
- * inferred.
- *
- * Flow lines only. A balance-sheet figure is a point-in-time stock and does
- * not sum across a year, so equity, debt, cash and share counts are never
- * reconstructed this way.
- *
- * Validated against the live endpoint: TCS's 2025-09-30 quarter reconstructs
- * to 657,990,000,000 of revenue and 120,750,000,000 of net income, which is
- * exactly what Yahoo's own quoteSummary reports for that quarter.
- */
-function reconstructMissingQuarters(
-  quarters: RawPeriod[],
-  annual: RawPeriod[],
-): RawPeriod[] {
-  if (annual.length === 0) return quarters;
-
-  const byEnd = new Map(quarters.map((q) => [q.periodEnd, q]));
-
-  for (const year of annual) {
-    const ends = quarterEndsOfFiscalYear(year.periodEnd);
-
-    for (const line of RECONSTRUCTABLE_LINES) {
-      const annualValue = year[line];
-      if (annualValue === null) continue;
-
-      const present: number[] = [];
-      const absent: string[] = [];
-      for (const end of ends) {
-        const value = byEnd.get(end)?.[line] ?? null;
-        if (value === null) absent.push(end);
-        else present.push(value);
-      }
-      if (absent.length !== 1 || present.length !== 3) continue;
-
-      const periodEnd = absent[0];
-      const quarter = byEnd.get(periodEnd) ?? blankQuarter(periodEnd, year);
-      quarter[line] = annualValue - present.reduce((sum, v) => sum + v, 0);
-      byEnd.set(periodEnd, quarter);
-    }
-  }
-
-  // Keep the derived other-income line consistent with whatever was filled.
-  for (const quarter of byEnd.values()) {
-    if (quarter.revenue !== null && quarter.totalIncome !== null) {
-      quarter.otherIncome =
-        quarter.totalIncome === quarter.revenue ? null : quarter.totalIncome - quarter.revenue;
-    }
-  }
-
-  return [...byEnd.values()].sort((a, b) => a.periodEnd.localeCompare(b.periodEnd));
-}
-
-/**
- * The four quarter-end dates of the fiscal year ending on `yearEnd`.
- *
- * Months are stepped from the FIRST of the month, never from the year-end
- * day. Stepping back three months from "2026-03-31" lands on 31 June, which
- * does not exist and silently rolls forward into July — every reconstructed
- * quarter would then be matched against the wrong period.
- */
-function quarterEndsOfFiscalYear(yearEnd: string): string[] {
-  const year = Number(yearEnd.slice(0, 4));
-  const month = Number(yearEnd.slice(5, 7));
-  if (!Number.isFinite(year) || !Number.isFinite(month)) return [];
-
-  const ends: string[] = [];
-  for (let back = 3; back >= 0; back--) {
-    // Day 0 of the following month is the last day of the month wanted.
-    const lastDay = new Date(Date.UTC(year, month - back * 3, 0));
-    ends.push(lastDay.toISOString().slice(0, 10));
-  }
-  return ends;
-}
-
-// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -599,6 +470,8 @@ export async function getRawStatements(instrumentKey: string): Promise<RawStatem
       months: 3,
       basis,
       currency: financialCurrency,
+      source: "yahoo",
+      filingDate: null,
       revenue: row.revenue,
       totalIncome: row.revenue,
       otherIncome: null,

@@ -134,7 +134,7 @@ SECTION GUIDANCE
 - capital_efficiency: return on equity, which is computed against AVERAGE equity across its window — say so. assessable is "no" when roe is missing.
 - dividend: both payout bases per the DIVIDENDS section. sustainability is copied from facts.
 - valuation: the trailing and forward multiples. The forward multiple names the fiscal year its estimate applies to — repeat that year whenever you cite it. read is copied from facts.valuationRead. Business quality and balance-sheet strength are NOT valuation evidence: a good business can still be fully priced.
-- historical_trend: the fiscal-year figures, oldest first. strongest_period and weakest_period are fiscal-year end dates verbatim, or null when no annual history is supplied.
+- historical_trend: read from payload.annualHistory — the audited fiscal years, oldest first, at most five. strongest_period and weakest_period are periodEnd values from that array verbatim, or null when annualHistory is empty. Never compare two entries whose basis differs. These are annual figures: never restate one as a trailing figure, and never treat the newest entry as current when a trailing metric covers a later window.
 
 CONFIDENCE
 
@@ -287,19 +287,24 @@ function serializeMetric(metric: Metric) {
  */
 function serializePayload(input: FundamentalsPromptInput): string {
   const { instrument, derived } = input;
-  const { profile, metrics, facts, dataNotes } = derived;
+  const { profile, metrics, facts, annualHistory, dataNotes } = derived;
 
+  // A key absent from metrics is absent from the payload too, rather than
+  // rendered as an empty string — a blank entry would read as a figure that
+  // failed to derive, which is a data gap and not the same thing at all.
   const display: Record<string, string> = {};
   for (const key of DISPLAY_AMOUNTS) {
-    display[key] = formatAmount(metrics[key].value, profile, metrics[key].currency);
+    const metric = metrics[key];
+    if (metric) display[key] = formatAmount(metric.value, profile, metric.currency);
   }
   for (const key of DISPLAY_PERCENTS) {
-    display[key] = formatPercent(metrics[key].value);
+    const metric = metrics[key];
+    if (metric) display[key] = formatPercent(metric.value);
   }
 
   const serializedMetrics: Record<string, unknown> = {};
-  for (const key of Object.keys(metrics) as DerivedMetricKey[]) {
-    serializedMetrics[key] = serializeMetric(metrics[key]);
+  for (const [key, metric] of Object.entries(metrics) as [DerivedMetricKey, Metric][]) {
+    serializedMetrics[key] = serializeMetric(metric);
   }
 
   const payload = {
@@ -317,6 +322,7 @@ function serializePayload(input: FundamentalsPromptInput): string {
     },
     metrics: serializedMetrics,
     facts,
+    annualHistory,
     display,
     dataNotes,
   };

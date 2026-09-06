@@ -1,4 +1,4 @@
-import type { DerivedFundamentals } from "@chartanalyzer/shared";
+import type { AnnualHistoryEntry, DerivedFundamentals } from "@chartanalyzer/shared";
 import type { RawStatements } from "../../lib/market-data/statements.js";
 import { fiscalYearEndMonthFromStatements } from "../../lib/market-data/provider/yahoo-statements.js";
 import { deriveMetrics } from "./derive-metrics.js";
@@ -37,10 +37,39 @@ export function deriveFundamentals(
     profile,
     metrics,
     facts: buildFacts(metrics),
+    annualHistory: buildAnnualHistory(statements),
     dataNotes,
     findings,
     quartersUsed: statements.quarterly.map((q) => q.periodEnd),
   };
+}
+
+/** How many fiscal years of history a report reasons over. */
+const ANNUAL_HISTORY_YEARS = 5;
+
+/**
+ * The recent audited fiscal years, for multi-year trend reading.
+ *
+ * Bounded rather than exhaustive. SEC EDGAR supplies eighteen years for NVDA
+ * and the oldest of those are the least comparable — a filer changes the tag
+ * it reports a line under between taxonomy versions, and restates — so the
+ * window stops at five years, which is what a cyclical read actually needs.
+ *
+ * A year reporting neither revenue nor net income is dropped: it carries no
+ * trend and would only invite the model to describe a gap as a downturn.
+ */
+function buildAnnualHistory(statements: RawStatements): AnnualHistoryEntry[] {
+  return statements.annual
+    .filter((year) => year.revenue !== null || year.netIncome !== null)
+    .slice(-ANNUAL_HISTORY_YEARS)
+    .map((year) => ({
+      periodEnd: year.periodEnd,
+      basis: year.basis,
+      revenue: year.revenue,
+      netIncome: year.netIncome,
+      operatingIncome: year.operatingIncome,
+      operatingCashFlow: year.operatingCashFlow,
+    }));
 }
 
 export { deriveMetrics } from "./derive-metrics.js";

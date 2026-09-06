@@ -101,6 +101,8 @@ export function quarter(periodEnd: string, over: Partial<RawPeriod> = {}): RawPe
     months: 3,
     basis: "consolidated",
     currency: "INR",
+    source: "yahoo",
+    filingDate: null,
     revenue: null,
     totalIncome: null,
     otherIncome: null,

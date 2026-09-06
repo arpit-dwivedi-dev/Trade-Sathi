@@ -598,7 +598,7 @@ async function runAnalysisCompletion<T>(
     );
   }
 
-  let lastFailure = new AnalysisFailure("api_error", "The AI provider request failed");
+  const failures: AnalysisFailure[] = [];
 
   for (const [index, provider] of chain.entries()) {
     const outcome = await runOnProvider(provider, messages, validate);
@@ -615,7 +615,7 @@ async function runAnalysisCompletion<T>(
       return outcome;
     }
 
-    lastFailure = outcome;
+    failures.push(outcome);
     logger.error("ai provider exhausted, falling back", {
       provider: provider.name,
       code: outcome.code,
@@ -623,7 +623,36 @@ async function runAnalysisCompletion<T>(
     });
   }
 
-  throw lastFailure;
+  throw mostDiagnosticFailure(failures);
+}
+
+/**
+ * When every provider in the chain has failed, which failure to surface.
+ *
+ * Not simply the last one. Observed in production: a rate-limited Gemini key
+ * (its free tier caps each model at 20 requests/day) exhausts two of three
+ * Gemini providers in the chain within the same request, the chain falls
+ * through to a lone, unaffected provider, and THAT one produces one genuine
+ * schema mismatch — so the code reported to the user is "schema_validation"
+ * ("the analysis came back in an unexpected format") even though the real,
+ * actionable story is that the account is out of quota. The last code in a
+ * fallback chain describes whichever provider happened to run out of
+ * providers to hand off to, not the failure most worth acting on.
+ *
+ * `provider_auth` and `rate_limited` are operator-actionable and never
+ * transient in the way a retry advises; either one anywhere in the chain is
+ * the honest headline. `api_error` is next: still an infrastructure problem,
+ * not a content one. `schema_validation`/`invalid_json` are reported only
+ * when nothing else explains the run — which is also the one case where "try
+ * again" is actually good advice.
+ */
+function mostDiagnosticFailure(failures: AnalysisFailure[]): AnalysisFailure {
+  const priority: ErrorCode[] = ["provider_auth", "rate_limited", "api_error"];
+  for (const code of priority) {
+    const match = failures.find((f) => f.code === code);
+    if (match) return match;
+  }
+  return failures[failures.length - 1];
 }
 
 /*

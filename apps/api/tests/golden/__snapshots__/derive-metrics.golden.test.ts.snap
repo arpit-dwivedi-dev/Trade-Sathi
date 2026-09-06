@@ -157,15 +157,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for a
       "reliability": "ok",
       "value": 0.0642551,
     },
-    "revenueGrowthUsd": {
-      "basis": "unknown",
-      "period": "TTM vs prior TTM unavailable",
-      "reliability": "missing",
-      "value": null,
-    },
     "roe": {
       "basis": "unknown",
-      "period": "TTM 2025-07-01..2026-06-30, average equity across the four quarters",
+      "period": "TTM 2025-07-01..2026-06-30, average of the 4 balance sheets filed in the window",
       "reliability": "ok",
       "value": 1.37184,
     },
@@ -213,9 +207,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for i
   "metrics": {
     "capex": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026)",
+      "reliability": "ok",
+      "value": 109190000000,
     },
     "dilutedShares": {
       "basis": "unknown",
@@ -249,9 +243,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for i
     },
     "fcf": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026)",
+      "reliability": "ok",
+      "value": 75540000000,
     },
     "forwardPe": {
       "basis": "unknown",
@@ -303,9 +297,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for i
     },
     "operatingCashFlow": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026)",
+      "reliability": "ok",
+      "value": 184730000000,
     },
     "operatingIncome": {
       "basis": "unknown",
@@ -362,17 +356,11 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for i
       "reliability": "ok",
       "value": 0.0306747,
     },
-    "revenueGrowthUsd": {
-      "basis": "unknown",
-      "period": "TTM vs prior TTM unavailable",
-      "reliability": "missing",
-      "value": null,
-    },
     "roe": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "TTM 2025-07-01..2026-06-30, average of the 2 balance sheets filed in the window",
+      "reliability": "ok",
+      "value": -0.632826,
     },
     "totalCash": {
       "basis": "unknown",
@@ -564,15 +552,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for i
       "reliability": "ok",
       "value": 0.0457021,
     },
-    "revenueGrowthUsd": {
-      "basis": "unknown",
-      "period": "TTM vs prior TTM unavailable",
-      "reliability": "missing",
-      "value": null,
-    },
     "roe": {
       "basis": "unknown",
-      "period": "TTM 2025-07-01..2026-06-30, average equity across the four quarters",
+      "period": "TTM 2025-07-01..2026-06-30, average of the 4 balance sheets filed in the window",
       "reliability": "ok",
       "value": 0.330155,
     },
@@ -764,15 +746,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for j
       "reliability": "ok",
       "value": 0.0604812,
     },
-    "revenueGrowthUsd": {
-      "basis": "unknown",
-      "period": "TTM vs prior TTM unavailable",
-      "reliability": "missing",
-      "value": null,
-    },
     "roe": {
       "basis": "unknown",
-      "period": "TTM 2025-07-01..2026-06-30, average equity across the four quarters",
+      "period": "TTM 2025-07-01..2026-06-30, average of the 4 balance sheets filed in the window",
       "reliability": "ok",
       "value": 0.257351,
     },
@@ -964,15 +940,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for n
       "reliability": "ok",
       "value": 0.654735,
     },
-    "revenueGrowthUsd": {
-      "basis": "unknown",
-      "period": "TTM vs prior TTM unavailable",
-      "reliability": "missing",
-      "value": null,
-    },
     "roe": {
       "basis": "unknown",
-      "period": "TTM 2025-05-02..2026-04-30, average equity across the four quarters",
+      "period": "TTM 2025-05-02..2026-04-30, average of the 4 balance sheets filed in the window",
       "reliability": "ok",
       "value": 1.11657,
     },
@@ -1019,9 +989,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for r
   "metrics": {
     "capex": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026)",
+      "reliability": "ok",
+      "value": 2345590000,
     },
     "dilutedShares": {
       "basis": "unknown",
@@ -1031,9 +1001,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for r
     },
     "dividendsPaid": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026)",
+      "reliability": "ok",
+      "value": 612645000,
     },
     "earningsGrowth": {
       "basis": "unknown",
@@ -1056,9 +1026,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for r
     },
     "fcf": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026)",
+      "reliability": "ok",
+      "value": 73435900000,
     },
     "forwardPe": {
       "basis": "unknown",
@@ -1110,9 +1080,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for r
     },
     "operatingCashFlow": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026)",
+      "reliability": "ok",
+      "value": 75781500000,
     },
     "operatingIncome": {
       "basis": "unknown",
@@ -1128,9 +1098,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for r
     },
     "payoutRatioCash": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026) dividends paid ÷ FY2026 (Apr 2025 – Mar 2026) net income",
+      "reliability": "ok",
+      "value": 0.0696945,
     },
     "payoutRatioDeclared": {
       "basis": "unknown",
@@ -1169,15 +1139,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for r
       "reliability": "ok",
       "value": 0.00847526,
     },
-    "revenueGrowthUsd": {
-      "basis": "unknown",
-      "period": "TTM vs prior TTM unavailable",
-      "reliability": "missing",
-      "value": null,
-    },
     "roe": {
       "basis": "unknown",
-      "period": "TTM unavailable",
+      "period": "TTM 2025-07-01..2026-06-30",
       "reliability": "missing",
       "value": null,
     },
@@ -1371,17 +1335,11 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for t
       "reliability": "ok",
       "value": 0.0458124,
     },
-    "revenueGrowthUsd": {
-      "basis": "unknown",
-      "period": "TTM vs prior TTM unavailable",
-      "reliability": "missing",
-      "value": null,
-    },
     "roe": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "TTM 2025-07-01..2026-06-30, average of the 2 balance sheets filed in the window",
+      "reliability": "ok",
+      "value": 0.451182,
     },
     "totalCash": {
       "basis": "unknown",
@@ -1423,9 +1381,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for t
   "metrics": {
     "capex": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026)",
+      "reliability": "ok",
+      "value": 17628500000,
     },
     "dilutedShares": {
       "basis": "unknown",
@@ -1435,9 +1393,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for t
     },
     "dividendsPaid": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026)",
+      "reliability": "ok",
+      "value": 1774700000,
     },
     "earningsGrowth": {
       "basis": "unknown",
@@ -1460,9 +1418,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for t
     },
     "fcf": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026)",
+      "reliability": "ok",
+      "value": 9047700000,
     },
     "forwardPe": {
       "basis": "unknown",
@@ -1514,9 +1472,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for t
     },
     "operatingCashFlow": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026)",
+      "reliability": "ok",
+      "value": 26676200000,
     },
     "operatingIncome": {
       "basis": "unknown",
@@ -1532,9 +1490,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for t
     },
     "payoutRatioCash": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "FY2026 (Apr 2025 – Mar 2026) dividends paid ÷ FY2026 (Apr 2025 – Mar 2026) net income",
+      "reliability": "ok",
+      "value": 0.103201,
     },
     "payoutRatioDeclared": {
       "basis": "unknown",
@@ -1573,17 +1531,11 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for t
       "reliability": "ok",
       "value": 0.176392,
     },
-    "revenueGrowthUsd": {
-      "basis": "unknown",
-      "period": "TTM vs prior TTM unavailable",
-      "reliability": "missing",
-      "value": null,
-    },
     "roe": {
       "basis": "unknown",
-      "period": "TTM unavailable",
-      "reliability": "missing",
-      "value": null,
+      "period": "TTM 2025-07-01..2026-06-30, average of the 2 balance sheets filed in the window",
+      "reliability": "ok",
+      "value": 0.276469,
     },
     "totalCash": {
       "basis": "unknown",
@@ -1773,15 +1725,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for t
       "reliability": "ok",
       "value": -0.029307,
     },
-    "revenueGrowthUsd": {
-      "basis": "unknown",
-      "period": "TTM vs prior TTM unavailable",
-      "reliability": "missing",
-      "value": null,
-    },
     "roe": {
       "basis": "unknown",
-      "period": "TTM 2025-07-01..2026-06-30, average equity across the four quarters",
+      "period": "TTM 2025-07-01..2026-06-30, average of the 4 balance sheets filed in the window",
       "reliability": "ok",
       "value": 0.0457066,
     },
@@ -1973,15 +1919,9 @@ exports[`deriveMetrics golden set > derives stable, fully-labelled metrics for w
       "reliability": "ok",
       "value": 0.0472521,
     },
-    "revenueGrowthUsd": {
-      "basis": "unknown",
-      "period": "TTM vs prior TTM unavailable",
-      "reliability": "missing",
-      "value": null,
-    },
     "roe": {
       "basis": "unknown",
-      "period": "TTM 2025-05-02..2026-04-30, average equity across the four quarters",
+      "period": "TTM 2025-05-02..2026-04-30, average of the 4 balance sheets filed in the window",
       "reliability": "ok",
       "value": 0.239231,
     },

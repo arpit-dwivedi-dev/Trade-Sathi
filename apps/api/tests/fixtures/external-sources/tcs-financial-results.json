@@ -1,0 +1,112 @@
+[
+  {
+    "symbol": "TCS",
+    "consolidated": "Consolidated",
+    "cumulative": "Non-cumulative",
+    "format": "New",
+    "fromDate": "01-Oct-2024",
+    "toDate": "31-Dec-2024",
+    "filingDate": "09-Jan-2025 21:39",
+    "xbrl": "FIXTURE_XBRL/INDAS_117182_1341298_09012025093940.xml",
+    "relatingTo": "Third Quarter"
+  },
+  {
+    "symbol": "TCS",
+    "consolidated": "Consolidated",
+    "cumulative": "Non-cumulative",
+    "format": "New",
+    "fromDate": "01-Jul-2024",
+    "toDate": "30-Sep-2024",
+    "filingDate": "10-Oct-2024 18:59",
+    "xbrl": "FIXTURE_XBRL/INDAS_112733_1265368_10102024065944.xml",
+    "relatingTo": "Second Quarter"
+  },
+  {
+    "symbol": "TCS",
+    "consolidated": "Consolidated",
+    "cumulative": "Non-cumulative",
+    "format": "New",
+    "fromDate": "01-Apr-2024",
+    "toDate": "30-Jun-2024",
+    "filingDate": "11-Jul-2024 20:10",
+    "xbrl": "FIXTURE_XBRL/INDAS_108962_1181103_11072024081006.xml",
+    "relatingTo": "First Quarter"
+  },
+  {
+    "symbol": "TCS",
+    "consolidated": "Consolidated",
+    "cumulative": "Non-cumulative",
+    "format": "New",
+    "fromDate": "01-Jan-2024",
+    "toDate": "31-Mar-2024",
+    "filingDate": "12-Apr-2024 21:01",
+    "xbrl": "FIXTURE_XBRL/INDAS_104549_1090527_12042024090154.xml",
+    "relatingTo": "Fourth Quarter"
+  },
+  {
+    "symbol": "TCS",
+    "consolidated": "Consolidated",
+    "cumulative": "Non-cumulative",
+    "format": "New",
+    "fromDate": "01-Oct-2023",
+    "toDate": "31-Dec-2023",
+    "filingDate": "11-Jan-2024 20:39",
+    "xbrl": "FIXTURE_XBRL/INDAS_101016_1017393_11012024083939.xml",
+    "relatingTo": "Third Quarter"
+  },
+  {
+    "symbol": "TCS",
+    "consolidated": "Consolidated",
+    "cumulative": "Non-cumulative",
+    "format": "New",
+    "fromDate": "01-Jul-2023",
+    "toDate": "30-Sep-2023",
+    "filingDate": "11-Oct-2023 22:28",
+    "xbrl": "FIXTURE_XBRL/INDAS_97534_948104_11102023102856.xml",
+    "relatingTo": "Second Quarter"
+  },
+  {
+    "symbol": "TCS",
+    "consolidated": "Consolidated",
+    "cumulative": "Non-cumulative",
+    "format": "New",
+    "fromDate": "01-Apr-2023",
+    "toDate": "30-Jun-2023",
+    "filingDate": "12-Jul-2023 20:45",
+    "xbrl": "FIXTURE_XBRL/INDAS_94156_882120_12072023084527.xml",
+    "relatingTo": "First Quarter"
+  },
+  {
+    "symbol": "TCS",
+    "consolidated": "Consolidated",
+    "cumulative": "Non-cumulative",
+    "format": "New",
+    "fromDate": "01-Jan-2023",
+    "toDate": "31-Mar-2023",
+    "filingDate": "13-Apr-2023 12:45",
+    "xbrl": "FIXTURE_XBRL/INDAS_90701_817055_13042023124544.xml",
+    "relatingTo": "Fourth Quarter"
+  },
+  {
+    "symbol": "TCS",
+    "consolidated": "Consolidated",
+    "cumulative": "Non-cumulative",
+    "format": "New",
+    "fromDate": "01-Oct-2022",
+    "toDate": "31-Dec-2022",
+    "filingDate": "10-Jan-2023 15:59",
+    "xbrl": "FIXTURE_XBRL/INDAS_87395_760595_10012023035955_WEB.xml",
+    "relatingTo": "Third Quarter"
+  },
+  {
+    "symbol": "TCS",
+    "consolidated": "Consolidated",
+    "cumulative": "Non-cumulative",
+    "format": "New",
+    "fromDate": "01-Jul-2022",
+    "toDate": "30-Sep-2022",
+    "filingDate": "11-Oct-2022 14:29",
+    "xbrl": "FIXTURE_XBRL/INDAS_755388_5244_11102022142903_WEB.xml",
+    "relatingTo": "Second Quarter"
+  }
+]

@@ -76,7 +76,32 @@ describe("eight contiguous quarters", () => {
     const metrics = derive(syntheticStatements(eightGoodQuarters()));
     // Net income 140+150+160+170 = 620; equity 2400,2500,2600,2700 avg 2550.
     expect(metrics.roe.value).toBeCloseTo(620 / 2_550, 10);
-    expect(metrics.roe.period).toContain("average equity across the four quarters");
+    expect(metrics.roe.period).toContain("average of the 4 balance sheets");
+  });
+
+  it("averages the balance sheets a half-yearly filer actually publishes", () => {
+    // SEBI requires an Indian company to file a balance sheet twice a year,
+    // so four quarters never carry four of them and return on equity was
+    // unreportable for every Indian company. Opening-and-closing average
+    // equity is the textbook denominator, not a fallback.
+    const quarters = eightGoodQuarters().map((q, i) =>
+      i % 2 === 0 ? { ...q, equity: null } : q,
+    );
+    const metrics = derive(syntheticStatements(quarters));
+
+    // Equity survives on the 2nd and 4th quarters of the window: 2500, 2700.
+    expect(metrics.roe.value).toBeCloseTo(620 / 2_600, 10);
+    expect(metrics.roe.period).toContain("average of the 2 balance sheets");
+  });
+
+  it("refuses return on equity on a single balance sheet, which is not an average", () => {
+    const quarters = eightGoodQuarters().map((q, i) =>
+      i === 7 ? q : { ...q, equity: null },
+    );
+    const metrics = derive(syntheticStatements(quarters));
+
+    expect(metrics.roe.reliability).toBe("missing");
+    expect(metrics.roe.note).toMatch(/at least 2 balance sheets/);
   });
 });
 

@@ -103,8 +103,11 @@ describe("TCS — TTM ending 2026-06-30, INR millions, filed values", () => {
     // the gap is currency, not business. Whenever a growth figure IS
     // derivable for a non-USD reporter it must carry that caveat.
     expect(profile.reportingCurrency).toBe("INR");
-    expect(metrics.revenueGrowthUsd.reliability).toBe("missing");
-    expect(metrics.revenueGrowthUsd.note).toMatch(/currency effect on growth cannot be isolated/);
+    for (const key of ["revenueGrowth", "earningsGrowth"] as const) {
+      if (metrics[key].value === null) continue;
+      expect(metrics[key].fxUnadjusted).toBe(true);
+      expect(metrics[key].note).toMatch(/FX effects not isolated/);
+    }
   });
 
   it("resolves an Ind AS reporting profile from properties, not country", () => {
