@@ -10,7 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
-import type { ProfileDetails, SurveyAnswers, SurveyStatus } from '@chartanalyzer/shared';
+import type { ProfileDetails, SessionGeo, SurveyAnswers, SurveyStatus } from '@chartanalyzer/shared';
 
 import { AuthService } from '../../core/auth.service';
 import { ProfileService } from './profile.service';
@@ -80,6 +80,29 @@ export class AccountPage implements OnInit {
   protected readonly profileError = signal<string | null>(null);
   protected readonly profileSaved = signal(false);
 
+  protected readonly sessionGeo = signal<SessionGeo | null>(null);
+  /**
+   * geoip returns an ISO 3166-1 alpha-2 code ("IN"); Intl.DisplayNames turns
+   * that into the name a user recognizes ("India") without a data dependency.
+   * Falls back to the raw code if the runtime can't resolve it.
+   */
+  protected readonly sessionCountryName = computed(() => {
+    const code = this.sessionGeo()?.country;
+    if (!code) return null;
+    try {
+      return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code;
+    } catch {
+      return code;
+    }
+  });
+  protected readonly sessionLocationLabel = computed(() => {
+    const geo = this.sessionGeo();
+    if (!geo) return null;
+    const country = this.sessionCountryName();
+    if (!country) return null;
+    return geo.city ? `${geo.city}, ${country}` : country;
+  });
+
   protected readonly surveyStatus = signal<SurveyStatus | null>(null);
   protected readonly surveyLoading = signal(true);
   protected readonly surveyAnswers = signal<SurveyAnswers>({});
@@ -90,6 +113,11 @@ export class AccountPage implements OnInit {
   ngOnInit(): void {
     void this.loadProfile();
     void this.loadSurvey();
+    void this.loadSessionGeo();
+  }
+
+  private async loadSessionGeo(): Promise<void> {
+    this.sessionGeo.set(await this.profileService.getSessionGeo());
   }
 
   private async loadProfile(): Promise<void> {

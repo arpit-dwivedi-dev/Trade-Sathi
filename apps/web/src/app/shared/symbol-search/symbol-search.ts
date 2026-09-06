@@ -22,6 +22,13 @@ import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
 import { MARKETS, type Instrument, type MarketCode } from '@chartanalyzer/shared';
 import { AuthService } from '../../core/auth.service';
+import { ProfileService } from '../../features/account/profile.service';
+
+/** geoip country code -> the market a trader from that country almost always means. */
+const MARKET_BY_COUNTRY: Record<string, MarketCode> = {
+  IN: 'NSE',
+  US: 'NASDAQ',
+};
 
 const SEARCH_DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
@@ -66,6 +73,7 @@ export interface SymbolSelection {
 export class SymbolSearch {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
+  private readonly profileService = inject(ProfileService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly instrumentSelected = output<Instrument>();
@@ -94,6 +102,23 @@ export class SymbolSearch {
         this.searching.set(false);
         this.searched.set(true);
       });
+
+    void this.applyGeoDefaultMarket();
+  }
+
+  /**
+   * Picks the market a trader from the detected region almost certainly
+   * means, so they don't have to switch it manually every session. Only
+   * applies before the user has typed/searched anything — a lookup that
+   * resolves after they've already started shouldn't yank the market out
+   * from under a query in progress.
+   */
+  private async applyGeoDefaultMarket(): Promise<void> {
+    const geo = await this.profileService.getSessionGeo();
+    const inferred = geo?.country ? MARKET_BY_COUNTRY[geo.country] : undefined;
+    if (inferred && this.queryInput().trim().length === 0) {
+      this.market.set(inferred);
+    }
   }
 
   protected onQueryChange(value: string): void {

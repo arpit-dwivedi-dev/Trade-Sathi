@@ -36,6 +36,12 @@
             <span class="acct-key">Sign-in method</span>
             <span class="tnum acct-val">Email &amp; password</span>
           </div>
+          @if (sessionLocationLabel(); as location) {
+            <div class="lvl acct-row">
+              <span class="acct-key">Currently logged in from</span>
+              <span class="tnum acct-val">{{ location }}</span>
+            </div>
+          }
         </div>
 
         <div class="acct-form">

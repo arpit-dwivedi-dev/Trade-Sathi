@@ -16,8 +16,13 @@ import { meRouter } from "./routes/me.route.js";
 import { surveyRouter } from "./routes/survey.route.js";
 import { watchlistRouter } from "./routes/watchlist.route.js";
 import { webhooksRouter } from "./routes/webhooks.route.js";
+import { resolveGeo } from "./middleware/geo.js";
 
 const app = express();
+
+// Needed for resolveGeo to read the real client IP from X-Forwarded-For
+// rather than the load balancer's address, when the API sits behind one.
+app.set("trust proxy", true);
 
 // Mounted BEFORE the global JSON parser. The Razorpay webhook route verifies
 // its signature over the exact received bytes, so it brings its own
@@ -26,6 +31,7 @@ const app = express();
 app.use(webhooksRouter);
 
 app.use(express.json());
+app.use(resolveGeo);
 app.use(healthRouter);
 app.use(meRouter);
 app.use(analysesRouter);

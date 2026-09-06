@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import type {
   ProfileDetails,
   ProfileUpdatePayload,
+  SessionGeo,
   SurveyAnswers,
   SurveyStatus,
   SurveySubmitOutcome,
@@ -78,6 +79,21 @@ export class ProfileService {
             ? 'Please check the highlighted fields and try again.'
             : "Couldn't save your details. Please try again.",
       };
+    }
+  }
+
+  /** The region GET /api/me resolved from the caller's IP on this request. */
+  async getSessionGeo(): Promise<SessionGeo | null> {
+    const headers = await this.authHeaders();
+    if (!headers) return null;
+    try {
+      const response = await firstValueFrom(
+        this.http.get<{ geo: SessionGeo | null }>('/api/me', { headers }),
+      );
+      return response.geo;
+    } catch (cause) {
+      console.warn('failed to load session geo', cause);
+      return null;
     }
   }
 

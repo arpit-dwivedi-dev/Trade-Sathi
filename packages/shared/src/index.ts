@@ -212,6 +212,15 @@ export interface ProfileDetails {
  * Fields PATCH /api/me/profile accepts, all optional — only the ones present
  * are updated. An empty string clears a field; an absent key leaves it alone.
  */
+/** The region GET /api/me resolves from the caller's IP for the current request. */
+export interface SessionGeo {
+  ip: string;
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  timezone: string | null;
+}
+
 export interface ProfileUpdatePayload {
   fullName?: string;
   phoneNumber?: string;
