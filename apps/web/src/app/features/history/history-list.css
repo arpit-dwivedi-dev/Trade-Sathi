@@ -22,30 +22,58 @@
   padding: var(--s4) var(--s4) var(--s12);
 }
 
-/* `overflow: clip` rather than `hidden`: both round the corners over the
-   table's own square edges, but `hidden` would make this a scroll container
-   and capture the sticky header, re-creating the clipped-row problem one
-   level down. `clip` does not scroll, so the header keeps sticking to the
-   page. */
+/* overflow-y stays `clip` rather than `hidden`: both round the corners over
+   the table's own square edges, but `hidden` would make this a scroll
+   container on BOTH axes and capture the sticky header, re-creating the
+   clipped-row problem one level down. `clip` does not scroll, so the header
+   keeps sticking to the page.
+
+   overflow-x is `auto` — unconditionally, not just under the narrow-screen
+   breakpoint below. The old max-width:900px cutover assumed the *viewport*
+   was the constraint, but the real constraint is the content column left
+   over after the --nav-w sidebar, which is narrower than the viewport by up
+   to 264px. Between roughly 900px and 1230px wide, that left the table's
+   own min-width wider than the available space with nowhere for the excess
+   to go: `clip` on both axes simply erased the Status/Actions columns with
+   no scrollbar to reach them. Setting only overflow-x does not trigger the
+   usual "visible forces the other axis to auto" coercion, because neither
+   axis here is `visible` — so vertical stays non-scrolling (page-level
+   scroll, sticky header intact) while horizontal gets a real escape valve at
+   every viewport width, not just the phone-width case. */
 .history-table-wrap {
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--sh-1);
-  overflow: clip;
+  overflow-x: auto;
+  overflow-y: clip;
 }
 
 /* Fixed layout with declared column widths, so the columns do not re-measure
    themselves every time a page of rows with longer tickers arrives — with
    `auto` the whole grid shifted under the user mid-scroll. Symbol is the one
-   column left to absorb the slack; min-width keeps the fixed columns from
-   crushing it, and the wrapper scrolls sideways below that (see the
-   narrow-screen block at the bottom). */
+   column left to absorb the slack; every other column below carries an
+   explicit width so it cannot silently join Symbol in splitting the leftover
+   space (table-layout: fixed treats any column with no declared width as
+   flexible, same as Symbol — Structure and Setup used to have no rule here
+   at all and so were quietly eating a third of Symbol's share each). The
+   900px floor is the sum of those explicit widths (~708px) plus a working
+   minimum for Symbol; the wrapper above scrolls sideways past that. */
 .history-table {
   background: transparent;
-  min-width: 970px;
+  min-width: 900px;
   table-layout: fixed;
   width: 100%;
+}
+
+/* Material's default 16px cell padding was sized for a table with far fewer
+   columns than this one; at 8 columns wide it was spending more on chrome
+   than several columns needed for their own content. Tightened uniformly
+   rather than per-column, which is also plainly what "compact" means for a
+   table: less padding, not smaller type. */
+.history-table th.mat-mdc-header-cell,
+.history-table td.mat-mdc-cell {
+  padding: 0 10px;
 }
 
 .history-table th.mat-mdc-header-cell {
@@ -76,45 +104,48 @@
   color: var(--tx);
 }
 
-.mat-column-select {
-  width: 44px;
-}
-
-.mat-column-chart {
+.mat-column-logo {
   padding-right: 0;
-  width: 76px;
-}
-
-.mat-column-analyzed {
-  width: 128px;
+  text-align: center;
+  width: 44px;
 }
 
 .mat-column-symbol {
   width: auto;
 }
 
-.mat-column-asset {
-  width: 108px;
+/* Structure and Setup used to carry no width rule at all, which under
+   table-layout: fixed makes a column just as flexible as Symbol's declared
+   `auto` — the three of them silently split whatever space was left in equal
+   thirds instead of Symbol getting the lion's share. Explicit widths here are
+   what makes Symbol the only flexible column again. */
+.mat-column-structure {
+  width: 104px;
 }
 
-.mat-column-tf {
-  width: 72px;
-}
-
-.mat-column-trend {
+.mat-column-setup {
   width: 112px;
 }
 
-.mat-column-direction {
-  width: 124px;
+/* Wide enough for the longest spelled-out label from TimeframeLabelPipe
+   ("15 Minutes") on one line — the previous 72px was sized for the old raw
+   codes ("m15") and wrapped the pipe's longer text across two lines. Also
+   wide enough for its own uppercase header ("TIMEFRAME") to clear the header
+   cell's default ellipsis, same reasoning as Structure's width above. */
+.mat-column-tf {
+  width: 100px;
+}
+
+.mat-column-analyzed {
+  width: 116px;
 }
 
 .mat-column-status {
-  width: 132px;
+  width: 120px;
 }
 
 .mat-column-actions {
-  width: 124px;
+  width: 112px;
 }
 
 /* The actions cell itself gets nothing beyond its width above. `display:
@@ -196,29 +227,17 @@
   text-transform: capitalize;
 }
 
+/* A tinted chip rather than the plain colored text .dir gives it elsewhere —
+   this is the one place a directional call is scanned down a whole column at
+   once, where a filled pill reads faster than color alone. Same 10%/22%
+   tint formula as the shared .st status pill, borrowed via currentColor so it
+   still rides whichever of d-long/d-short/d-hold is doing the coloring. */
 .history-dir {
-  font-size: var(--t-sm);
-}
-
-/* Thumbnail border carries the same long/short/hold tint as the setup cell's
-   text. app-chart-image reads --chart-thumb-border itself; the tone class
-   only sets that variable, so no ::ng-deep into the child's template is
-   needed. */
-.history-thumb {
-  display: block;
-  line-height: 0;
-}
-
-.history-thumb-long {
-  --chart-thumb-border: var(--up);
-}
-
-.history-thumb-short {
-  --chart-thumb-border: var(--down);
-}
-
-.history-thumb-hold {
-  --chart-thumb-border: var(--flat);
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: var(--r-pill);
+  font-size: var(--t-2xs);
+  padding: 4px 9px 4px 7px;
 }
 
 .history-unknown {
@@ -346,21 +365,6 @@
 }
 
 @media (max-width: 900px) {
-  /* Below the table's 860px floor the wrapper scrolls sideways rather than
-     letting the columns reflow into each other. This does make the wrapper a
-     scroll container, which takes the sticky header with it — an acceptable
-     trade on a phone, where the header would be eating scarce vertical space
-     anyway. */
-  .history-table-wrap {
-    overflow-x: auto;
-  }
-
-  /* Sticking inside the wrapper's own scrollbox now, which has no page
-     padding to compensate for. */
-  .history-table th.mat-mdc-header-cell.mat-mdc-table-sticky {
-    top: 0 !important;
-  }
-
   /* The loading skeleton still uses the hand-rolled .tr grid, so it gets its
      own narrow-screen collapse. */
   .tr {
@@ -389,13 +393,11 @@
 }
 
 /* ── provenance chips inside the symbol cell ────────────── */
-/* The cell is a logo beside a text stack: ticker, company name, then tags. */
-.sym {
-  align-items: center;
-  display: flex;
-  gap: var(--s2);
-}
-
+/* The logo lives in its own column now; this is just the text stack —
+   company name (or ticker, unresolved), the ticker underneath it, then
+   provenance tags. `.sym` here is the shared ticker style (global, in
+   components.css: monospace, tracked open) applied to the whole stack via
+   inheritance, same as it always was. */
 .history-sym-text-wrap {
   align-items: flex-start;
   display: flex;
@@ -408,10 +410,21 @@
   max-width: 100%;
 }
 
+/* Ticker + provenance tag together, so a resolved company name only ever
+   costs the cell one extra line (name, then this), not two. */
+.history-sub-line {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .history-company-name {
   color: var(--tx-3);
+  flex: 0 1 auto;
   font-size: var(--t-2xs);
-  max-width: 100%;
+  min-width: 0;
 }
 
 .history-logo {
@@ -436,7 +449,8 @@
 .history-tags {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
+  flex: none;
+  flex-wrap: nowrap;
   gap: 4px;
 }
 

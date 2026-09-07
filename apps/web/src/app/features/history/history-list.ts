@@ -12,7 +12,6 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
@@ -48,7 +47,6 @@ import {
     MatButtonModule,
     MatButtonToggleModule,
     MatCardModule,
-    MatCheckboxModule,
     MatIconModule,
     MatProgressSpinnerModule,
     MatTableModule,
@@ -64,8 +62,7 @@ export class HistoryList implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
 
   protected readonly columns = [
-    'select',
-    'chart',
+    'logo',
     'symbol',
     'structure',
     'setup',
@@ -75,12 +72,6 @@ export class HistoryList implements OnInit, OnDestroy {
     'actions',
   ];
 
-  /** ids checked for a batch delete. Cleared on filter change and after a delete completes. */
-  protected readonly selectedIds = signal<Set<string>>(new Set());
-  protected readonly allSelected = computed(() => {
-    const rows = this.rows();
-    return rows.length > 0 && rows.every((row) => this.selectedIds().has(row.id));
-  });
   protected readonly deleting = signal(false);
   protected readonly deleteError = signal<string | null>(null);
 
@@ -300,55 +291,22 @@ export class HistoryList implements OnInit, OnDestroy {
     this.detail.set(null);
     this.rows.set([]);
     this.nextCursor.set(null);
-    this.selectedIds.set(new Set());
     this.deleteError.set(null);
     await this.loadFirstPage();
   }
 
-  /** Toggles one row's checkbox. Propagation to the row's own expand handler is stopped in the template. */
-  protected toggleSelect(row: HistoryRow): void {
-    this.selectedIds.update((ids) => {
-      const next = new Set(ids);
-      if (next.has(row.id)) next.delete(row.id);
-      else next.add(row.id);
-      return next;
-    });
-  }
-
-  protected toggleSelectAll(): void {
-    this.selectedIds.set(this.allSelected() ? new Set() : new Set(this.rows().map((row) => row.id)));
-  }
-
-  /** Deletes a single row via the row action, bypassing the checkbox selection entirely. */
+  /** Deletes a single row via the row action. */
   protected async deleteOne(row: HistoryRow, event: Event): Promise<void> {
     event.stopPropagation();
     if (this.deleting()) return;
     if (!confirm('Delete this analysis? This cannot be undone.')) return;
-    await this.deleteRows([row.id]);
-  }
 
-  protected async deleteSelected(): Promise<void> {
-    const ids = [...this.selectedIds()];
-    if (ids.length === 0 || this.deleting()) return;
-    if (!confirm(`Delete ${ids.length} analys${ids.length === 1 ? 'is' : 'es'}? This cannot be undone.`)) {
-      return;
-    }
-    await this.deleteRows(ids);
-  }
-
-  private async deleteRows(ids: string[]): Promise<void> {
     this.deleting.set(true);
     this.deleteError.set(null);
     try {
-      await this.history.deleteAnalyses(ids);
-      const removed = new Set(ids);
-      this.rows.update((existing) => existing.filter((row) => !removed.has(row.id)));
-      this.selectedIds.update((selected) => {
-        const next = new Set(selected);
-        for (const id of ids) next.delete(id);
-        return next;
-      });
-      if (removed.has(this.expandedId() ?? '')) {
+      await this.history.deleteAnalyses([row.id]);
+      this.rows.update((existing) => existing.filter((r) => r.id !== row.id));
+      if (this.expandedId() === row.id) {
         this.expandedId.set(null);
         this.detail.set(null);
       }
