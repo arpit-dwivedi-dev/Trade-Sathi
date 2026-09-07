@@ -31,13 +31,13 @@
     </p>
   }
 
-  <p-card class="daily-briefing-card">
-    <div class="hd">
+  <!-- <p-card class="daily-briefing-card"> -->
+    <!-- <div class="hd">
       <span class="lbl-h">Tracked instruments</span>
       @if (!loading() && items().length) {
         <span class="lbl">{{ items().length }} total</span>
       }
-    </div>
+    </div> -->
 
     @if (loading()) {
       <p class="daily-briefing-state"><p-progress-spinner styleClass="daily-briefing-spinner" aria-hidden="true" /> Loading your daily-briefing…</p>
@@ -111,34 +111,34 @@
 
               <td>
                 <span class="daily-briefing-time">
-                  <p-select
-                    class="daily-briefing-hour-field"
-                    [options]="hourSelectOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    [ngModel]="scheduledHourValue(item)"
-                    (onChange)="setScheduledHour(item, $any($event.value))"
+                  <p-datepicker
+                    class="daily-briefing-time-field"
+                    [timeOnly]="true"
+                    [hourFormat]="'24'"
+                    [ngModel]="scheduledTimeValue(item)"
+                    (onSelect)="setScheduledTime(item, $any($event))"
                     [disabled]="billing.hasDailyBriefingEntitlement() === false"
                     [attr.title]="
                       billing.hasDailyBriefingEntitlement() === false
                         ? 'Requires the Daily Briefing add-on'
                         : null
                     "
-                    [attr.aria-label]="'Scheduled hour for ' + displaySymbol(item)"
+                    [attr.aria-label]="'Scheduled run time for ' + displaySymbol(item)"
                   />
-                  @if (scheduledHourValue(item) !== 'default') {
-                    <span class="daily-briefing-time-sep">:</span>
-                    <p-select
-                      class="daily-briefing-minute-field"
-                      [options]="minuteSelectOptionsFor(item)"
-                      optionLabel="label"
-                      optionValue="value"
-                      [ngModel]="item.scheduled_minute_ist ?? 0"
-                      (onChange)="setScheduledMinute(item, $any($event.value))"
-                      [disabled]="billing.hasDailyBriefingEntitlement() === false"
-                      [attr.aria-label]="'Scheduled minute for ' + displaySymbol(item)"
-                    />
+                  @if (scheduledHourValue(item) === 'default') {
+                    <span class="daily-briefing-unit">Default</span>
+                  } @else {
                     <span class="daily-briefing-unit">IST</span>
+                    <button
+                      pButton
+                      [text]="true"
+                      class="daily-briefing-time-reset"
+                      [disabled]="billing.hasDailyBriefingEntitlement() === false"
+                      (click)="clearScheduledTime(item)"
+                      [attr.aria-label]="'Reset scheduled run time for ' + displaySymbol(item) + ' to default'"
+                    >
+                      Reset
+                    </button>
                   }
                 </span>
                 @if (isBusy(item.id)) {
@@ -147,18 +147,20 @@
               </td>
 
               <td>
-                <p-toggleswitch
-                  [ngModel]="item.enabled_for_daily_analysis"
-                  (onChange)="toggleDailyAnalysis(item)"
-                  [disabled]="billing.hasDailyBriefingEntitlement() === false"
-                  [attr.title]="
-                    billing.hasDailyBriefingEntitlement() === false
-                      ? 'Requires the Daily Briefing add-on'
-                      : null
-                  "
-                  [attr.aria-label]="'Daily briefing for ' + displaySymbol(item)"
-                />
-                <span class="daily-briefing-toggle-label">{{ item.enabled_for_daily_analysis ? 'On' : 'Off' }}</span>
+                <span class="daily-briefing-toggle">
+                  <p-toggleswitch
+                    [ngModel]="item.enabled_for_daily_analysis"
+                    (onChange)="toggleDailyAnalysis(item)"
+                    [disabled]="billing.hasDailyBriefingEntitlement() === false"
+                    [attr.title]="
+                      billing.hasDailyBriefingEntitlement() === false
+                        ? 'Requires the Daily Briefing add-on'
+                        : null
+                    "
+                    [attr.aria-label]="'Daily briefing for ' + displaySymbol(item)"
+                  />
+                  <span class="daily-briefing-toggle-label">{{ item.enabled_for_daily_analysis ? 'On' : 'Off' }}</span>
+                </span>
                 @if (isBusy(item.id)) {
                   <span class="daily-briefing-cell-overlay" aria-hidden="true"></span>
                 }
@@ -252,5 +254,5 @@
         </p-table>
       </div>
     }
-  </p-card>
+  <!-- </p-card> -->
 </section>

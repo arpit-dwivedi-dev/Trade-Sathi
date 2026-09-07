@@ -16,6 +16,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
+import { DatePicker } from 'primeng/datepicker';
 import { InputTextModule } from 'primeng/inputtext';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { Select } from 'primeng/select';
@@ -99,6 +100,7 @@ const MAX_LOOKBACK_DAYS = 365;
     AppIcon,
     ButtonModule,
     CardModule,
+    DatePicker,
     InputTextModule,
     ProgressSpinnerModule,
     Select,
@@ -439,86 +441,38 @@ export class DailyBriefing implements OnInit, OnDestroy {
     );
   }
 
-  /**
-   * `value` is an `<input type="time">` value ("HH:mm"), or '' to follow the
-   * deployment default (stored as hour=null, minute=null).
-   */
-  protected async setScheduledTime(item: DailyBriefingItem, value: string): Promise<void> {
-    let hour: number | null = null;
-    let minute: number | null = null;
-    if (value !== '') {
-      const [h, m] = value.split(':').map(Number);
-      if (!Number.isFinite(h) || !Number.isFinite(m)) return;
-      hour = h;
-      minute = m;
-    }
-    if (hour === item.scheduled_hour_ist && minute === item.scheduled_minute_ist) return;
-    await this.patchSettings(item, { scheduled_hour_ist: hour, scheduled_minute_ist: minute });
-  }
-
-  /**
-   * `<input type="time">` hands scheduling off to the OS/browser's own
-   * picker, which ignores this app's theme entirely (light chrome regardless
-   * of dark mode, a completely different visual language from the rest of
-   * the row). A pair of mat-selects styled the same as the chart-window
-   * field keeps the control inside Material, so it actually reads as part of
-   * this app rather than a stray OS widget dropped into the row.
-   */
-  protected readonly hourOptions = Array.from({ length: 24 }, (_, i) => i);
-
-  /** p-select needs a flat {label, value} array — the 'Default' sentinel plus every hour. */
-  protected readonly hourSelectOptions = [
-    { label: 'Default', value: 'default' as const },
-    ...this.hourOptions.map((h) => ({ label: this.padTime(h), value: h })),
-  ];
-
-  private static readonly MINUTE_STEP_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
-
-  protected padTime(value: number): string {
-    return String(value).padStart(2, '0');
-  }
-
   /** The hour select's bound value: the sentinel 'default' or 0-23. */
   protected scheduledHourValue(item: DailyBriefingItem): 'default' | number {
     return item.scheduled_hour_ist ?? 'default';
   }
 
   /**
-   * Minute options are 5-minute steps — coarser than the underlying column
-   * allows, but plenty for a daily schedule and far shorter than a 60-entry
-   * dropdown. The item's actual stored minute is folded in even when it
-   * isn't a multiple of 5, so a value set elsewhere (another device, an
-   * earlier version of this control) is never silently changed just by the
-   * dropdown being opened.
+   * PrimeNG's timeOnly p-datepicker binds to a Date, not raw hour/minute
+   * numbers — the day/month/year are irrelevant and ignored, only
+   * getHours()/getMinutes() are read back in setScheduledTime below. Null
+   * (the 'Default' state) leaves the picker showing the current time until
+   * a value is explicitly picked, which is fine: it is hidden behind the
+   * "Default" label in the template rather than relied on to communicate
+   * anything on its own.
    */
-  protected minuteOptionsFor(item: DailyBriefingItem): number[] {
-    const current = item.scheduled_minute_ist ?? 0;
-    const base = DailyBriefing.MINUTE_STEP_OPTIONS;
-    return base.includes(current) ? base : [...base, current].sort((a, b) => a - b);
+  protected scheduledTimeValue(item: DailyBriefingItem): Date | null {
+    if (item.scheduled_hour_ist === null) return null;
+    const date = new Date();
+    date.setHours(item.scheduled_hour_ist, item.scheduled_minute_ist ?? 0, 0, 0);
+    return date;
   }
 
-  /** p-select needs a flat {label, value} array. */
-  protected minuteSelectOptionsFor(item: DailyBriefingItem): { label: string; value: number }[] {
-    return this.minuteOptionsFor(item).map((m) => ({ label: this.padTime(m), value: m }));
+  protected async setScheduledTime(item: DailyBriefingItem, value: Date): Promise<void> {
+    const hour = value.getHours();
+    const minute = value.getMinutes();
+    if (hour === item.scheduled_hour_ist && minute === item.scheduled_minute_ist) return;
+    await this.patchSettings(item, { scheduled_hour_ist: hour, scheduled_minute_ist: minute });
   }
 
-  /** 'default' clears the schedule back to the deployment default (both columns null). */
-  protected async setScheduledHour(item: DailyBriefingItem, value: 'default' | number): Promise<void> {
-    if (value === 'default') {
-      if (item.scheduled_hour_ist === null) return;
-      await this.patchSettings(item, { scheduled_hour_ist: null, scheduled_minute_ist: null });
-      return;
-    }
-    if (value === item.scheduled_hour_ist) return;
-    await this.patchSettings(item, {
-      scheduled_hour_ist: value,
-      scheduled_minute_ist: item.scheduled_minute_ist ?? 0,
-    });
-  }
-
-  protected async setScheduledMinute(item: DailyBriefingItem, value: number): Promise<void> {
-    if (item.scheduled_hour_ist === null || value === item.scheduled_minute_ist) return;
-    await this.patchSettings(item, { scheduled_minute_ist: value });
+  /** Clears the schedule back to the deployment default (both columns null). */
+  protected async clearScheduledTime(item: DailyBriefingItem): Promise<void> {
+    if (item.scheduled_hour_ist === null) return;
+    await this.patchSettings(item, { scheduled_hour_ist: null, scheduled_minute_ist: null });
   }
 
   /**

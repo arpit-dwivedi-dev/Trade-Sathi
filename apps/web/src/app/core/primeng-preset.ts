@@ -52,7 +52,7 @@ const primaryPalette = {
 const colorSchemeShared = {
   primary: {
     color: 'var(--brand-primary)',
-    inverseColor: '#ffffff',
+    contrastColor: '#ffffff',
     hoverColor: 'var(--acc-tx)',
     activeColor: 'var(--acc-tx)',
   },
@@ -232,7 +232,7 @@ const components = {
       focusBorderColor: 'var(--brand-primary)',
       color: 'var(--text-main)',
       paddingX: 'var(--s3)',
-      paddingY: 'var(--s2)',
+      paddingY: '6px',
       borderRadius: 'var(--r-sm)',
       focusRingWidth: '1px',
     },
@@ -258,7 +258,7 @@ const components = {
       focusBorderColor: 'var(--brand-primary)',
       color: 'var(--text-main)',
       paddingX: 'var(--s3)',
-      paddingY: 'var(--s2)',
+      paddingY: '6px',
       borderRadius: 'var(--r-sm)',
       focusRingWidth: '1px',
     },
@@ -300,7 +300,7 @@ const components = {
       color: 'var(--text-main)',
       placeholderColor: 'var(--text-muted)',
       paddingX: 'var(--s3)',
-      paddingY: 'var(--s2)',
+      paddingY: '6px',
       borderRadius: 'var(--r-sm)',
       focusRingWidth: '1px',
     },
@@ -328,7 +328,7 @@ export const AppPreset = definePreset(Aura, {
     primary: primaryPalette,
     formField: {
       paddingX: 'var(--s3)',
-      paddingY: 'var(--s2)',
+      paddingY: '6px',
       borderRadius: 'var(--r-sm)',
     },
     borderRadius: {

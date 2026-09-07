@@ -260,6 +260,16 @@
   font-size: var(--t-sm);
 }
 
+/* p-toggleswitch and its On/Off label are both inline-level by default and
+   align on the text baseline, which sits near the bottom of the switch
+   rather than its centre — reads as visibly offset next to short label
+   text. Flex centres them on the same line instead. */
+.daily-briefing-toggle {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--s2);
+}
+
 .daily-briefing-item-name {
   color: var(--tx-3);
   display: block;
@@ -302,27 +312,31 @@
 }
 
 /* ── run-at time ─────────────────────────────────────────
-   Hour and minute as a pair of mat-selects rather than a native
-   <input type="time"> — see daily-briefing.ts's hourOptions doc comment for why:
-   the native control's own picker UI ignores the app's theme entirely. Kept
-   on one line with its "IST"/"Default" label so this cell's row height
-   matches every other cell in the row. */
+   A single PrimeNG timeOnly p-datepicker (hour + minute in one control)
+   rather than a native <input type="time"> — the native control's own
+   picker UI ignores the app's theme entirely. Kept on one line with its
+   "IST"/"Default" label so this cell's row height matches every other cell
+   in the row. */
 .daily-briefing-time {
   align-items: center;
   display: inline-flex;
   gap: var(--s1);
 }
 
-.daily-briefing-hour-field {
-  width: 92px;
+.daily-briefing-time-field {
+  width: 110px;
 }
 
-.daily-briefing-minute-field {
-  width: 68px;
+.daily-briefing-time-field ::ng-deep .p-datepicker-input {
+  font-size: var(--t-2xs);
+  height: 36px;
+  padding: 6px var(--s2);
 }
 
-.daily-briefing-time-sep {
-  color: var(--tx-3);
+.daily-briefing-time-reset {
+  font-size: var(--t-2xs);
+  height: 28px;
+  padding: 0 var(--s1);
 }
 
 .daily-briefing-note-cell {

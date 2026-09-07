@@ -34,13 +34,13 @@
 }
 
 .symbol-search-market ::ng-deep .p-select {
-  height: 40px;
+  height: 36px;
 }
 
 .symbol-search-market ::ng-deep .p-select-label {
   align-items: center;
   display: flex;
-  padding-block: 8px;
+  padding-block: 6px;
 }
 
 /* Not a labelled field — this is a bare search bar. The icon and clear/spinner
@@ -58,7 +58,7 @@
   align-items: center;
   color: var(--tx-3);
   display: flex;
-  height: 40px;
+  height: 36px;
   justify-content: center;
   left: 0;
   pointer-events: none;
@@ -84,7 +84,7 @@
 
 .symbol-search-autocomplete ::ng-deep .p-autocomplete-input {
   border-radius: var(--radius, 8px);
-  min-height: 40px;
+  min-height: 36px;
   padding-left: 38px;
   width: 100%;
 }
@@ -93,7 +93,7 @@
   color: var(--tx-3);
   position: absolute;
   right: var(--s3);
-  top: 12px;
+  top: 10px;
   z-index: 1;
 }
 
