@@ -33,6 +33,12 @@
   min-width: 0;
 }
 
+/* mat-chip-set's host is block-level by default, which left the exchange
+   chip sitting a few pixels off the symbol's baseline. */
+.live-ident mat-chip-set {
+  display: inline-flex;
+}
+
 .live-sym {
   font-size: var(--t-md);
 }
@@ -124,6 +130,16 @@
   border-radius: 50%;
   height: 6px;
   width: 6px;
+}
+
+/* Market closed: same tag shape, no pulse — nothing is streaming. */
+.live-tick-closed {
+  color: var(--tx-3);
+}
+
+.live-tick-dot-closed {
+  animation: none;
+  background: var(--tx-3);
 }
 
 @keyframes live-tick-pulse {

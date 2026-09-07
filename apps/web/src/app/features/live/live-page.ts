@@ -17,7 +17,7 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { type Instrument, type MarketTick } from '@chartanalyzer/shared';
+import { type Instrument, type MarketStatus, type MarketTick } from '@chartanalyzer/shared';
 import { AnalysisResult } from '../analyze/analysis-result';
 import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
 import {
@@ -28,6 +28,7 @@ import {
 } from '../../shared/live-chart/live-chart';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import { AnalyzeService, type PollHandle } from '../analyze/analyze.service';
+import { MarketStatusService } from '../../core/market-status.service';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import { LiveService } from './live.service';
 import { MarketStreamService } from './market-stream.service';
@@ -76,6 +77,27 @@ const STREAMING_INTRADAY_REFRESH_MS = 2 * 60_000;
  */
 const ROLLOVER_REFETCH_MIN_GAP_MS = 5_000;
 
+/**
+ * Same session calendars the top bar's badge reads from — see
+ * market-status.service.ts. BSE and NYSE share their exchange's calendar,
+ * so both fold onto the market apps/api actually knows how to look up.
+ */
+const EXCHANGE_TO_STATUS_MARKET: Readonly<Record<string, 'NSE' | 'NASDAQ'>> = {
+  NSE: 'NSE',
+  BSE: 'NSE',
+  NASDAQ: 'NASDAQ',
+  NYSE: 'NASDAQ',
+};
+
+/** Falls back to plain polling only when the status read carries no
+ *  nextChangeAt to schedule against — see scheduleNextMarketStatusRead. */
+const MARKET_STATUS_FALLBACK_POLL_MS = 5 * 60_000;
+
+/** NSE/BSE trade in rupees, NASDAQ/NYSE in dollars. */
+function currencyPrefixFor(exchange: string): string {
+  return exchange === 'NASDAQ' || exchange === 'NYSE' ? '$' : '₹';
+}
+
 type AnalyzeState = 'idle' | 'starting' | 'processing' | 'complete' | 'failed' | 'quota_exceeded';
 
 /** The exact chart an analysis run belongs to: one instrument, one window. */
@@ -116,6 +138,7 @@ export class LivePage implements OnInit, OnDestroy {
   private readonly analyses = inject(AnalyzeService);
   private readonly chartCapture = inject(ChartCaptureService);
   private readonly stream = inject(MarketStreamService);
+  private readonly marketStatusService = inject(MarketStatusService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
@@ -153,6 +176,19 @@ export class LivePage implements OnInit, OnDestroy {
   private readonly streamPrice = signal<number | null>(null);
   /** True while the socket is confirmed subscribed to the shown instrument. */
   protected readonly streaming = this.stream.streaming;
+
+  /**
+   * The current instrument's own session calendar — null until the first
+   * read completes, or if its exchange has none (fetchStatus failed, or the
+   * exchange isn't one of the two apps/api tracks). The "Live" tag only
+   * shows while this says the market is actually open; ticks can otherwise
+   * keep arriving on a stale connection well after the close.
+   */
+  protected readonly marketStatus = signal<MarketStatus | null>(null);
+  private marketStatusTimerId: ReturnType<typeof setTimeout> | null = null;
+
+  /** Null (unknown) until a read for the current instrument completes. */
+  protected readonly marketOpen = computed(() => this.marketStatus()?.isOpen ?? null);
 
   protected readonly analyzeState = signal<AnalyzeState>('idle');
   protected readonly analyzeError = signal<string | null>(null);
@@ -308,6 +344,7 @@ export class LivePage implements OnInit, OnDestroy {
     }
     this.stopRefreshing();
     this.stopStreaming();
+    this.clearMarketStatusTimer();
     this.pending?.cancel();
     this.pending = null;
   }
@@ -317,6 +354,50 @@ export class LivePage implements OnInit, OnDestroy {
     this.chartError.set(null);
     this.clearResult();
     void this.reload();
+    void this.refreshMarketStatus(instrument);
+  }
+
+  protected currencyPrefix(exchange: string): string {
+    return currencyPrefixFor(exchange);
+  }
+
+  private async refreshMarketStatus(instrument: Instrument): Promise<void> {
+    this.clearMarketStatusTimer();
+    const market = EXCHANGE_TO_STATUS_MARKET[instrument.exchange];
+    if (!market) {
+      this.marketStatus.set(null);
+      return;
+    }
+    const status = await this.marketStatusService.fetchStatus(market);
+    // The instrument may have changed while the request was in flight; a
+    // stale response for the symbol just navigated away from must not
+    // overwrite what the new one already set.
+    if (this.instrument()?.id !== instrument.id) return;
+    this.marketStatus.set(status);
+    this.scheduleNextMarketStatusRead(instrument, status);
+  }
+
+  /**
+   * One-shot timer rather than a fixed poll — see AppPage's identical badge
+   * for why: nextChangeAt is the exact moment the exchange's own session
+   * boundary flips, so there is nothing to gain from checking earlier.
+   */
+  private scheduleNextMarketStatusRead(instrument: Instrument, status: MarketStatus | null): void {
+    this.clearMarketStatusTimer();
+    const delayMs = status?.nextChangeAt
+      ? new Date(status.nextChangeAt).getTime() - Date.now() + 1_000
+      : MARKET_STATUS_FALLBACK_POLL_MS;
+    this.marketStatusTimerId = setTimeout(
+      () => void this.refreshMarketStatus(instrument),
+      Math.max(delayMs, 1_000),
+    );
+  }
+
+  private clearMarketStatusTimer(): void {
+    if (this.marketStatusTimerId !== null) {
+      clearTimeout(this.marketStatusTimerId);
+      this.marketStatusTimerId = null;
+    }
   }
 
   protected selectLookback(days: number): void {
