@@ -63,6 +63,7 @@ export class HistoryList implements OnInit, OnDestroy {
 
   protected readonly columns = [
     'select',
+    'chart',
     'analyzed',
     'symbol',
     'asset',

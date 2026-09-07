@@ -27,6 +27,8 @@ export class ChartImage {
   readonly imageKey = input.required<string | null>();
   /** Used for alt text; falls back to a generic description. */
   readonly label = input<string | null>(null);
+  /** Small, unframed thumbnail (e.g. a history-table cell) instead of the full report figure. */
+  readonly compact = input(false);
 
   protected readonly url = signal<string | null>(null);
   protected readonly loading = signal(false);

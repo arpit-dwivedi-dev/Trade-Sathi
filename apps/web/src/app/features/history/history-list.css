@@ -43,7 +43,7 @@
    narrow-screen block at the bottom). */
 .history-table {
   background: transparent;
-  min-width: 900px;
+  min-width: 970px;
   table-layout: fixed;
   width: 100%;
 }
@@ -78,6 +78,11 @@
 
 .mat-column-select {
   width: 44px;
+}
+
+.mat-column-chart {
+  padding-right: 0;
+  width: 76px;
 }
 
 .mat-column-analyzed {
@@ -193,6 +198,27 @@
 
 .history-dir {
   font-size: var(--t-sm);
+}
+
+/* Thumbnail border carries the same long/short/hold tint as the setup cell's
+   text. app-chart-image reads --chart-thumb-border itself; the tone class
+   only sets that variable, so no ::ng-deep into the child's template is
+   needed. */
+.history-thumb {
+  display: block;
+  line-height: 0;
+}
+
+.history-thumb-long {
+  --chart-thumb-border: var(--up);
+}
+
+.history-thumb-short {
+  --chart-thumb-border: var(--down);
+}
+
+.history-thumb-hold {
+  --chart-thumb-border: var(--flat);
 }
 
 .history-unknown {

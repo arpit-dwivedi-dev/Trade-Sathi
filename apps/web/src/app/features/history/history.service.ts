@@ -22,6 +22,7 @@ export type HistoryRow = Pick<
   | 'source_type'
   | 'timeframe'
   | 'emailed_at'
+  | 'image_key'
   // The legacy pair, for rows analyzed before the structured-read prompts.
   // Their replacements (instrument_type, structure_state) are null on those
   // rows, and these are null on every row written since.
@@ -48,7 +49,7 @@ export type HistoryRow = Pick<
 // column can show the company name and logo without a second round trip.
 const HISTORY_COLUMNS =
   'id, created_at, symbol, symbol_raw, instrument_type, structure_state, setup_format, ' +
-  'call_direction, status, source, source_type, timeframe, emailed_at, asset_class, trend, ' +
+  'call_direction, status, source, source_type, timeframe, emailed_at, image_key, asset_class, trend, ' +
   'fundamentals_stance, instruments(name, logo_url)';
 
 /**

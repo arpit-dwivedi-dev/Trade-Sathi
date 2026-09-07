@@ -31,3 +31,22 @@
   color: var(--tx-3);
   font-size: var(--t-2xs);
 }
+
+/* Small unframed preview for a table cell — a hint of the chart, not a
+   readable one. Border color is set by the consumer (history's direction
+   tint), so this only fixes shape and size. */
+.chart-image-compact {
+  gap: 0;
+}
+
+.chart-image-compact .chart-image-img,
+.chart-image-compact .chart-image-skel {
+  background: var(--surf-2);
+  border: 1px solid var(--chart-thumb-border, var(--line));
+  border-radius: var(--r-sm);
+  display: block;
+  height: 32px;
+  object-fit: cover;
+  padding: 0;
+  width: 64px;
+}

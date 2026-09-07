@@ -101,6 +101,21 @@
           </td>
         </ng-container>
 
+        <!-- Chart at a glance, tinted by the call this row came to — same
+             bullish/bearish/neutral colors the setup column uses, so a reader
+             scanning the column edge already gets a sense of the mix before
+             reading any labels. -->
+        <ng-container matColumnDef="chart">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let row">
+            @if (row.source !== 'fundamentals' && row.image_key) {
+              <span class="history-thumb history-thumb-{{ setupTone(row) ?? 'hold' }}">
+                <app-chart-image [imageKey]="row.image_key" [label]="displaySymbol(row)" [compact]="true" />
+              </span>
+            }
+          </td>
+        </ng-container>
+
         <ng-container matColumnDef="analyzed">
           <th mat-header-cell *matHeaderCellDef>Analyzed</th>
           <td mat-cell *matCellDef="let row" class="tnum">
