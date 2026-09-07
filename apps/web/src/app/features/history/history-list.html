@@ -42,12 +42,11 @@
   @if (loading()) {
     <div class="tbl" aria-busy="true">
       <div class="tr tr-h">
-        <span>Analyzed</span><span>Symbol</span><span>Asset</span><span>TF</span>
-        <span>Structure</span><span>Setup</span><span>Status</span><span></span>
+        <span>Symbol</span><span>Structure</span><span>Setup</span>
+        <span>TF</span><span>Analyzed</span><span>Status</span><span></span>
       </div>
       @for (placeholder of [1, 2, 3, 4]; track placeholder) {
         <div class="tr">
-          <span class="skel history-skel"></span>
           <span class="skel history-skel"></span>
           <span class="skel history-skel"></span>
           <span class="skel history-skel"></span>
@@ -116,13 +115,6 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="analyzed">
-          <th mat-header-cell *matHeaderCellDef>Analyzed</th>
-          <td mat-cell *matCellDef="let row" class="tnum">
-            {{ relativeDate(row.created_at) }}
-          </td>
-        </ng-container>
-
         <ng-container matColumnDef="symbol">
           <th mat-header-cell *matHeaderCellDef>Symbol</th>
           <td mat-cell *matCellDef="let row">
@@ -142,9 +134,11 @@
                 <span class="history-logo" [style.background]="avatarColor(row)" aria-hidden="true">{{ initials(row) }}</span>
               }
               <span class="history-sym-text-wrap trunc">
-                <span class="history-sym-text trunc">{{ displaySymbol(row) ?? 'Not detected' }}</span>
                 @if (companyName(row); as name) {
-                  <span class="history-company-name trunc">{{ name }}</span>
+                  <span class="history-sym-text trunc">{{ name }}</span>
+                  <span class="history-company-name trunc">{{ displaySymbol(row) }}</span>
+                } @else {
+                  <span class="history-sym-text trunc">{{ displaySymbol(row) ?? 'Not detected' }}</span>
                 }
                 <span class="history-tags">
                   <span class="history-src history-src-{{ row.source }}">{{ sourceLabel(row) }}</span>
@@ -162,20 +156,6 @@
                 </span>
               </span>
             </span>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="asset">
-          <th mat-header-cell *matHeaderCellDef>Asset</th>
-          <td mat-cell *matCellDef="let row" class="history-cell">
-            {{ assetLabel(row) }}
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="tf">
-          <th mat-header-cell *matHeaderCellDef>TF</th>
-          <td mat-cell *matCellDef="let row" class="tnum">
-            {{ row.timeframe ?? '—' }}
           </td>
         </ng-container>
 
@@ -197,6 +177,20 @@
             } @else {
               <span class="history-cell">—</span>
             }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="tf">
+          <th mat-header-cell *matHeaderCellDef>Timeframe</th>
+          <td mat-cell *matCellDef="let row" class="tnum">
+            {{ row.timeframe | timeframeLabel }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="analyzed">
+          <th mat-header-cell *matHeaderCellDef>Analyzed</th>
+          <td mat-cell *matCellDef="let row" class="tnum">
+            {{ relativeDate(row.created_at) }}
           </td>
         </ng-container>
 

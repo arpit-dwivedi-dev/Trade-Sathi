@@ -21,6 +21,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
 import { ChartImage } from '../../shared/chart-image';
+import { TimeframeLabelPipe } from '../../shared/timeframe-label.pipe';
 import { AnalysisResult } from '../analyze/analysis-result';
 import { FundamentalsAnalysisResultComponent } from '../fundamentals/fundamentals-analysis-result';
 import { AnalysisPdfService } from './analysis-pdf.service';
@@ -51,6 +52,7 @@ import {
     MatIconModule,
     MatProgressSpinnerModule,
     MatTableModule,
+    TimeframeLabelPipe,
   ],
   templateUrl: './history-list.html',
   styleUrl: './history-list.css',
@@ -64,12 +66,11 @@ export class HistoryList implements OnInit, OnDestroy {
   protected readonly columns = [
     'select',
     'chart',
-    'analyzed',
     'symbol',
-    'asset',
-    'tf',
     'structure',
     'setup',
+    'tf',
+    'analyzed',
     'status',
     'actions',
   ];
@@ -508,16 +509,6 @@ export class HistoryList implements OnInit, OnDestroy {
   /** The server already validated the logo URL; hide it on a transient failure rather than show a broken image. */
   protected onLogoError(event: Event): void {
     (event.target as HTMLImageElement).style.visibility = 'hidden';
-  }
-
-  /**
-   * What kind of instrument the row is on.
-   *
-   * instrument_type comes from the current prompts; asset_class is what rows
-   * analyzed before them stored. Exactly one of the two is set on any row.
-   */
-  protected assetLabel(row: HistoryRow): string {
-    return row.instrument_type ?? row.asset_class ?? '—';
   }
 
   /**

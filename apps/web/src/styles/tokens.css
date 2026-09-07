@@ -103,7 +103,7 @@
   color-scheme: light;
 
   /* surfaces, from the page floor up */
-  --bg-canvas: #f0f3fa;
+  --bg-canvas: #ffffff;
   --bg-surface: #ffffff;
   --bg-hover: #e8ebf2;
   --border-subtle: #e0e3eb;
