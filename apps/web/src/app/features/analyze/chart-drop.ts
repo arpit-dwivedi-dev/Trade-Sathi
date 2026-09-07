@@ -2,8 +2,10 @@ import { isPlatformBrowser } from '@angular/common';
 import {
   Component,
   ElementRef,
+  Injector,
   OnDestroy,
   PLATFORM_ID,
+  afterNextRender,
   inject,
   input,
   output,
@@ -12,6 +14,15 @@ import {
 } from '@angular/core';
 
 export type SourceType = 'paste' | 'upload';
+
+/**
+ * The `userAgentData` entry point isn't in lib.dom's `Navigator` type yet
+ * (it's Chromium-only), so it needs its own narrow shape rather than an
+ * `any` cast.
+ */
+interface NavigatorWithUAData extends Navigator {
+  readonly userAgentData?: { readonly mobile: boolean };
+}
 
 export interface ChartFileSelection {
   file: File;
@@ -38,6 +49,7 @@ const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp';
 export class ChartDrop implements OnDestroy {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
   readonly disabled = input(false);
   readonly fileSelected = output<ChartFileSelection>();
@@ -52,6 +64,26 @@ export class ChartDrop implements OnDestroy {
   protected readonly notice = signal<string | null>(null);
 
   private readonly fileInput = viewChild.required<ElementRef<HTMLInputElement>>('fileInput');
+
+  /**
+   * "Take a photo" only makes sense on a device that actually has a camera a
+   * trader would point at a chart on a monitor — a laptop's webcam faces the
+   * user, not the screen they're photographing, so the button is hidden
+   * there and desktop keeps just the file picker.
+   */
+  protected readonly isMobileDevice = signal(false);
+
+  /**
+   * A live `getUserMedia` view rather than `<input capture>`: the `capture`
+   * attribute is only a hint, and desktop browsers ignore it and fall back to
+   * the plain file picker anyway.
+   */
+  protected readonly cameraOpen = signal(false);
+  protected readonly cameraError = signal<string | null>(null);
+  private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
+  private readonly cameraOverlay = viewChild<ElementRef<HTMLElement>>('cameraOverlay');
+  private readonly canvasEl = viewChild.required<ElementRef<HTMLCanvasElement>>('canvasEl');
+  private cameraStream: MediaStream | null = null;
 
   /**
    * dragenter/dragleave fire for every child element the pointer crosses, so a
@@ -117,13 +149,22 @@ export class ChartDrop implements OnDestroy {
     // document to attach to.
     if (isPlatformBrowser(this.platformId)) {
       document.addEventListener('paste', this.onDocumentPaste);
+      this.isMobileDevice.set(this.detectMobileDevice());
     }
+  }
+
+  private detectMobileDevice(): boolean {
+    const uaData = (navigator as NavigatorWithUAData).userAgentData;
+    if (uaData) return uaData.mobile;
+    // Fallback for browsers without the Client Hints API (Firefox, Safari).
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   }
 
   ngOnDestroy(): void {
     if (isPlatformBrowser(this.platformId)) {
       document.removeEventListener('paste', this.onDocumentPaste);
     }
+    this.stopCameraStream();
   }
 
   protected onDragEnter(event: DragEvent): void {
@@ -171,6 +212,78 @@ export class ChartDrop implements OnDestroy {
   protected browse(): void {
     if (this.disabled()) return;
     this.fileInput().nativeElement.click();
+  }
+
+  /**
+   * Requests camera access and, once granted, opens the live preview.
+   * Prefers the rear camera on a phone; a laptop only has the one webcam so
+   * `facingMode` there is just ignored.
+   */
+  protected async openCamera(event: Event): Promise<void> {
+    event.stopPropagation();
+    if (this.disabled() || !this.isMobileDevice()) return;
+
+    if (!isPlatformBrowser(this.platformId) || !navigator.mediaDevices?.getUserMedia) {
+      this.cameraError.set('Camera capture is not supported in this browser.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+      this.cameraStream = stream;
+      this.cameraError.set(null);
+      this.cameraOpen.set(true);
+
+      // The <video> only exists once cameraOpen() flips the @if in the
+      // template, so the stream can't be attached until after that render.
+      afterNextRender(
+        () => {
+          const video = this.videoEl()?.nativeElement;
+          if (!video) return;
+          video.srcObject = stream;
+          void video.play();
+          this.cameraOverlay()?.nativeElement.focus();
+        },
+        { injector: this.injector },
+      );
+    } catch {
+      this.cameraError.set('Camera access was denied or no camera is available.');
+    }
+  }
+
+  /** Grabs the current video frame and offers it like any other file. */
+  protected capturePhoto(): void {
+    const video = this.videoEl()?.nativeElement;
+    const canvas = this.canvasEl().nativeElement;
+    if (!video || !video.videoWidth) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], `chart-camera-${Date.now()}.png`, { type: 'image/png' });
+      this.closeCamera();
+      // Bucketed as 'upload' for the same reason a drag-drop is: the
+      // backend's source_type enum has no third value for a camera capture.
+      this.offer(file, 'upload');
+    }, 'image/png');
+  }
+
+  protected closeCamera(): void {
+    this.stopCameraStream();
+    this.cameraOpen.set(false);
+  }
+
+  private stopCameraStream(): void {
+    this.cameraStream?.getTracks().forEach((track) => track.stop());
+    this.cameraStream = null;
   }
 
   /** Space/Enter on the zone opens the picker, as a real button would. */

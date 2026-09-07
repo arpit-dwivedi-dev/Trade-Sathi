@@ -10,6 +10,7 @@ import {
   effect,
   inject,
   input,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
@@ -18,12 +19,17 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { type MarketTick } from '@chartanalyzer/shared';
-import { LiveService, type WorkspaceInterval } from '../live/live.service';
-import { MarketStreamService } from '../live/market-stream.service';
-import type { LiveCandle } from '../../shared/live-chart/live-chart';
+import { LiveService, type WorkspaceInterval } from '../../core/live.service';
+import { MarketStreamService } from '../../core/market-stream.service';
+import type { ChartOverlays, LiveCandle, OverlayBand } from '../../shared/live-chart/live-chart';
+import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
+import { AnalysisResult } from '../analyze/analysis-result';
+import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
+import { AnalyzeService, type PollHandle } from '../analyze/analyze.service';
 import { WorkspaceChart } from './chart/workspace-chart';
 import { loadDrawings, saveDrawings } from './drawing/drawing-store';
 import {
@@ -68,13 +74,20 @@ const DAILY_REFRESH_MS = 5 * 60_000;
 const STREAMING_INTRADAY_REFRESH_MS = 2 * 60_000;
 const ROLLOVER_REFETCH_MIN_GAP_MS = 5_000;
 
+type AnalyzeState = 'idle' | 'starting' | 'processing' | 'complete' | 'failed' | 'quota_exceeded';
+
+/** The exact chart an analysis run belongs to: one instrument, one timeframe's lookback. */
+interface AnalysisTarget {
+  instrumentId: string;
+  symbol: string;
+  lookbackDays: number;
+}
+
 /**
- * The manual analysis workspace: a tab in the dashboard shell (not a
- * separate route) for picking an instrument, switching candle timeframe, and
- * drawing on the chart — separate from the AI "Analyse this chart" pipeline,
- * which this screen does not touch. Reached via the nav rail's own tab entry
- * or the Live tab's "Manual Analysis" button, the latter handing off the
- * symbol already on screen there via `selection` (see AppPage).
+ * The Chart Analysis workspace: a tab in the dashboard shell (not a
+ * separate route) for picking an instrument, switching candle timeframe,
+ * drawing on the chart, and running AI analysis on the window currently on
+ * screen. Reached via the nav rail's own tab entry.
  *
  * The instrument itself is not picked here: the shell's top-bar search owns
  * that for every chart tab, and hands the choice down through `selection`.
@@ -84,15 +97,11 @@ const ROLLOVER_REFETCH_MIN_GAP_MS = 5_000;
  * disorienting screen. `toggleSidebar` and the real Fullscreen API (see
  * toggleFullscreen) are what let a user reclaim that space on their own
  * terms instead of it being taken from them automatically.
- *
- * The candle-poll + live-tick-merge logic below is deliberately a close
- * cousin of LivePage's, not a shared service — see the workspace plan's
- * "deliberate scope cuts" for why (avoiding touching that already-working
- * screen outweighs the ~60 lines of duplication here).
  */
 @Component({
   selector: 'app-workspace-page',
   imports: [
+    AnalysisResult,
     DecimalPipe,
     IndicatorMenu,
     MatButtonModule,
@@ -100,6 +109,7 @@ const ROLLOVER_REFETCH_MIN_GAP_MS = 5_000;
     MatChipsModule,
     MatIconModule,
     MatMenuModule,
+    MatProgressSpinnerModule,
     WorkspaceChart,
   ],
   templateUrl: './workspace-page.html',
@@ -108,13 +118,19 @@ const ROLLOVER_REFETCH_MIN_GAP_MS = 5_000;
 export class WorkspacePage implements OnInit, OnDestroy {
   private readonly live = inject(LiveService);
   private readonly stream = inject(MarketStreamService);
+  // The one implementation of "watch an analyses row until it settles",
+  // shared with the upload flow and formerly Live rather than reimplemented here.
+  private readonly analyses = inject(AnalyzeService);
+  private readonly chartCapture = inject(ChartCaptureService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
+  /** Raised when the user needs to buy more analyses — the shell opens plans. */
+  readonly plansRequested = output<void>();
+
   /**
-   * The instrument to chart, chosen in the shell's top-bar search (or handed
-   * off by Live's "Manual Analysis" button with the symbol already on screen
-   * there). This screen has no search box of its own.
+   * The instrument to chart, chosen in the shell's top-bar search. This
+   * screen has no search box of its own.
    */
   readonly selection = input<SymbolSelection | null>(null);
   protected readonly timeframes = TIMEFRAMES;
@@ -147,16 +163,121 @@ export class WorkspacePage implements OnInit, OnDestroy {
     return candles.length > 0 ? candles[candles.length - 1].close : null;
   });
 
+  protected readonly analyzeState = signal<AnalyzeState>('idle');
+  protected readonly analyzeError = signal<string | null>(null);
+  protected readonly row = signal<AnalysisRow | null>(null);
+  protected readonly patterns = signal<AnalysisPattern[]>([]);
+
+  /**
+   * What the in-flight run is for, or null.
+   *
+   * A run is paid for the moment it starts, so changing the timeframe or the
+   * symbol while one is in flight no longer abandons it — this is what lets
+   * the view keep saying which chart is still being analysed after the user
+   * has moved on to looking at another one.
+   */
+  protected readonly runningFor = signal<AnalysisTarget | null>(null);
+
+  /**
+   * A finished analysis for an instrument the user has since navigated away
+   * from. Surfaced as a note rather than dropped silently: the quota unit was
+   * spent and the result is real, it just does not belong on this chart.
+   */
+  protected readonly finishedElsewhere = signal<AnalysisTarget | null>(null);
+
+  /**
+   * Analysis levels, fed to the chart as price lines.
+   *
+   * Drawn only while the chart on screen is the one they were read from. A
+   * support level from a one-minute chart means nothing painted over a
+   * one-day chart, so switching either the symbol or the timeframe takes the
+   * lines down without discarding the analysis itself.
+   */
+  protected readonly overlays = computed<ChartOverlays | null>(() => {
+    /** A legacy single price, as the degenerate band the chart now draws. */
+    const point = (price: number, label: string): OverlayBand => ({
+      low: price,
+      high: price,
+      label,
+    });
+
+    const row = this.row();
+    const instrument = this.instrument();
+    if (!row || row.status !== 'complete' || !instrument) return null;
+    if (row.instrument_id !== instrument.id) return null;
+    if (row.analysis_lookback_days !== lookbackDaysFor(this.timeframe())) return null;
+    const result = row.analysis_result;
+    if (!result) {
+      // Analyzed before the structured-read prompts: all this row has are
+      // single prices, so each is drawn as a zero-width band.
+      return {
+        support: (row.support_levels ?? []).map((price) => point(price, 'S')),
+        resistance: (row.resistance_levels ?? []).map((price) => point(price, 'R')),
+        trigger: row.call_entry !== null ? [point(row.call_entry, 'Entry')] : [],
+        targets: row.call_target !== null ? [row.call_target] : [],
+        invalidations: row.call_invalidation !== null ? [row.call_invalidation] : [],
+      };
+    }
+
+    // Zones, drawn as zones. Painting a band's midpoint as one line would
+    // claim a precision the read explicitly refuses to.
+    const zones = result.structure.levels;
+    return {
+      support: zones
+        .filter((zone) => zone.kind === 'support')
+        .map((zone) => ({ low: zone.low, high: zone.high, label: 'S' })),
+      resistance: zones
+        .filter((zone) => zone.kind === 'resistance')
+        .map((zone) => ({ low: zone.low, high: zone.high, label: 'R' })),
+      trigger: result.setup.scenarios.map((scenario) => ({
+        low: scenario.trigger_low,
+        high: scenario.trigger_high,
+        label: scenario.direction === 'long' ? 'Long above' : 'Short below',
+      })),
+      targets: result.setup.scenarios
+        .map((scenario) => scenario.target)
+        .filter((target): target is number => target !== null),
+      invalidations: result.setup.scenarios.map((scenario) => scenario.invalidation),
+    };
+  });
+
+  protected readonly busy = computed(
+    () => this.analyzeState() === 'starting' || this.analyzeState() === 'processing',
+  );
+
+  /** True while the result on screen was read from the chart on screen. */
+  protected readonly resultApplies = computed(() => {
+    const row = this.row();
+    const instrument = this.instrument();
+    return row !== null && instrument !== null && row.instrument_id === instrument.id;
+  });
+
+  /**
+   * The result is for this instrument but a different timeframe — worth
+   * saying, since its levels are not drawn on the chart in that case.
+   */
+  protected readonly resultWindowDiffers = computed(() => {
+    const row = this.row();
+    return (
+      this.resultApplies() &&
+      row?.status === 'complete' &&
+      row.analysis_lookback_days !== lookbackDaysFor(this.timeframe())
+    );
+  });
+
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private stopStream: (() => void) | null = null;
+  private pending: PollHandle | null = null;
   private lastRolloverFetchAt = 0;
   private intervalMinutes = 0;
   /** Guards a slow fetch for an abandoned symbol/timeframe from painting over the current one. */
   private requestSeq = 0;
 
   constructor() {
-    // Re-arms the poll cadence whenever streaming connects/drops, exactly
-    // like LivePage — see its constructor for why this lives in an effect.
+    // Re-arms the poll cadence whenever streaming connects/drops — the
+    // cadence depends on whether ticks are arriving, and that can flip at any
+    // time (socket connects, drops, reconnects), so this has to live in an
+    // effect rather than a one-shot call.
     effect(() => {
       const streaming = this.stream.streaming();
       void streaming;
@@ -204,6 +325,8 @@ export class WorkspacePage implements OnInit, OnDestroy {
     }
     this.stopRefreshing();
     this.stopStreaming();
+    this.pending?.cancel();
+    this.pending = null;
   }
 
   /**
@@ -238,12 +361,17 @@ export class WorkspacePage implements OnInit, OnDestroy {
   private openInstrument(instrument: WorkspaceInstrument): void {
     this.instrument.set(instrument);
     this.chartError.set(null);
+    this.clearResult();
     void this.reload();
   }
 
   protected selectTimeframe(value: WorkspaceInterval): void {
     if (value === this.timeframe()) return;
     this.timeframe.set(value);
+    // A different timeframe is a different chart, so the previous analysis's
+    // levels stop applying — overlays() drops them on its own. The result
+    // itself, and any run still in flight, are deliberately left alone.
+    this.clearResult();
     void this.reload();
   }
 
@@ -324,7 +452,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
     this.streamPrice.set(null);
   }
 
-  /** Folds one streamed price into the view — see LivePage.applyTick, which this mirrors exactly. */
+  /** Folds one streamed price into the view: the price readout always, and the candle currently forming when the tick actually belongs to it. */
   private applyTick(tick: MarketTick): void {
     if (!Number.isFinite(tick.price)) return;
     this.streamPrice.set(tick.price);
@@ -456,6 +584,104 @@ export class WorkspacePage implements OnInit, OnDestroy {
     if (!instrument) return;
     saveIndicators(this.isBrowser, instrument.id, this.timeframe(), [...next]);
   }
+
+  // ---- AI analysis ----
+
+  /**
+   * Clears the displayed result, leaving any in-flight run alone.
+   *
+   * Deliberately not a cancel. A run is charged the moment it starts, so
+   * changing the timeframe or the symbol while one is in flight used to throw
+   * away an analysis the user had already paid for — it completed server-side
+   * and they never saw it. Now only what is on screen is cleared; the run
+   * itself keeps going and reports back through analyze() below.
+   */
+  private clearResult(): void {
+    this.analyzeError.set(null);
+    this.row.set(null);
+    this.patterns.set([]);
+    this.finishedElsewhere.set(null);
+    // A run still in flight keeps the view busy; only an idle view goes idle.
+    if (!this.busy()) this.analyzeState.set('idle');
+  }
+
+  protected dismissFinishedElsewhere(): void {
+    this.finishedElsewhere.set(null);
+  }
+
+  protected async analyze(): Promise<void> {
+    const instrument = this.instrument();
+    if (!instrument || this.busy()) return;
+
+    // Captured now: the user is free to change either while this runs, and the
+    // result belongs to the chart as it was when they pressed the button.
+    const target: AnalysisTarget = {
+      instrumentId: instrument.id,
+      symbol: instrument.symbol,
+      lookbackDays: lookbackDaysFor(this.timeframe()),
+    };
+
+    this.clearResult();
+    this.analyzeState.set('starting');
+    this.runningFor.set(target);
+
+    // The image is rendered here, from the candles already on screen, and
+    // posted with the request purely so the stored analysis keeps the exact
+    // chart the user was looking at, to view and download later. The analysis
+    // itself is made from the candle data server-side, not from this picture.
+    // A null capture is not an error — the API falls back to its own renderer.
+    const chart = await this.chartCapture.capture(this.candles(), {
+      symbol: instrument.symbol,
+      name: instrument.name,
+      exchange: instrument.exchange,
+      timeframeLabel: timeframeLabelFor(this.timeframe()),
+    });
+
+    const started = await this.live.startAnalysis(target.instrumentId, target.lookbackDays, chart);
+    if (!started.ok) {
+      this.runningFor.set(null);
+      this.analyzeState.set(started.reason === 'quota_exceeded' ? 'quota_exceeded' : 'failed');
+      this.analyzeError.set(started.message);
+      return;
+    }
+
+    this.analyzeState.set('processing');
+    // Watched by row id, so a run that fails reports 'failed' as soon as the
+    // pipeline records it rather than after a three-minute client timeout.
+    const handle = this.analyses.pollAnalysis(started.analysisId, () => {
+      /* Intermediate states are not rendered here; only the outcome matters. */
+    });
+    this.pending = handle;
+
+    const outcome = await handle.result;
+    if (this.pending !== handle) return;
+    this.pending = null;
+    this.runningFor.set(null);
+
+    if (outcome.outcome === 'complete' || outcome.outcome === 'failed') {
+      this.row.set(outcome.row);
+      this.patterns.set(outcome.outcome === 'complete' ? outcome.patterns : []);
+      this.analyzeState.set(outcome.outcome === 'complete' ? 'complete' : 'failed');
+      // The user moved to a different symbol while this ran. The result is
+      // real and already in their history, so point at it rather than
+      // rendering it over a chart it was not read from.
+      if (this.instrument()?.id !== target.instrumentId) {
+        this.finishedElsewhere.set(target);
+      }
+      return;
+    }
+
+    this.analyzeState.set('failed');
+    this.analyzeError.set(
+      outcome.outcome === 'timed_out'
+        ? "This is taking longer than expected. If it finished, it'll be in your history."
+        : 'Could not read the finished analysis. Check your connection and try again.',
+    );
+  }
+
+  protected openPlans(): void {
+    this.plansRequested.emit();
+  }
 }
 
 /** Drawings whose whole meaning is one price, so the side panel prints it. */
@@ -469,4 +695,9 @@ const LEVEL_KINDS = new Set<DrawingKind>([
 
 function lookbackDaysFor(timeframe: WorkspaceInterval): number {
   return TIMEFRAMES.find((t) => t.value === timeframe)?.lookbackDays ?? 365;
+}
+
+/** The timeframe's own short label, stamped onto the captured chart image and used in analysis-status copy. */
+function timeframeLabelFor(timeframe: WorkspaceInterval): string | null {
+  return TIMEFRAMES.find((t) => t.value === timeframe)?.label ?? null;
 }

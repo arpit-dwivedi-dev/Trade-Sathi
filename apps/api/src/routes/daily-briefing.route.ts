@@ -9,7 +9,7 @@ import {
 } from "../services/daily-briefing.service.js";
 import type { AnalyzeNowResult } from "../services/daily-briefing.service.js";
 
-export const watchlistRouter = Router();
+export const dailyBriefingRouter = Router();
 
 /**
  * "Analyze Now" — a user-triggered, single-symbol run of the same
@@ -41,7 +41,7 @@ type ItemRunner = (
  * copies of this handler would be two places for the status-code mapping to
  * drift.
  */
-function watchlistRunRoute(run: ItemRunner, label: string) {
+function dailyBriefingRunRoute(run: ItemRunner, label: string) {
   return asyncRoute(async (req: Request, res: Response) => {
     try {
       // Non-null: requireAuth ran before this handler and only calls next()
@@ -112,11 +112,11 @@ function watchlistRunRoute(run: ItemRunner, label: string) {
   });
 }
 
-watchlistRouter.post(
-  "/api/watchlist/:itemId/analyze-now",
+dailyBriefingRouter.post(
+  "/api/daily-briefing/:itemId/analyze-now",
   asyncRoute(requireAuth),
   handleImageUpload,
-  watchlistRunRoute(analyzeWatchlistItemNow, "analyze-now"),
+  dailyBriefingRunRoute(analyzeWatchlistItemNow, "analyze-now"),
 );
 
 /**
@@ -124,9 +124,9 @@ watchlistRouter.post(
  * symbol with its analysis attached as a PDF. Same entitlement, same failure
  * modes, same 202-then-poll contract.
  */
-watchlistRouter.post(
-  "/api/watchlist/:itemId/brief-now",
+dailyBriefingRouter.post(
+  "/api/daily-briefing/:itemId/brief-now",
   asyncRoute(requireAuth),
   handleImageUpload,
-  watchlistRunRoute(briefWatchlistItemNow, "brief-now"),
+  dailyBriefingRunRoute(briefWatchlistItemNow, "brief-now"),
 );

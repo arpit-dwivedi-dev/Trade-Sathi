@@ -30,9 +30,9 @@ import { SupabaseClientService } from '../../core/supabase-client';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import { BillingService } from '../billing/billing.service';
-import { LiveService } from '../live/live.service';
+import { LiveService } from '../../core/live.service';
 
-interface WatchlistItem {
+interface DailyBriefingItem {
   id: string;
   symbol: string;
   instrument_id: string | null;
@@ -52,7 +52,7 @@ interface WatchlistItem {
  */
 type RunMode = 'analyze' | 'brief';
 
-interface WatchlistRun {
+interface DailyBriefingRun {
   id: string;
   watchlist_item_id: string;
   status: 'queued' | 'processing' | 'complete' | 'failed';
@@ -92,7 +92,7 @@ const MAX_LOOKBACK_DAYS = 365;
  * chosen instrument through `selection` and only stages it for adding.
  */
 @Component({
-  selector: 'app-watchlist',
+  selector: 'app-daily-briefing',
   imports: [
     RouterLink,
     MatButtonModule,
@@ -105,10 +105,10 @@ const MAX_LOOKBACK_DAYS = 365;
     MatSlideToggleModule,
     MatTableModule,
   ],
-  styleUrl: './watchlist.css',
-  templateUrl: './watchlist.html',
+  styleUrl: './daily-briefing.css',
+  templateUrl: './daily-briefing.html',
 })
-export class Watchlist implements OnInit, OnDestroy {
+export class DailyBriefing implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly supabase = inject(SupabaseClientService);
   private readonly http = inject(HttpClient);
@@ -118,7 +118,7 @@ export class Watchlist implements OnInit, OnDestroy {
 
   protected readonly columns = ['symbol', 'window', 'runAt', 'dailyBriefing', 'actions'];
 
-  protected readonly items = signal<WatchlistItem[]>([]);
+  protected readonly items = signal<DailyBriefingItem[]>([]);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -170,7 +170,7 @@ export class Watchlist implements OnInit, OnDestroy {
    * matRowDef's `when` predicate for a row's note (remove confirm / duplicate
    * warning / result message — mutually exclusive, see the template).
    */
-  protected readonly hasRowNote = (_index: number, item: WatchlistItem): boolean =>
+  protected readonly hasRowNote = (_index: number, item: DailyBriefingItem): boolean =>
     this.pendingRemoval() === item.id ||
     this.duplicateWarning()[item.id] !== undefined ||
     this.analyzeResult()[item.id] !== undefined;
@@ -275,7 +275,7 @@ export class Watchlist implements OnInit, OnDestroy {
   readonly addCompleted = output<void>();
 
   /**
-   * The Watchlist tab is unmounted whenever the user looks at another tab.
+   * The Daily Briefing tab is unmounted whenever the user looks at another tab.
    * A run watch outlives that on its own — it would keep querying for up to
    * two minutes after destruction and keep writing to signals nobody is
    * rendering — so every check reads this and stops. ngOnDestroy also closes
@@ -332,7 +332,7 @@ export class Watchlist implements OnInit, OnDestroy {
     if (error) {
       this.error.set('Could not load your watchlist.');
     } else {
-      this.items.set((data ?? []) as unknown as WatchlistItem[]);
+      this.items.set((data ?? []) as unknown as DailyBriefingItem[]);
     }
     this.loading.set(false);
   }
@@ -373,7 +373,7 @@ export class Watchlist implements OnInit, OnDestroy {
    * (20260831170000_watchlist_analysis_settings.sql). Everything else about a
    * watch entry is immutable once added.
    */
-  protected async toggleDailyAnalysis(item: WatchlistItem): Promise<void> {
+  protected async toggleDailyAnalysis(item: DailyBriefingItem): Promise<void> {
     const client = this.supabase.client;
     if (!client) return;
     const next = !item.enabled_for_daily_analysis;
@@ -397,7 +397,7 @@ export class Watchlist implements OnInit, OnDestroy {
    * The sentinel 'custom' swaps the row's preset list for a free number input
    * instead of writing anything.
    */
-  protected async setLookbackDays(item: WatchlistItem, value: string): Promise<void> {
+  protected async setLookbackDays(item: DailyBriefingItem, value: string): Promise<void> {
     if (value === 'custom') {
       this.customLookback.update((custom) => ({ ...custom, [item.id]: true }));
       return;
@@ -408,7 +408,7 @@ export class Watchlist implements OnInit, OnDestroy {
   }
 
   /** A typed-in window, committed on blur/Enter once it is in range. */
-  protected async setCustomLookbackDays(item: WatchlistItem, value: string): Promise<void> {
+  protected async setCustomLookbackDays(item: DailyBriefingItem, value: string): Promise<void> {
     const days = Math.round(Number(value));
     if (
       !Number.isFinite(days) ||
@@ -426,7 +426,7 @@ export class Watchlist implements OnInit, OnDestroy {
    * because its stored window simply is not one of the presets (set earlier,
    * or on another device).
    */
-  protected isCustomLookback(item: WatchlistItem): boolean {
+  protected isCustomLookback(item: DailyBriefingItem): boolean {
     return (
       this.customLookback()[item.id] === true ||
       !LOOKBACK_OPTIONS.some((option) => option.days === item.analysis_lookback_days)
@@ -437,7 +437,7 @@ export class Watchlist implements OnInit, OnDestroy {
    * `value` is an `<input type="time">` value ("HH:mm"), or '' to follow the
    * deployment default (stored as hour=null, minute=null).
    */
-  protected async setScheduledTime(item: WatchlistItem, value: string): Promise<void> {
+  protected async setScheduledTime(item: DailyBriefingItem, value: string): Promise<void> {
     let hour: number | null = null;
     let minute: number | null = null;
     if (value !== '') {
@@ -467,7 +467,7 @@ export class Watchlist implements OnInit, OnDestroy {
   }
 
   /** The hour select's bound value: the sentinel 'default' or 0-23. */
-  protected scheduledHourValue(item: WatchlistItem): 'default' | number {
+  protected scheduledHourValue(item: DailyBriefingItem): 'default' | number {
     return item.scheduled_hour_ist ?? 'default';
   }
 
@@ -479,14 +479,14 @@ export class Watchlist implements OnInit, OnDestroy {
    * earlier version of this control) is never silently changed just by the
    * dropdown being opened.
    */
-  protected minuteOptionsFor(item: WatchlistItem): number[] {
+  protected minuteOptionsFor(item: DailyBriefingItem): number[] {
     const current = item.scheduled_minute_ist ?? 0;
-    const base = Watchlist.MINUTE_STEP_OPTIONS;
+    const base = DailyBriefing.MINUTE_STEP_OPTIONS;
     return base.includes(current) ? base : [...base, current].sort((a, b) => a - b);
   }
 
   /** 'default' clears the schedule back to the deployment default (both columns null). */
-  protected async setScheduledHour(item: WatchlistItem, value: 'default' | number): Promise<void> {
+  protected async setScheduledHour(item: DailyBriefingItem, value: 'default' | number): Promise<void> {
     if (value === 'default') {
       if (item.scheduled_hour_ist === null) return;
       await this.patchSettings(item, { scheduled_hour_ist: null, scheduled_minute_ist: null });
@@ -499,7 +499,7 @@ export class Watchlist implements OnInit, OnDestroy {
     });
   }
 
-  protected async setScheduledMinute(item: WatchlistItem, value: number): Promise<void> {
+  protected async setScheduledMinute(item: DailyBriefingItem, value: number): Promise<void> {
     if (item.scheduled_hour_ist === null || value === item.scheduled_minute_ist) return;
     await this.patchSettings(item, { scheduled_minute_ist: value });
   }
@@ -510,9 +510,9 @@ export class Watchlist implements OnInit, OnDestroy {
    * toggleDailyAnalysis above.
    */
   private async patchSettings(
-    item: WatchlistItem,
+    item: DailyBriefingItem,
     patch: Partial<
-      Pick<WatchlistItem, 'analysis_lookback_days' | 'scheduled_hour_ist' | 'scheduled_minute_ist'>
+      Pick<DailyBriefingItem, 'analysis_lookback_days' | 'scheduled_hour_ist' | 'scheduled_minute_ist'>
     >,
   ): Promise<void> {
     const client = this.supabase.client;
@@ -547,7 +547,7 @@ export class Watchlist implements OnInit, OnDestroy {
    * the chart this app renders rather than a separate server-side picture.
    */
   protected async analyzeNow(
-    item: WatchlistItem,
+    item: DailyBriefingItem,
     force = false,
     mode: RunMode = 'analyze',
   ): Promise<void> {
@@ -592,7 +592,7 @@ export class Watchlist implements OnInit, OnDestroy {
       // under RLS) and we poll that row rather than waiting on this call.
       const accepted = await firstValueFrom(
         this.http.post<{ runId: string }>(
-          `/api/watchlist/${item.id}/${mode === 'brief' ? 'brief-now' : 'analyze-now'}`,
+          `/api/daily-briefing/${item.id}/${mode === 'brief' ? 'brief-now' : 'analyze-now'}`,
           form,
           { headers: { Authorization: `Bearer ${token}` } },
         ),
@@ -636,7 +636,7 @@ export class Watchlist implements OnInit, OnDestroy {
    * API then renders the chart itself, exactly as the scheduled daily
    * briefing does, so the analysis still happens.
    */
-  private async captureChart(item: WatchlistItem): Promise<Blob | null> {
+  private async captureChart(item: DailyBriefingItem): Promise<Blob | null> {
     const instrumentId = item.instrument_id;
     if (!instrumentId) return null;
 
@@ -741,7 +741,7 @@ export class Watchlist implements OnInit, OnDestroy {
     const client = this.supabase.client;
     if (!client) return;
 
-    const since = new Date(Date.now() - Watchlist.RESUME_WINDOW_MS).toISOString();
+    const since = new Date(Date.now() - DailyBriefing.RESUME_WINDOW_MS).toISOString();
     const { data, error } = await client
       .from('watchlist_analysis_runs')
       .select('id, watchlist_item_id, status, updated_at')
@@ -750,7 +750,7 @@ export class Watchlist implements OnInit, OnDestroy {
     if (error || !data || this.destroyed) return;
 
     const seen = new Set<string>();
-    for (const run of data as WatchlistRun[]) {
+    for (const run of data as DailyBriefingRun[]) {
       // Ordered newest-first, so the first row for an item is its latest run.
       if (seen.has(run.watchlist_item_id)) continue;
       seen.add(run.watchlist_item_id);
@@ -759,7 +759,7 @@ export class Watchlist implements OnInit, OnDestroy {
       if (settled === 'complete' || settled === 'failed') {
         this.analyzeResult.update((results) => ({
           ...results,
-          [run.watchlist_item_id]: Watchlist.settledMessage(settled),
+          [run.watchlist_item_id]: DailyBriefing.settledMessage(settled),
         }));
         continue;
       }
@@ -824,7 +824,7 @@ export class Watchlist implements OnInit, OnDestroy {
         return;
       }
 
-      if (Date.now() - startedAt >= Watchlist.RUN_WATCH_TIMEOUT_MS) {
+      if (Date.now() - startedAt >= DailyBriefing.RUN_WATCH_TIMEOUT_MS) {
         stop();
         // Only this tab stopped watching; the run itself is still recorded and
         // will be picked up again by resumeRuns on the next load.
@@ -840,7 +840,7 @@ export class Watchlist implements OnInit, OnDestroy {
         .from('watchlist_analysis_runs')
         .select('status')
         .eq('id', runId)
-        .maybeSingle<{ status: WatchlistRun['status'] }>();
+        .maybeSingle<{ status: DailyBriefingRun['status'] }>();
 
       // A read blip is not a failed run: the next event or fallback tick
       // retries, and the timeout above is what eventually gives up.
@@ -851,7 +851,7 @@ export class Watchlist implements OnInit, OnDestroy {
         stop();
         this.analyzeResult.update((results) => ({
           ...results,
-          [itemId]: Watchlist.settledMessage(status, this.runModes()[itemId]),
+          [itemId]: DailyBriefing.settledMessage(status, this.runModes()[itemId]),
         }));
         this.clearRun(itemId);
       }
@@ -920,11 +920,11 @@ export class Watchlist implements OnInit, OnDestroy {
   }
 
   /** Canonical symbol/name when resolved, else the legacy free-text symbol. */
-  protected displaySymbol(item: WatchlistItem): string {
+  protected displaySymbol(item: DailyBriefingItem): string {
     return item.instruments?.symbol ?? item.symbol;
   }
 
-  protected displayName(item: WatchlistItem): string | null {
+  protected displayName(item: DailyBriefingItem): string | null {
     return item.instruments?.name ?? null;
   }
 }

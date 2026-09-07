@@ -14,7 +14,7 @@ import { attachMarketStream } from "./routes/market-stream.route.js";
 import { marketRouter } from "./routes/market.route.js";
 import { meRouter } from "./routes/me.route.js";
 import { surveyRouter } from "./routes/survey.route.js";
-import { watchlistRouter } from "./routes/watchlist.route.js";
+import { dailyBriefingRouter } from "./routes/daily-briefing.route.js";
 import { webhooksRouter } from "./routes/webhooks.route.js";
 import { resolveGeo } from "./middleware/geo.js";
 
@@ -40,7 +40,7 @@ app.use(instrumentsRouter);
 app.use(internalRouter);
 app.use(marketRouter);
 app.use(surveyRouter);
-app.use(watchlistRouter);
+app.use(dailyBriefingRouter);
 
 // An explicit http.Server rather than app.listen(): the live market stream
 // needs the underlying server to hook WebSocket upgrades onto.

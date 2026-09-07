@@ -35,7 +35,12 @@
     </p>
   </div>
 
-  <span class="btn btn-s drop-browse">Choose a file</span>
+  <span class="drop-actions">
+    <span class="btn btn-s drop-browse">Choose a file</span>
+    @if (isMobileDevice()) {
+      <span class="btn btn-s drop-camera" (click)="openCamera($event)">Take a photo</span>
+    }
+  </span>
 
   <p class="disc drop-hint">
     Include the price axis and the timeframe label — the symbol, timeframe and levels are read
@@ -44,6 +49,10 @@
 </div>
 
 @if (notice(); as message) {
+  <p class="err drop-notice" role="alert">{{ message }}</p>
+}
+
+@if (cameraError(); as message) {
   <p class="err drop-notice" role="alert">{{ message }}</p>
 }
 
@@ -57,3 +66,25 @@
   [disabled]="disabled()"
   (change)="onPick($event)"
 />
+
+@if (cameraOpen()) {
+  <div
+    #cameraOverlay
+    class="camera-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Take a photo of the chart"
+    tabindex="-1"
+    (keydown.escape)="closeCamera()"
+  >
+    <video #videoEl class="camera-video" autoplay playsinline muted></video>
+    <div class="camera-actions">
+      <span class="btn btn-s" (click)="closeCamera()">Cancel</span>
+      <span class="btn btn-s camera-shutter" (click)="capturePhoto()">Capture</span>
+    </div>
+  </div>
+}
+
+<!-- Off-screen scratch surface for turning a video frame into a file; never
+     shown to the user. -->
+<canvas #canvasEl hidden></canvas>

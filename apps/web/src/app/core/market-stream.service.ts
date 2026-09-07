@@ -7,7 +7,7 @@ import type {
   MarketTick,
 } from '@chartanalyzer/shared';
 
-import { AuthService } from '../../core/auth.service';
+import { AuthService } from './auth.service';
 
 /**
  * The browser end of the live market-data socket (`/api/market/stream`).
@@ -19,8 +19,9 @@ import { AuthService } from '../../core/auth.service';
  * nothing until a symbol is picked.
  *
  * Prices arriving here are a live overlay, never the source of truth: the REST
- * candle poll in LivePage still owns completed candles, so a socket that never
- * connects degrades to exactly the behaviour that existed before it.
+ * candle poll each caller already runs still owns completed candles, so a
+ * socket that never connects degrades to exactly the behaviour that existed
+ * before it.
  */
 
 /** Reconnect backoff, doubling from the first attempt to a ceiling. */

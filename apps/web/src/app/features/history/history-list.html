@@ -16,12 +16,28 @@
     </mat-button-toggle-group>
 
     @if (!loading() && rows().length) {
-      <span class="history-count">
-        <span class="tnum">{{ rows().length }}</span>
-        <span class="lbl">shown</span>
+      <span class="history-head-trailing">
+        @if (selectedIds().size > 0) {
+          <button mat-stroked-button color="warn" [disabled]="deleting()" (click)="deleteSelected()">
+            @if (deleting()) {
+              <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
+            } @else {
+              <mat-icon aria-hidden="true" svgIcon="delete"></mat-icon>
+            }
+            Delete {{ selectedIds().size }} selected
+          </button>
+        }
+        <span class="history-count">
+          <span class="tnum">{{ rows().length }}</span>
+          <span class="lbl">shown</span>
+        </span>
       </span>
     }
   </div>
+
+  @if (deleteError()) {
+    <p class="err" role="alert">{{ deleteError() }}</p>
+  }
 
   @if (loading()) {
     <div class="tbl" aria-busy="true">
@@ -66,6 +82,25 @@
   } @else {
     <div class="history-table-wrap">
       <table mat-table [dataSource]="tableRows()" multiTemplateDataRows class="history-table">
+        <ng-container matColumnDef="select">
+          <th mat-header-cell *matHeaderCellDef>
+            <mat-checkbox
+              [checked]="allSelected()"
+              (click)="$event.stopPropagation()"
+              (change)="toggleSelectAll()"
+              aria-label="Select all shown analyses"
+            />
+          </th>
+          <td mat-cell *matCellDef="let row">
+            <mat-checkbox
+              [checked]="selectedIds().has(row.id)"
+              (click)="$event.stopPropagation()"
+              (change)="toggleSelect(row)"
+              [attr.aria-label]="'Select ' + (displaySymbol(row) ?? 'this analysis')"
+            />
+          </td>
+        </ng-container>
+
         <ng-container matColumnDef="analyzed">
           <th mat-header-cell *matHeaderCellDef>Analyzed</th>
           <td mat-cell *matCellDef="let row" class="tnum">
@@ -157,6 +192,14 @@
                 } @else {
                   <mat-icon aria-hidden="true" svgIcon="download"></mat-icon>
                 }
+              </button>
+              <button
+                mat-icon-button
+                [disabled]="deleting()"
+                [attr.aria-label]="'Delete ' + (displaySymbol(row) ?? 'this analysis')"
+                (click)="deleteOne(row, $event)"
+              >
+                <mat-icon aria-hidden="true" svgIcon="delete"></mat-icon>
               </button>
               <span class="history-chevron" [class.history-chevron-open]="expandedId() === row.id" aria-hidden="true">
                 <mat-icon aria-hidden="true" svgIcon="chevron_right"></mat-icon>

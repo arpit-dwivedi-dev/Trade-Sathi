@@ -1,7 +1,7 @@
 /* This is the shell's .body — already the scrolling flex column sized to the
    space under the topbar. Tighter padding than the default page body: the
    table is wide enough to need every column it can get. */
-.watchlist {
+.daily-briefing {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
@@ -12,7 +12,7 @@
 /* The staged search result plus its Add/Cancel pair. A toolbar, not a card:
    it is one line of text and two buttons, and a titled panel around it added
    chrome without adding meaning. */
-.watchlist-add {
+.daily-briefing-add {
   align-items: center;
   background: var(--surf);
   border: 1px solid var(--line);
@@ -22,7 +22,7 @@
   padding: var(--s2) var(--s3);
 }
 
-.watchlist-staged {
+.daily-briefing-staged {
   align-items: center;
   display: flex;
   flex: 1;
@@ -30,14 +30,14 @@
   min-width: 0;
 }
 
-.watchlist-staged-name {
+.daily-briefing-staged-name {
   color: var(--tx-2);
   flex: 1;
   font-size: var(--t-sm);
   min-width: 0;
 }
 
-.watchlist-staged-exchange {
+.daily-briefing-staged-exchange {
   color: var(--tx-3);
   flex: none;
   font-size: var(--t-3xs);
@@ -50,7 +50,7 @@
 /* Takes every row left under the add-row and any notices above it, so the
    list is the screen rather than a short box at the top of one. The rows
    scroll inside the wrapper below, which is why the card itself clips. */
-.watchlist-card {
+.daily-briefing-card {
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
@@ -64,7 +64,7 @@
 
 /* Loading and empty both stand in for the whole list, so they centre in the
    height the list would have had instead of leaving a void beneath them. */
-.watchlist-state {
+.daily-briefing-state {
   align-items: center;
   color: var(--tx-3);
   display: flex;
@@ -82,13 +82,13 @@
    than handing its scroll to the page; the height it scrolls within is now
    whatever the card has left (was a flat 70vh, which under-used a tall
    window and overflowed a short one). */
-.watchlist-table-wrap {
+.daily-briefing-table-wrap {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
 }
 
-.watchlist-table {
+.daily-briefing-table {
   min-width: 900px;
   table-layout: fixed;
   width: 100%;
@@ -99,7 +99,7 @@
    here (unlike History, which sticks against the page). It does need an
    opaque ground of its own, or rows would show through as they pass under
    it; styled to match History's header so both tables read as one control. */
-.watchlist-table th.mat-mdc-header-cell {
+.daily-briefing-table th.mat-mdc-header-cell {
   background: var(--surf-2);
   border-bottom: 1px solid var(--line);
   color: var(--tx-3);
@@ -111,7 +111,7 @@
   white-space: nowrap;
 }
 
-.watchlist-table td.mat-mdc-cell {
+.daily-briefing-table td.mat-mdc-cell {
   border-bottom-color: var(--line-soft);
 }
 
@@ -139,13 +139,13 @@
   width: 300px;
 }
 
-.watchlist-row {
+.daily-briefing-row {
   height: 56px;
   transition: background var(--dur-subtle) var(--ease-move);
 }
 
-.watchlist-row:hover,
-.watchlist-row:focus-visible {
+.daily-briefing-row:hover,
+.daily-briefing-row:focus-visible {
   background: var(--surf-2);
 }
 
@@ -159,15 +159,15 @@
    1px against 56px). That left the divider beside the buttons sitting well
    above every other cell's. The flex layout lives on this wrapper inside
    the cell instead. */
-.watchlist-actions {
+.daily-briefing-actions {
   align-items: center;
   display: flex;
   gap: var(--s2);
   justify-content: flex-end;
 }
 
-.watchlist-actions .mat-mdc-unelevated-button,
-.watchlist-actions .mat-mdc-outlined-button {
+.daily-briefing-actions .mat-mdc-unelevated-button,
+.daily-briefing-actions .mat-mdc-outlined-button {
   --mdc-filled-button-container-height: 28px;
   --mdc-outlined-button-container-height: 28px;
   font-size: var(--t-2xs);
@@ -175,14 +175,14 @@
   white-space: nowrap;
 }
 
-.watchlist-actions .mat-mdc-icon-button {
+.daily-briefing-actions .mat-mdc-icon-button {
   --mdc-icon-button-state-layer-size: 32px;
   height: 32px;
   padding: 4px;
   width: 32px;
 }
 
-.watchlist-actions .mat-mdc-icon-button .mat-icon {
+.daily-briefing-actions .mat-mdc-icon-button .mat-icon {
   height: 18px;
   width: 18px;
 }
@@ -201,11 +201,11 @@
    overlay instead (a real, ordinary positioning context), so the row reads as
    uniformly blurred without relying on <tr> positioning at all. Only the
    symbol cell's overlay carries the message text; the rest are blank blur. */
-.watchlist-cell {
+.daily-briefing-cell {
   position: relative;
 }
 
-.watchlist-cell-overlay {
+.daily-briefing-cell-overlay {
   align-items: center;
   backdrop-filter: blur(2px);
   background: color-mix(in srgb, var(--surf) 72%, transparent);
@@ -223,16 +223,16 @@
   z-index: 2;
 }
 
-:root[data-theme='dark'] .watchlist-cell-overlay {
+:root[data-theme='dark'] .daily-briefing-cell-overlay {
   background: color-mix(in srgb, var(--surf) 60%, transparent);
 }
 
-.watchlist-symbol {
+.daily-briefing-symbol {
   display: block;
   font-size: var(--t-sm);
 }
 
-.watchlist-item-name {
+.daily-briefing-item-name {
   color: var(--tx-3);
   display: block;
   font-size: var(--t-2xs);
@@ -244,30 +244,30 @@
 
 /* Compacted below Material's default field height so a row of these reads as
    a table row, not a stack of form fields. */
-.watchlist-select-field,
-.watchlist-days-field,
-.watchlist-hour-field,
-.watchlist-minute-field {
+.daily-briefing-select-field,
+.daily-briefing-days-field,
+.daily-briefing-hour-field,
+.daily-briefing-minute-field {
   --mat-form-field-container-height: 36px;
   --mat-form-field-container-vertical-padding: 6px;
   font-size: var(--t-2xs);
 }
 
-.watchlist-select-field {
+.daily-briefing-select-field {
   width: 140px;
 }
 
-.watchlist-custom {
+.daily-briefing-custom {
   align-items: center;
   display: flex;
   gap: var(--s2);
 }
 
-.watchlist-days-field {
+.daily-briefing-days-field {
   width: 64px;
 }
 
-.watchlist-unit {
+.daily-briefing-unit {
   color: var(--tx-3);
   font-size: var(--t-2xs);
   white-space: nowrap;
@@ -275,50 +275,50 @@
 
 /* ── run-at time ─────────────────────────────────────────
    Hour and minute as a pair of mat-selects rather than a native
-   <input type="time"> — see watchlist.ts's hourOptions doc comment for why:
+   <input type="time"> — see daily-briefing.ts's hourOptions doc comment for why:
    the native control's own picker UI ignores the app's theme entirely. Kept
    on one line with its "IST"/"Default" label so this cell's row height
    matches every other cell in the row. */
-.watchlist-time {
+.daily-briefing-time {
   align-items: center;
   display: inline-flex;
   gap: var(--s1);
 }
 
-.watchlist-hour-field {
+.daily-briefing-hour-field {
   width: 92px;
 }
 
-.watchlist-minute-field {
+.daily-briefing-minute-field {
   width: 68px;
 }
 
-.watchlist-time-sep {
+.daily-briefing-time-sep {
   color: var(--tx-3);
 }
 
-.watchlist-note-cell {
+.daily-briefing-note-cell {
   padding-top: 0;
 }
 
-.watchlist-result {
+.daily-briefing-result {
   color: var(--tx-3);
   font-size: var(--t-xs);
 }
 
-.watchlist-confirm {
+.daily-briefing-confirm {
   align-items: center;
   flex-wrap: wrap;
   font-size: var(--t-xs);
   justify-content: space-between;
 }
 
-.watchlist-confirm-copy {
+.daily-briefing-confirm-copy {
   flex: 1;
   min-width: 18rem;
 }
 
-.watchlist-confirm-actions {
+.daily-briefing-confirm-actions {
   display: flex;
   flex: none;
   gap: var(--s2);
@@ -326,16 +326,16 @@
 
 @media (max-width: 640px) {
   /* Narrow screens scroll the page rather than a box inside it. */
-  .watchlist-card {
+  .daily-briefing-card {
     flex: none;
   }
 
-  .watchlist-table-wrap {
+  .daily-briefing-table-wrap {
     flex: none;
     max-height: 70vh;
   }
 
-  .watchlist-add {
+  .daily-briefing-add {
     align-items: stretch;
     flex-direction: column;
   }

@@ -34,6 +34,23 @@
       }
 
       <span class="ws-topbar-end">
+        @if (instrument()) {
+          <button
+            mat-flat-button
+            color="primary"
+            class="ws-analyze-btn"
+            [disabled]="busy() || candles().length === 0"
+            (click)="analyze()"
+          >
+            @if (busy()) {
+              <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
+              Analysing…
+            } @else {
+              Analyse using AI
+            }
+          </button>
+        }
+
         <button mat-icon-button (click)="toggleFullscreen()"
                 [attr.aria-pressed]="isFullscreen()"
                 [title]="isFullscreen() ? 'Exit full screen' : 'Full screen'"
@@ -125,6 +142,7 @@
         } @else {
           <app-workspace-chart
             [candles]="candles()"
+            [overlays]="overlays()"
             [activeIndicators]="activeIndicators()"
             [tool]="tool()"
             [drawings]="drawings()"
@@ -198,4 +216,50 @@
       </aside>
     }
   </div>
+
+  <!-- A run is charged when it starts, so it is never abandoned when the
+       chart changes underneath it. This says what is still running. -->
+  @if (runningFor(); as running) {
+    <div class="note ws-note" style="--tone: var(--acc)">
+      <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
+      <span>
+        Analysing <b>{{ running.symbol }}</b> on the chart. You can keep looking around — the
+        result appears here when it's ready.
+      </span>
+    </div>
+  }
+
+  @if (analyzeState() === 'quota_exceeded') {
+    <div class="note ws-note" style="--tone: var(--warn)">
+      <span>{{ analyzeError() }}</span>
+      <button mat-stroked-button (click)="openPlans()">See plans</button>
+    </div>
+  } @else if (analyzeState() === 'failed' && analyzeError()) {
+    <p class="err ws-error">{{ analyzeError() }}</p>
+  }
+
+  <!-- Finished while the user was looking at a different symbol. Not
+       dropped silently: it cost a quota unit and it is a real result. -->
+  @if (finishedElsewhere(); as done) {
+    <div class="note ws-note" style="--tone: var(--up)">
+      <span>
+        Your <b>{{ done.symbol }}</b> analysis finished. Open the History tab to read it.
+      </span>
+      <button mat-button (click)="dismissFinishedElsewhere()">
+        Dismiss
+      </button>
+    </div>
+  }
+
+  @if (resultApplies() && row(); as analysis) {
+    <!-- The levels are only drawn on the chart while the timeframe matches, so
+         say why they are missing rather than leaving it unexplained. -->
+    @if (resultWindowDiffers()) {
+      <p class="disc ws-window-note">
+        This analysis was read from a different timeframe, so its levels aren't drawn on the chart
+        you're looking at now.
+      </p>
+    }
+    <app-analysis-result [row]="analysis" [patterns]="patterns()" />
+  }
 </section>

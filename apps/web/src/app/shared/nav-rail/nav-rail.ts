@@ -10,10 +10,9 @@ import { ProfileService } from '../../features/account/profile.service';
 /** The dashboard tabs the rail links to. The app shell reads its own tab from the URL. */
 export type NavTab =
   | 'analyze'
-  | 'live'
   | 'workspace'
   | 'history'
-  | 'watchlist'
+  | 'dailyBriefing'
   | 'fundamentals'
   | 'logs'
   | 'billing'

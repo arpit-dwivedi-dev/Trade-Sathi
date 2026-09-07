@@ -64,7 +64,8 @@
   justify-content: flex-start;
 }
 
-:host(:not(.fill)) .drop-browse {
+:host(:not(.fill)) .drop-actions {
+  justify-content: flex-start;
   margin-top: 0;
 }
 
@@ -134,8 +135,16 @@
   justify-content: center;
 }
 
-.drop-browse {
+.drop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  justify-content: center;
   margin-top: var(--s1);
+}
+
+.drop-browse {
+  margin-top: 0;
 }
 
 .drop-hint {
@@ -147,6 +156,37 @@
    so it does not reflow the zone's own layout as it appears and clears. */
 .drop-notice {
   margin-top: var(--s3);
+}
+
+.camera-overlay {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+  inset: 0;
+  justify-content: center;
+  padding: var(--s5);
+  position: fixed;
+  z-index: 100;
+}
+
+.camera-video {
+  background: #000;
+  border-radius: var(--r-lg);
+  max-height: 70vh;
+  max-width: min(90vw, 640px);
+  width: 100%;
+}
+
+.camera-actions {
+  display: flex;
+  gap: var(--s3);
+}
+
+.camera-shutter {
+  border-color: var(--acc-line);
+  color: var(--acc);
 }
 
 @media (max-width: 640px) {

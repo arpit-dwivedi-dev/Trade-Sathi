@@ -54,9 +54,9 @@ function rsiRefId(level: number): string {
 }
 
 /**
- * The manual analysis workspace's chart: reuses the same base candle+volume
- * renderer as the read-only Live tab chart (`shared/live-chart/chart-render`)
- * so the two look identical, then layers on what the workspace adds —
+ * The Chart Analysis workspace's chart: reuses the same base candle+volume
+ * renderer as the read-only `LiveChart` (`shared/live-chart/chart-render`) so
+ * the two look identical, then layers on what the workspace adds —
  * indicators and the drawing tools.
  *
  * Both of those are now the chart library's own: KLineChart ships the

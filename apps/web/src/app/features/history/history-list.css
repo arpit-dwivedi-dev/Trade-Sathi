@@ -76,6 +76,10 @@
   color: var(--tx);
 }
 
+.mat-column-select {
+  width: 44px;
+}
+
 .mat-column-analyzed {
   width: 128px;
 }
@@ -105,7 +109,7 @@
 }
 
 .mat-column-actions {
-  width: 92px;
+  width: 124px;
 }
 
 /* The actions cell itself gets nothing beyond its width above. `display:
@@ -158,6 +162,12 @@
   flex-wrap: wrap;
   gap: var(--s3) var(--s4);
   justify-content: space-between;
+}
+
+.history-head-trailing {
+  align-items: center;
+  display: flex;
+  gap: var(--s3);
 }
 
 .history-count {

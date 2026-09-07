@@ -1,17 +1,17 @@
-<section class="body content-max watchlist">
+<section class="body content-max daily-briefing">
   <!-- The search itself is in the shell's top bar; this is only the staged
        result of using it, so it appears exactly when there is something to
        add and takes no room otherwise. Adding stays a second, explicit click:
        a search result is not consent to analyse a symbol every day. -->
   @if (selected(); as picked) {
-    <div class="watchlist-add">
-      <span class="watchlist-staged">
+    <div class="daily-briefing-add">
+      <span class="daily-briefing-staged">
         <span class="sym">{{ picked.symbol }}</span>
-        <span class="watchlist-staged-name trunc">{{ picked.name }}</span>
-        <span class="watchlist-staged-exchange">{{ picked.exchange }}</span>
+        <span class="daily-briefing-staged-name trunc">{{ picked.name }}</span>
+        <span class="daily-briefing-staged-exchange">{{ picked.exchange }}</span>
       </span>
       <button mat-flat-button color="primary" [disabled]="saving()" (click)="add()">
-        Add to watchlist
+        Add to Daily Briefing
       </button>
       <button mat-button [disabled]="saving()" (click)="clearSelection()">
         Cancel
@@ -24,14 +24,14 @@
   }
 
   @if (billing.hasDailyBriefingEntitlement() === false) {
-    <p class="note watchlist-entitlement-note" role="status">
+    <p class="note daily-briefing-entitlement-note" role="status">
       Scheduling and Daily Briefing are part of the Daily Briefing add-on. You can still
-      browse your watchlist, but the schedule and toggle below won't run until you
+      browse your list, but the schedule and toggle below won't run until you
       <a routerLink="/app" [queryParams]="{ tab: 'account' }">add Daily Briefing</a> to your account.
     </p>
   }
 
-  <mat-card class="watchlist-card">
+  <mat-card class="daily-briefing-card">
     <div class="hd">
       <span class="lbl-h">Tracked instruments</span>
       @if (!loading() && items().length) {
@@ -40,20 +40,20 @@
     </div>
 
     @if (loading()) {
-      <p class="watchlist-state"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your watchlist…</p>
+      <p class="daily-briefing-state"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your daily-briefing…</p>
     } @else if (items().length === 0) {
-      <p class="watchlist-state">
+      <p class="daily-briefing-state">
         No symbols yet. Search in the bar at the top of the page to start tracking one.
       </p>
     } @else {
-      <div class="watchlist-table-wrap">
-        <table mat-table [dataSource]="tableRows()" multiTemplateDataRows class="watchlist-table">
+      <div class="daily-briefing-table-wrap">
+        <table mat-table [dataSource]="tableRows()" multiTemplateDataRows class="daily-briefing-table">
           <ng-container matColumnDef="symbol">
             <th mat-header-cell *matHeaderCellDef>Symbol</th>
             <td mat-cell *matCellDef="let item">
-              <span class="sym watchlist-symbol">{{ displaySymbol(item) }}</span>
+              <span class="sym daily-briefing-symbol">{{ displaySymbol(item) }}</span>
               @if (displayName(item); as name) {
-                <span class="watchlist-item-name">{{ name }}</span>
+                <span class="daily-briefing-item-name">{{ name }}</span>
               }
               @if (isBusy(item.id)) {
                 <!-- Blurs and covers only THIS cell — position:relative on a
@@ -62,7 +62,7 @@
                      row-spanning. Repeated (blank, no text) in every other
                      cell below so the whole row reads as blurred; this cell
                      is the one that carries the message. -->
-                <span class="watchlist-cell-overlay" aria-live="polite">
+                <span class="daily-briefing-cell-overlay" aria-live="polite">
                   <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
                   Background process is running on this item ({{ displaySymbol(item) }})
                 </span>
@@ -74,8 +74,8 @@
             <th mat-header-cell *matHeaderCellDef>Chart window</th>
             <td mat-cell *matCellDef="let item">
               @if (isCustomLookback(item)) {
-                <span class="watchlist-custom">
-                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="watchlist-days-field">
+                <span class="daily-briefing-custom">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="daily-briefing-days-field">
                     <input
                       matInput
                       type="number"
@@ -86,10 +86,10 @@
                       [attr.aria-label]="'Chart window in days for ' + displaySymbol(item)"
                     />
                   </mat-form-field>
-                  <span class="watchlist-unit">days</span>
+                  <span class="daily-briefing-unit">days</span>
                 </span>
               } @else {
-                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="watchlist-select-field">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="daily-briefing-select-field">
                   <mat-select
                     [value]="item.analysis_lookback_days"
                     (selectionChange)="setLookbackDays(item, $any($event.value))"
@@ -103,7 +103,7 @@
                 </mat-form-field>
               }
               @if (isBusy(item.id)) {
-                <span class="watchlist-cell-overlay" aria-hidden="true"></span>
+                <span class="daily-briefing-cell-overlay" aria-hidden="true"></span>
               }
             </td>
           </ng-container>
@@ -111,8 +111,8 @@
           <ng-container matColumnDef="runAt">
             <th mat-header-cell *matHeaderCellDef>Run at</th>
             <td mat-cell *matCellDef="let item">
-              <span class="watchlist-time">
-                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="watchlist-hour-field">
+              <span class="daily-briefing-time">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="daily-briefing-hour-field">
                   <mat-select
                     [value]="scheduledHourValue(item)"
                     (selectionChange)="setScheduledHour(item, $any($event.value))"
@@ -131,8 +131,8 @@
                   </mat-select>
                 </mat-form-field>
                 @if (scheduledHourValue(item) !== 'default') {
-                  <span class="watchlist-time-sep">:</span>
-                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="watchlist-minute-field">
+                  <span class="daily-briefing-time-sep">:</span>
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="daily-briefing-minute-field">
                     <mat-select
                       [value]="item.scheduled_minute_ist ?? 0"
                       (selectionChange)="setScheduledMinute(item, $any($event.value))"
@@ -144,13 +144,13 @@
                       }
                     </mat-select>
                   </mat-form-field>
-                  <span class="watchlist-unit">IST</span>
+                  <span class="daily-briefing-unit">IST</span>
                 } @else {
-                  <span class="watchlist-unit">Default</span>
+                  <span class="daily-briefing-unit">Default</span>
                 }
               </span>
               @if (isBusy(item.id)) {
-                <span class="watchlist-cell-overlay" aria-hidden="true"></span>
+                <span class="daily-briefing-cell-overlay" aria-hidden="true"></span>
               }
             </td>
           </ng-container>
@@ -172,7 +172,7 @@
                 {{ item.enabled_for_daily_analysis ? 'On' : 'Off' }}
               </mat-slide-toggle>
               @if (isBusy(item.id)) {
-                <span class="watchlist-cell-overlay" aria-hidden="true"></span>
+                <span class="daily-briefing-cell-overlay" aria-hidden="true"></span>
               }
             </td>
           </ng-container>
@@ -180,7 +180,7 @@
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef><span class="sr-only">Actions</span></th>
             <td mat-cell *matCellDef="let item">
-              <span class="watchlist-actions">
+              <span class="daily-briefing-actions">
                 <button
                   mat-stroked-button
                   [disabled]="isBusy(item.id)"
@@ -219,15 +219,15 @@
           </ng-container>
 
           <ng-container matColumnDef="rowNote">
-            <td mat-cell *matCellDef="let item" [attr.colspan]="columns.length" class="watchlist-note-cell">
+            <td mat-cell *matCellDef="let item" [attr.colspan]="columns.length" class="daily-briefing-note-cell">
               @if (pendingRemoval() === item.id) {
-                <div class="note watchlist-confirm" style="--tone: var(--warn)" role="alert">
-                  <span class="watchlist-confirm-copy">
-                    Remove {{ displaySymbol(item) }} from your watchlist? Its schedule and
+                <div class="note daily-briefing-confirm" style="--tone: var(--warn)" role="alert">
+                  <span class="daily-briefing-confirm-copy">
+                    Remove {{ displaySymbol(item) }} from your list? Its schedule and
                     recorded runs go with it. Analyses it already produced stay in your
                     history.
                   </span>
-                  <span class="watchlist-confirm-actions">
+                  <span class="daily-briefing-confirm-actions">
                     <button mat-flat-button color="primary" (click)="confirmRemove(item.id)">
                       Yes, remove
                     </button>
@@ -235,15 +235,15 @@
                   </span>
                 </div>
               } @else if (duplicateWarning()[item.id]; as warning) {
-                <div class="note watchlist-confirm" style="--tone: var(--warn)" role="alert">
-                  <span class="watchlist-confirm-copy">
+                <div class="note daily-briefing-confirm" style="--tone: var(--warn)" role="alert">
+                  <span class="daily-briefing-confirm-copy">
                     You already analysed {{ displaySymbol(item) }} on this
                     {{ warning.lookbackDays }}-day chart
                     ({{ formatTimestamp(warning.lastAnalysisAt) }}). Running it again
                     uses another Daily Briefing analysis. Are you sure you want to
                     continue?
                   </span>
-                  <span class="watchlist-confirm-actions">
+                  <span class="daily-briefing-confirm-actions">
                     <!-- Re-runs whichever action raised the warning, so
                          confirming a Brief Now still sends the email. -->
                     <button
@@ -257,14 +257,14 @@
                   </span>
                 </div>
               } @else if (analyzeResult()[item.id]; as message) {
-                <span class="watchlist-result">{{ message }}</span>
+                <span class="daily-briefing-result">{{ message }}</span>
               }
             </td>
           </ng-container>
 
           <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
-          <tr mat-row *matRowDef="let row; columns: columns" class="watchlist-row"></tr>
-          <tr mat-row *matRowDef="let row; columns: ['rowNote']; when: hasRowNote" class="watchlist-note-row"></tr>
+          <tr mat-row *matRowDef="let row; columns: columns" class="daily-briefing-row"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['rowNote']; when: hasRowNote" class="daily-briefing-note-row"></tr>
         </table>
       </div>
     }

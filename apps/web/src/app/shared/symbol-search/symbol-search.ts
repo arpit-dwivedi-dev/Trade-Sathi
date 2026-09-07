@@ -48,13 +48,13 @@ export interface SymbolSelection {
  * Market + typeahead symbol search. Owns the market filter and the debounced
  * /api/instruments/search call; a parent only ever sees a chosen instrument
  * via (instrumentSelected). What happens after selection (reload a chart,
- * stage a watchlist add, ...) is deliberately left to the parent, since the
- * screens that need it each do something different with it.
+ * stage a daily briefing add, ...) is deliberately left to the parent, since
+ * the screens that need it each do something different with it.
  *
  * There is now one instance for the whole dashboard, in the shell's top bar
  * (see AppPage) — it used to be re-rendered inside Live, Workspace and
- * Watchlist, which put three separate search boxes on screen for what is one
- * question: which symbol are we looking at.
+ * Daily Briefing, which put three separate search boxes on screen for what is
+ * one question: which symbol are we looking at.
  */
 @Component({
   selector: 'app-symbol-search',
@@ -263,18 +263,6 @@ export class SymbolSearch {
    */
   clear(): void {
     this.queryInput.set('');
-    this.results.set([]);
-    this.searched.set(false);
-  }
-
-  /**
-   * Sets the displayed text without running a search — for the shell handing
-   * an instrument from one tab to another (Live's "Manual Analysis"), which
-   * should leave the box reading "SYM — Name" exactly as a real search
-   * selection would.
-   */
-  setDisplayText(text: string): void {
-    this.queryInput.set(text);
     this.results.set([]);
     this.searched.set(false);
   }

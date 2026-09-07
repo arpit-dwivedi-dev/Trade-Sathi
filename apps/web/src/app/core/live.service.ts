@@ -2,13 +2,13 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { AuthService } from '../../core/auth.service';
-import type { LiveCandle } from '../../shared/live-chart/live-chart';
+import { AuthService } from './auth.service';
+import type { LiveCandle } from '../shared/live-chart/live-chart';
 
 /**
  * Explicit candle timeframes the API accepts on top of the lookback-derived
  * default — see WORKSPACE_INTERVALS in apps/api's market-chart.service. Used
- * by the manual analysis workspace, which lets the user pick a timeframe
+ * by the Chart Analysis workspace, which lets the user pick a timeframe
  * directly rather than have one derived from a lookback window.
  */
 export type WorkspaceInterval = '1m' | '5m' | '15m' | '30m' | '60m' | '1d';
@@ -31,13 +31,14 @@ export type StartAnalysisResult =
   | { ok: false; reason: 'quota_exceeded' | 'error'; message: string };
 
 /**
- * Backend calls for the live chart view.
+ * Backend calls for candle data and live AI analysis, shared by the manual
+ * analysis workspace and the watchlist.
  *
  * Candles and the analyze trigger go through the API: the market-data provider
  * is server-side only, and starting an analysis spends quota. Watching the
  * resulting row is NOT here — it is AnalyzeService.pollAnalysis, which already
- * watches an analyses row by id and is now shared by both flows rather than
- * reimplemented per feature.
+ * watches an analyses row by id and is shared by every flow that starts one
+ * rather than reimplemented per feature.
  */
 @Injectable({ providedIn: 'root' })
 export class LiveService {

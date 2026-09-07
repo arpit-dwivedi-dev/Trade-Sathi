@@ -23,36 +23,37 @@
 </div>
 
 <div class="nav-body">
-  <span class="nav-lbl">Analysis</span>
+  <span class="nav-lbl">Analyze</span>
 
-  <button type="button" class="nav-item" title="Live Chart" (click)="select('live')"
-          [attr.aria-current]="active() === 'live' ? 'page' : null">
-    <mat-icon aria-hidden="true" svgIcon="monitoring"></mat-icon>
-    <span class="nav-item-lbl">Live Chart</span>
+  <button type="button" class="nav-item nav-item-disabled" title="Dashboard — coming soon" disabled
+          aria-disabled="true">
+    <mat-icon aria-hidden="true" svgIcon="dashboard"></mat-icon>
+    <span class="nav-item-lbl">Dashboard</span>
+    <span class="nav-soon">Coming soon</span>
   </button>
 
-  <button type="button" class="nav-item" title="Chart Image" (click)="select('analyze')"
+  <button type="button" class="nav-item" title="Analyze by Image" (click)="select('analyze')"
           [attr.aria-current]="active() === 'analyze' ? 'page' : null">
     <mat-icon aria-hidden="true" svgIcon="image_search"></mat-icon>
-    <span class="nav-item-lbl">Chart Image</span>
+    <span class="nav-item-lbl">Analyze by Image</span>
   </button>
 
-  <button type="button" class="nav-item" title="Manual Analysis" (click)="select('workspace')"
+  <button type="button" class="nav-item" title="Analyze by Symbol" (click)="select('workspace')"
           [attr.aria-current]="active() === 'workspace' ? 'page' : null">
     <mat-icon aria-hidden="true" svgIcon="candlestick_chart"></mat-icon>
-    <span class="nav-item-lbl">Manual Analysis</span>
+    <span class="nav-item-lbl">Analyze by Symbol</span>
   </button>
 
-  <button type="button" class="nav-item" title="Watchlist" (click)="select('watchlist')"
-          [attr.aria-current]="active() === 'watchlist' ? 'page' : null">
-    <mat-icon aria-hidden="true" svgIcon="visibility"></mat-icon>
-    <span class="nav-item-lbl">Watchlist</span>
+  <button type="button" class="nav-item" title="Daily Briefing" (click)="select('dailyBriefing')"
+          [attr.aria-current]="active() === 'dailyBriefing' ? 'page' : null">
+    <mat-icon aria-hidden="true" svgIcon="routine"></mat-icon>
+    <span class="nav-item-lbl">Daily Briefing</span>
   </button>
 
-  <button type="button" class="nav-item" title="Analysis History" (click)="select('history')"
+  <button type="button" class="nav-item" title="History" (click)="select('history')"
           [attr.aria-current]="active() === 'history' ? 'page' : null">
     <mat-icon aria-hidden="true" svgIcon="history"></mat-icon>
-    <span class="nav-item-lbl">Analysis History</span>
+    <span class="nav-item-lbl">History</span>
   </button>
 
   <span class="nav-lbl">Research</span>

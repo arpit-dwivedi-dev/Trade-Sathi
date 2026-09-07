@@ -193,4 +193,19 @@ export class HistoryService {
 
     return { row, patterns: patterns ?? [] };
   }
+
+  /**
+   * Deletes one or more of the signed-in user's analyses. RLS's
+   * analyses_delete_own restricts this to rows the caller owns, and
+   * analysis_patterns rows cascade via their FK — nothing else to clean up
+   * client-side.
+   */
+  async deleteAnalyses(ids: string[]): Promise<void> {
+    const client = this.supabase.client;
+    if (!client) throw new Error('Supabase client is unavailable');
+    if (ids.length === 0) return;
+
+    const { error } = await client.from('analyses').delete().in('id', ids);
+    if (error) throw error;
+  }
 }

@@ -4,7 +4,7 @@ import { REALTIME_SUBSCRIBE_STATES, type SupabaseClient } from '@supabase/supaba
  * Decides *when* to re-check an in-flight row, for the three places that wait
  * on one: AnalyzeService.pollAnalysis (an upload, watched by analyses id),
  * LiveService.awaitAnalysis (a live run, watched by instrument and start time)
- * and Watchlist.watchRun (an Analyze Now run, watched by run id).
+ * and DailyBriefing.watchRun (an Analyze Now run, watched by run id).
  *
  * It deliberately owns none of the checking. Each caller keeps its own query,
  * its own timeout, and its own idea of what "settled" means, and passes a

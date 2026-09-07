@@ -91,7 +91,7 @@
   /* ── shell ───────────────────────────────────────────────
      The dashboard's fixed measurements, needed by both the nav
      itself and the main column that has to clear it. */
-  --nav-w: 248px;
+  --nav-w: 264px;
   --nav-w-sm: 72px;
   --top-h: 60px;
 
