@@ -1,11 +1,11 @@
 import { Component, computed, inject, input, model, output, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+import { ButtonModule } from 'primeng/button';
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../core/auth.service';
 import { BillingService } from '../../features/billing/billing.service';
 import { ProfileService } from '../../features/account/profile.service';
+import { AppIcon } from '../icons/app-icon';
 
 /** The dashboard tabs the rail links to. The app shell reads its own tab from the URL. */
 export type NavTab =
@@ -25,7 +25,7 @@ export type NavTab =
  */
 @Component({
   selector: 'app-nav-rail',
-  imports: [MatButtonModule, MatIconModule, RouterLink],
+  imports: [ButtonModule, AppIcon, RouterLink],
   host: {
     class: 'nav',
     role: 'navigation',

@@ -12,10 +12,10 @@ import {
   viewChild,
 } from '@angular/core';
 import { A11yModule } from '@angular/cdk/a11y';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { ButtonModule } from 'primeng/button';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
+import { AppIcon } from '../../shared/icons/app-icon';
 import { BillingService } from './billing.service';
 import { BuyCreditsButton } from './buy-credits-button';
 import { UpgradeButton } from './upgrade-button';
@@ -47,9 +47,9 @@ import { UpgradeButton } from './upgrade-button';
   selector: 'app-plans-overlay',
   imports: [
     A11yModule,
-    MatButtonModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
+    ButtonModule,
+    AppIcon,
+    ProgressSpinnerModule,
     UpgradeButton,
     BuyCreditsButton,
   ],

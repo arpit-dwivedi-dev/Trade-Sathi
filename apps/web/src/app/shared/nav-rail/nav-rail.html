@@ -13,12 +13,12 @@
   <!-- Lives on the rail rather than on any one screen: the rail is what it
        acts on, and it is the only thing still on screen once the rail is
        collapsed to icons. -->
-  <button mat-icon-button class="nav-collapse" (click)="toggleCollapsed()"
+  <button pButton [rounded]="true" [text]="true" class="nav-collapse" (click)="toggleCollapsed()"
           [attr.aria-pressed]="collapsed()"
           [title]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
           [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
-    <mat-icon aria-hidden="true"
-              [svgIcon]="collapsed() ? 'left_panel_open' : 'left_panel_close'"></mat-icon>
+    <app-icon aria-hidden="true"
+              [name]="collapsed() ? 'left_panel_open' : 'left_panel_close'" />
   </button>
 </div>
 
@@ -27,32 +27,32 @@
 
   <button type="button" class="nav-item nav-item-disabled" title="Dashboard — coming soon" disabled
           aria-disabled="true">
-    <mat-icon aria-hidden="true" svgIcon="dashboard"></mat-icon>
+    <app-icon aria-hidden="true" name="dashboard" />
     <span class="nav-item-lbl">Dashboard</span>
     <span class="nav-soon">Coming soon</span>
   </button>
 
   <button type="button" class="nav-item" title="Analyze by Image" (click)="select('analyze')"
           [attr.aria-current]="active() === 'analyze' ? 'page' : null">
-    <mat-icon aria-hidden="true" svgIcon="image_search"></mat-icon>
+    <app-icon aria-hidden="true" name="image_search" />
     <span class="nav-item-lbl">Analyze by Image</span>
   </button>
 
   <button type="button" class="nav-item" title="Analyze by Symbol" (click)="select('workspace')"
           [attr.aria-current]="active() === 'workspace' ? 'page' : null">
-    <mat-icon aria-hidden="true" svgIcon="candlestick_chart"></mat-icon>
+    <app-icon aria-hidden="true" name="candlestick_chart" />
     <span class="nav-item-lbl">Analyze by Symbol</span>
   </button>
 
   <button type="button" class="nav-item" title="Daily Briefing" (click)="select('dailyBriefing')"
           [attr.aria-current]="active() === 'dailyBriefing' ? 'page' : null">
-    <mat-icon aria-hidden="true" svgIcon="routine"></mat-icon>
+    <app-icon aria-hidden="true" name="routine" />
     <span class="nav-item-lbl">Daily Briefing</span>
   </button>
 
   <button type="button" class="nav-item" title="History" (click)="select('history')"
           [attr.aria-current]="active() === 'history' ? 'page' : null">
-    <mat-icon aria-hidden="true" svgIcon="history"></mat-icon>
+    <app-icon aria-hidden="true" name="history" />
     <span class="nav-item-lbl">History</span>
   </button>
 
@@ -60,13 +60,13 @@
 
   <button type="button" class="nav-item" title="Fundamentals" (click)="select('fundamentals')"
           [attr.aria-current]="active() === 'fundamentals' ? 'page' : null">
-    <mat-icon aria-hidden="true" svgIcon="balance"></mat-icon>
+    <app-icon aria-hidden="true" name="balance" />
     <span class="nav-item-lbl">Fundamentals</span>
   </button>
 
   <button type="button" class="nav-item nav-item-disabled" title="News & Events — coming soon" disabled
           aria-disabled="true">
-    <mat-icon aria-hidden="true" svgIcon="newspaper"></mat-icon>
+    <app-icon aria-hidden="true" name="newspaper" />
     <span class="nav-item-lbl">News & Events</span>
     <span class="nav-soon">Coming soon</span>
   </button>
@@ -75,25 +75,25 @@
 
   <button type="button" class="nav-item" title="Activity Logs" (click)="select('logs')"
           [attr.aria-current]="active() === 'logs' ? 'page' : null">
-    <mat-icon aria-hidden="true" svgIcon="list_alt"></mat-icon>
+    <app-icon aria-hidden="true" name="list_alt" />
     <span class="nav-item-lbl">Activity Logs</span>
   </button>
 
   <button type="button" class="nav-item" title="Billing" (click)="select('billing')"
           [attr.aria-current]="active() === 'billing' ? 'page' : null">
-    <mat-icon aria-hidden="true" svgIcon="credit_card"></mat-icon>
+    <app-icon aria-hidden="true" name="credit_card" />
     <span class="nav-item-lbl">Billing</span>
   </button>
 
   <button type="button" class="nav-item" title="Account Settings" (click)="select('account')"
           [attr.aria-current]="active() === 'account' ? 'page' : null">
-    <mat-icon aria-hidden="true" svgIcon="person"></mat-icon>
+    <app-icon aria-hidden="true" name="person" />
     <span class="nav-item-lbl">Account Settings</span>
   </button>
 </div>
 
 <div class="nav-foot">
-  <button mat-flat-button color="primary" class="nav-cta" (click)="select('billing')">
+  <button pButton class="nav-cta" (click)="select('billing')">
     {{ billingLabel() }}
   </button>
 

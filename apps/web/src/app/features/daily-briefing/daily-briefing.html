@@ -10,10 +10,10 @@
         <span class="daily-briefing-staged-name trunc">{{ picked.name }}</span>
         <span class="daily-briefing-staged-exchange">{{ picked.exchange }}</span>
       </span>
-      <button mat-flat-button color="primary" [disabled]="saving()" (click)="add()">
+      <button pButton [disabled]="saving()" (click)="add()">
         Add to Daily Briefing
       </button>
-      <button mat-button [disabled]="saving()" (click)="clearSelection()">
+      <button pButton [text]="true" [disabled]="saving()" (click)="clearSelection()">
         Cancel
       </button>
     </div>
@@ -31,7 +31,7 @@
     </p>
   }
 
-  <mat-card class="daily-briefing-card">
+  <p-card class="daily-briefing-card">
     <div class="hd">
       <span class="lbl-h">Tracked instruments</span>
       @if (!loading() && items().length) {
@@ -40,44 +40,50 @@
     </div>
 
     @if (loading()) {
-      <p class="daily-briefing-state"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your daily-briefing…</p>
+      <p class="daily-briefing-state"><p-progress-spinner styleClass="daily-briefing-spinner" aria-hidden="true" /> Loading your daily-briefing…</p>
     } @else if (items().length === 0) {
       <p class="daily-briefing-state">
         No symbols yet. Search in the bar at the top of the page to start tracking one.
       </p>
     } @else {
       <div class="daily-briefing-table-wrap">
-        <table mat-table [dataSource]="tableRows()" multiTemplateDataRows class="daily-briefing-table">
-          <ng-container matColumnDef="symbol">
-            <th mat-header-cell *matHeaderCellDef>Symbol</th>
-            <td mat-cell *matCellDef="let item">
-              <span class="sym daily-briefing-symbol">{{ displaySymbol(item) }}</span>
-              @if (displayName(item); as name) {
-                <span class="daily-briefing-item-name">{{ name }}</span>
-              }
-              @if (isBusy(item.id)) {
-                <!-- Blurs and covers only THIS cell — position:relative on a
-                     row does not reliably establish a containing block across
-                     browsers, so the overlay is per-cell rather than
-                     row-spanning. Repeated (blank, no text) in every other
-                     cell below so the whole row reads as blurred; this cell
-                     is the one that carries the message. -->
-                <span class="daily-briefing-cell-overlay" aria-live="polite">
-                  <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
-                  Background process is running on this item ({{ displaySymbol(item) }})
-                </span>
-              }
-            </td>
-          </ng-container>
+        <p-table [value]="tableRows()" [dataKey]="'id'" styleClass="daily-briefing-table">
+          <ng-template #header>
+            <tr>
+              <th>Symbol</th>
+              <th>Chart window</th>
+              <th>Run at</th>
+              <th>Daily briefing</th>
+              <th><span class="sr-only">Actions</span></th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-item>
+            <tr class="daily-briefing-row">
+              <td>
+                <span class="sym daily-briefing-symbol">{{ displaySymbol(item) }}</span>
+                @if (displayName(item); as name) {
+                  <span class="daily-briefing-item-name">{{ name }}</span>
+                }
+                @if (isBusy(item.id)) {
+                  <!-- Blurs and covers only THIS cell — position:relative on a
+                       row does not reliably establish a containing block across
+                       browsers, so the overlay is per-cell rather than
+                       row-spanning. Repeated (blank, no text) in every other
+                       cell below so the whole row reads as blurred; this cell
+                       is the one that carries the message. -->
+                  <span class="daily-briefing-cell-overlay" aria-live="polite">
+                    <p-progress-spinner styleClass="daily-briefing-spinner" aria-hidden="true" />
+                    Background process is running on this item ({{ displaySymbol(item) }})
+                  </span>
+                }
+              </td>
 
-          <ng-container matColumnDef="window">
-            <th mat-header-cell *matHeaderCellDef>Chart window</th>
-            <td mat-cell *matCellDef="let item">
-              @if (isCustomLookback(item)) {
-                <span class="daily-briefing-custom">
-                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="daily-briefing-days-field">
+              <td>
+                @if (isCustomLookback(item)) {
+                  <span class="daily-briefing-custom">
                     <input
-                      matInput
+                      pInputText
+                      class="daily-briefing-days-field"
                       type="number"
                       [min]="minLookbackDays"
                       [max]="maxLookbackDays"
@@ -85,37 +91,33 @@
                       (change)="setCustomLookbackDays(item, $any($event.target).value)"
                       [attr.aria-label]="'Chart window in days for ' + displaySymbol(item)"
                     />
-                  </mat-form-field>
-                  <span class="daily-briefing-unit">days</span>
-                </span>
-              } @else {
-                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="daily-briefing-select-field">
-                  <mat-select
-                    [value]="item.analysis_lookback_days"
-                    (selectionChange)="setLookbackDays(item, $any($event.value))"
+                    <span class="daily-briefing-unit">days</span>
+                  </span>
+                } @else {
+                  <p-select
+                    class="daily-briefing-select-field"
+                    [options]="lookbackSelectOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    [ngModel]="item.analysis_lookback_days"
+                    (onChange)="setLookbackDays(item, $any($event.value))"
                     [attr.aria-label]="'Chart window for ' + displaySymbol(item)"
-                  >
-                    @for (option of lookbackOptions; track option.days) {
-                      <mat-option [value]="option.days">{{ option.label }}</mat-option>
-                    }
-                    <mat-option value="custom">Custom…</mat-option>
-                  </mat-select>
-                </mat-form-field>
-              }
-              @if (isBusy(item.id)) {
-                <span class="daily-briefing-cell-overlay" aria-hidden="true"></span>
-              }
-            </td>
-          </ng-container>
+                  />
+                }
+                @if (isBusy(item.id)) {
+                  <span class="daily-briefing-cell-overlay" aria-hidden="true"></span>
+                }
+              </td>
 
-          <ng-container matColumnDef="runAt">
-            <th mat-header-cell *matHeaderCellDef>Run at</th>
-            <td mat-cell *matCellDef="let item">
-              <span class="daily-briefing-time">
-                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="daily-briefing-hour-field">
-                  <mat-select
-                    [value]="scheduledHourValue(item)"
-                    (selectionChange)="setScheduledHour(item, $any($event.value))"
+              <td>
+                <span class="daily-briefing-time">
+                  <p-select
+                    class="daily-briefing-hour-field"
+                    [options]="hourSelectOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    [ngModel]="scheduledHourValue(item)"
+                    (onChange)="setScheduledHour(item, $any($event.value))"
                     [disabled]="billing.hasDailyBriefingEntitlement() === false"
                     [attr.title]="
                       billing.hasDailyBriefingEntitlement() === false
@@ -123,148 +125,132 @@
                         : null
                     "
                     [attr.aria-label]="'Scheduled hour for ' + displaySymbol(item)"
-                  >
-                    <mat-option value="default">Default</mat-option>
-                    @for (h of hourOptions; track h) {
-                      <mat-option [value]="h">{{ padTime(h) }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-                @if (scheduledHourValue(item) !== 'default') {
-                  <span class="daily-briefing-time-sep">:</span>
-                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="daily-briefing-minute-field">
-                    <mat-select
-                      [value]="item.scheduled_minute_ist ?? 0"
-                      (selectionChange)="setScheduledMinute(item, $any($event.value))"
+                  />
+                  @if (scheduledHourValue(item) !== 'default') {
+                    <span class="daily-briefing-time-sep">:</span>
+                    <p-select
+                      class="daily-briefing-minute-field"
+                      [options]="minuteSelectOptionsFor(item)"
+                      optionLabel="label"
+                      optionValue="value"
+                      [ngModel]="item.scheduled_minute_ist ?? 0"
+                      (onChange)="setScheduledMinute(item, $any($event.value))"
                       [disabled]="billing.hasDailyBriefingEntitlement() === false"
                       [attr.aria-label]="'Scheduled minute for ' + displaySymbol(item)"
-                    >
-                      @for (m of minuteOptionsFor(item); track m) {
-                        <mat-option [value]="m">{{ padTime(m) }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <span class="daily-briefing-unit">IST</span>
-                }
-              </span>
-              @if (isBusy(item.id)) {
-                <span class="daily-briefing-cell-overlay" aria-hidden="true"></span>
-              }
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="dailyBriefing">
-            <th mat-header-cell *matHeaderCellDef>Daily briefing</th>
-            <td mat-cell *matCellDef="let item">
-              <mat-slide-toggle
-                [checked]="item.enabled_for_daily_analysis"
-                (change)="toggleDailyAnalysis(item)"
-                [disabled]="billing.hasDailyBriefingEntitlement() === false"
-                [attr.title]="
-                  billing.hasDailyBriefingEntitlement() === false
-                    ? 'Requires the Daily Briefing add-on'
-                    : null
-                "
-                [attr.aria-label]="'Daily briefing for ' + displaySymbol(item)"
-              >
-                {{ item.enabled_for_daily_analysis ? 'On' : 'Off' }}
-              </mat-slide-toggle>
-              @if (isBusy(item.id)) {
-                <span class="daily-briefing-cell-overlay" aria-hidden="true"></span>
-              }
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef><span class="sr-only">Actions</span></th>
-            <td mat-cell *matCellDef="let item">
-              <span class="daily-briefing-actions">
-                <button
-                  mat-stroked-button
-                  [disabled]="isBusy(item.id)"
-                  (click)="analyzeNow(item)"
-                >
-                  @if (preparing()[item.id]) {
-                    <mat-progress-spinner mode="indeterminate" diameter="14" aria-hidden="true" /> Drawing chart…
-                  } @else if (runIdFor(item.id)) {
-                    <mat-progress-spinner mode="indeterminate" diameter="14" aria-hidden="true" /> Analyzing…
-                  } @else {
-                    Analyze now
+                    />
+                    <span class="daily-briefing-unit">IST</span>
                   }
-                </button>
-                <!-- Same run, same Daily Briefing entitlement as the button
-                     beside it — the difference is that this one emails the
-                     result with its analysis attached as a PDF. -->
-                <button
-                  mat-flat-button
-                  color="primary"
-                  [disabled]="isBusy(item.id)"
-                  (click)="analyzeNow(item, false, 'brief')"
-                  title="Run this symbol now and email me the analysis as a PDF"
-                >
-                  Brief now
-                </button>
-                <button
-                  mat-icon-button
-                  [disabled]="isBusy(item.id)"
-                  (click)="requestRemove(item.id)"
-                  [attr.aria-label]="'Remove ' + displaySymbol(item)"
-                >
-                  <mat-icon aria-hidden="true" svgIcon="close"></mat-icon>
-                </button>
-              </span>
-            </td>
-          </ng-container>
+                </span>
+                @if (isBusy(item.id)) {
+                  <span class="daily-briefing-cell-overlay" aria-hidden="true"></span>
+                }
+              </td>
 
-          <ng-container matColumnDef="rowNote">
-            <td mat-cell *matCellDef="let item" [attr.colspan]="columns.length" class="daily-briefing-note-cell">
-              @if (pendingRemoval() === item.id) {
-                <div class="note daily-briefing-confirm" style="--tone: var(--warn)" role="alert">
-                  <span class="daily-briefing-confirm-copy">
-                    Remove {{ displaySymbol(item) }} from your list? Its schedule and
-                    recorded runs go with it. Analyses it already produced stay in your
-                    history.
-                  </span>
-                  <span class="daily-briefing-confirm-actions">
-                    <button mat-flat-button color="primary" (click)="confirmRemove(item.id)">
-                      Yes, remove
-                    </button>
-                    <button mat-button (click)="cancelRemove()">Cancel</button>
-                  </span>
-                </div>
-              } @else if (duplicateWarning()[item.id]; as warning) {
-                <div class="note daily-briefing-confirm" style="--tone: var(--warn)" role="alert">
-                  <span class="daily-briefing-confirm-copy">
-                    You already analysed {{ displaySymbol(item) }} on this
-                    {{ warning.lookbackDays }}-day chart
-                    ({{ formatTimestamp(warning.lastAnalysisAt) }}). Running it again
-                    uses another Daily Briefing analysis. Are you sure you want to
-                    continue?
-                  </span>
-                  <span class="daily-briefing-confirm-actions">
-                    <!-- Re-runs whichever action raised the warning, so
-                         confirming a Brief Now still sends the email. -->
-                    <button
-                      mat-flat-button
-                      color="primary"
-                      (click)="analyzeNow(item, true, warning.mode)"
-                    >
-                      {{ warning.mode === 'brief' ? 'Yes, brief me again' : 'Yes, analyse again' }}
-                    </button>
-                    <button mat-button (click)="dismissDuplicate(item.id)">Cancel</button>
-                  </span>
-                </div>
-              } @else if (analyzeResult()[item.id]; as message) {
-                <span class="daily-briefing-result">{{ message }}</span>
-              }
-            </td>
-          </ng-container>
+              <td>
+                <p-toggleswitch
+                  [ngModel]="item.enabled_for_daily_analysis"
+                  (onChange)="toggleDailyAnalysis(item)"
+                  [disabled]="billing.hasDailyBriefingEntitlement() === false"
+                  [attr.title]="
+                    billing.hasDailyBriefingEntitlement() === false
+                      ? 'Requires the Daily Briefing add-on'
+                      : null
+                  "
+                  [attr.aria-label]="'Daily briefing for ' + displaySymbol(item)"
+                />
+                <span class="daily-briefing-toggle-label">{{ item.enabled_for_daily_analysis ? 'On' : 'Off' }}</span>
+                @if (isBusy(item.id)) {
+                  <span class="daily-briefing-cell-overlay" aria-hidden="true"></span>
+                }
+              </td>
 
-          <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
-          <tr mat-row *matRowDef="let row; columns: columns" class="daily-briefing-row"></tr>
-          <tr mat-row *matRowDef="let row; columns: ['rowNote']; when: hasRowNote" class="daily-briefing-note-row"></tr>
-        </table>
+              <td>
+                <span class="daily-briefing-actions">
+                  <button
+                    pButton
+                    [outlined]="true"
+                    [disabled]="isBusy(item.id)"
+                    (click)="analyzeNow(item)"
+                  >
+                    @if (preparing()[item.id]) {
+                      <p-progress-spinner styleClass="daily-briefing-spinner-sm" aria-hidden="true" /> Drawing chart…
+                    } @else if (runIdFor(item.id)) {
+                      <p-progress-spinner styleClass="daily-briefing-spinner-sm" aria-hidden="true" /> Analyzing…
+                    } @else {
+                      Analyze now
+                    }
+                  </button>
+                  <!-- Same run, same Daily Briefing entitlement as the button
+                       beside it — the difference is that this one emails the
+                       result with its analysis attached as a PDF. -->
+                  <button
+                    pButton
+                    [disabled]="isBusy(item.id)"
+                    (click)="analyzeNow(item, false, 'brief')"
+                    title="Run this symbol now and email me the analysis as a PDF"
+                  >
+                    Brief now
+                  </button>
+                  <button
+                    pButton
+                    [text]="true"
+                    [disabled]="isBusy(item.id)"
+                    (click)="requestRemove(item.id)"
+                    [attr.aria-label]="'Remove ' + displaySymbol(item)"
+                  >
+                    <app-icon aria-hidden="true" name="close" />
+                  </button>
+                </span>
+              </td>
+            </tr>
+
+            @if (hasRowNote(0, item)) {
+              <tr class="daily-briefing-note-row">
+                <td [attr.colspan]="5" class="daily-briefing-note-cell">
+                  @if (pendingRemoval() === item.id) {
+                    <div class="note daily-briefing-confirm" style="--tone: var(--warn)" role="alert">
+                      <span class="daily-briefing-confirm-copy">
+                        Remove {{ displaySymbol(item) }} from your list? Its schedule and
+                        recorded runs go with it. Analyses it already produced stay in your
+                        history.
+                      </span>
+                      <span class="daily-briefing-confirm-actions">
+                        <button pButton (click)="confirmRemove(item.id)">
+                          Yes, remove
+                        </button>
+                        <button pButton [text]="true" (click)="cancelRemove()">Cancel</button>
+                      </span>
+                    </div>
+                  } @else if (duplicateWarning()[item.id]; as warning) {
+                    <div class="note daily-briefing-confirm" style="--tone: var(--warn)" role="alert">
+                      <span class="daily-briefing-confirm-copy">
+                        You already analysed {{ displaySymbol(item) }} on this
+                        {{ warning.lookbackDays }}-day chart
+                        ({{ formatTimestamp(warning.lastAnalysisAt) }}). Running it again
+                        uses another Daily Briefing analysis. Are you sure you want to
+                        continue?
+                      </span>
+                      <span class="daily-briefing-confirm-actions">
+                        <!-- Re-runs whichever action raised the warning, so
+                             confirming a Brief Now still sends the email. -->
+                        <button
+                          pButton
+                          (click)="analyzeNow(item, true, warning.mode)"
+                        >
+                          {{ warning.mode === 'brief' ? 'Yes, brief me again' : 'Yes, analyse again' }}
+                        </button>
+                        <button pButton [text]="true" (click)="dismissDuplicate(item.id)">Cancel</button>
+                      </span>
+                    </div>
+                  } @else if (analyzeResult()[item.id]; as message) {
+                    <span class="daily-briefing-result">{{ message }}</span>
+                  }
+                </td>
+              </tr>
+            }
+          </ng-template>
+        </p-table>
       </div>
     }
-  </mat-card>
+  </p-card>
 </section>

@@ -1,6 +1,6 @@
 import { Component, computed, effect, input, signal } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
+import { CardModule } from 'primeng/card';
+import { ChipModule } from 'primeng/chip';
 import type {
   FundamentalsAnalysisResult as FundamentalsResult,
   FundamentalsClaim,
@@ -60,7 +60,7 @@ const SCENARIO_ORDER: FundamentalsScenarioId[] = ['bull', 'base', 'bear'];
  */
 @Component({
   selector: 'app-fundamentals-analysis-result',
-  imports: [MatCardModule, MatChipsModule],
+  imports: [CardModule, ChipModule],
   templateUrl: './fundamentals-analysis-result.html',
   styleUrl: './fundamentals-analysis-result.css',
 })

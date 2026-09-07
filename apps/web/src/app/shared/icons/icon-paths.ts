@@ -1,7 +1,3 @@
-import { provideAppInitializer, inject } from '@angular/core';
-import { DomSanitizer } from '@angular/platform-browser';
-import { MatIconRegistry } from '@angular/material/icon';
-
 /**
  * Every glyph the app draws, as raw Material Symbols Outlined path data.
  *
@@ -163,31 +159,6 @@ export const MATERIAL_SYMBOL_PATHS: Readonly<Record<string, string>> = {
 };
 
 /** Shared by every glyph above — Google exports the whole outlined set on it. */
-const VIEW_BOX = '0 -960 960 960';
+export const ICON_VIEW_BOX = '0 -960 960 960';
 
-/**
- * Registers the outlines under their Material Symbols names, so a template
- * asks for a glyph the same way it did as a ligature — `<mat-icon
- * svgIcon="close">` instead of `<mat-icon>close</mat-icon>`.
- *
- * addSvgIconLiteral rather than addSvgIcon: the literal form never touches
- * HttpClient, so there is no request to fail during SSR and no second network
- * round trip in the browser.
- */
-export function provideMaterialSymbols() {
-  return provideAppInitializer(() => {
-    const registry = inject(MatIconRegistry);
-    const sanitizer = inject(DomSanitizer);
-
-    for (const [name, path] of Object.entries(MATERIAL_SYMBOL_PATHS)) {
-      registry.addSvgIconLiteral(
-        name,
-        // The source is this file, not user input — the outlines are compiled
-        // into the bundle, so there is nothing here for the sanitizer to vet.
-        sanitizer.bypassSecurityTrustHtml(
-          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW_BOX}" fill="currentColor"><path d="${path}"/></svg>`,
-        ),
-      );
-    }
-  });
-}
+export type IconName = keyof typeof MATERIAL_SYMBOL_PATHS;

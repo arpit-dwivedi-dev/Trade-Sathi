@@ -22,6 +22,7 @@
   display: grid;
   grid-template-columns: var(--nav-w) minmax(0, 1fr);
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -1319,18 +1320,23 @@ button.nav-toggle {
   --mat-button-toggle-label-text-tracking: normal;
 }
 
-/* ── overlay-rendered Material menus ─────────────────────
-   A mat-menu's panel is rendered into the CDK overlay container, outside the
-   component that declared it, so a component stylesheet can never reach it —
-   the workspace's two flyouts are styled here because this is the only place
+/* ── overlay-rendered PrimeNG popovers ───────────────────
+   A p-popover's panel is rendered into its own overlay (body by default, or
+   `appendTo` — see workspace-page's shell()), outside the component that
+   declared it, so a component stylesheet can never reach it — the
+   workspace's two flyouts are styled here because this is the only place
    that can reach them.
 
-   Both wear the same shell (app surface, app hairline, app elevation, no
-   Material padding) so the indicator list and the drawing-tool lists read as
-   two views of one panel rather than two stock menus. */
+   `styleClass` lands the panel's own class (.ind-panel / .tool-panel)
+   directly on Popover's root element alongside its own .p-popover, so these
+   selectors read the same as they would against a bespoke panel component.
 
-.ind-panel.mat-mdc-menu-panel,
-.tool-panel.mat-mdc-menu-panel {
+   Both wear the same shell (app surface, app hairline, app elevation, no
+   PrimeNG padding) so the indicator list and the drawing-tool lists read as
+   two views of one panel rather than two stock overlays. */
+
+.ind-panel.p-popover,
+.tool-panel.p-popover {
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
@@ -1339,44 +1345,38 @@ button.nav-toggle {
   overflow: hidden;
 }
 
-.ind-panel .mat-mdc-menu-content,
-.tool-panel .mat-mdc-menu-content {
+.ind-panel .p-popover-content,
+.tool-panel .p-popover-content {
   padding: 0;
 }
 
-/* Material's menu item is built for a 48px list with a leading icon it owns
-   the spacing of. These rows carry their own glyph tile and their own trailing
-   control, so the stock metrics and icon margins are cleared. */
-.ind-panel .mat-mdc-menu-item,
-.tool-panel .mat-mdc-menu-item {
+/* Every row is a plain <button>, not a PrimeNG menu-item component (this is
+   a multi-select checklist / a one-shot tool picker, neither of which is
+   what p-menu's own item model is built for) — so the browser's own button
+   chrome is cleared and the row's layout lives on the button itself. */
+.ind-panel .ind-item,
+.tool-panel .tool-item {
   align-items: center;
+  appearance: none;
+  background: none;
+  border: 0;
+  color: inherit;
   display: flex;
+  font: inherit;
   min-height: 0;
   padding: var(--s2) var(--s3);
+  text-align: start;
+  width: 100%;
 }
 
-/* mat-menu-item projects a bare <mat-icon> into its own leading slot and wraps
-   everything else in .mat-mdc-menu-item-text — so the row's own layout has to
-   live on that wrapper, not on the button. Every part of these rows (glyph
-   tile, text, trailing control) is deliberately wrapped in a span so it lands
-   inside it and this one flex row orders all three. */
-.ind-panel .mat-mdc-menu-item-text,
-.tool-panel .mat-mdc-menu-item-text {
-  align-items: center;
-  display: flex;
+.ind-panel .ind-item,
+.tool-panel .tool-item {
+  cursor: pointer;
   gap: var(--s3);
-  min-width: 0;
 }
 
-.ind-panel .mat-mdc-menu-item .mat-icon,
-.tool-panel .mat-mdc-menu-item .mat-icon {
-  height: 18px;
-  margin: 0;
-  width: 18px;
-}
-
-.ind-panel .mat-mdc-menu-item:not([disabled]):hover,
-.tool-panel .mat-mdc-menu-item:not([disabled]):hover {
+.ind-panel .ind-item:hover,
+.tool-panel .tool-item:hover {
   background: var(--surf-3);
 }
 
@@ -1397,9 +1397,8 @@ button.nav-toggle {
   width: 28px;
 }
 
-/* Scoped past the icon reset above, which is a selector deeper. */
-.ind-panel .ind-glyph .mat-icon,
-.tool-panel .tool-glyph .mat-icon {
+.ind-panel .ind-glyph app-icon,
+.tool-panel .tool-glyph app-icon {
   font-size: 17px;
   height: 17px;
   width: 17px;
@@ -1455,7 +1454,7 @@ button.nav-toggle {
   padding: 4px 6px;
 }
 
-.ind-clear .mat-icon {
+.ind-clear app-icon {
   font-size: 14px;
   height: 14px;
   width: 14px;
@@ -1469,7 +1468,7 @@ button.nav-toggle {
 /* The indicator list is the full KLineChart set; without a cap it runs past
    the viewport on a laptop. The cap is on the scroller rather than the panel
    so the header above it never scrolls away. */
-.ind-panel.mat-mdc-menu-panel {
+.ind-panel.p-popover {
   width: 330px;
 }
 
@@ -1479,9 +1478,10 @@ button.nav-toggle {
   padding-bottom: var(--s2);
 }
 
-/* Section heading inside the list. Not a mat-menu-item: it is not focusable
-   and must not close the menu, which a disabled item would still look like it
-   should do. Sticky so the pane a row belongs to is always named on screen. */
+/* Section heading inside the list. Not a button: it is not focusable and
+   must not dismiss the popover, which a disabled row would still look like
+   it should do. Sticky so the pane a row belongs to is always named on
+   screen. */
 .ind-head {
   align-items: center;
   background: var(--surf);
@@ -1494,7 +1494,7 @@ button.nav-toggle {
   z-index: 1;
 }
 
-.ind-head .mat-icon {
+.ind-head app-icon {
   font-size: 15px;
   height: 15px;
   width: 15px;
@@ -1604,7 +1604,7 @@ button.nav-toggle {
 
 /* Drawing-tool flyouts open off a 52px rail and only hold a handful of
    entries, so they only need room for their labels. */
-.tool-panel.mat-mdc-menu-panel {
+.tool-panel.p-popover {
   min-width: 244px;
 }
 
@@ -1664,17 +1664,3 @@ button.nav-toggle {
   }
 }
 
-/*
- * Every Material button (flat, stroked, icon, ...) wraps its projected
- * content in .mdc-button__label, which Material leaves as display:block.
- * That's invisible for plain text, but a button showing a busy state as
- * <mat-progress-spinner /> + text stacks the (block-level) spinner above
- * the label instead of beside it. Global, not per-button, because every
- * "spinner inside a button" case in the app hits the same wrapper.
- */
-.mat-mdc-button-base .mdc-button__label {
-  align-items: center;
-  display: flex;
-  gap: var(--s2);
-  justify-content: center;
-}

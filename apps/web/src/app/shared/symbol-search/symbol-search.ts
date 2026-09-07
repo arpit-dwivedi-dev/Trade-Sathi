@@ -11,16 +11,14 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
+import { AutoComplete } from 'primeng/autocomplete';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { Select } from 'primeng/select';
 import { Subject, firstValueFrom } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
 import { MARKETS, type Instrument, type MarketCode } from '@chartanalyzer/shared';
+import { AppIcon } from '../icons/app-icon';
 import { AuthService } from '../../core/auth.service';
 import { ProfileService } from '../../features/account/profile.service';
 
@@ -58,15 +56,7 @@ export interface SymbolSelection {
  */
 @Component({
   selector: 'app-symbol-search',
-  imports: [
-    FormsModule,
-    MatAutocompleteModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
-    MatSelectModule,
-  ],
+  imports: [FormsModule, AppIcon, AutoComplete, ProgressSpinnerModule, Select],
   templateUrl: './symbol-search.html',
   styleUrl: './symbol-search.css',
 })
@@ -81,14 +71,24 @@ export class SymbolSearch {
   readonly marketChanged = output<MarketCode>();
   readonly placeholder = input('Search symbol or company, e.g. RELIANCE');
 
-  protected readonly markets = MARKETS;
+  /** p-select's [options]/optionLabel need a plain string label, not a template. */
+  protected readonly marketOptions = MARKETS.map((m) => ({
+    code: m.code,
+    label: `${m.flag} ${m.label}`,
+  }));
   protected readonly market = signal<MarketCode>('NSE');
   protected readonly queryInput = signal('');
   protected readonly results = signal<Instrument[]>([]);
   protected readonly searching = signal(false);
   protected readonly searched = signal(false);
 
-  private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('search');
+  /**
+   * p-autoComplete renders its own internal <input> rather than exposing the
+   * element we put a template ref on, so clearQuery() below reaches into the
+   * host's single rendered input directly instead of a viewChild ref.
+   */
+  private readonly hostRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly autocomplete = viewChild(AutoComplete);
   private readonly querySubject = new Subject<string>();
 
   constructor() {
@@ -130,11 +130,11 @@ export class SymbolSearch {
   }
 
   protected onQueryChange(value: string): void {
-    // mat-autocomplete's trigger writes the selected option's value (a whole
-    // Instrument, per the [value] binding in the template) back through the
-    // same control on selection, which fires this same handler — genuine
-    // typing is the only case this method exists for, so anything else is
-    // ignored; onOptionSelected already owns the post-selection state.
+    // p-autoComplete's ngModel writes the selected option's value (a whole
+    // Instrument) back through this same (ngModelChange) handler on
+    // selection, which fires this same handler — genuine typing is the only
+    // case this method exists for, so anything else is ignored;
+    // onOptionSelected already owns the post-selection state.
     if (typeof value !== 'string') return;
 
     this.queryInput.set(value);
@@ -192,12 +192,17 @@ export class SymbolSearch {
   protected dismissResults(): void {
     this.results.set([]);
     this.searched.set(false);
+    // p-autoComplete's own panel only reacts to a `suggestions` change while
+    // it considers itself mid-search (see PrimeNG's handleSuggestionsChange),
+    // so an explicit dismiss — e.g. Escape — has to close it directly too.
+    this.autocomplete()?.hide();
   }
 
   /** Empties the search box and returns focus to it. */
   protected clearQuery(): void {
     this.onQueryChange('');
-    this.searchInput()?.nativeElement.focus();
+    this.autocomplete()?.hide();
+    this.hostRef.nativeElement.querySelector('input')?.focus();
   }
 
   /**
@@ -265,5 +270,6 @@ export class SymbolSearch {
     this.queryInput.set('');
     this.results.set([]);
     this.searched.set(false);
+    this.autocomplete()?.hide();
   }
 }

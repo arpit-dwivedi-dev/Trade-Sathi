@@ -22,7 +22,7 @@
         <b>You've used all your analyses this month.</b>
         Upgrade to keep going, or wait for the quota to reset.
       </span>
-      <button mat-flat-button color="primary" class="analyze-quota-cta" (click)="plansRequested.emit()">
+      <button pButton class="analyze-quota-cta" (click)="plansRequested.emit()">
         See plans
       </button>
     </div>
@@ -30,34 +30,34 @@
 
   @switch (state()) {
     @case ('uploading') {
-      <mat-card aria-live="polite">
-        <mat-card-content class="state-card">
+      <p-card aria-live="polite">
+        <div class="state-card">
           <div class="state-head">
             <span class="st st-queued">Uploading</span>
             <h3 class="state-title">Sending your chart</h3>
           </div>
           <p class="state-msg">Your screenshot is on its way to the analyzer.</p>
-          <mat-progress-bar mode="determinate" [value]="20" />
-        </mat-card-content>
-      </mat-card>
+          <p-progressbar mode="determinate" [value]="20" />
+        </div>
+      </p-card>
     }
 
     @case ('processing') {
-      <mat-card aria-live="polite">
-        <mat-card-content class="state-card">
+      <p-card aria-live="polite">
+        <div class="state-card">
           <div class="state-head">
             <span class="st st-processing">Processing</span>
             <h3 class="state-title">Reading the chart</h3>
           </div>
           <p class="state-msg">This usually takes under a minute.</p>
-          <mat-progress-bar mode="determinate" [value]="34" />
+          <p-progressbar mode="determinate" [value]="34" />
           <div class="state-skel" aria-hidden="true">
             <div class="skel" style="height: 20px; width: 46%"></div>
             <div class="skel" style="height: 12px; width: 86%"></div>
             <div class="skel" style="height: 12px; width: 72%"></div>
           </div>
-        </mat-card-content>
-      </mat-card>
+        </div>
+      </p-card>
     }
 
     @case ('complete') {
@@ -68,18 +68,18 @@
 
     @case ('failed') {
       @if (error(); as message) {
-        <mat-card role="alert">
-          <mat-card-content class="state-card">
+        <p-card role="alert">
+          <div class="state-card">
             <div class="state-head">
               <span class="st st-failed">Failed</span>
               <h3 class="state-title">We couldn't analyze that chart</h3>
             </div>
             <p class="state-msg">{{ message }}</p>
-          </mat-card-content>
-        </mat-card>
+          </div>
+        </p-card>
       } @else if (row(); as failedRow) {
-        <mat-card role="alert">
-          <mat-card-content class="state-card">
+        <p-card role="alert">
+          <div class="state-card">
             <div class="state-head">
               <span class="st st-failed">Failed</span>
               <h3 class="state-title">The analysis didn't finish</h3>
@@ -94,31 +94,31 @@
                 <span class="fin-mono">{{ code }}</span>
               </p>
             }
-          </mat-card-content>
-        </mat-card>
+          </div>
+        </p-card>
       }
     }
 
     @case ('quota_exceeded') {
-      <mat-card role="alert">
-        <mat-card-content class="state-card">
+      <p-card role="alert">
+        <div class="state-card">
           <div class="state-head">
             <span class="st st-failed">Quota reached</span>
             <h3 class="state-title">You're out of analyses</h3>
           </div>
           <p class="state-msg">{{ error() }}</p>
           <div class="billing-actions">
-            <button mat-flat-button color="primary" (click)="plansRequested.emit()">
+            <button pButton (click)="plansRequested.emit()">
               See plans &amp; credits
             </button>
           </div>
-        </mat-card-content>
-      </mat-card>
+        </div>
+      </p-card>
     }
 
     @case ('timed_out') {
-      <mat-card role="alert">
-        <mat-card-content class="state-card">
+      <p-card role="alert">
+        <div class="state-card">
           <div class="state-head">
             <span class="st st-processing">Timed out</span>
             <h3 class="state-title">The analysis didn't finish</h3>
@@ -126,26 +126,26 @@
           <p class="state-msg">
             This is taking longer than usual. Your analysis may still finish — check back shortly.
           </p>
-        </mat-card-content>
-      </mat-card>
+        </div>
+      </p-card>
     }
 
     @case ('poll_error') {
-      <mat-card role="alert">
-        <mat-card-content class="state-card">
+      <p-card role="alert">
+        <div class="state-card">
           <div class="state-head">
             <span class="st st-failed">Connection lost</span>
             <h3 class="state-title">Couldn't check the status</h3>
           </div>
           <p class="state-msg">Try refreshing the page — the analysis may still have completed.</p>
-        </mat-card-content>
-      </mat-card>
+        </div>
+      </p-card>
     }
   }
 
   @if (state() !== 'idle' && state() !== 'uploading' && state() !== 'processing') {
-    <button mat-stroked-button class="analyze-again" (click)="reset()">
-      <mat-icon aria-hidden="true" svgIcon="refresh"></mat-icon>
+    <button pButton [outlined]="true" class="analyze-again" (click)="reset()">
+      <app-icon name="refresh" aria-hidden="true" />
       Analyze another chart
     </button>
   }

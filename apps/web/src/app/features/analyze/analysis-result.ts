@@ -1,7 +1,7 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, computed, effect, input } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
+import { CardModule } from 'primeng/card';
+import { ChipModule } from 'primeng/chip';
 import type { AnalysisResult as Analysis, AnalysisScenario } from '@chartanalyzer/shared';
 
 import { ChartImage } from '../../shared/chart-image';
@@ -77,7 +77,7 @@ interface Tile {
  */
 @Component({
   selector: 'app-analysis-result',
-  imports: [ChartImage, DatePipe, DecimalPipe, MatCardModule, MatChipsModule],
+  imports: [ChartImage, DatePipe, DecimalPipe, CardModule, ChipModule],
   templateUrl: './analysis-result.html',
   styleUrl: './analysis-result.css',
 })

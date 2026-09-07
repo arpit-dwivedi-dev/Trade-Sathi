@@ -1,5 +1,6 @@
-/* Only the trigger lives here. The flyout itself is rendered into the CDK
-   overlay container, outside this component, so its styles are in
+/* Only the trigger lives here. The flyout itself is a p-popover, rendered
+   into its own overlay outside this component (body by default, or
+   `appendTo` — see workspace-page's shell()), so its styles are in
    styles/components.css under ".ind-panel" — see the note there. */
 .ind-menu {
   display: inline-flex;

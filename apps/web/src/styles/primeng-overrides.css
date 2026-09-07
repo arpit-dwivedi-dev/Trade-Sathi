@@ -1,0 +1,13 @@
+/* Global fixups PrimeNG's design tokens can't express — the PrimeNG
+   equivalent of the tail end of the old styles/material-theme.scss.
+   Component-scoped overrides (the workspace's popover panels, the history
+   table's column widths, ...) stay in their own feature .css files, same as
+   they did under Material. */
+
+/* app-icon already sets its own svg { display: block }, but p-button draws
+   an <app-icon> passed as its `icon`/content in some spots — keep it flat
+   there too so it never inherits a stray inline-baseline gap. */
+.p-button app-icon svg,
+.p-button-icon app-icon svg {
+  display: block;
+}

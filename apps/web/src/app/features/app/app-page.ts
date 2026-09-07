@@ -8,11 +8,11 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { ButtonModule } from 'primeng/button';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import type { Instrument, MarketCode, MarketStatus } from '@chartanalyzer/shared';
+import { AppIcon } from '../../shared/icons/app-icon';
 import { AccountPage } from '../account/account-page';
 import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingPage } from '../billing/billing-page';
@@ -107,9 +107,9 @@ function parseTab(value: string | null): Tab {
     FundamentalsPage,
     HistoryList,
     LogsPage,
-    MatButtonModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
+    AppIcon,
+    ButtonModule,
+    ProgressSpinnerModule,
     NavRail,
     PlansOverlay,
     SymbolSearch,

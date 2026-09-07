@@ -65,7 +65,7 @@
   gap: var(--s4);
 }
 
-.auth-form mat-form-field {
+.auth-form .auth-field {
   width: 100%;
 }
 

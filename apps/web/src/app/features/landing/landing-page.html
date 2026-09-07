@@ -12,13 +12,13 @@
         <b>Chart</b><span>Analyzer</span>
       </span>
       <nav class="landing-nav">
-        <button mat-icon-button (click)="toggleTheme()"
+        <button pButton [rounded]="true" [text]="true" (click)="toggleTheme()"
                 [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                 [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
-          <mat-icon aria-hidden="true" [svgIcon]="theme() === 'dark' ? 'light_mode' : 'dark_mode'"></mat-icon>
+          <app-icon aria-hidden="true" [name]="theme() === 'dark' ? 'light_mode' : 'dark_mode'" />
         </button>
         <a class="landing-link" routerLink="/login">Sign in</a>
-        <a mat-flat-button color="primary" routerLink="/login">Create account</a>
+        <a pButton routerLink="/login">Create account</a>
       </nav>
     </div>
   </header>
@@ -38,7 +38,7 @@
           when that is the honest answer.
         </p>
         <div class="landing-actions">
-          <a mat-flat-button color="primary" routerLink="/login">Analyze a chart</a>
+          <a pButton routerLink="/login">Analyze a chart</a>
           <span class="landing-actions-note">
             <span class="kbd">Ctrl</span><span class="kbd">V</span>
             <span>or drop a PNG, JPG or WEBP</span>
@@ -54,13 +54,11 @@
       <!-- A still of the real output shape rather than an illustration: the
            point of the page is what comes back, so the page shows it. -->
       <div class="landing-preview" aria-hidden="true">
-        <mat-card class="landing-preview-card">
+        <p-card class="landing-preview-card">
           <div class="hd landing-preview-hd">
             <span class="landing-preview-sym">
               <span class="sym">RELIANCE</span>
-              <mat-chip-set aria-label="Timeframe">
-                <mat-chip>M15</mat-chip>
-              </mat-chip-set>
+              <p-chip>M15</p-chip>
             </span>
             <span class="st st-complete">Complete</span>
           </div>
@@ -103,7 +101,7 @@
               <div class="cell"><span class="lbl">P(target first)</span><span class="tnum">0.36</span></div>
             </div>
           </div>
-        </mat-card>
+        </p-card>
         <p class="landing-preview-cap">Illustrative output. Not a recommendation.</p>
       </div>
     </div>
@@ -121,7 +119,7 @@
 
       <!-- One bordered surface split by hairlines, not three floating cards:
            these are parts of a single report, and the layout says so. -->
-      <mat-card class="landing-grid">
+      <p-card class="landing-grid">
         <div class="landing-grid-item">
           <span class="landing-grid-num">01</span>
           <h3 class="landing-h3">Structure and regime</h3>
@@ -148,7 +146,7 @@
             says so instead of inventing a trade.
           </p>
         </div>
-      </mat-card>
+      </p-card>
     </div>
   </section>
 
@@ -189,7 +187,7 @@
         <h2 class="landing-h2">Read your first chart</h2>
         <p class="landing-section-sub">Create an account and start on the free plan.</p>
       </div>
-      <a mat-flat-button color="primary" routerLink="/login">Get started</a>
+      <a pButton routerLink="/login">Get started</a>
     </div>
   </section>
 

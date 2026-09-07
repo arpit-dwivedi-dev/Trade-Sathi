@@ -36,10 +36,7 @@ body {
 
 body {
   color: var(--text-main);
-  /* The Material token first so the page and the components are provably the
-     same face; the literal stack is the fallback for the frame before
-     material-theme.scss has defined it. */
-  font-family: var(--mat-sys-body-medium-font, #{type.$font-ui});
+  font-family: #{type.$font-ui};
   font-size: var(--t-base);
   line-height: var(--lh-body);
   /* No synthesised bold or italic: the system faces all ship real weights, and

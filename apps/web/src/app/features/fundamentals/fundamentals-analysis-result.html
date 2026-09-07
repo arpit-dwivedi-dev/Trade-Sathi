@@ -1,16 +1,16 @@
 @if (failed()) {
-  <mat-card class="fund-card fund-ai-status">
+  <p-card class="fund-card fund-ai-status">
     <p class="err">{{ failureMessage() }}</p>
-  </mat-card>
+  </p-card>
 } @else if (result(); as analysis) {
   <section class="fund-ai">
     @if (showCaveats()) {
-      <mat-card class="fund-card fund-ai-caveats">
+      <p-card class="fund-card fund-ai-caveats">
         <span class="lbl">How to read this</span>
         @for (caveat of caveats(); track $index) {
           <p class="meta">{{ caveat }}</p>
         }
-      </mat-card>
+      </p-card>
     }
 
     <!-- ── headline readings ──────────────────────────────── -->
@@ -27,12 +27,10 @@
     </div>
 
     <!-- ── executive verdict ──────────────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd">
         <span class="lbl">Executive verdict · model-generated, not investment advice</span>
-        <mat-chip-set>
-          <mat-chip>{{ humanise(stance() ?? '') }}</mat-chip>
-        </mat-chip-set>
+        <p-chip>{{ humanise(stance() ?? '') }}</p-chip>
       </div>
       <div class="fund-ai-body">
         <p class="meta">{{ analysis.executive_verdict.commitment }}</p>
@@ -48,16 +46,16 @@
           <b>What would prove this wrong —</b> {{ analysis.executive_verdict.falsifier }}
         </p>
       </div>
-    </mat-card>
+    </p-card>
 
     <!-- ── summary ─────────────────────────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd"><span class="lbl">Summary</span></div>
       <p class="meta fund-ai-body">{{ analysis.summary }}</p>
-    </mat-card>
+    </p-card>
 
     <!-- ── business & performance ─────────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd"><span class="lbl">Business &amp; performance</span></div>
       <div class="fund-ai-body">
         <p class="meta">{{ analysis.business.statement }}</p>
@@ -73,10 +71,10 @@
           Growth supports earnings — {{ humanise(analysis.performance.growth_supports_earnings) }}
         </p>
       </div>
-    </mat-card>
+    </p-card>
 
     <!-- ── the seven section verdicts ─────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd"><span class="lbl">Section verdicts</span></div>
       <ul class="fund-figures fund-ai-sections">
         @for (section of sections(); track section.title) {
@@ -89,10 +87,10 @@
           </li>
         }
       </ul>
-    </mat-card>
+    </p-card>
 
     <!-- ── historical trend ───────────────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd"><span class="lbl">Historical trend</span></div>
       <div class="fund-ai-body">
         <p class="meta">{{ analysis.historical_trend.statement }}</p>
@@ -114,10 +112,10 @@
           </ul>
         }
       </div>
-    </mat-card>
+    </p-card>
 
     <!-- ── positive signals ────────────────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd"><span class="lbl">Positive signals</span></div>
       @if (positiveSignals().length) {
         <ul class="fund-ai-claims">
@@ -131,10 +129,10 @@
       } @else {
         <p class="meta dim fund-ai-body">None the data clearly supports.</p>
       }
-    </mat-card>
+    </p-card>
 
     <!-- ── red flags ───────────────────────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd"><span class="lbl">Red flags</span></div>
       @if (redFlags().length) {
         <ul class="fund-ai-claims">
@@ -148,7 +146,7 @@
       } @else {
         <p class="meta dim fund-ai-body">None the data clearly supports.</p>
       }
-    </mat-card>
+    </p-card>
 
     <!-- ── scenarios — the one dark analytical slab in the report,
          matching the chart AI scenario treatment elsewhere in the product ── -->
@@ -172,14 +170,14 @@
 
     <!-- ── missing information ────────────────────────────── -->
     @if (analysis.missing_information.length) {
-      <mat-card class="fund-card">
+      <p-card class="fund-card">
         <div class="hd"><span class="lbl">Missing information</span></div>
         <ul class="fund-ai-list fund-ai-body">
           @for (item of analysis.missing_information; track $index) {
             <li class="meta"><b>{{ item.item }}</b> — {{ item.impact }}</li>
           }
         </ul>
-      </mat-card>
+      </p-card>
     }
 
     <!-- ── data notes ─────────────────────────────────────── -->
@@ -188,7 +186,7 @@
          floats. Shown even when the reading above is confident, because a
          confident reading of shaky data is exactly what needs flagging. -->
     @if (dataNotes().length) {
-      <mat-card class="fund-card fund-ai-data-notes">
+      <p-card class="fund-card fund-ai-data-notes">
         <div class="hd"><span class="lbl">Data notes</span></div>
         <ul class="fund-ai-list fund-ai-body">
           @for (note of dataNotes(); track $index) {
@@ -197,14 +195,14 @@
             </li>
           }
         </ul>
-      </mat-card>
+      </p-card>
     }
 
     <!-- ── debug trace ────────────────────────────────────── -->
     <!-- Collapsed by default: this is for working out why a number reads the
          way it does, not for the ordinary reader. -->
     @if (debugTrace(); as trace) {
-      <mat-card class="fund-card fund-ai-debug">
+      <p-card class="fund-card fund-ai-debug">
         <button type="button" class="fund-ai-debug-toggle" (click)="toggleDebug()">
           <span class="lbl">Derivation trace</span>
           <span class="meta">{{ debugOpen() ? 'Hide' : 'Show' }}</span>
@@ -243,7 +241,7 @@
             </div>
           </div>
         }
-      </mat-card>
+      </p-card>
     }
 
     <p class="disc">

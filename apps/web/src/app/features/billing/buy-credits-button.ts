@@ -1,6 +1,6 @@
 import { Component, OnDestroy, computed, inject, input, output, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { ButtonModule } from 'primeng/button';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import { AuthService } from '../../core/auth.service';
 import { BillingService, type CreditPackKind, type CreditPollHandle } from './billing.service';
@@ -29,7 +29,7 @@ type BuyCreditsState =
  */
 @Component({
   selector: 'app-buy-credits-button',
-  imports: [MatButtonModule, MatProgressSpinnerModule],
+  imports: [ButtonModule, ProgressSpinnerModule],
   styleUrl: './upgrade-button.css',
   templateUrl: './buy-credits-button.html',
 })

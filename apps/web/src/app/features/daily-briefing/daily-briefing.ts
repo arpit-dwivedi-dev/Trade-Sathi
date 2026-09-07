@@ -10,20 +10,20 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatTableModule } from '@angular/material/table';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { firstValueFrom } from 'rxjs';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { InputTextModule } from 'primeng/inputtext';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { Select } from 'primeng/select';
+import { TableModule } from 'primeng/table';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 
 import { type Instrument } from '@chartanalyzer/shared';
+import { AppIcon } from '../../shared/icons/app-icon';
 import { AuthService } from '../../core/auth.service';
 import { startRowWatch, type RowWatch } from '../../core/row-watch';
 import { SupabaseClientService } from '../../core/supabase-client';
@@ -94,16 +94,16 @@ const MAX_LOOKBACK_DAYS = 365;
 @Component({
   selector: 'app-daily-briefing',
   imports: [
+    FormsModule,
     RouterLink,
-    MatButtonModule,
-    MatCardModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatProgressSpinnerModule,
-    MatSelectModule,
-    MatSlideToggleModule,
-    MatTableModule,
+    AppIcon,
+    ButtonModule,
+    CardModule,
+    InputTextModule,
+    ProgressSpinnerModule,
+    Select,
+    TableModule,
+    ToggleSwitchModule,
   ],
   styleUrl: './daily-briefing.css',
   templateUrl: './daily-briefing.html',
@@ -193,6 +193,12 @@ export class DailyBriefing implements OnInit, OnDestroy {
   private static readonly RESUME_WINDOW_MS = 60 * 60 * 1000;
 
   protected readonly lookbackOptions = LOOKBACK_OPTIONS;
+
+  /** p-select needs a flat {label, value} array — LOOKBACK_OPTIONS plus the 'Custom…' escape hatch. */
+  protected readonly lookbackSelectOptions = [
+    ...LOOKBACK_OPTIONS.map((option) => ({ label: option.label, value: option.days })),
+    { label: 'Custom…', value: 'custom' },
+  ];
   protected readonly minLookbackDays = MIN_LOOKBACK_DAYS;
   protected readonly maxLookbackDays = MAX_LOOKBACK_DAYS;
 
@@ -460,6 +466,12 @@ export class DailyBriefing implements OnInit, OnDestroy {
    */
   protected readonly hourOptions = Array.from({ length: 24 }, (_, i) => i);
 
+  /** p-select needs a flat {label, value} array — the 'Default' sentinel plus every hour. */
+  protected readonly hourSelectOptions = [
+    { label: 'Default', value: 'default' as const },
+    ...this.hourOptions.map((h) => ({ label: this.padTime(h), value: h })),
+  ];
+
   private static readonly MINUTE_STEP_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
   protected padTime(value: number): string {
@@ -483,6 +495,11 @@ export class DailyBriefing implements OnInit, OnDestroy {
     const current = item.scheduled_minute_ist ?? 0;
     const base = DailyBriefing.MINUTE_STEP_OPTIONS;
     return base.includes(current) ? base : [...base, current].sort((a, b) => a - b);
+  }
+
+  /** p-select needs a flat {label, value} array. */
+  protected minuteSelectOptionsFor(item: DailyBriefingItem): { label: string; value: number }[] {
+    return this.minuteOptionsFor(item).map((m) => ({ label: this.padTime(m), value: m }));
   }
 
   /** 'default' clears the schedule back to the deployment default (both columns null). */

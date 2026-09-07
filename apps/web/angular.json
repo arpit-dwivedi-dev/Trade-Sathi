@@ -25,7 +25,7 @@
               }
             ],
             "styles": [
-              "src/styles/material-theme.scss",
+              "src/styles/primeng-overrides.css",
               "src/styles.scss"
             ],
             "server": "src/main.server.ts",

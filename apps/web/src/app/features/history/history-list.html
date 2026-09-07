@@ -5,15 +5,9 @@
     <!-- Provenance filter. Uploads, live runs and briefings were one
          undifferentiated list, so a user who wanted "what did my briefing
          send me" had to open rows one at a time to find out. -->
-    <!-- hideSingleSelectionIndicator: the checkmark is redundant next to the
-         filled selected state, and it only pushes four short labels apart. -->
-    <mat-button-toggle-group class="seg" aria-label="Filter by source"
-                              hideSingleSelectionIndicator
-                              [value]="sourceFilter()" (change)="selectSource($event.value)">
-      @for (filter of sourceFilters; track filter.value) {
-        <mat-button-toggle [value]="filter.value">{{ filter.label }}</mat-button-toggle>
-      }
-    </mat-button-toggle-group>
+    <p-selectButton class="seg" aria-label="Filter by source"
+                     [options]="sourceFilters" optionLabel="label" optionValue="value"
+                     [ngModel]="sourceFilter()" (onChange)="selectSource($event.value)" />
 
     @if (!loading() && rows().length) {
       <span class="history-head-trailing">
@@ -48,12 +42,12 @@
       }
     </div>
   } @else if (error() && rows().length === 0) {
-    <mat-card class="history-empty" role="alert">
+    <p-card class="history-empty" role="alert">
       <span class="st st-failed">Couldn't load</span>
       <p class="history-msg">{{ error() }}</p>
-    </mat-card>
+    </p-card>
   } @else if (rows().length === 0) {
-    <mat-card class="history-empty history-empty-first">
+    <p-card class="history-empty history-empty-first">
       <span class="history-empty-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
              stroke-linecap="round" stroke-linejoin="round">
@@ -67,190 +61,181 @@
         Upload your first chart on the Analyze tab. Every run is saved here with its symbol,
         timeframe and readings.
       </p>
-    </mat-card>
+    </p-card>
   } @else {
     <div class="history-table-wrap">
-      <table mat-table [dataSource]="tableRows()" multiTemplateDataRows class="history-table">
-        <!-- Bare icon, no header label — the column exists only so the logo
-             isn't competing with the ticker/company text for the same cell. -->
-        <ng-container matColumnDef="logo">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let row">
-            @if (logoUrl(row)) {
-              <img
-                class="history-logo history-logo-img"
-                [src]="logoUrl(row)"
-                (error)="onLogoError($event)"
-                alt=""
-                aria-hidden="true"
-                loading="lazy"
-              />
-            } @else if (displaySymbol(row)) {
-              <span class="history-logo" [style.background]="avatarColor(row)" aria-hidden="true">{{ initials(row) }}</span>
-            }
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="symbol">
-          <th mat-header-cell *matHeaderCellDef>Company</th>
-          <td mat-cell *matCellDef="let row">
-            <span class="sym history-sym-text-wrap trunc" translate="no"
-                  [class.history-unknown]="!displaySymbol(row)"
-                  [attr.title]="(displaySymbol(row) ?? 'Symbol not detected') + ' · from ' + sourceLabel(row)">
-              @if (companyName(row); as name) {
-                <span class="history-sym-text trunc">{{ name }}</span>
-              } @else {
-                <span class="history-sym-text trunc">{{ displaySymbol(row) ?? 'Not detected' }}</span>
+      <p-table [value]="tableRows()" [dataKey]="'id'" styleClass="history-table">
+        <ng-template #header>
+          <tr>
+            <!-- Bare icon column, no header label — the column exists only so
+                 the logo isn't competing with the ticker/company text for the
+                 same cell. -->
+            <th class="col-logo"></th>
+            <th class="col-symbol">Company</th>
+            <th class="col-structure">Structure</th>
+            <th class="col-setup">Setup</th>
+            <th class="col-tf">Timeframe</th>
+            <th class="col-analyzed">Analyzed</th>
+            <!-- queued/processing here is not a bug: an analysis submitted
+                 from another tab or session can still be in flight. -->
+            <th class="col-status">Status</th>
+            <th class="col-actions"><span class="sr-only">Actions</span></th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-row>
+          <tr
+            class="history-row"
+            [class.history-row-open]="expandedId() === row.id"
+            [attr.aria-expanded]="expandedId() === row.id"
+            tabindex="0"
+            (click)="toggle(row)"
+            (keydown.enter)="toggle(row)"
+            (keydown.space)="$event.preventDefault(); toggle(row)"
+          >
+            <td class="col-logo">
+              @if (logoUrl(row)) {
+                <img
+                  class="history-logo history-logo-img"
+                  [src]="logoUrl(row)"
+                  (error)="onLogoError($event)"
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                />
+              } @else if (displaySymbol(row)) {
+                <span class="history-logo" [style.background]="avatarColor(row)" aria-hidden="true">{{ initials(row) }}</span>
               }
-              <!-- Second line only: ticker (when a company name already took
-                   the first line) followed immediately by the provenance tag
-                   — kept on one line so the cell reads in 2 lines flat rather
-                   than 3, with the tag right after the symbol like a suffix
-                   rather than a wrapped-under row of its own. -->
-              <span class="history-sub-line">
-                @if (companyName(row)) {
-                  <span class="history-company-name trunc">{{ displaySymbol(row) }}</span>
+            </td>
+
+            <td class="col-symbol">
+              <span class="sym history-sym-text-wrap trunc" translate="no"
+                    [class.history-unknown]="!displaySymbol(row)"
+                    [attr.title]="(displaySymbol(row) ?? 'Symbol not detected') + ' · from ' + sourceLabel(row)">
+                @if (companyName(row); as name) {
+                  <span class="history-sym-text trunc">{{ name }}</span>
+                } @else {
+                  <span class="history-sym-text trunc">{{ displaySymbol(row) ?? 'Not detected' }}</span>
                 }
-                <span class="history-tags">
-                  <span class="history-src history-src-{{ row.source }}">{{ sourceLabel(row) }}</span>
-                  @if (wasEmailed(row)) {
-                    <span class="history-mailed" title="Emailed to you with the PDF attached">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                           stroke-linecap="round" stroke-linejoin="round" width="10" height="10"
-                           aria-hidden="true">
-                        <rect x="3" y="5" width="18" height="14" rx="2" />
-                        <path d="m3 7 9 6 9-6" />
-                      </svg>
-                      emailed
-                    </span>
+                <!-- Second line only: ticker (when a company name already took
+                     the first line) followed immediately by the provenance tag
+                     — kept on one line so the cell reads in 2 lines flat rather
+                     than 3, with the tag right after the symbol like a suffix
+                     rather than a wrapped-under row of its own. -->
+                <span class="history-sub-line">
+                  @if (companyName(row)) {
+                    <span class="history-company-name trunc">{{ displaySymbol(row) }}</span>
                   }
+                  <span class="history-tags">
+                    <span class="history-src history-src-{{ row.source }}">{{ sourceLabel(row) }}</span>
+                    @if (wasEmailed(row)) {
+                      <span class="history-mailed" title="Emailed to you with the PDF attached">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round" width="10" height="10"
+                             aria-hidden="true">
+                          <rect x="3" y="5" width="18" height="14" rx="2" />
+                          <path d="m3 7 9 6 9-6" />
+                        </svg>
+                        emailed
+                      </span>
+                    }
+                  </span>
                 </span>
               </span>
-            </span>
-          </td>
-        </ng-container>
+            </td>
 
-        <ng-container matColumnDef="structure">
-          <th mat-header-cell *matHeaderCellDef>Structure</th>
-          <td mat-cell *matCellDef="let row" class="history-cell">
-            {{ structureLabel(row) }}
-          </td>
-        </ng-container>
+            <td class="col-structure history-cell">
+              {{ structureLabel(row) }}
+            </td>
 
-        <!-- One cell for "what did this come to": a direction where the setup
-             names one, "two-way" where it deliberately does not, "no setup"
-             for an abstention. -->
-        <ng-container matColumnDef="setup">
-          <th mat-header-cell *matHeaderCellDef>Setup</th>
-          <td mat-cell *matCellDef="let row">
-            @if (setupLabel(row); as label) {
-              <span [class]="setupTone(row) ? 'dir d-' + setupTone(row) + ' history-dir' : 'history-cell'">{{ label }}</span>
-            } @else {
-              <span class="history-cell">—</span>
-            }
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="tf">
-          <th mat-header-cell *matHeaderCellDef>Timeframe</th>
-          <td mat-cell *matCellDef="let row" class="tnum">
-            {{ row.timeframe | timeframeLabel }}
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="analyzed">
-          <th mat-header-cell *matHeaderCellDef>Analyzed</th>
-          <td mat-cell *matCellDef="let row" class="tnum">
-            {{ relativeDate(row.created_at) }}
-          </td>
-        </ng-container>
-
-        <!-- queued/processing here is not a bug: an analysis submitted from
-             another tab or session can still be in flight. -->
-        <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef>Status</th>
-          <td mat-cell *matCellDef="let row">
-            <span class="st st-{{ row.status }}">{{ row.status }}</span>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let row">
-            <span class="history-actions">
-              <button
-                mat-icon-button
-                [disabled]="exportingId() !== null"
-                [attr.aria-label]="'Download PDF for ' + (displaySymbol(row) ?? 'this analysis')"
-                (click)="exportPdf(row, $event)"
-              >
-                @if (exportingId() === row.id) {
-                  <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
-                } @else {
-                  <mat-icon aria-hidden="true" svgIcon="download"></mat-icon>
-                }
-              </button>
-              <button
-                mat-icon-button
-                [disabled]="deleting()"
-                [attr.aria-label]="'Delete ' + (displaySymbol(row) ?? 'this analysis')"
-                (click)="deleteOne(row, $event)"
-              >
-                <mat-icon aria-hidden="true" svgIcon="delete"></mat-icon>
-              </button>
-              <span class="history-chevron" [class.history-chevron-open]="expandedId() === row.id" aria-hidden="true">
-                <mat-icon aria-hidden="true" svgIcon="chevron_right"></mat-icon>
-              </span>
-            </span>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="expandedDetail">
-          <td mat-cell *matCellDef="let row" [attr.colspan]="columns.length" class="history-detail-cell">
-            <div class="history-detail">
-              @if (detailLoading()) {
-                <p class="history-msg"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading the full report…</p>
-              } @else if (detailError()) {
-                <p class="err" role="alert">{{ detailError() }}</p>
-              } @else if (detail(); as loaded) {
-                @if (loaded.row.status === 'queued' || loaded.row.status === 'processing') {
-                  <p class="history-msg">
-                    This analysis is still {{ loaded.row.status }}. Check back shortly.
-                  </p>
-                  @if (loaded.row.source !== 'fundamentals') {
-                    <app-chart-image
-                      [imageKey]="loaded.row.image_key"
-                      [label]="loaded.row.symbol_raw"
-                    />
-                  }
-                } @else if (loaded.row.source === 'fundamentals') {
-                  <app-fundamentals-analysis-result [row]="loaded.row" />
-                } @else {
-                  <app-analysis-result [row]="loaded.row" [patterns]="loaded.patterns" />
-                }
+            <!-- One cell for "what did this come to": a direction where the
+                 setup names one, "two-way" where it deliberately does not,
+                 "no setup" for an abstention. -->
+            <td class="col-setup">
+              @if (setupLabel(row); as label) {
+                <span [class]="setupTone(row) ? 'dir d-' + setupTone(row) + ' history-dir' : 'history-cell'">{{ label }}</span>
+              } @else {
+                <span class="history-cell">—</span>
               }
-            </div>
-          </td>
-        </ng-container>
+            </td>
 
-        <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
-        <tr
-          mat-row
-          *matRowDef="let row; columns: columns"
-          class="history-row"
-          [class.history-row-open]="expandedId() === row.id"
-          [attr.aria-expanded]="expandedId() === row.id"
-          tabindex="0"
-          (click)="toggle(row)"
-          (keydown.enter)="toggle(row)"
-          (keydown.space)="$event.preventDefault(); toggle(row)"
-        ></tr>
-        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']; when: isExpandedRow" class="history-detail-row"></tr>
-      </table>
+            <td class="col-tf tnum">
+              {{ row.timeframe | timeframeLabel }}
+            </td>
+
+            <td class="col-analyzed tnum">
+              {{ relativeDate(row.created_at) }}
+            </td>
+
+            <td class="col-status">
+              <span class="st st-{{ row.status }}">{{ row.status }}</span>
+            </td>
+
+            <td class="col-actions">
+              <span class="history-actions">
+                <button
+                  pButton
+                  [text]="true"
+                  [disabled]="exportingId() !== null"
+                  [attr.aria-label]="'Download PDF for ' + (displaySymbol(row) ?? 'this analysis')"
+                  (click)="exportPdf(row, $event)"
+                >
+                  @if (exportingId() === row.id) {
+                    <p-progress-spinner [style]="{ width: '16px', height: '16px' }" strokeWidth="4" aria-hidden="true" />
+                  } @else {
+                    <app-icon aria-hidden="true" name="download" />
+                  }
+                </button>
+                <button
+                  pButton
+                  [text]="true"
+                  [disabled]="deleting()"
+                  [attr.aria-label]="'Delete ' + (displaySymbol(row) ?? 'this analysis')"
+                  (click)="deleteOne(row, $event)"
+                >
+                  <app-icon aria-hidden="true" name="delete" />
+                </button>
+                <span class="history-chevron" [class.history-chevron-open]="expandedId() === row.id" aria-hidden="true">
+                  <app-icon aria-hidden="true" name="chevron_right" />
+                </span>
+              </span>
+            </td>
+          </tr>
+
+          @if (isExpandedRow(row)) {
+            <tr class="history-detail-row">
+              <td [attr.colspan]="columns.length" class="history-detail-cell">
+                <div class="history-detail">
+                  @if (detailLoading()) {
+                    <p class="history-msg"><p-progress-spinner [style]="{ width: '16px', height: '16px' }" strokeWidth="4" aria-hidden="true" /> Loading the full report…</p>
+                  } @else if (detailError()) {
+                    <p class="err" role="alert">{{ detailError() }}</p>
+                  } @else if (detail(); as loaded) {
+                    @if (loaded.row.status === 'queued' || loaded.row.status === 'processing') {
+                      <p class="history-msg">
+                        This analysis is still {{ loaded.row.status }}. Check back shortly.
+                      </p>
+                      @if (loaded.row.source !== 'fundamentals') {
+                        <app-chart-image
+                          [imageKey]="loaded.row.image_key"
+                          [label]="loaded.row.symbol_raw"
+                        />
+                      }
+                    } @else if (loaded.row.source === 'fundamentals') {
+                      <app-fundamentals-analysis-result [row]="loaded.row" />
+                    } @else {
+                      <app-analysis-result [row]="loaded.row" [patterns]="loaded.patterns" />
+                    }
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </ng-template>
+      </p-table>
 
       @if (loadingMore()) {
         <div class="history-more">
-          <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading more…
+          <p-progress-spinner [style]="{ width: '16px', height: '16px' }" strokeWidth="4" aria-hidden="true" /> Loading more…
         </div>
       }
 

@@ -14,16 +14,18 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { FormsModule } from '@angular/forms';
+import { ButtonModule } from 'primeng/button';
+import { ChipModule } from 'primeng/chip';
+import { Popover } from 'primeng/popover';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectButtonModule } from 'primeng/selectbutton';
 
 import { type MarketTick } from '@chartanalyzer/shared';
 import { LiveService, type WorkspaceInterval } from '../../core/live.service';
 import { MarketStreamService } from '../../core/market-stream.service';
+import { AppIcon } from '../../shared/icons/app-icon';
+import type { IconName } from '../../shared/icons/icon-paths';
 import type { ChartOverlays, ChartStyle, LiveCandle, OverlayBand } from '../../shared/live-chart/live-chart';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
@@ -69,6 +71,16 @@ const TIMEFRAMES: readonly TimeframeOption[] = [
 ];
 const DEFAULT_TIMEFRAME: WorkspaceInterval = '1d';
 
+interface ChartStyleOption {
+  value: ChartStyle;
+  label: string;
+}
+
+const CHART_STYLES: readonly ChartStyleOption[] = [
+  { value: 'candle', label: 'Candle' },
+  { value: 'line', label: 'Line' },
+];
+
 const INTRADAY_REFRESH_MS = 30_000;
 const DAILY_REFRESH_MS = 5 * 60_000;
 const STREAMING_INTRADAY_REFRESH_MS = 2 * 60_000;
@@ -102,14 +114,15 @@ interface AnalysisTarget {
   selector: 'app-workspace-page',
   imports: [
     AnalysisResult,
+    AppIcon,
+    ButtonModule,
+    ChipModule,
     DecimalPipe,
+    FormsModule,
     IndicatorMenu,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatChipsModule,
-    MatIconModule,
-    MatMenuModule,
-    MatProgressSpinnerModule,
+    Popover,
+    ProgressSpinnerModule,
+    SelectButtonModule,
     WorkspaceChart,
   ],
   templateUrl: './workspace-page.html',
@@ -133,12 +146,43 @@ export class WorkspacePage implements OnInit, OnDestroy {
    * screen has no search box of its own.
    */
   readonly selection = input<SymbolSelection | null>(null);
-  protected readonly timeframes = TIMEFRAMES;
+  // p-selectButton's [options] wants a mutable array, so these are shallow
+  // copies of the readonly module-level constants above.
+  protected readonly timeframes: TimeframeOption[] = [...TIMEFRAMES];
   protected readonly toolGroups = TOOL_GROUPS;
+  protected readonly chartStyles: ChartStyleOption[] = [...CHART_STYLES];
 
   private readonly shellHost = viewChild<ElementRef<HTMLDivElement>>('shell');
+  /**
+   * The fullscreened element, for PrimeNG's overlay-based components'
+   * `[appendTo]` — a fullscreened element is the only subtree the browser
+   * paints, so anything overlay-based inside `#shell` (the tool-menu popover,
+   * the indicator menu's popover) has to render inside it rather than under
+   * `<body>` to stay visible while fullscreen is active.
+   */
+  protected readonly shellElement = computed(() => this.shellHost()?.nativeElement);
   /** True while this screen (not the whole document) is Fullscreen-API-fullscreen. */
   protected readonly isFullscreen = signal(false);
+
+  private readonly toolPopover = viewChild<Popover>('toolPopover');
+  /** Which tool-rail group's flyout is open — read by the one shared popover template. */
+  protected readonly openToolGroup = signal<ToolGroup | null>(null);
+
+  /** Opens the shared tool-menu popover, filled with this rail button's group. */
+  protected openToolMenu(event: Event, group: ToolGroup): void {
+    this.openToolGroup.set(group);
+    this.toolPopover()?.toggle(event);
+  }
+
+  /**
+   * Closes the tool-menu popover after a tool is picked. PrimeNG's Popover,
+   * unlike a Material mat-menu-item, does not dismiss itself on an inner
+   * click — this replicates that one-shot-selection behaviour explicitly.
+   */
+  protected closeToolMenu(event: Event): void {
+    this.toolPopover()?.hide();
+    event.stopPropagation();
+  }
 
   protected readonly instrument = signal<WorkspaceInstrument | null>(null);
 
@@ -501,16 +545,16 @@ export class WorkspacePage implements OnInit, OnDestroy {
   }
 
   /**
-   * matMenuContent hands its context through untyped, so the label lookup
-   * goes through a typed method rather than indexing the record from the
-   * template.
+   * The popover reads `openToolGroup()` rather than a typed template
+   * context, so the label lookup goes through a typed method rather than
+   * indexing the record from the template.
    */
   protected toolLabel(kind: DrawingKind): string {
     return DRAWING_LABELS[kind];
   }
 
   /** Same lookup, same reason — the flyout's per-tool glyph. */
-  protected toolIcon(kind: DrawingKind): string {
+  protected toolIcon(kind: DrawingKind): IconName {
     return DRAWING_ICONS[kind];
   }
 
@@ -524,7 +568,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
    * A rail button holding the armed tool wears that tool's own glyph, so the
    * rail says which of the sixteen is live without the flyout being open.
    */
-  protected groupIcon(group: ToolGroup): string {
+  protected groupIcon(group: ToolGroup): IconName {
     const tool = this.tool();
     return tool !== 'cursor' && group.tools.includes(tool) ? DRAWING_ICONS[tool] : group.icon;
   }

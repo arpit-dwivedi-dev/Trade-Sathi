@@ -1,9 +1,9 @@
 import { Component, OnDestroy, OnInit, inject, output, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { ProgressBarModule } from 'primeng/progressbar';
 
+import { AppIcon } from '../../shared/icons/app-icon';
 import { AnalysisResult } from './analysis-result';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
 import { AnalyzeService, type PollHandle, type QuotaStatus } from './analyze.service';
@@ -24,14 +24,7 @@ type AnalyzeState =
  */
 @Component({
   selector: 'app-analyze-page',
-  imports: [
-    ChartDrop,
-    AnalysisResult,
-    MatButtonModule,
-    MatCardModule,
-    MatIconModule,
-    MatProgressBarModule,
-  ],
+  imports: [ChartDrop, AnalysisResult, AppIcon, ButtonModule, CardModule, ProgressBarModule],
   styleUrl: './analyze-page.css',
   templateUrl: './analyze-page.html',
 })

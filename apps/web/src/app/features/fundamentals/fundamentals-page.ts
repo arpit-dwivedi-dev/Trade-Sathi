@@ -9,14 +9,15 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { FormsModule } from '@angular/forms';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { ChipModule } from 'primeng/chip';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectButtonModule } from 'primeng/selectbutton';
 
 import type { FundamentalsAnnualPeriod, InstrumentFundamentals } from '@chartanalyzer/shared';
+import { AppIcon } from '../../shared/icons/app-icon';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import type { AnalysisRow } from '../analyze/analysis.types';
 import { FundamentalsAnalysisResultComponent } from './fundamentals-analysis-result';
@@ -95,13 +96,14 @@ const CURRENCY_SYMBOLS: Readonly<Record<string, string>> = {
   selector: 'app-fundamentals-page',
   imports: [
     NgTemplateOutlet,
+    FormsModule,
     FundamentalsAnalysisResultComponent,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatCardModule,
-    MatChipsModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
+    AppIcon,
+    ButtonModule,
+    CardModule,
+    ChipModule,
+    ProgressSpinnerModule,
+    SelectButtonModule,
   ],
   templateUrl: './fundamentals-page.html',
   styleUrl: './fundamentals-page.css',
@@ -114,6 +116,9 @@ export class FundamentalsPage implements OnDestroy {
   readonly selection = input<SymbolSelection | null>(null);
 
   protected readonly annualMetrics = ANNUAL_METRICS;
+  // p-selectButton's [options] wants a mutable array, so this is a shallow
+  // copy of the readonly module-level constant above.
+  protected readonly annualMetricOptions = [...ANNUAL_METRICS];
 
   protected readonly data = signal<InstrumentFundamentals | null>(null);
   protected readonly loading = signal(false);

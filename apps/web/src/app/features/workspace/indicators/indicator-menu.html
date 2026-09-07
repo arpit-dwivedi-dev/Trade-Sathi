@@ -3,82 +3,89 @@
     type="button"
     class="ind-trigger"
     [class.ind-trigger-on]="active().size > 0"
-    [matMenuTriggerFor]="indicatorMenu"
-    #trigger="matMenuTrigger"
-    [class.ind-trigger-open]="trigger.menuOpen"
+    [class.ind-trigger-open]="open()"
+    (click)="togglePanel($event)"
     aria-haspopup="true"
     title="Add indicators to the chart"
   >
-    <mat-icon class="ind-trigger-icon" aria-hidden="true" svgIcon="stacked_line_chart"></mat-icon>
+    <app-icon class="ind-trigger-icon" aria-hidden="true" name="stacked_line_chart" />
     <span class="ind-trigger-label">Indicators</span>
     @if (active().size > 0) {
       <span class="ind-trigger-count" [attr.aria-label]="active().size + ' active'">{{ active().size }}</span>
     }
-    <mat-icon class="ind-trigger-caret" aria-hidden="true" svgIcon="expand_more"></mat-icon>
+    <app-icon class="ind-trigger-caret" aria-hidden="true" name="expand_more" />
   </button>
 
-  <mat-menu #indicatorMenu="matMenu" xPosition="before" class="ind-panel">
-    <div class="ind-top" (click)="$event.stopPropagation()">
-      <span class="ind-top-text">
-        <span class="ind-top-title">Indicators</span>
-        <span class="ind-top-sub">
-          @if (active().size === 0) {
-            Nothing on the chart yet
-          } @else {
-            {{ active().size }} of {{ total }} active
-          }
+  <p-popover
+    #panel
+    styleClass="ind-panel"
+    [appendTo]="appendTo()"
+    (onShow)="open.set(true)"
+    (onHide)="open.set(false)"
+  >
+    <ng-template #content>
+      <div class="ind-top">
+        <span class="ind-top-text">
+          <span class="ind-top-title">Indicators</span>
+          <span class="ind-top-sub">
+            @if (active().size === 0) {
+              Nothing on the chart yet
+            } @else {
+              {{ active().size }} of {{ total }} active
+            }
+          </span>
         </span>
-      </span>
-      @if (active().size > 0) {
-        <button type="button" class="ind-clear" (click)="clear($event)">
-          <mat-icon aria-hidden="true" svgIcon="backspace"></mat-icon>
-          Clear all
-        </button>
-      }
-    </div>
-
-    <div class="ind-scroll">
-      <div class="ind-head" (click)="$event.stopPropagation()">
-        <mat-icon aria-hidden="true" svgIcon="candlestick_chart"></mat-icon>
-        <span class="ind-head-title">On the price pane</span>
+        @if (active().size > 0) {
+          <button type="button" class="ind-clear" (click)="clear()">
+            <app-icon aria-hidden="true" name="backspace" />
+            Clear all
+          </button>
+        }
       </div>
-      @for (option of overlays; track option.kind) {
-        <button
-          mat-menu-item
-          class="ind-item"
-          [class.ind-item-on]="isActive(option.kind)"
-          (click)="toggle($event, option.kind)"
-          [attr.aria-pressed]="isActive(option.kind)"
-        >
-          <span class="ind-glyph" aria-hidden="true"><mat-icon [svgIcon]="option.icon"></mat-icon></span>
-          <span class="ind-text">
-            <span class="ind-label">{{ option.label }}</span>
-            <span class="ind-code">{{ option.kind }}</span>
-          </span>
-          <span class="ind-switch" aria-hidden="true"></span>
-        </button>
-      }
 
-      <div class="ind-head" (click)="$event.stopPropagation()">
-        <mat-icon aria-hidden="true" svgIcon="view_agenda"></mat-icon>
-        <span class="ind-head-title">In their own panel</span>
+      <div class="ind-scroll">
+        <div class="ind-head">
+          <app-icon aria-hidden="true" name="candlestick_chart" />
+          <span class="ind-head-title">On the price pane</span>
+        </div>
+        @for (option of overlays; track option.kind) {
+          <button
+            type="button"
+            class="ind-item"
+            [class.ind-item-on]="isActive(option.kind)"
+            (click)="toggle(option.kind)"
+            [attr.aria-pressed]="isActive(option.kind)"
+          >
+            <span class="ind-glyph" aria-hidden="true"><app-icon [name]="option.icon" /></span>
+            <span class="ind-text">
+              <span class="ind-label">{{ option.label }}</span>
+              <span class="ind-code">{{ option.kind }}</span>
+            </span>
+            <span class="ind-switch" aria-hidden="true"></span>
+          </button>
+        }
+
+        <div class="ind-head">
+          <app-icon aria-hidden="true" name="view_agenda" />
+          <span class="ind-head-title">In their own panel</span>
+        </div>
+        @for (option of panels; track option.kind) {
+          <button
+            type="button"
+            class="ind-item"
+            [class.ind-item-on]="isActive(option.kind)"
+            (click)="toggle(option.kind)"
+            [attr.aria-pressed]="isActive(option.kind)"
+          >
+            <span class="ind-glyph" aria-hidden="true"><app-icon [name]="option.icon" /></span>
+            <span class="ind-text">
+              <span class="ind-label">{{ option.label }}</span>
+              <span class="ind-code">{{ option.kind }}</span>
+            </span>
+            <span class="ind-switch" aria-hidden="true"></span>
+          </button>
+        }
       </div>
-      @for (option of panels; track option.kind) {
-        <button
-          mat-menu-item
-          class="ind-item"
-          [class.ind-item-on]="isActive(option.kind)"
-          (click)="toggle($event, option.kind)"
-          [attr.aria-pressed]="isActive(option.kind)"
-        >
-          <span class="ind-glyph" aria-hidden="true"><mat-icon [svgIcon]="option.icon"></mat-icon></span>
-          <span class="ind-text">
-            <span class="ind-label">{{ option.label }}</span>
-            <span class="ind-code">{{ option.kind }}</span>
-          </span>
-          <span class="ind-switch" aria-hidden="true"></span>
-        </button>
-      }
-    </div>
-  </mat-menu>
+    </ng-template>
+  </p-popover>
 </div>

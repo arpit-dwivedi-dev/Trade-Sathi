@@ -13,9 +13,9 @@
 
     <div class="main">
       <header class="topbar">
-        <button mat-icon-button class="nav-toggle" (click)="toggleNav()"
+        <button pButton [rounded]="true" [text]="true" class="nav-toggle" (click)="toggleNav()"
                 title="Sections" aria-label="Sections">
-          <mat-icon aria-hidden="true" svgIcon="menu"></mat-icon>
+          <app-icon aria-hidden="true" name="menu" />
         </button>
 
         <h1 class="topbar-title trunc">{{ pageTitle() }}</h1>
@@ -45,15 +45,15 @@
             </span>
           }
 
-          <button mat-icon-button (click)="toggleTheme()"
+          <button pButton [rounded]="true" [text]="true" (click)="toggleTheme()"
                   [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                   [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
-            <mat-icon aria-hidden="true" [svgIcon]="theme() === 'dark' ? 'light_mode' : 'dark_mode'"></mat-icon>
+            <app-icon aria-hidden="true" [name]="theme() === 'dark' ? 'light_mode' : 'dark_mode'" />
           </button>
 
-          <button mat-icon-button (click)="signOut()"
+          <button pButton [rounded]="true" [text]="true" (click)="signOut()"
                   title="Sign out" aria-label="Sign out">
-            <mat-icon aria-hidden="true" svgIcon="logout"></mat-icon>
+            <app-icon aria-hidden="true" name="logout" />
           </button>
         </div>
       </header>
@@ -82,7 +82,7 @@
         />
       </div>
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading the workspace…</p>
+      <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading the workspace…</p>
     }
 
     <!-- Deferred, then kept mounted while hidden, like the chart tabs: the
@@ -96,7 +96,7 @@
         />
       </div>
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading fundamentals…</p>
+      <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading fundamentals…</p>
     }
 
     <!-- Deferred rather than @if'd, but the effect on mounting is the same:
@@ -106,7 +106,7 @@
         <app-history-list class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your history…</p>
+      <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading your history…</p>
     }
 
     <!-- Created on activation, like History: a fresh mount is the refetch that
@@ -122,7 +122,7 @@
         />
       }
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your daily briefing…</p>
+      <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading your daily briefing…</p>
     }
 
     <!-- Created on activation, like History and Daily Briefing: a fresh mount is
@@ -132,7 +132,7 @@
         <app-logs-page class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your logs…</p>
+      <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading your logs…</p>
     }
 
     <!-- Created on activation: the balances shown here move with every
@@ -142,7 +142,7 @@
         <app-billing-page class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading billing…</p>
+      <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading billing…</p>
     }
 
     <!-- Created on activation: the profile and survey shown here change from
@@ -153,7 +153,7 @@
         <app-account-page class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
-      <p class="tab-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your account…</p>
+      <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading your account…</p>
     }
 
     <!-- Mounted only while open, so closing tears the purchase buttons down
@@ -169,7 +169,7 @@
   } @else {
     <!-- Rendered during SSR and before client-side session restoration completes. -->
     <div class="shell-loading">
-      <mat-progress-spinner mode="indeterminate" diameter="28" aria-hidden="true" />
+      <p-progress-spinner [style]="{width:'28px',height:'28px'}" strokeWidth="4" aria-hidden="true" />
       <p class="lbl">Loading</p>
     </div>
   }

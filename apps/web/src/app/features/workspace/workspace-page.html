@@ -6,9 +6,7 @@
       @if (instrument(); as picked) {
         <span class="ws-ident">
           <span class="sym">{{ picked.symbol }}</span>
-          <mat-chip-set aria-label="Exchange">
-            <mat-chip>{{ picked.exchange }}</mat-chip>
-          </mat-chip-set>
+          <p-chip [label]="picked.exchange" aria-label="Exchange" />
           @if (lastPrice(); as price) {
             <span class="tnum ws-price">{{ price | number: '1.2-2' }}</span>
           }
@@ -20,37 +18,27 @@
           }
         </span>
 
-        <!-- hideSingleSelectionIndicator: the checkmark is redundant next to the
-             filled selected state, and it only pushes the short labels apart. -->
-        <mat-button-toggle-group class="seg ws-timeframes" aria-label="Timeframe"
-                                  hideSingleSelectionIndicator [value]="timeframe()"
-                                  (change)="selectTimeframe($event.value)">
-          @for (tf of timeframes; track tf.value) {
-            <mat-button-toggle [value]="tf.value">{{ tf.label }}</mat-button-toggle>
-          }
-        </mat-button-toggle-group>
+        <p-selectButton class="seg ws-timeframes" aria-label="Timeframe"
+                        [options]="timeframes" optionLabel="label" optionValue="value"
+                        [ngModel]="timeframe()" (onChange)="selectTimeframe($event.value)" />
 
-        <mat-button-toggle-group class="seg ws-chart-style" aria-label="Chart style"
-                                  hideSingleSelectionIndicator [value]="chartStyle()"
-                                  (change)="selectChartStyle($event.value)">
-          <mat-button-toggle value="candle" title="Candlesticks">Candle</mat-button-toggle>
-          <mat-button-toggle value="line" title="Line">Line</mat-button-toggle>
-        </mat-button-toggle-group>
+        <p-selectButton class="seg ws-chart-style" aria-label="Chart style"
+                        [options]="chartStyles" optionLabel="label" optionValue="value"
+                        [ngModel]="chartStyle()" (onChange)="selectChartStyle($event.value)" />
 
-        <app-indicator-menu class="ws-indicators" [active]="activeIndicators()" (activeChange)="onIndicatorsChange($event)" />
+        <app-indicator-menu class="ws-indicators" [active]="activeIndicators()" [appendTo]="shellElement()" (activeChange)="onIndicatorsChange($event)" />
       }
 
       <span class="ws-topbar-end">
         @if (instrument()) {
           <button
-            mat-flat-button
-            color="primary"
+            pButton
             class="ws-analyze-btn"
             [disabled]="busy() || candles().length === 0"
             (click)="analyze()"
           >
             @if (busy()) {
-              <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
+              <p-progress-spinner class="ws-btn-spinner" aria-hidden="true" />
               Analysing…
             } @else {
               Analyse using AI
@@ -58,11 +46,11 @@
           </button>
         }
 
-        <button mat-icon-button (click)="toggleFullscreen()"
+        <button pButton [rounded]="true" [text]="true" (click)="toggleFullscreen()"
                 [attr.aria-pressed]="isFullscreen()"
                 [title]="isFullscreen() ? 'Exit full screen' : 'Full screen'"
                 [attr.aria-label]="isFullscreen() ? 'Exit full screen' : 'Full screen'">
-          <mat-icon aria-hidden="true" [svgIcon]="isFullscreen() ? 'fullscreen_exit' : 'fullscreen'"></mat-icon>
+          <app-icon aria-hidden="true" [name]="isFullscreen() ? 'fullscreen_exit' : 'fullscreen'" />
         </button>
       </span>
     </header>
@@ -78,7 +66,7 @@
           aria-label="Cursor — select and drag"
           (click)="selectTool('cursor')"
         >
-          <mat-icon aria-hidden="true" svgIcon="near_me"></mat-icon>
+          <app-icon aria-hidden="true" name="near_me" />
         </button>
 
         @for (group of toolGroups; track group.id) {
@@ -87,13 +75,12 @@
             class="ws-tool-btn"
             [class.ws-tool-btn-active]="isGroupActive(group)"
             [attr.aria-pressed]="isGroupActive(group)"
-            [matMenuTriggerFor]="toolMenu"
-            [matMenuTriggerData]="{ group: group }"
+            (click)="openToolMenu($event, group)"
             [title]="groupTooltip(group)"
             [attr.aria-label]="groupTooltip(group)"
             aria-haspopup="true"
           >
-            <mat-icon aria-hidden="true" [svgIcon]="groupIcon(group)"></mat-icon>
+            <app-icon aria-hidden="true" [name]="groupIcon(group)" />
             <!-- Corner notch: the rail's only cue that this button opens a list
                  rather than arming a tool outright. -->
             <span class="ws-tool-more" aria-hidden="true"></span>
@@ -104,40 +91,39 @@
 
         <button type="button" class="ws-tool-btn" title="Clear all drawings" aria-label="Clear all drawings"
                 [disabled]="drawings().length === 0" (click)="clearDrawings()">
-          <mat-icon aria-hidden="true" svgIcon="delete"></mat-icon>
+          <app-icon aria-hidden="true" name="delete" />
         </button>
       </nav>
 
       <!-- One flyout, filled by whichever rail button opened it — the groups
            differ only in their list of tools. -->
-      <mat-menu #toolMenu="matMenu" xPosition="after" class="tool-panel">
-        <ng-template matMenuContent let-group="group">
-          <div class="tool-top" (click)="$event.stopPropagation()">
-            <span class="tool-top-title">{{ group.label }}</span>
-            <span class="tool-top-sub">Click the chart to place</span>
-          </div>
-          <div class="tool-list">
-            @for (kind of group.tools; track kind) {
-              <button
-                mat-menu-item
-                class="tool-item"
-                [class.tool-item-on]="tool() === kind"
-                (click)="selectTool(kind)"
-                [attr.aria-pressed]="tool() === kind"
-              >
-                <!-- Every part is wrapped in a span on purpose: a bare <mat-icon>
-                     is projected into mat-menu-item's own leading slot, which
-                     would drop the tick on the left instead of the right. -->
-                <span class="tool-glyph" aria-hidden="true"><mat-icon [svgIcon]="toolIcon(kind)"></mat-icon></span>
-                <span class="tool-label">{{ toolLabel(kind) }}</span>
-                @if (tool() === kind) {
-                  <span class="tool-check" aria-hidden="true"><mat-icon svgIcon="check"></mat-icon></span>
-                }
-              </button>
-            }
-          </div>
+      <p-popover #toolPopover styleClass="tool-panel" [appendTo]="shellElement()">
+        <ng-template #content>
+          @if (openToolGroup(); as group) {
+            <div class="tool-top">
+              <span class="tool-top-title">{{ group.label }}</span>
+              <span class="tool-top-sub">Click the chart to place</span>
+            </div>
+            <div class="tool-list">
+              @for (kind of group.tools; track kind) {
+                <button
+                  type="button"
+                  class="tool-item"
+                  [class.tool-item-on]="tool() === kind"
+                  (click)="selectTool(kind); closeToolMenu($event)"
+                  [attr.aria-pressed]="tool() === kind"
+                >
+                  <span class="tool-glyph" aria-hidden="true"><app-icon [name]="toolIcon(kind)" /></span>
+                  <span class="tool-label">{{ toolLabel(kind) }}</span>
+                  @if (tool() === kind) {
+                    <span class="tool-check" aria-hidden="true"><app-icon name="check" /></span>
+                  }
+                </button>
+              }
+            </div>
+          }
         </ng-template>
-      </mat-menu>
+      </p-popover>
     }
 
     <main class="ws-chart-area">
@@ -229,7 +215,7 @@
        chart changes underneath it. This says what is still running. -->
   @if (runningFor(); as running) {
     <div class="note ws-note" style="--tone: var(--acc)">
-      <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
+      <p-progress-spinner class="ws-note-spinner" aria-hidden="true" />
       <span>
         Analysing <b>{{ running.symbol }}</b> on the chart. You can keep looking around — the
         result appears here when it's ready.
@@ -240,7 +226,7 @@
   @if (analyzeState() === 'quota_exceeded') {
     <div class="note ws-note" style="--tone: var(--warn)">
       <span>{{ analyzeError() }}</span>
-      <button mat-stroked-button (click)="openPlans()">See plans</button>
+      <button pButton [outlined]="true" (click)="openPlans()">See plans</button>
     </div>
   } @else if (analyzeState() === 'failed' && analyzeError()) {
     <p class="err ws-error">{{ analyzeError() }}</p>
@@ -253,7 +239,7 @@
       <span>
         Your <b>{{ done.symbol }}</b> analysis finished. Open the History tab to read it.
       </span>
-      <button mat-button (click)="dismissFinishedElsewhere()">
+      <button pButton [text]="true" (click)="dismissFinishedElsewhere()">
         Dismiss
       </button>
     </div>

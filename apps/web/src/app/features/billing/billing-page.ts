@@ -1,8 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { CardModule } from 'primeng/card';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import { AnalyzeService, type QuotaStatus } from '../analyze/analyze.service';
 import { BillingService } from './billing.service';
@@ -24,9 +24,9 @@ import { UpgradeButton } from './upgrade-button';
     BuyCreditsButton,
     UpgradeButton,
     DatePipe,
-    MatCardModule,
-    MatProgressBarModule,
-    MatProgressSpinnerModule,
+    CardModule,
+    ProgressBarModule,
+    ProgressSpinnerModule,
   ],
   styleUrl: './billing-page.css',
   templateUrl: './billing-page.html',

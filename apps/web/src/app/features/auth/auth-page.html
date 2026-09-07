@@ -8,7 +8,7 @@
     <b>Chart</b><span>Analyzer</span>
   </a>
 
-  <mat-card class="auth-card">
+  <div class="auth-card">
     <div class="auth-head">
       <h1>{{ mode() === 'signup' ? 'Create an account' : mode() === 'otp' ? 'Verify your email' : 'Welcome back' }}</h1>
       @if (mode() === 'signup') {
@@ -22,33 +22,33 @@
 
     <form (ngSubmit)="submit()" class="auth-form">
       @if (mode() === 'otp') {
-        <mat-form-field appearance="outline">
-          <mat-label>6-digit code</mat-label>
-          <input matInput class="auth-otp" id="auth-otp" type="text" name="otp" required
+        <div class="auth-field">
+          <label for="auth-otp">6-digit code</label>
+          <input class="auth-otp" id="auth-otp" type="text" name="otp" required
                  inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code"
                  placeholder="000000"
                  [attr.aria-invalid]="error() ? 'true' : null"
                  [attr.aria-describedby]="error() ? 'auth-error' : null"
                  [ngModel]="otp()" (ngModelChange)="otp.set($event)" />
-        </mat-form-field>
+        </div>
       } @else {
-        <mat-form-field appearance="outline">
-          <mat-label>Email</mat-label>
-          <input matInput id="auth-email" type="email" name="email" required
+        <div class="auth-field">
+          <label for="auth-email">Email</label>
+          <input id="auth-email" type="email" name="email" required
                  autocomplete="email" inputmode="email" spellcheck="false"
                  placeholder="you@example.com"
                  [attr.aria-invalid]="error() ? 'true' : null"
                  [ngModel]="email()" (ngModelChange)="email.set($event)" />
-        </mat-form-field>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Password</mat-label>
-          <input matInput id="auth-password" type="password" name="password" required
+        <div class="auth-field">
+          <label for="auth-password">Password</label>
+          <input id="auth-password" type="password" name="password" required
                  [autocomplete]="mode() === 'signup' ? 'new-password' : 'current-password'"
                  [attr.aria-invalid]="error() ? 'true' : null"
                  [attr.aria-describedby]="error() ? 'auth-error' : null"
                  [ngModel]="password()" (ngModelChange)="password.set($event)" />
-        </mat-form-field>
+        </div>
       }
 
       @if (error(); as message) {
@@ -65,9 +65,9 @@
         <p class="auth-notice" role="status">{{ message }}</p>
       }
 
-      <button mat-flat-button color="primary" type="submit" class="auth-submit" [disabled]="busy()">
+      <button pButton type="submit" class="auth-submit" [disabled]="busy()">
         @if (busy()) {
-          <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
+          <p-progress-spinner [style]="{ width: '16px', height: '16px' }" strokeWidth="4" aria-hidden="true" />
         }
         {{ busy() ? 'Working…' : mode() === 'signup' ? 'Create account' : mode() === 'otp' ? 'Verify' : 'Sign in' }}
       </button>
@@ -75,10 +75,10 @@
 
     <div class="auth-foot">
       @if (mode() === 'otp') {
-        <button mat-button [disabled]="busy() || resendIn() > 0" (click)="resendOtp()">
+        <button pButton [text]="true" [disabled]="busy() || resendIn() > 0" (click)="resendOtp()">
           {{ resendIn() > 0 ? 'Resend in ' + resendIn() + 's' : 'Resend code' }}
         </button>
-        <button mat-button [disabled]="busy()" (click)="useDifferentEmail()">
+        <button pButton [text]="true" [disabled]="busy()" (click)="useDifferentEmail()">
           Use a different email
         </button>
       } @else {
@@ -87,12 +87,12 @@
         } @else {
           <span></span>
         }
-        <button mat-button (click)="toggleMode()">
+        <button pButton [text]="true" (click)="toggleMode()">
           {{ mode() === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
         </button>
       }
     </div>
-  </mat-card>
+  </div>
 
   <p class="disc auth-disc">
     ChartAnalyzer produces AI-generated chart analysis. It is not investment advice.

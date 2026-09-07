@@ -1,6 +1,6 @@
 @if (failed()) {
-  <mat-card role="alert">
-    <mat-card-content class="result-failed">
+  <p-card role="alert">
+    <div class="result-failed">
       <div class="result-failed-head">
         <span class="st st-failed">Failed</span>
         <h2 class="result-failed-title">Analysis failed</h2>
@@ -9,8 +9,8 @@
       <!-- Still worth showing: it lets the user see what they actually sent
            before deciding whether to retake the screenshot and retry. -->
       <app-chart-image [imageKey]="row().image_key" [label]="row().symbol_raw" />
-    </mat-card-content>
-  </mat-card>
+    </div>
+  </p-card>
 } @else {
   <section class="result">
     <!-- metadata header — symbol · instrument type · timeframe · source -->
@@ -20,15 +20,15 @@
           <h2 class="sym result-sym trunc" translate="no">
             {{ row().symbol ?? row().symbol_raw ?? 'Unknown symbol' }}
           </h2>
-          <mat-chip-set class="result-chips" aria-label="Analysis metadata">
+          <span class="result-chips" aria-label="Analysis metadata">
             @if (assetLabel(); as asset) {
-              <mat-chip translate="no">{{ asset }}</mat-chip>
+              <p-chip translate="no">{{ asset }}</p-chip>
             }
             @if (row().timeframe; as tf) {
-              <mat-chip translate="no">{{ tf }}</mat-chip>
+              <p-chip translate="no">{{ tf }}</p-chip>
             }
-            <mat-chip>{{ sourceLabel() }}</mat-chip>
-          </mat-chip-set>
+            <p-chip>{{ sourceLabel() }}</p-chip>
+          </span>
         </div>
         @if (readFromImage() && row().symbol_raw; as raw) {
           <p class="result-raw">
@@ -194,8 +194,8 @@
                 <h3 class="result-h">Base rate</h3>
                 <span class="lbl">Counted in this window only</span>
               </div>
-              <mat-card>
-                <mat-card-content class="result-glance">
+              <p-card>
+                <div class="result-glance">
                   <div class="lvl">
                     <span class="result-key">Analogues counted</span>
                     <span class="tnum result-val">{{ analysis.base_rate.n_analogues }}</span>
@@ -206,8 +206,8 @@
                       {{ analysis.base_rate.hit_rate! * 100 | number: '1.0-0' }}%
                     </span>
                   </div>
-                </mat-card-content>
-              </mat-card>
+                </div>
+              </p-card>
               @if (analysis.base_rate.definition; as definition) {
                 <p class="disc">{{ definition }}</p>
               }
@@ -221,7 +221,7 @@
             <div class="result-block-head">
               <h3 class="result-h">Level zones</h3>
             </div>
-            <mat-card>
+            <p-card>
               <div class="result-levels">
                 @if (zones().length) {
                   @for (zone of zones(); track $index) {
@@ -250,7 +250,7 @@
                   </p>
                 }
               </div>
-            </mat-card>
+            </p-card>
             <p class="disc">
               Zones, not prices: orders cluster around a level rather than at it, and the model's
               own read of that level carries error. The width is the honest part.
@@ -262,8 +262,8 @@
             <div class="result-block-head">
               <h3 class="result-h">At a glance</h3>
             </div>
-            <mat-card>
-              <mat-card-content class="result-glance">
+            <p-card>
+              <div class="result-glance">
                 <div class="lvl">
                   <span class="result-key">Position in range</span>
                   <span class="tnum result-val">
@@ -294,8 +294,8 @@
                   <span class="result-key">Analyzed</span>
                   <span class="tnum result-val">{{ row().created_at | date: 'd MMM, HH:mm' }}</span>
                 </div>
-              </mat-card-content>
-            </mat-card>
+              </div>
+            </p-card>
           </section>
         </aside>
       </div>
@@ -382,7 +382,7 @@
             @if (patterns().length) {
               <div class="result-patterns">
                 @for (pattern of patterns(); track pattern.id) {
-                  <mat-card class="result-pattern">
+                  <p-card class="result-pattern">
                     <div class="result-pattern-head">
                       <b class="result-pattern-key">{{ pattern.pattern_key }}</b>
                       @if (pattern.confidence !== null) {
@@ -394,7 +394,7 @@
                     @if (pattern.pattern_note) {
                       <p class="result-msg">{{ pattern.pattern_note }}</p>
                     }
-                  </mat-card>
+                  </p-card>
                 }
               </div>
             } @else {
@@ -408,7 +408,7 @@
             <div class="result-block-head">
               <h3 class="result-h">Support &amp; resistance</h3>
             </div>
-            <mat-card>
+            <p-card>
               <div class="result-levels">
                 <div class="result-levels-group">
                   <span class="lbl result-lbl-down">Resistance</span>
@@ -438,7 +438,7 @@
                   }
                 </div>
               </div>
-            </mat-card>
+            </p-card>
             <p class="disc">Levels are the model's reading, not exchange data.</p>
           </section>
 
@@ -446,14 +446,14 @@
             <div class="result-block-head">
               <h3 class="result-h">At a glance</h3>
             </div>
-            <mat-card>
-              <mat-card-content class="result-glance">
+            <p-card>
+              <div class="result-glance">
                 <div class="lvl"><span class="result-key">Asset class</span><span class="tnum result-val">{{ row().asset_class ?? '—' }}</span></div>
                 <div class="lvl"><span class="result-key">Timeframe</span><span class="tnum result-val">{{ row().timeframe ?? '—' }}</span></div>
                 <div class="lvl"><span class="result-key">Source</span><span class="tnum result-val">{{ sourceLabel() }}</span></div>
                 <div class="lvl"><span class="result-key">Analyzed</span><span class="tnum result-val">{{ row().created_at | date: 'd MMM, HH:mm' }}</span></div>
-              </mat-card-content>
-            </mat-card>
+              </div>
+            </p-card>
           </section>
         </aside>
       </div>

@@ -22,30 +22,32 @@
   width: 100%;
 }
 
-/* mat-select needs a mat-form-field host to render correctly, but is kept
-   as small/unadorned as the outline appearance allows — the search input
-   beside it stays bare on purpose (see .symbol-search below).
-   The density tokens below (not a rule targeting Material's internal DOM)
-   pull the field down from Material's default 56px to the 40px of the bare
-   .input beside it (see .symbol-search-input): a selector like
-   `.symbol-search-market .mat-mdc-form-field-infix { ... }` written here
-   would never match, since that div renders in Material's own view
-   (ViewEncapsulation.None) and Angular's emulated encapsulation appends
-   this component's content attribute to every compound selector segment,
-   including one Material's template never applies it to. CSS custom
-   properties inherit through the DOM regardless of that attribute scoping,
-   so setting them on the host reaches the internals correctly. */
+/* p-select renders its own trigger/panel chrome; the density here just pulls
+   it down from PrimeNG's default control height to match the 40px bare
+   .symbol-search-input beside it. `::ng-deep` is needed because p-select's
+   internal nodes render outside this component's own template (ViewEncapsulation.None
+   content, same reasoning that used to apply to Material's form-field
+   internals) — a plain descendant selector without it would never match. */
 .symbol-search-market {
   flex: 0 0 auto;
   width: 11rem;
-  --mat-form-field-container-height: 40px;
-  --mat-form-field-container-vertical-padding: 8px;
 }
 
-/* Deliberately not a mat-form-field: this is a bare search bar, not a
-   labelled field — the icon and clear/spinner controls are absolutely
-   positioned over a plain .input the same way the app's other bare inputs
-   are, and [matAutocomplete] attaches its panel to the input directly. */
+.symbol-search-market ::ng-deep .p-select {
+  height: 40px;
+}
+
+.symbol-search-market ::ng-deep .p-select-label {
+  align-items: center;
+  display: flex;
+  padding-block: 8px;
+}
+
+/* Not a labelled field — this is a bare search bar. The icon and clear/spinner
+   controls are absolutely positioned over p-autoComplete's own rendered
+   <input> the same way the app's other bare inputs style themselves, using
+   PrimeNG's own class names on that internal input (`.p-autocomplete-input`)
+   since the component (not this one) owns that markup. */
 .symbol-search {
   flex: 1;
   max-width: 560px;
@@ -63,16 +65,28 @@
   position: absolute;
   top: 0;
   width: 38px;
+  z-index: 1;
 }
 
-.symbol-search-icon svg {
-  height: 16px;
-  width: 16px;
+.symbol-search-icon app-icon {
+  font-size: 16px;
 }
 
-.symbol-search-input {
+.symbol-search-autocomplete {
+  display: block;
+  width: 100%;
+}
+
+.symbol-search-autocomplete ::ng-deep .p-autocomplete {
+  display: block;
+  width: 100%;
+}
+
+.symbol-search-autocomplete ::ng-deep .p-autocomplete-input {
+  border-radius: var(--radius, 8px);
   min-height: 40px;
   padding-left: 38px;
+  width: 100%;
 }
 
 .symbol-search-spin {
@@ -80,13 +94,28 @@
   position: absolute;
   right: var(--s3);
   top: 12px;
+  z-index: 1;
 }
 
 /* Occupies the same slot as the spinner — only one of the two is ever shown. */
 .symbol-search-clear {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--tx-3);
+  cursor: pointer;
+  display: flex;
+  height: 32px;
+  justify-content: center;
   position: absolute;
   right: 4px;
-  top: 2px;
+  top: 4px;
+  width: 32px;
+  z-index: 1;
+}
+
+.symbol-search-clear app-icon {
+  font-size: 16px;
 }
 
 .symbol-search-row-content {

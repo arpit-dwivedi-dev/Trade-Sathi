@@ -1,7 +1,7 @@
 @if (error()) {
   <p class="err" role="alert">{{ error() }}</p>
 } @else if (plans() === null) {
-  <p class="plan-loading"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading plans…</p>
+  <p class="plan-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading plans…</p>
 } @else {
   <!-- Two sections, not one list. A monthly tier is the slot the user occupies;
        an add-on stacks on top of whichever tier that is. Rendering them as one
@@ -34,7 +34,7 @@
 }
 
 <ng-template #card let-plan>
-  <mat-card class="plan-card" [class.plan-card-current]="isCurrent(plan)">
+  <p-card class="plan-card" [class.plan-card-current]="isCurrent(plan)">
     <div class="plan-head">
       <span class="plan-name">{{ plan.name }}</span>
       @if (isCurrent(plan)) {
@@ -55,9 +55,9 @@
     </p>
 
     @if (isChoosable(plan)) {
-      <button mat-flat-button color="primary" class="plan-choose" (click)="onChoose(plan)">
+      <button pButton class="plan-choose" (click)="onChoose(plan)">
         Choose {{ plan.name }}
       </button>
     }
-  </mat-card>
+  </p-card>
 </ng-template>

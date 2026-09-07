@@ -4,9 +4,9 @@
   }
 
   @if (loading()) {
-    <p class="logs-state"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Loading your logs…</p>
+    <p class="logs-state"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading your logs…</p>
   } @else {
-    <mat-card class="logs-card">
+    <p-card class="logs-card">
       <div class="hd">
         <span class="lbl-h">Scheduled briefings</span>
         <span class="lbl">Toggle + Run-at time</span>
@@ -18,7 +18,7 @@
           @for (row of briefingLog(); track row.id) {
             <li class="logs-row">
               @if (row.status === 'processing') {
-                <mat-progress-spinner mode="indeterminate" diameter="14" aria-hidden="true" />
+                <p-progress-spinner [style]="{width:'14px',height:'14px'}" strokeWidth="4" aria-hidden="true" />
               }
               <span class="logs-time">{{ briefingTimeLabel(row) }}</span>
               <span class="logs-date">{{ row.briefing_date }}</span>
@@ -29,9 +29,9 @@
           }
         </ul>
       }
-    </mat-card>
+    </p-card>
 
-    <mat-card class="logs-card">
+    <p-card class="logs-card">
       <div class="hd">
         <span class="lbl-h">Manual runs</span>
         <span class="lbl">Analyze now / Brief now</span>
@@ -43,7 +43,7 @@
           @for (row of watchlistRuns(); track row.id) {
             <li class="logs-row">
               @if (row.status === 'processing' || row.status === 'queued') {
-                <mat-progress-spinner mode="indeterminate" diameter="14" aria-hidden="true" />
+                <p-progress-spinner [style]="{width:'14px',height:'14px'}" strokeWidth="4" aria-hidden="true" />
               }
               <span class="sym logs-sym">{{ runSymbol(row) }}</span>
               <span class="logs-date">{{ formatTimestamp(row.created_at) }}</span>
@@ -54,9 +54,9 @@
           }
         </ul>
       }
-    </mat-card>
+    </p-card>
 
-    <mat-card class="logs-card">
+    <p-card class="logs-card">
       <div class="hd">
         <span class="lbl-h">Errors</span>
         <span class="lbl">Background failures</span>
@@ -67,15 +67,13 @@
         <ul class="logs-list logs-list-errors">
           @for (row of errorLog(); track row.id) {
             <li class="logs-row logs-row-error">
-              <mat-chip-set>
-                <mat-chip class="logs-category">{{ categoryLabel(row.category) }}</mat-chip>
-              </mat-chip-set>
+              <p-chip class="logs-category">{{ categoryLabel(row.category) }}</p-chip>
               <span class="logs-message">{{ row.message }}</span>
               <span class="logs-date">{{ formatTimestamp(row.created_at) }}</span>
             </li>
           }
         </ul>
       }
-    </mat-card>
+    </p-card>
   }
 </section>

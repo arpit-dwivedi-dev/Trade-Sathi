@@ -1,14 +1,14 @@
 @switch (state()) {
   @case ('idle') {
-    <button mat-flat-button color="primary" (click)="onBuyClick()">
+    <button pButton (click)="onBuyClick()">
       {{ buyLabel() }}
     </button>
   }
   @case ('ordering') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Starting your purchase…</p>
+    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Starting your purchase…</p>
   }
   @case ('loading_checkout') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Opening the payment window…</p>
+    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Opening the payment window…</p>
   }
   @case ('checkout_open') {
     <p class="note billing-msg" style="--tone: var(--tx-3)">
@@ -17,7 +17,7 @@
     </p>
   }
   @case ('confirming') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Confirming your payment…</p>
+    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Confirming your payment…</p>
   }
   @case ('success') {
     <p class="note billing-msg billing-msg-ok" style="--tone: var(--up)">

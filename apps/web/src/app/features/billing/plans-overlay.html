@@ -14,7 +14,7 @@
       <div class="plans-title-block">
         <h2 id="plans-title" class="plans-title">Plans &amp; credits</h2>
         @if (loading()) {
-          <span class="plans-sub"><mat-progress-spinner mode="indeterminate" diameter="14" aria-hidden="true" /> Loading your plan…</span>
+          <span class="plans-sub"><p-progress-spinner [style]="{width:'14px',height:'14px'}" strokeWidth="4" aria-hidden="true" /> Loading your plan…</span>
         } @else {
           <span class="plans-sub">
             You're on <b>{{ planLabel() }}</b>
@@ -25,11 +25,11 @@
       <!-- Disabled, not hidden, while a payment is being confirmed: the control
            staying visibly present and inert explains itself better than a
            button that vanishes mid-flow. -->
-      <button mat-icon-button (click)="close()"
+      <button pButton [rounded]="true" [text]="true" (click)="close()"
               [disabled]="purchaseInFlight()"
               [attr.title]="purchaseInFlight() ? 'Hold on — confirming your payment' : 'Close'"
               aria-label="Close">
-        <mat-icon aria-hidden="true" svgIcon="close"></mat-icon>
+        <app-icon name="close" />
       </button>
     </header>
 

@@ -1,3 +1,5 @@
+import type { IconName } from '../../../shared/icons/icon-paths';
+
 /**
  * The workspace's drawing tools are KLineChart's own overlays, named exactly
  * as the library names them — so a tool, a persisted drawing's `kind` and the
@@ -63,7 +65,7 @@ export const DRAWING_LABELS: Record<DrawingKind, string> = {
  * echo what the tool actually draws (a slope, a horizontal rule, an arrow in
  * the direction the line runs).
  */
-export const DRAWING_ICONS: Record<DrawingKind, string> = {
+export const DRAWING_ICONS: Record<DrawingKind, IconName> = {
   segment: 'trending_up',
   straightLine: 'linear_scale',
   rayLine: 'north_east',
@@ -90,8 +92,8 @@ export const DRAWING_ICONS: Record<DrawingKind, string> = {
 export interface ToolGroup {
   id: string;
   label: string;
-  /** Material Symbols glyph name for the rail button — see material-symbols.ts. */
-  icon: string;
+  /** Material Symbols glyph name for the rail button — see shared/icons/icon-paths.ts. */
+  icon: IconName;
   tools: readonly DrawingKind[];
 }
 

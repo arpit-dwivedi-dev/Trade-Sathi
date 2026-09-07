@@ -40,11 +40,19 @@
    axis here is `visible` — so vertical stays non-scrolling (page-level
    scroll, sticky header intact) while horizontal gets a real escape valve at
    every viewport width, not just the phone-width case. */
+/* flex-shrink: 0 — .body is a flex column with a fixed viewport height, and
+   a flex item's default min-height is `auto`... except this one has no
+   min-content floor of its own (a table can shrink arbitrarily), so without
+   this the wrap would compress to whatever space .body has left instead of
+   staying at the table's real height. That let .body's own scrollHeight
+   equal its clientHeight — nothing to scroll to — while overflow-y: clip
+   silently ate the rows that no longer fit. */
 .history-table-wrap {
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--sh-1);
+  flex-shrink: 0;
   overflow-x: auto;
   overflow-y: clip;
 }
@@ -66,17 +74,19 @@
   width: 100%;
 }
 
-/* Material's default 16px cell padding was sized for a table with far fewer
-   columns than this one; at 8 columns wide it was spending more on chrome
-   than several columns needed for their own content. Tightened uniformly
-   rather than per-column, which is also plainly what "compact" means for a
-   table: less padding, not smaller type. */
-.history-table th.mat-mdc-header-cell,
-.history-table td.mat-mdc-cell {
+/* PrimeNG's Table renders a plain <table> here (no [scrollable] wrapper),
+   so th/td are reached with ordinary descendant selectors — same as
+   daily-briefing.css does for its own p-table. The default cell padding was
+   sized for a table with far fewer columns than this one; at 8 columns wide
+   it was spending more on chrome than several columns needed for their own
+   content. Tightened uniformly rather than per-column, which is also plainly
+   what "compact" means for a table: less padding, not smaller type. */
+.history-table th,
+.history-table td {
   padding: 0 10px;
 }
 
-.history-table th.mat-mdc-header-cell {
+.history-table th {
   background: var(--surf-2);
   border-bottom: 1px solid var(--line);
   color: var(--tx-3);
@@ -88,29 +98,33 @@
   white-space: nowrap;
 }
 
-/* The CDK writes `top: 0` inline on every sticky header cell, and a sticky
-   offset resolves against the scroll container's *content* box — which here
-   is .body's own top padding below the topbar, so the header parked 24px low
-   and rows scrolled through the visible band above it. Pulling it up by
-   exactly that padding parks it flush under the topbar, so a row passes out
-   of sight under the header and nowhere else. !important is the only way past
-   the inline style the CDK writes. */
-.history-table th.mat-mdc-header-cell.mat-mdc-table-sticky {
-  top: calc(-1 * var(--s4)) !important;
+/* No CdkTable here to write its own sticky styles, so the header is pinned by
+   hand: `position: sticky` against .body — the page's own scrollport, since
+   .history-table-wrap below deliberately does not own a vertical scrollbox
+   (see the comment on it). A sticky offset resolves against the scroll
+   container's *content* box, which here is .body's own top padding below the
+   topbar, so without this the header would park var(--s4) low and rows would
+   scroll through the visible band above it. Pulling it up by exactly that
+   padding parks it flush under the topbar, so a row passes out of sight under
+   the header and nowhere else. */
+.history-table th {
+  position: sticky;
+  top: calc(-1 * var(--s4));
+  z-index: 1;
 }
 
-.history-table td.mat-mdc-cell {
-  border-bottom-color: var(--line-soft);
+.history-table td {
+  border-bottom: 1px solid var(--line-soft);
   color: var(--tx);
 }
 
-.mat-column-logo {
+.col-logo {
   padding-right: 0;
   text-align: center;
   width: 44px;
 }
 
-.mat-column-symbol {
+.col-symbol {
   width: auto;
 }
 
@@ -119,11 +133,11 @@
    `auto` — the three of them silently split whatever space was left in equal
    thirds instead of Symbol getting the lion's share. Explicit widths here are
    what makes Symbol the only flexible column again. */
-.mat-column-structure {
+.col-structure {
   width: 104px;
 }
 
-.mat-column-setup {
+.col-setup {
   width: 112px;
 }
 
@@ -132,19 +146,19 @@
    codes ("m15") and wrapped the pipe's longer text across two lines. Also
    wide enough for its own uppercase header ("TIMEFRAME") to clear the header
    cell's default ellipsis, same reasoning as Structure's width above. */
-.mat-column-tf {
+.col-tf {
   width: 100px;
 }
 
-.mat-column-analyzed {
+.col-analyzed {
   width: 116px;
 }
 
-.mat-column-status {
+.col-status {
   width: 120px;
 }
 
-.mat-column-actions {
+.col-actions {
   width: 112px;
 }
 
@@ -161,6 +175,17 @@
   display: flex;
   gap: var(--s1);
   justify-content: flex-end;
+}
+
+.history-actions .p-button-text {
+  height: 32px;
+  padding: 4px;
+  width: 32px;
+}
+
+.history-actions .p-button-text app-icon {
+  height: 18px;
+  width: 18px;
 }
 
 /* A single height for every row — 64px clears a ticker with its provenance
@@ -251,13 +276,13 @@
   justify-content: flex-end;
 }
 
-.history-chevron mat-icon {
+.history-chevron app-icon {
   height: 18px;
   transition: transform var(--dur-subtle) var(--ease-move);
   width: 18px;
 }
 
-.history-chevron-open mat-icon {
+.history-chevron-open app-icon {
   transform: rotate(90deg);
 }
 

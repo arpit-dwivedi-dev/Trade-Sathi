@@ -1,8 +1,8 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import { SupabaseClientService } from '../../core/supabase-client';
 import { MANUAL_PLAN_KEYS } from './billing.service';
@@ -61,7 +61,7 @@ interface DailyBriefingEntitlementRow {
  */
 @Component({
   selector: 'app-plan-picker',
-  imports: [NgTemplateOutlet, MatButtonModule, MatCardModule, MatProgressSpinnerModule],
+  imports: [NgTemplateOutlet, ButtonModule, CardModule, ProgressSpinnerModule],
   styleUrl: './plan-picker.css',
   templateUrl: './plan-picker.html',
 })

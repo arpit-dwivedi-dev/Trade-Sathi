@@ -5,12 +5,12 @@
        have arrived (there is nothing for it to analyse before that) and
        while a run is already queued. -->
   <ng-template #analyzeButton let-ready="ready">
-    <button mat-flat-button color="primary" class="fund-ai"
+    <button pButton class="fund-ai"
             [disabled]="!ready || aiState() === 'queued'" (click)="analyzeWithAi()">
       @if (aiState() === 'queued') {
-        <mat-progress-spinner diameter="16" mode="indeterminate" />
+        <p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" />
       } @else {
-        <mat-icon aria-hidden="true" svgIcon="psychology"></mat-icon>
+        <app-icon aria-hidden="true" name="psychology" />
       }
       {{ aiState() === 'queued' ? 'Analyzing…' : 'Analyze with AI' }}
     </button>
@@ -27,25 +27,25 @@
       <div class="skel fund-skel-block"></div>
     </div>
   } @else if (error(); as message) {
-    <mat-card class="fund-empty">
+    <p-card class="fund-empty">
       <p class="err">{{ message }}</p>
-      <button mat-stroked-button (click)="reload()">
-        <mat-icon aria-hidden="true" svgIcon="refresh"></mat-icon>
+      <button pButton [outlined]="true" (click)="reload()">
+        <app-icon aria-hidden="true" name="refresh" />
         Try again
       </button>
-    </mat-card>
+    </p-card>
   } @else if (data(); as f) {
     <!-- ── identity ────────────────────────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd fund-ident-head">
         <span class="fund-ident">
           <span class="sym fund-sym">{{ f.instrument.symbol }}</span>
-          <mat-chip-set aria-label="Listing">
-            <mat-chip>{{ f.instrument.exchange }}</mat-chip>
+          <span class="fund-chips" aria-label="Listing">
+            <p-chip [label]="f.instrument.exchange" />
             @if (f.profile.sector; as sector) {
-              <mat-chip>{{ sector }}</mat-chip>
+              <p-chip [label]="sector" />
             }
-          </mat-chip-set>
+          </span>
         </span>
 
         <span class="fund-head-end">
@@ -80,21 +80,21 @@
 
         @if (f.profile.summary; as summary) {
           <p class="meta fund-summary" [class.fund-summary-open]="summaryOpen()">{{ summary }}</p>
-          <button mat-button class="fund-summary-toggle" (click)="toggleSummary()"
+          <button pButton [text]="true" class="fund-summary-toggle" (click)="toggleSummary()"
                   [attr.aria-expanded]="summaryOpen()">
             {{ summaryOpen() ? 'Show less' : 'Read more' }}
           </button>
         }
       </div>
-    </mat-card>
+    </p-card>
 
     <!-- ── AI verdict ─────────────────────────────────────── -->
     @switch (aiState()) {
       @case ('queued') {
-        <mat-card class="fund-card fund-ai-status" aria-busy="true">
-          <mat-progress-spinner diameter="20" mode="indeterminate" />
+        <p-card class="fund-card fund-ai-status" aria-busy="true">
+          <p-progress-spinner [style]="{width:'20px',height:'20px'}" strokeWidth="4" aria-hidden="true" />
           <p class="meta">Reading the fundamentals above and building a verdict — this usually takes under a minute.</p>
-        </mat-card>
+        </p-card>
       }
       @case ('complete') {
         @if (aiRow(); as row) {
@@ -105,39 +105,39 @@
         @if (aiRow(); as row) {
           <app-fundamentals-analysis-result [row]="row" />
         } @else {
-          <mat-card class="fund-card fund-ai-status">
+          <p-card class="fund-card fund-ai-status">
             <p class="err">{{ aiError() }}</p>
-            <button mat-stroked-button (click)="analyzeWithAi()">
-              <mat-icon aria-hidden="true" svgIcon="refresh"></mat-icon>
+            <button pButton [outlined]="true" (click)="analyzeWithAi()">
+              <app-icon aria-hidden="true" name="refresh" />
               Try again
             </button>
-          </mat-card>
+          </p-card>
         }
       }
       @case ('quota_exceeded') {
-        <mat-card class="fund-card fund-ai-status">
+        <p-card class="fund-card fund-ai-status">
           <p class="err">{{ aiError() }}</p>
-        </mat-card>
+        </p-card>
       }
       @case ('timed_out') {
-        <mat-card class="fund-card fund-ai-status">
+        <p-card class="fund-card fund-ai-status">
           <p class="meta">
             This is taking longer than expected. It may still finish — check back, or try again.
           </p>
-          <button mat-stroked-button (click)="analyzeWithAi()">
-            <mat-icon aria-hidden="true" svgIcon="refresh"></mat-icon>
+          <button pButton [outlined]="true" (click)="analyzeWithAi()">
+            <app-icon aria-hidden="true" name="refresh" />
             Try again
           </button>
-        </mat-card>
+        </p-card>
       }
       @case ('poll_error') {
-        <mat-card class="fund-card fund-ai-status">
+        <p-card class="fund-card fund-ai-status">
           <p class="err">Lost track of that analysis. Try again.</p>
-          <button mat-stroked-button (click)="analyzeWithAi()">
-            <mat-icon aria-hidden="true" svgIcon="refresh"></mat-icon>
+          <button pButton [outlined]="true" (click)="analyzeWithAi()">
+            <app-icon aria-hidden="true" name="refresh" />
             Try again
           </button>
-        </mat-card>
+        </p-card>
       }
     }
 
@@ -153,7 +153,7 @@
 
     <!-- ── 52-week range ──────────────────────────────────── -->
     @if (rangePosition() !== null) {
-      <mat-card class="fund-card fund-range-card">
+      <p-card class="fund-card fund-range-card">
         <div class="fund-range-head">
           <span class="lbl">52-week range</span>
           <span class="tnum dim fund-range-now">Last {{ price(f.snapshot.price) }}</span>
@@ -169,7 +169,7 @@
           <span class="tnum dim">{{ price(f.snapshot.fiftyTwoWeekLow) }}</span>
           <span class="tnum dim">{{ price(f.snapshot.fiftyTwoWeekHigh) }}</span>
         </div>
-      </mat-card>
+      </p-card>
     }
 
     <!-- Sections stack full width and read in the order the questions come
@@ -184,7 +184,7 @@
          short one's card half empty however the cards are packed. -->
 
     <!-- ── what the market is paying ─────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd"><span class="lbl">Valuation &amp; ratios</span></div>
       <ul class="fund-figures">
         @for (figure of valuationFigures(); track figure.label) {
@@ -194,10 +194,10 @@
           </li>
         }
       </ul>
-    </mat-card>
+    </p-card>
 
     <!-- ── what the company earns ────────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd"><span class="lbl">Profitability &amp; returns</span></div>
       <div class="fund-bars">
         @for (row of profitabilityRatios(); track row.label) {
@@ -222,10 +222,10 @@
           </li>
         }
       </ul>
-    </mat-card>
+    </p-card>
 
     <!-- ── what it is built on ───────────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd"><span class="lbl">Scale &amp; balance sheet</span></div>
       <ul class="fund-figures">
         @for (figure of healthFigures(); track figure.label) {
@@ -235,20 +235,16 @@
           </li>
         }
       </ul>
-    </mat-card>
+    </p-card>
 
     <!-- ── reported years ─────────────────────────────────── -->
     @if (annualRows().length > 0) {
-      <mat-card class="fund-card">
+      <p-card class="fund-card">
         <div class="hd fund-annual-head">
           <span class="lbl">Reported years</span>
-          <mat-button-toggle-group class="seg" aria-label="Financial metric"
-                                   hideSingleSelectionIndicator [value]="annualMetric()"
-                                   (change)="selectAnnualMetric($event.value)">
-            @for (metric of annualMetrics; track metric.key) {
-              <mat-button-toggle [value]="metric.key">{{ metric.label }}</mat-button-toggle>
-            }
-          </mat-button-toggle-group>
+          <p-selectButton class="seg" aria-label="Financial metric"
+                          [options]="annualMetricOptions" optionLabel="label" optionValue="key"
+                          [ngModel]="annualMetric()" (onChange)="selectAnnualMetric($event.value)" />
         </div>
 
         <div class="fund-annual-body">
@@ -289,11 +285,11 @@
             }
           </div>
         </div>
-      </mat-card>
+      </p-card>
     }
 
     <!-- ── the share itself ──────────────────────────────── -->
-    <mat-card class="fund-card">
+    <p-card class="fund-card">
       <div class="hd"><span class="lbl">Trading</span></div>
       <ul class="fund-figures">
         @for (figure of tradingFigures(); track figure.label) {
@@ -303,7 +299,7 @@
           </li>
         }
       </ul>
-    </mat-card>
+    </p-card>
 
     <p class="disc">
       Figures are as published by the market-data provider
@@ -324,15 +320,15 @@
 
       <dl class="fund-placeholder-features">
         <div>
-          <dt aria-hidden="true"><mat-icon svgIcon="percent"></mat-icon></dt>
+          <dt aria-hidden="true"><app-icon name="percent" /></dt>
           <dd>Valuation &amp; ratios</dd>
         </div>
         <div>
-          <dt aria-hidden="true"><mat-icon svgIcon="equalizer"></mat-icon></dt>
+          <dt aria-hidden="true"><app-icon name="equalizer" /></dt>
           <dd>Margins &amp; returns</dd>
         </div>
         <div>
-          <dt aria-hidden="true"><mat-icon svgIcon="stacked_bar_chart"></mat-icon></dt>
+          <dt aria-hidden="true"><app-icon name="stacked_bar_chart" /></dt>
           <dd>Every reported year</dd>
         </div>
       </dl>

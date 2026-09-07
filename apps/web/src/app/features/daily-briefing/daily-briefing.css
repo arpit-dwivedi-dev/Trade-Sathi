@@ -62,6 +62,32 @@
   overflow: hidden;
 }
 
+/* PrimeNG's p-card renders its own `.p-card-body` between this card and our
+   content. It's a flex column too, but its default `min-height: auto` lets
+   it refuse to shrink below the table's full content height — pushing it
+   past the card's bounds, where `overflow: hidden` above clips it with no
+   scrollbar ever appearing. Without min-height: 0 here, .daily-briefing-
+   table-wrap's own overflow: auto below never gets a constrained box to
+   scroll within. */
+.daily-briefing-card ::ng-deep .p-card-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* .p-card-content (one level deeper, wrapping the <ng-content> itself) is
+   `display: block` by default, so .daily-briefing-table-wrap's `flex: 1 1
+   auto` below has no flex container to size against — it just takes its
+   natural content height in normal flow, same overflow-past-the-card bug
+   as above, one layer down. */
+.daily-briefing-card ::ng-deep .p-card-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
 /* Loading and empty both stand in for the whole list, so they centre in the
    height the list would have had instead of leaving a void beneath them. */
 .daily-briefing-state {
@@ -99,7 +125,7 @@
    here (unlike History, which sticks against the page). It does need an
    opaque ground of its own, or rows would show through as they pass under
    it; styled to match History's header so both tables read as one control. */
-.daily-briefing-table th.mat-mdc-header-cell {
+.daily-briefing-table th {
   background: var(--surf-2);
   border-bottom: 1px solid var(--line);
   color: var(--tx-3);
@@ -111,31 +137,36 @@
   white-space: nowrap;
 }
 
-.daily-briefing-table td.mat-mdc-cell {
-  border-bottom-color: var(--line-soft);
+.daily-briefing-table td {
+  border-bottom: 1px solid var(--line-soft);
 }
 
-.mat-column-symbol {
+.daily-briefing-table th:nth-child(1),
+.daily-briefing-table td:nth-child(1) {
   position: relative;
   width: auto;
 }
 
-.mat-column-window {
+.daily-briefing-table th:nth-child(2),
+.daily-briefing-table td:nth-child(2) {
   position: relative;
   width: 200px;
 }
 
-.mat-column-runAt {
+.daily-briefing-table th:nth-child(3),
+.daily-briefing-table td:nth-child(3) {
   position: relative;
   width: 220px;
 }
 
-.mat-column-dailyBriefing {
+.daily-briefing-table th:nth-child(4),
+.daily-briefing-table td:nth-child(4) {
   position: relative;
   width: 140px;
 }
 
-.mat-column-actions {
+.daily-briefing-table th:nth-child(5),
+.daily-briefing-table td:nth-child(5) {
   width: 300px;
 }
 
@@ -166,23 +197,20 @@
   justify-content: flex-end;
 }
 
-.daily-briefing-actions .mat-mdc-unelevated-button,
-.daily-briefing-actions .mat-mdc-outlined-button {
-  --mdc-filled-button-container-height: 28px;
-  --mdc-outlined-button-container-height: 28px;
+.daily-briefing-actions .p-button:not(.p-button-text) {
   font-size: var(--t-2xs);
+  height: 28px;
   padding: 0 var(--s2);
   white-space: nowrap;
 }
 
-.daily-briefing-actions .mat-mdc-icon-button {
-  --mdc-icon-button-state-layer-size: 32px;
+.daily-briefing-actions .p-button-text {
   height: 32px;
   padding: 4px;
   width: 32px;
 }
 
-.daily-briefing-actions .mat-mdc-icon-button .mat-icon {
+.daily-briefing-actions .p-button-text app-icon {
   height: 18px;
   width: 18px;
 }

@@ -1,15 +1,13 @@
 <section class="body content-max acct">
   <div class="acct-grid">
-    <mat-card class="acct-card">
+    <p-card class="acct-card">
       <div class="hd">
         <span class="lbl-h">Profile</span>
         @if (profile(); as p) {
-          <mat-chip-set>
-            <mat-chip>{{ p.creditBalance }} credit{{ p.creditBalance === 1 ? '' : 's' }}</mat-chip>
-          </mat-chip-set>
+          <p-chip [label]="p.creditBalance + ' credit' + (p.creditBalance === 1 ? '' : 's')" />
         }
       </div>
-      <mat-card-content class="acct-body">
+      <div class="acct-body">
         <!-- The saved name is the heading, with the address under it. A
              profile with no name saved yet leads with the address instead,
              and then the sub-line names the sign-in method. -->
@@ -45,40 +43,36 @@
         </div>
 
         <div class="acct-form">
-          <mat-form-field appearance="outline">
-            <mat-label>Full name</mat-label>
-            <input matInput id="acct-full-name" type="text" name="fullName" maxlength="120"
-                   autocomplete="name" placeholder="Your name"
-                   [attr.aria-invalid]="profileError() ? 'true' : null"
-                   [ngModel]="fullName()"
-                   (ngModelChange)="fullName.set($event); profileSaved.set(false)" />
-          </mat-form-field>
+          <label for="acct-full-name">Full name</label>
+          <input pInputText id="acct-full-name" type="text" name="fullName" maxlength="120"
+                 autocomplete="name" placeholder="Your name"
+                 [attr.aria-invalid]="profileError() ? 'true' : null"
+                 [ngModel]="fullName()"
+                 (ngModelChange)="fullName.set($event); profileSaved.set(false)" />
 
           <div class="acct-field-row">
-            <mat-form-field appearance="outline">
-              <mat-label>Phone number</mat-label>
-              <input matInput id="acct-phone" type="tel" name="phoneNumber" maxlength="20"
+            <div>
+              <label for="acct-phone">Phone number</label>
+              <input pInputText id="acct-phone" type="tel" name="phoneNumber" maxlength="20"
                      autocomplete="tel" placeholder="+91 98765 43210"
                      [ngModel]="phoneNumber()"
                      (ngModelChange)="phoneNumber.set($event); profileSaved.set(false)" />
-            </mat-form-field>
+            </div>
 
-            <mat-form-field appearance="outline">
-              <mat-label>Profession</mat-label>
-              <input matInput id="acct-profession" type="text" name="profession" maxlength="100"
+            <div>
+              <label for="acct-profession">Profession</label>
+              <input pInputText id="acct-profession" type="text" name="profession" maxlength="100"
                      autocomplete="organization-title" placeholder="e.g. Software Engineer"
                      [ngModel]="profession()"
                      (ngModelChange)="profession.set($event); profileSaved.set(false)" />
-            </mat-form-field>
+            </div>
           </div>
 
-          <mat-form-field appearance="outline">
-            <mat-label>Location</mat-label>
-            <input matInput id="acct-location" type="text" name="location" maxlength="100"
-                   autocomplete="address-level2" placeholder="City, Country"
-                   [ngModel]="location()"
-                   (ngModelChange)="location.set($event); profileSaved.set(false)" />
-          </mat-form-field>
+          <label for="acct-location">Location</label>
+          <input pInputText id="acct-location" type="text" name="location" maxlength="100"
+                 autocomplete="address-level2" placeholder="City, Country"
+                 [ngModel]="location()"
+                 (ngModelChange)="location.set($event); profileSaved.set(false)" />
         </div>
 
         @if (profileError(); as message) {
@@ -100,23 +94,23 @@
           Plans, usage and credits live under
           <a class="acct-link" routerLink="/app" [queryParams]="{ tab: 'billing' }">Billing</a>.
         </p>
-      </mat-card-content>
+      </div>
 
       <div class="acct-foot acct-foot-split">
-        <button mat-flat-button color="primary" [disabled]="savingProfile()" (click)="saveProfile()">
+        <button pButton [disabled]="savingProfile()" (click)="saveProfile()">
           {{ savingProfile() ? 'Saving…' : 'Save changes' }}
         </button>
-        <button mat-stroked-button (click)="signOut()">Sign out</button>
+        <button pButton [outlined]="true" (click)="signOut()">Sign out</button>
       </div>
-    </mat-card>
+    </p-card>
 
     @if (!surveyLoading() && surveyStatus()?.survey; as survey) {
-      <mat-card class="acct-card">
+      <p-card class="acct-card">
         <div class="hd">
           <span class="lbl-h">{{ survey.title }}</span>
           <span class="st st-processing">+1 credit</span>
         </div>
-        <mat-card-content class="acct-body">
+        <div class="acct-body">
           @if (survey.description) {
             <p class="meta">{{ survey.description }}</p>
           }
@@ -126,30 +120,26 @@
               <label [attr.for]="'q-' + question.id">{{ question.prompt }}</label>
 
               @if (question.type === 'single_choice') {
-                <mat-form-field appearance="outline" class="acct-select">
-                  <mat-select [id]="'q-' + question.id"
-                              [ngModel]="answerFor(question.id)"
-                              (ngModelChange)="setAnswer(question.id, $event)">
-                    @for (option of question.options ?? []; track option) {
-                      <mat-option [value]="option">{{ option }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
+                <p-select [id]="'q-' + question.id"
+                            class="acct-select"
+                            [options]="question.options ?? []"
+                            [ngModel]="answerFor(question.id)"
+                            (onChange)="setAnswer(question.id, $event.value)" />
               } @else if (question.type === 'multi_choice') {
                 <div class="acct-check-group" [id]="'q-' + question.id">
                   @for (option of question.options ?? []; track option) {
-                    <mat-checkbox [checked]="isSelected(question.id, option)"
-                                   (change)="toggleOption(question.id, option)">
-                      {{ option }}
-                    </mat-checkbox>
+                    <span class="acct-check-item">
+                      <p-checkbox [binary]="true" [inputId]="'q-' + question.id + '-' + option"
+                                   [ngModel]="isSelected(question.id, option)"
+                                   (onChange)="toggleOption(question.id, option)" />
+                      <label [for]="'q-' + question.id + '-' + option">{{ option }}</label>
+                    </span>
                   }
                 </div>
               } @else {
-                <mat-form-field appearance="outline">
-                  <input matInput type="text" [id]="'q-' + question.id"
-                         [ngModel]="answerFor(question.id)"
-                         (ngModelChange)="setAnswer(question.id, $event)" />
-                </mat-form-field>
+                <input pInputText type="text" [id]="'q-' + question.id"
+                       [ngModel]="answerFor(question.id)"
+                       (ngModelChange)="setAnswer(question.id, $event)" />
               }
             </div>
           }
@@ -164,28 +154,28 @@
               {{ message }}
             </p>
           }
-        </mat-card-content>
+        </div>
 
         <div class="acct-foot">
-          <button mat-flat-button color="primary" [disabled]="!surveyComplete() || submittingSurvey()"
+          <button pButton [disabled]="!surveyComplete() || submittingSurvey()"
                   (click)="submitSurvey()">
             {{ submittingSurvey() ? 'Submitting…' : 'Submit and earn 1 credit' }}
           </button>
         </div>
-      </mat-card>
+      </p-card>
     } @else if (!surveyLoading() && surveyJustEarnedCredit()) {
-      <mat-card class="acct-card">
+      <p-card class="acct-card">
         <div class="hd">
           <span class="lbl-h">Surveys</span>
           <span class="st st-complete">Up to date</span>
         </div>
-        <mat-card-content class="acct-body">
+        <div class="acct-body">
           <p class="meta">
             You're all caught up — thanks for completing our surveys. We'll add more here as they
             come up, each worth another free credit.
           </p>
-        </mat-card-content>
-      </mat-card>
+        </div>
+      </p-card>
     }
   </div>
 </section>

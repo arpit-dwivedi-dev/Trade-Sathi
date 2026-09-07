@@ -4,8 +4,8 @@ import { routes } from './app.routes';
 import { provideClientHydration } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideHttpClient, withFetch } from '@angular/common/http';
-import { FullscreenOverlayContainer, OverlayContainer } from '@angular/cdk/overlay';
-import { provideMaterialSymbols } from './shared/icons/material-symbols';
+import { providePrimeNG } from 'primeng/config';
+import { AppPreset } from './core/primeng-preset';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -15,17 +15,9 @@ export const appConfig: ApplicationConfig = {
     // withFetch: XHR does not exist during SSR.
     provideHttpClient(withFetch()),
     provideAnimationsAsync(),
-    // Every <mat-icon> in the app draws a Material Symbols outline that ships
-    // in the bundle, addressed by name through svgIcon. No icon webfont, so
-    // nothing to download and no flash of unstyled ligature text.
-    provideMaterialSymbols(),
-    // Menus, autocompletes and tooltips are rendered into the CDK overlay
-    // container, which by default hangs off <body>. The workspace's Full
-    // screen control (WorkspacePage.toggleFullscreen) fullscreens its own
-    // shell element, and a fullscreen element is the only subtree the browser
-    // paints — so every overlay opened from in there was landing outside it,
-    // invisible and unclickable. This container follows the fullscreen
-    // element instead, which is exactly what the CDK ships it for.
-    { provide: OverlayContainer, useClass: FullscreenOverlayContainer },
+    // PrimeNG's design tokens, rebound onto this app's own tokens.css — see
+    // core/primeng-preset.ts. ripple: false matches the flat, no-elevation
+    // surface the app already draws everywhere else.
+    providePrimeNG({ theme: { preset: AppPreset }, ripple: false }),
   ],
 };

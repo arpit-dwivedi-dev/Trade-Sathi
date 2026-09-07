@@ -1,6 +1,8 @@
-import { Component, input, output } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
+import { Component, signal, input, output, viewChild } from '@angular/core';
+import { Popover } from 'primeng/popover';
+
+import { AppIcon } from '../../../shared/icons/app-icon';
+import type { IconName } from '../../../shared/icons/icon-paths';
 
 /**
  * Every indicator KLineChart ships, identified by the library's own name so a
@@ -47,8 +49,8 @@ export interface IndicatorOption {
   label: string;
   /** 'overlay' shares the price pane and its scale; 'sub' gets its own pane below. */
   pane: 'overlay' | 'sub';
-  /** Material Symbols glyph name — what the row's glyph tile draws. */
-  icon: string;
+  /** Material Symbols glyph name — what the row's glyph tile draws (see app-icon). */
+  icon: IconName;
 }
 
 /** Grouped the way the menu renders them — overlays first, then the panels. */
@@ -96,7 +98,7 @@ export function indicatorPane(kind: IndicatorKind): 'overlay' | 'sub' {
 
 @Component({
   selector: 'app-indicator-menu',
-  imports: [MatIconModule, MatMenuModule],
+  imports: [AppIcon, Popover],
   templateUrl: './indicator-menu.html',
   styleUrl: './indicator-menu.css',
 })
@@ -108,26 +110,45 @@ export class IndicatorMenu {
 
   readonly active = input<ReadonlySet<IndicatorKind>>(new Set());
   readonly activeChange = output<ReadonlySet<IndicatorKind>>();
+  /**
+   * Forwarded to the inner p-popover's own `appendTo` — see workspace-page's
+   * `shell()`: while the workspace is Fullscreen-API-fullscreen, only that
+   * element's subtree is painted, so the popover has to render inside it
+   * rather than under `<body>` (PrimeNG's default) to stay visible.
+   */
+  readonly appendTo = input<HTMLElement | undefined>(undefined);
+
+  private readonly panel = viewChild<Popover>('panel');
+  /**
+   * Mirrors the popover's own open/closed state so the trigger button can
+   * style itself (accent fill, caret rotation) without reaching into
+   * PrimeNG's internals from the template.
+   */
+  protected readonly open = signal(false);
+
+  protected togglePanel(event: Event): void {
+    this.panel()?.toggle(event);
+  }
 
   protected isActive(kind: IndicatorKind): boolean {
     return this.active().has(kind);
   }
 
   /**
-   * Stopping propagation keeps the menu open across a toggle — this is a
-   * multi-select checklist, not a list of one-shot actions, so a click
-   * shouldn't dismiss it the way selecting a normal mat-menu-item does.
+   * Unlike a Material mat-menu-item, PrimeNG's Popover only closes on an
+   * outside click (or Escape) by default — a click on content it renders
+   * does not dismiss it. That is exactly what this multi-select checklist
+   * needs, so no stopPropagation/preventDefault dance is required here the
+   * way the old mat-menu version needed one to stay open across a toggle.
    */
-  protected toggle(event: MouseEvent, kind: IndicatorKind): void {
-    event.stopPropagation();
+  protected toggle(kind: IndicatorKind): void {
     const next = new Set(this.active());
     if (next.has(kind)) next.delete(kind);
     else next.add(kind);
     this.activeChange.emit(next);
   }
 
-  protected clear(event: MouseEvent): void {
-    event.stopPropagation();
+  protected clear(): void {
     this.activeChange.emit(new Set());
   }
 }

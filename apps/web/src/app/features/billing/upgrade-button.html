@@ -7,10 +7,10 @@
     />
   }
   @case ('subscribing') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Starting your upgrade…</p>
+    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Starting your upgrade…</p>
   }
   @case ('loading_checkout') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Opening the payment window…</p>
+    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Opening the payment window…</p>
   }
   @case ('checkout_open') {
     <p class="note billing-msg" style="--tone: var(--tx-3)">
@@ -19,7 +19,7 @@
     </p>
   }
   @case ('confirming') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" /> Confirming your payment…</p>
+    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Confirming your payment…</p>
   }
   @case ('success') {
     <p class="note billing-msg billing-msg-ok" style="--tone: var(--up)">
@@ -44,7 +44,7 @@
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
       {{ error() }}
     </p>
-    <button mat-stroked-button class="billing-retry" (click)="onRetry()">
+    <button pButton [outlined]="true" class="billing-retry" (click)="onRetry()">
       Try again
     </button>
   }

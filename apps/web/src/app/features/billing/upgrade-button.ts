@@ -1,6 +1,6 @@
 import { Component, OnDestroy, computed, inject, output, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { ButtonModule } from 'primeng/button';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import { AuthService } from '../../core/auth.service';
 import { BillingService, type SubscriptionPollHandle } from './billing.service';
@@ -33,7 +33,7 @@ type UpgradeState =
  */
 @Component({
   selector: 'app-upgrade-button',
-  imports: [PlanPicker, MatButtonModule, MatProgressSpinnerModule],
+  imports: [PlanPicker, ButtonModule, ProgressSpinnerModule],
   styleUrl: './upgrade-button.css',
   templateUrl: './upgrade-button.html',
 })

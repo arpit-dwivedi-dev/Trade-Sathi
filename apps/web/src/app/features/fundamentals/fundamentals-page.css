@@ -25,6 +25,10 @@
   flex: none;
 }
 
+.fund-ai .p-progressspinner {
+  margin-right: 4px;
+}
+
 /* ── identity card ───────────────────────────────────────── */
 
 .fund-card {
@@ -41,6 +45,13 @@
   display: flex;
   gap: var(--s2);
   min-width: 0;
+}
+
+.fund-chips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
 }
 
 .fund-sym {
@@ -402,7 +413,7 @@
   display: flex;
 }
 
-.fund-placeholder-features dt mat-icon {
+.fund-placeholder-features dt app-icon {
   height: 16px;
   width: 16px;
   font-size: 16px;
@@ -467,6 +478,3 @@
   padding: var(--s4) var(--s5);
 }
 
-.fund-ai .mat-mdc-progress-spinner {
-  margin-right: 4px;
-}
