@@ -115,6 +115,7 @@
                     class="daily-briefing-time-field"
                     [timeOnly]="true"
                     [hourFormat]="'24'"
+                    [defaultDate]="midnightDefaultDate"
                     [ngModel]="scheduledTimeValue(item)"
                     (onSelect)="setScheduledTime(item, $any($event))"
                     [disabled]="billing.hasDailyBriefingEntitlement() === false"

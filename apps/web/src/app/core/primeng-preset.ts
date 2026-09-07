@@ -198,22 +198,104 @@ const components = {
     icon: { checkedColor: '#ffffff', checkedHoverColor: '#ffffff' },
   },
   toggleswitch: {
-    root: {
-      background: 'var(--bg-hover)',
-      checkedBackground: 'var(--brand-primary)',
-      checkedHoverBackground: 'var(--brand-primary)',
-      borderColor: 'transparent',
-      focusRingWidth: '1px',
-    },
-    handle: {
-      background: 'var(--text-muted)',
-      hoverBackground: 'var(--text-main)',
-      checkedBackground: '#ffffff',
-      checkedHoverBackground: '#ffffff',
+    root: { borderColor: 'transparent', focusRingWidth: '1px' },
+    // Aura's own preset defines root/handle colors per light/dark
+    // colorScheme (its dark handle is a near-black surface tone), which
+    // otherwise wins over a flat override here — so this override has to
+    // be nested under colorScheme too, with identical var()-based values
+    // for both, to actually replace it in dark mode.
+    colorScheme: {
+      light: {
+        root: {
+          background: 'var(--bg-hover)',
+          checkedBackground: 'var(--brand-primary)',
+          checkedHoverBackground: 'var(--brand-primary)',
+        },
+        handle: {
+          background: 'var(--text-muted)',
+          hoverBackground: 'var(--text-main)',
+          checkedBackground: '#ffffff',
+          checkedHoverBackground: '#ffffff',
+        },
+      },
+      dark: {
+        root: {
+          background: 'var(--bg-hover)',
+          checkedBackground: 'var(--brand-primary)',
+          checkedHoverBackground: 'var(--brand-primary)',
+        },
+        handle: {
+          background: 'var(--text-muted)',
+          hoverBackground: 'var(--text-main)',
+          checkedBackground: '#ffffff',
+          checkedHoverBackground: '#ffffff',
+        },
+      },
     },
   },
   selectbutton: {
     root: { borderRadius: 'var(--r-sm)' },
+  },
+  /* SelectButton renders as a group of ToggleButtons, so its colors come from
+     this section's tokens, not selectbutton's — left undefined, it fell back
+     to Aura's own dark-surface defaults (near-black background regardless of
+     the app's light/dark state), which is why the timeframe/chart-style
+     pills didn't match the theme. Padding also trimmed down from Aura's
+     default (0.25rem root + 0.25rem 0.75rem content, stacked) to read as a
+     slim segmented control instead of a bulky one. Colors nested under
+     colorScheme for the same reason as toggleswitch above: Aura's own
+     per-light/dark root/content/icon colors otherwise win over a flat
+     override here. */
+  togglebutton: {
+    root: {
+      borderRadius: 'var(--r-sm)',
+      padding: '2px',
+      gap: '2px',
+      fontWeight: '500',
+    },
+    content: {
+      padding: '4px var(--s3)',
+      borderRadius: 'var(--r-xs)',
+      checkedShadow: 'none',
+    },
+    colorScheme: {
+      light: {
+        root: {
+          background: 'var(--bg-surface)',
+          checkedBackground: 'var(--bg-surface)',
+          hoverBackground: 'var(--bg-surface)',
+          borderColor: 'var(--border-subtle)',
+          checkedBorderColor: 'var(--border-subtle)',
+          color: 'var(--text-muted)',
+          hoverColor: 'var(--text-main)',
+          checkedColor: 'var(--acc-tx)',
+        },
+        content: { checkedBackground: 'var(--acc-soft)' },
+        icon: {
+          color: 'var(--text-muted)',
+          hoverColor: 'var(--text-main)',
+          checkedColor: 'var(--acc-tx)',
+        },
+      },
+      dark: {
+        root: {
+          background: 'var(--bg-surface)',
+          checkedBackground: 'var(--bg-surface)',
+          hoverBackground: 'var(--bg-surface)',
+          borderColor: 'var(--border-subtle)',
+          checkedBorderColor: 'var(--border-subtle)',
+          color: 'var(--text-muted)',
+          hoverColor: 'var(--text-main)',
+          checkedColor: 'var(--acc-tx)',
+        },
+        content: { checkedBackground: 'var(--acc-soft)' },
+        icon: {
+          color: 'var(--text-muted)',
+          hoverColor: 'var(--text-main)',
+          checkedColor: 'var(--acc-tx)',
+        },
+      },
+    },
   },
   popover: {
     root: {

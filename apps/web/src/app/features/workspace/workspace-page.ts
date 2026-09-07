@@ -208,6 +208,12 @@ export class WorkspacePage implements OnInit, OnDestroy {
     return candles.length > 0 ? candles[candles.length - 1].close : null;
   });
 
+  /** NSE/BSE quote in rupees; everything else (NASDAQ, NYSE) in dollars. */
+  protected readonly currencySymbol = computed(() => {
+    const exchange = this.instrument()?.exchange;
+    return exchange === 'NSE' || exchange === 'BSE' ? '₹' : '$';
+  });
+
   protected readonly analyzeState = signal<AnalyzeState>('idle');
   protected readonly analyzeError = signal<string | null>(null);
   protected readonly row = signal<AnalysisRow | null>(null);

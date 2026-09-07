@@ -83,7 +83,7 @@
    what "compact" means for a table: less padding, not smaller type. */
 .history-table th,
 .history-table td {
-  padding: 0 10px;
+  padding: var(--s2) 10px;
 }
 
 .history-table th {
@@ -458,12 +458,12 @@
   color: #fff;
   display: flex;
   flex: none;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
-  height: 20px;
+  height: 34px;
   justify-content: center;
   letter-spacing: 0;
-  width: 20px;
+  width: 34px;
 }
 
 .history-logo-img {

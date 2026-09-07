@@ -408,8 +408,7 @@
   display: flex;
   flex: none;
   gap: var(--s3);
-  /* Only the utility controls are here on desktop, so they sit to the right. */
-  justify-content: flex-end;
+  justify-content: flex-start;
   min-height: var(--top-h);
   padding: var(--s2) var(--s6);
   position: sticky;
@@ -428,22 +427,22 @@
   min-width: 0;
 }
 
+/* Always pinned to the right edge of the bar via its own auto start-margin,
+   regardless of whether the search box next to it is present or hidden. */
 .topbar-end {
   align-items: center;
   display: flex;
   flex: none;
   gap: var(--s2);
+  margin-inline-start: auto;
 }
 
 /* The shell's one symbol search (app-symbol-search's host element), shown on
-   the chart tabs. margin-inline-end pins it to the left edge of the bar —
-   .topbar is justify-content: flex-end, so without it the free space would
-   collect on the wrong side and leave the field floating mid-bar. No display
-   declared here on purpose: that lets the component's own
+   the chart tabs, pinned to the left of the bar right after the title. No
+   display declared here on purpose: that lets the component's own
    :host([hidden]) rule win on the tabs the search doesn't apply to. */
 .topbar-search {
-  flex: 1 1 auto;
-  margin-inline-end: auto;
+  flex: 0 1 auto;
   max-width: 620px;
 }
 
@@ -1289,35 +1288,53 @@ button.nav-toggle {
 }
 
 /* ── segmented control ──────────────────────────────────
-   A mat-button-toggle-group left on Material's own defaults paints a stock
-   M3 control — extra-large pill, secondary-container fill, 40px rows — that
-   belongs to a different design system than everything around it. Both
-   segmented controls in the app (History's source filter, the workspace's
-   timeframe picker) wear this instead, so they read as one control in two
-   places.
+   Both segmented controls in the app (History's source filter, the
+   workspace's timeframe picker, Fundamentals' metric picker) are a PrimeNG
+   p-selectButton wearing this class, so they read as one control in every
+   place they show up.
+
+   PrimeNG's own Aura preset only binds a handful of these `--p-togglebutton-*`
+   tokens to this app's palette (via primeng-preset.ts); the rest fall back to
+   Aura's stock values — a 39-40px-tall control with 4px/12px content padding,
+   sized for a form control rather than a filter bar sitting next to 32-34px
+   buttons everywhere else on the page. These overrides are scoped to `.seg`
+   (not the preset) because only the filter bars want the denser sizing —
+   other p-toggleButton/p-selectButton uses elsewhere should keep the preset's
+   own defaults. This is the PrimeNG-token equivalent of what
+   `--mat-button-toggle-*` did for the old mat-button-toggle-group.
 
    flex: none matters: .body and the workspace top bar are both flex
-   containers, and .mat-button-toggle-group sets overflow: hidden, which
-   waives a flex item's automatic minimum size. Left shrinkable, the group
-   collapses to its own two borders — full width, no height, no labels — as
-   soon as its container runs short of room. */
+   containers, and this control has no min-content floor of its own once
+   shrunk — without it, a tight container squeezes the group down to its
+   borders with no visible labels. */
 .seg {
   flex: none;
+  height: 34px;
   width: fit-content;
   max-width: 100%;
 
-  --mat-button-toggle-height: 34px;
-  --mat-button-toggle-shape: var(--r-sm);
-  --mat-button-toggle-background-color: var(--surf);
-  --mat-button-toggle-text-color: var(--tx-2);
-  --mat-button-toggle-divider-color: var(--line);
-  --mat-button-toggle-selected-state-background-color: var(--acc-soft);
-  --mat-button-toggle-selected-state-text-color: var(--acc-tx);
-  --mat-button-toggle-state-layer-color: var(--tx);
-  --mat-button-toggle-label-text-font: var(--fb);
-  --mat-button-toggle-label-text-size: var(--t-xs);
-  --mat-button-toggle-label-text-weight: 500;
-  --mat-button-toggle-label-text-tracking: normal;
+  --p-togglebutton-padding: 2px;
+  --p-togglebutton-content-padding: 2px 10px;
+  --p-togglebutton-gap: 2px;
+  --p-togglebutton-border-radius: var(--r-sm);
+  --p-togglebutton-content-border-radius: var(--r-xs);
+  --p-togglebutton-font-weight: 500;
+  --p-togglebutton-background: var(--surf);
+  --p-togglebutton-checked-background: var(--surf);
+  --p-togglebutton-hover-background: var(--surf-2);
+  --p-togglebutton-border-color: var(--line);
+  --p-togglebutton-checked-border-color: var(--line);
+  --p-togglebutton-color: var(--tx-2);
+  --p-togglebutton-hover-color: var(--tx);
+  --p-togglebutton-checked-color: var(--acc-tx);
+  --p-togglebutton-content-checked-background: var(--acc-soft);
+  --p-togglebutton-content-checked-shadow: none;
+}
+
+.seg .p-togglebutton-label {
+  font-family: var(--fb);
+  font-size: var(--t-xs);
+  letter-spacing: normal;
 }
 
 /* ── overlay-rendered PrimeNG popovers ───────────────────

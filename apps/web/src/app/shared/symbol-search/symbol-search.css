@@ -40,7 +40,9 @@
 .symbol-search-market ::ng-deep .p-select-label {
   align-items: center;
   display: flex;
+  justify-content: flex-start;
   padding-block: 6px;
+  text-align: left;
 }
 
 /* Not a labelled field — this is a bare search bar. The icon and clear/spinner
@@ -87,6 +89,14 @@
   min-height: 36px;
   padding-left: 38px;
   width: 100%;
+}
+
+/* p-autoComplete shows its own loading spinner on every keystroke past
+   minLength regardless of whether completeMethod does anything — it isn't
+   wired to our own debounced search, so it would sit right on top of the
+   .symbol-search-spin below (which reflects the real searching() state). */
+.symbol-search-autocomplete ::ng-deep .p-autocomplete-loader {
+  display: none;
 }
 
 .symbol-search-spin {

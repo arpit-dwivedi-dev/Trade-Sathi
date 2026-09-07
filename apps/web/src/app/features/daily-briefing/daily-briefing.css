@@ -45,6 +45,15 @@
   text-transform: uppercase;
 }
 
+/* Matches the compact row-action buttons below — without this, the toolbar's
+   two buttons render at the pButton default (--s4/--s2 padding), which looks
+   oversized next to one line of staged-symbol text. */
+.daily-briefing-add .p-button {
+  font-size: var(--t-2xs);
+  height: 28px;
+  padding: 0 var(--s3);
+}
+
 /* ── list ───────────────────────────────────────────────── */
 
 /* Takes every row left under the add-row and any notices above it, so the
@@ -56,10 +65,7 @@
   border-radius: var(--r-lg);
   box-shadow: var(--sh-1);
   display: flex;
-  flex: 1 1 auto;
   flex-direction: column;
-  min-height: 240px;
-  overflow: hidden;
 }
 
 /* PrimeNG's p-card renders its own `.p-card-body` between this card and our
@@ -102,16 +108,15 @@
   text-align: center;
 }
 
-/* The list became a table once each row carried its own settings (chart
-   window, run time) alongside its actions — pills could not hold that
-   without wrapping unreadably. It scrolls inside itself on both axes rather
-   than handing its scroll to the page; the height it scrolls within is now
-   whatever the card has left (was a flat 70vh, which under-used a tall
-   window and overflowed a short one). */
+/* The page itself scrolls, same as History — the table does not own a
+   vertical scrollbox of its own. overflow-y stays `clip` (not `hidden`) so
+   it only rounds the corners over the table's square edges without making
+   this a scroll container that would capture the sticky header; overflow-x
+   is `auto` so the table can still scroll sideways under --nav-w. */
 .daily-briefing-table-wrap {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: clip;
 }
 
 .daily-briefing-table {
@@ -120,11 +125,12 @@
   width: 100%;
 }
 
-/* The wrapper above is the scroll container, so the CDK's inline `top: 0`
-   parks the header exactly at its top edge — no offset correction needed
-   here (unlike History, which sticks against the page). It does need an
-   opaque ground of its own, or rows would show through as they pass under
-   it; styled to match History's header so both tables read as one control. */
+/* The wrapper no longer owns a vertical scrollbox — .body (the page) does,
+   same as History — so the header sticks against .body's own scrollport.
+   The offset matches History's: .daily-briefing pads .body by var(--s4),
+   and a sticky offset resolves against the scroll container's content box,
+   so pulling up by that padding parks the header flush under the topbar
+   instead of var(--s4) low. */
 .daily-briefing-table th {
   background: var(--surf-2);
   border-bottom: 1px solid var(--line);
@@ -133,35 +139,54 @@
   font-size: var(--t-2xs);
   font-weight: 600;
   letter-spacing: 0.05em;
+  position: sticky;
   text-transform: uppercase;
+  top: calc(-1 * var(--s4));
   white-space: nowrap;
+  z-index: 1;
 }
 
 .daily-briefing-table td {
   border-bottom: 1px solid var(--line-soft);
 }
 
-.daily-briefing-table th:nth-child(1),
+/* `position: relative` here is for the body cells only (a positioning
+   context for content inside them) — it must NOT land on th, or its
+   higher-specificity nth-child selector overrides the sticky header rule
+   above and that column's heading stops sticking/aligning with the rest. */
 .daily-briefing-table td:nth-child(1) {
   position: relative;
+}
+
+.daily-briefing-table th:nth-child(1),
+.daily-briefing-table td:nth-child(1) {
   width: auto;
+}
+
+.daily-briefing-table td:nth-child(2) {
+  position: relative;
 }
 
 .daily-briefing-table th:nth-child(2),
 .daily-briefing-table td:nth-child(2) {
-  position: relative;
   width: 200px;
+}
+
+.daily-briefing-table td:nth-child(3) {
+  position: relative;
 }
 
 .daily-briefing-table th:nth-child(3),
 .daily-briefing-table td:nth-child(3) {
-  position: relative;
   width: 220px;
+}
+
+.daily-briefing-table td:nth-child(4) {
+  position: relative;
 }
 
 .daily-briefing-table th:nth-child(4),
 .daily-briefing-table td:nth-child(4) {
-  position: relative;
   width: 140px;
 }
 
@@ -280,19 +305,16 @@
   white-space: nowrap;
 }
 
-/* Compacted below Material's default field height so a row of these reads as
-   a table row, not a stack of form fields. */
-.daily-briefing-select-field,
-.daily-briefing-days-field,
-.daily-briefing-hour-field,
-.daily-briefing-minute-field {
-  --mat-form-field-container-height: 36px;
-  --mat-form-field-container-vertical-padding: 6px;
+/* Compacted so a row of these reads as a table row, not a stack of form
+   fields — matches the 36px height set on the time field below. */
+.daily-briefing-select-field {
   font-size: var(--t-2xs);
+  width: 140px;
 }
 
-.daily-briefing-select-field {
-  width: 140px;
+.daily-briefing-select-field ::ng-deep .p-select-label {
+  font-size: var(--t-2xs);
+  padding: 6px var(--s2);
 }
 
 .daily-briefing-custom {
@@ -302,6 +324,9 @@
 }
 
 .daily-briefing-days-field {
+  font-size: var(--t-2xs);
+  height: 36px;
+  padding: 6px var(--s2);
   width: 64px;
 }
 

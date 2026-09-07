@@ -330,19 +330,24 @@ export class DailyBriefing implements OnInit, OnDestroy {
     const client = this.supabase.client;
     if (!client) return;
     this.loading.set(true);
-    const { data, error } = await client
-      .from('watchlist_items')
-      .select(
-        'id, symbol, instrument_id, enabled_for_daily_analysis, analysis_lookback_days, ' +
-          'scheduled_hour_ist, scheduled_minute_ist, instruments(exchange, symbol, name)',
-      )
-      .order('created_at', { ascending: false });
-    if (error) {
+    try {
+      const { data, error } = await client
+        .from('watchlist_items')
+        .select(
+          'id, symbol, instrument_id, enabled_for_daily_analysis, analysis_lookback_days, ' +
+            'scheduled_hour_ist, scheduled_minute_ist, instruments(exchange, symbol, name)',
+        )
+        .order('created_at', { ascending: false });
+      if (error) {
+        this.error.set('Could not load your watchlist.');
+      } else {
+        this.items.set((data ?? []) as unknown as DailyBriefingItem[]);
+      }
+    } catch {
       this.error.set('Could not load your watchlist.');
-    } else {
-      this.items.set((data ?? []) as unknown as DailyBriefingItem[]);
+    } finally {
+      this.loading.set(false);
     }
-    this.loading.set(false);
   }
 
   protected async add(): Promise<void> {
@@ -357,6 +362,9 @@ export class DailyBriefing implements OnInit, OnDestroy {
       profile_id: profileId,
       symbol: instrument.symbol,
       instrument_id: instrument.id,
+      analysis_lookback_days: 1,
+      scheduled_hour_ist: 7,
+      scheduled_minute_ist: 0,
     });
     this.saving.set(false);
 
@@ -449,16 +457,37 @@ export class DailyBriefing implements OnInit, OnDestroy {
   /**
    * PrimeNG's timeOnly p-datepicker binds to a Date, not raw hour/minute
    * numbers — the day/month/year are irrelevant and ignored, only
-   * getHours()/getMinutes() are read back in setScheduledTime below. Null
-   * (the 'Default' state) leaves the picker showing the current time until
-   * a value is explicitly picked, which is fine: it is hidden behind the
-   * "Default" label in the template rather than relied on to communicate
-   * anything on its own.
+   * getHours()/getMinutes() are read back in setScheduledTime below.
+   */
+  private readonly scheduledTimeCache = new Map<string, { key: string; value: Date }>();
+
+  /**
+   * Passed as the picker's `[defaultDate]` so a 'Default' row (ngModel null)
+   * highlights midnight on first open instead of PrimeNG's own fallback of
+   * `new Date()` — which showed whichever hour happened to be the real
+   * wall-clock time when the row's picker initialized, looking like a
+   * pre-selected time rather than "unset".
+   */
+  protected readonly midnightDefaultDate = new Date(0, 0, 0, 0, 0);
+
+  /**
+   * Memoized by item id + hour/minute: this is called from the template on
+   * every change-detection pass, and returning a fresh Date each time made
+   * PrimeNG's p-datepicker see a "changed" input on every tick, churning its
+   * overlay/writeValue logic per row and stalling the tab with enough rows.
    */
   protected scheduledTimeValue(item: DailyBriefingItem): Date | null {
-    if (item.scheduled_hour_ist === null) return null;
+    if (item.scheduled_hour_ist === null) {
+      this.scheduledTimeCache.delete(item.id);
+      return null;
+    }
+    const key = `${item.scheduled_hour_ist}:${item.scheduled_minute_ist ?? 0}`;
+    const cached = this.scheduledTimeCache.get(item.id);
+    if (cached && cached.key === key) return cached.value;
+
     const date = new Date();
     date.setHours(item.scheduled_hour_ist, item.scheduled_minute_ist ?? 0, 0, 0);
+    this.scheduledTimeCache.set(item.id, { key, value: date });
     return date;
   }
 

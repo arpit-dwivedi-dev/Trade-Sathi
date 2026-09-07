@@ -6,16 +6,16 @@
       @if (instrument(); as picked) {
         <span class="ws-ident">
           <span class="sym">{{ picked.symbol }}</span>
-          <p-chip [label]="picked.exchange" aria-label="Exchange" />
+          <!-- <p-chip [label]="picked.exchange" aria-label="Exchange" /> -->
           @if (lastPrice(); as price) {
-            <span class="tnum ws-price">{{ price | number: '1.2-2' }}</span>
+            <span class="tnum ws-price">{{ currencySymbol() }}{{ price | number: '1.2-2' }}</span>
           }
-          @if (streaming()) {
+          <!-- @if (streaming()) {
             <span class="live-tick" title="Streaming live prices">
               <span class="live-tick-dot" aria-hidden="true"></span>
               Live
             </span>
-          }
+          } -->
         </span>
 
         <p-selectButton class="seg ws-timeframes" aria-label="Timeframe"
