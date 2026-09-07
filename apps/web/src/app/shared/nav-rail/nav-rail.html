@@ -23,30 +23,30 @@
 </div>
 
 <div class="nav-body">
-  <span class="nav-lbl">Workspace</span>
+  <span class="nav-lbl">Analysis</span>
 
-  <button type="button" class="nav-item" title="Live Chart Analysis" (click)="select('live')"
+  <button type="button" class="nav-item" title="Live Chart" (click)="select('live')"
           [attr.aria-current]="active() === 'live' ? 'page' : null">
     <mat-icon aria-hidden="true" svgIcon="monitoring"></mat-icon>
-    <span class="nav-item-lbl">Live Chart Analysis</span>
+    <span class="nav-item-lbl">Live Chart</span>
   </button>
 
-  <button type="button" class="nav-item" title="Chart Image Analysis" (click)="select('analyze')"
+  <button type="button" class="nav-item" title="Chart Image" (click)="select('analyze')"
           [attr.aria-current]="active() === 'analyze' ? 'page' : null">
     <mat-icon aria-hidden="true" svgIcon="image_search"></mat-icon>
-    <span class="nav-item-lbl">Chart Image Analysis</span>
+    <span class="nav-item-lbl">Chart Image</span>
   </button>
 
-  <button type="button" class="nav-item" title="Manual Chart Analysis" (click)="select('workspace')"
+  <button type="button" class="nav-item" title="Manual Analysis" (click)="select('workspace')"
           [attr.aria-current]="active() === 'workspace' ? 'page' : null">
     <mat-icon aria-hidden="true" svgIcon="candlestick_chart"></mat-icon>
-    <span class="nav-item-lbl">Manual Chart Analysis</span>
+    <span class="nav-item-lbl">Manual Analysis</span>
   </button>
 
-  <button type="button" class="nav-item" title="Watch List" (click)="select('watchlist')"
+  <button type="button" class="nav-item" title="Watchlist" (click)="select('watchlist')"
           [attr.aria-current]="active() === 'watchlist' ? 'page' : null">
     <mat-icon aria-hidden="true" svgIcon="visibility"></mat-icon>
-    <span class="nav-item-lbl">Watch List</span>
+    <span class="nav-item-lbl">Watchlist</span>
   </button>
 
   <button type="button" class="nav-item" title="Analysis History" (click)="select('history')"
@@ -63,12 +63,19 @@
     <span class="nav-item-lbl">Fundamentals</span>
   </button>
 
-  <span class="nav-lbl">Activity</span>
+  <button type="button" class="nav-item nav-item-disabled" title="News & Events — coming soon" disabled
+          aria-disabled="true">
+    <mat-icon aria-hidden="true" svgIcon="newspaper"></mat-icon>
+    <span class="nav-item-lbl">News & Events</span>
+    <span class="nav-soon">Coming soon</span>
+  </button>
 
-  <button type="button" class="nav-item" title="Logs" (click)="select('logs')"
+  <span class="nav-lbl">Account</span>
+
+  <button type="button" class="nav-item" title="Activity Logs" (click)="select('logs')"
           [attr.aria-current]="active() === 'logs' ? 'page' : null">
     <mat-icon aria-hidden="true" svgIcon="list_alt"></mat-icon>
-    <span class="nav-item-lbl">Logs</span>
+    <span class="nav-item-lbl">Activity Logs</span>
   </button>
 
   <button type="button" class="nav-item" title="Billing" (click)="select('billing')"
@@ -77,10 +84,10 @@
     <span class="nav-item-lbl">Billing</span>
   </button>
 
-  <button type="button" class="nav-item" title="Account" (click)="select('account')"
+  <button type="button" class="nav-item" title="Account Settings" (click)="select('account')"
           [attr.aria-current]="active() === 'account' ? 'page' : null">
     <mat-icon aria-hidden="true" svgIcon="person"></mat-icon>
-    <span class="nav-item-lbl">Account</span>
+    <span class="nav-item-lbl">Account Settings</span>
   </button>
 </div>
 

@@ -308,6 +308,32 @@
   color: var(--acc-tx);
 }
 
+.nav-item-disabled,
+.nav-item-disabled:hover {
+  background: none;
+  color: var(--tx-3);
+  cursor: default;
+}
+
+.nav-item-disabled mat-icon {
+  opacity: 0.5;
+}
+
+.nav-soon {
+  background: var(--surf-3);
+  border-radius: var(--r-full, 999px);
+  color: var(--tx-3);
+  flex: none;
+  font-size: var(--t-3xs);
+  font-weight: 600;
+  padding: 2px var(--s2);
+  text-transform: uppercase;
+}
+
+.shell-nav-collapsed .nav-soon {
+  display: none;
+}
+
 /* Sits at the bottom of the rail: plan control, then identity. */
 .nav-foot {
   border-top: 1px solid var(--line-soft);
