@@ -16,6 +16,7 @@ import type { IndicatorCreate, Overlay, Point } from 'klinecharts';
 import { ThemeService } from '../../../core/theme.service';
 import {
   applyCandles,
+  applyChartStyle,
   applyPalette,
   createCandleChart,
   disposeCandleChart,
@@ -25,6 +26,7 @@ import {
   type CandleChart,
   type ChartOverlays,
   type ChartPalette,
+  type ChartStyle,
   type LiveCandle,
 } from '../../../shared/live-chart/chart-render';
 import {
@@ -80,6 +82,7 @@ export class WorkspaceChart implements OnDestroy {
   readonly activeIndicators = input<ReadonlySet<IndicatorKind>>(new Set());
   readonly tool = input<DrawTool>('cursor');
   readonly drawings = input<Drawing[]>([]);
+  readonly chartStyle = input<ChartStyle>('candle');
 
   /** Emitted whenever a drawing is placed, dragged, or (by the host, on delete) removed — the host persists it. */
   readonly drawingsChange = output<Drawing[]>();
@@ -139,6 +142,12 @@ export class WorkspaceChart implements OnDestroy {
     });
 
     effect(() => {
+      const style = this.chartStyle();
+      if (!this.isBrowser) return;
+      this.withChart((target) => applyChartStyle(target, this.palette(), style));
+    });
+
+    effect(() => {
       const active = this.activeIndicators();
       if (!this.isBrowser) return;
       this.withChart((target) => this.syncIndicators(target, active));
@@ -185,7 +194,7 @@ export class WorkspaceChart implements OnDestroy {
   private async createChart(): Promise<CandleChart> {
     const element = this.host().nativeElement;
     const candles = untracked(this.candles);
-    const target = await createCandleChart(element, this.palette(), candles);
+    const target = await createCandleChart(element, this.palette(), candles, untracked(this.chartStyle));
 
     if (this.destroyed) {
       disposeCandleChart(target);

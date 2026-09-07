@@ -466,6 +466,49 @@ export class HistoryList implements OnInit, OnDestroy {
     return row.symbol ?? row.symbol_raw;
   }
 
+  /** Company name from the joined catalogue instrument; null for a manual upload. */
+  protected companyName(row: HistoryRow): string | null {
+    return row.instruments?.name ?? null;
+  }
+
+  protected logoUrl(row: HistoryRow): string | null {
+    return row.instruments?.logo_url ?? null;
+  }
+
+  /**
+   * Two-letter fallback avatar for a row with no resolved logo — same
+   * initials-from-symbol approach as SymbolSearch, so a symbol renders
+   * identically wherever it appears.
+   */
+  protected initials(row: HistoryRow): string {
+    return (this.displaySymbol(row) ?? '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase();
+  }
+
+  private static readonly AVATAR_COLORS = [
+    '#2563eb',
+    '#7c3aed',
+    '#db2777',
+    '#dc2626',
+    '#d97706',
+    '#65a30d',
+    '#059669',
+    '#0891b2',
+  ];
+
+  /** Deterministic color pick so the same symbol always renders the same. */
+  protected avatarColor(row: HistoryRow): string {
+    const key = this.displaySymbol(row) ?? '';
+    let hash = 0;
+    for (const ch of key) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+    const colors = HistoryList.AVATAR_COLORS;
+    return colors[Math.abs(hash) % colors.length];
+  }
+
+  /** The server already validated the logo URL; hide it on a transient failure rather than show a broken image. */
+  protected onLogoError(event: Event): void {
+    (event.target as HTMLImageElement).style.visibility = 'hidden';
+  }
+
   /**
    * What kind of instrument the row is on.
    *

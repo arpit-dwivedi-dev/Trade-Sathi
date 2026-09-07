@@ -30,16 +30,26 @@ export type HistoryRow = Pick<
   // Promoted out of fundamentals_result, the same way call_direction is
   // promoted out of analysis_result — see that column's migration.
   | 'fundamentals_stance'
->;
+> & {
+  /**
+   * The catalogue instrument this row was run on, for its company name and
+   * logo — null for a manual upload, which has no instrument_id to join on.
+   * Supabase returns the joined row as an object here (a to-one FK), not the
+   * array shape a to-many join would produce.
+   */
+  instruments: { name: string; logo_url: string | null } | null;
+};
 
 // `symbol` and `source` join the list because symbol_raw alone was not enough
 // to label a row: a generated analysis (live chart, daily briefing) knows its
 // canonical symbol even when the model read none off the image, and those rows
 // all store source_type 'upload', so `source` is their only real provenance.
+// `instruments(name, logo_url)` rides along on instrument_id so the Symbol
+// column can show the company name and logo without a second round trip.
 const HISTORY_COLUMNS =
   'id, created_at, symbol, symbol_raw, instrument_type, structure_state, setup_format, ' +
   'call_direction, status, source, source_type, timeframe, emailed_at, asset_class, trend, ' +
-  'fundamentals_stance';
+  'fundamentals_stance, instruments(name, logo_url)';
 
 /**
  * Which provenances a listing is restricted to. 'all' is the absence of a

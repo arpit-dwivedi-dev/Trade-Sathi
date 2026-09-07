@@ -30,6 +30,13 @@
           }
         </mat-button-toggle-group>
 
+        <mat-button-toggle-group class="seg ws-chart-style" aria-label="Chart style"
+                                  hideSingleSelectionIndicator [value]="chartStyle()"
+                                  (change)="selectChartStyle($event.value)">
+          <mat-button-toggle value="candle" title="Candlesticks">Candle</mat-button-toggle>
+          <mat-button-toggle value="line" title="Line">Line</mat-button-toggle>
+        </mat-button-toggle-group>
+
         <app-indicator-menu class="ws-indicators" [active]="activeIndicators()" (activeChange)="onIndicatorsChange($event)" />
       }
 
@@ -146,6 +153,7 @@
             [activeIndicators]="activeIndicators()"
             [tool]="tool()"
             [drawings]="drawings()"
+            [chartStyle]="chartStyle()"
             (drawingsChange)="onDrawingsChange($event)"
             (toolConsumed)="onToolConsumed()"
             (selectedDrawingId)="onSelectDrawing($event)"

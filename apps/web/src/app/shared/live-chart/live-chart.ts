@@ -14,6 +14,7 @@ import {
 import { ThemeService } from '../../core/theme.service';
 import {
   applyCandles,
+  applyChartStyle,
   applyPalette,
   createCandleChart,
   disposeCandleChart,
@@ -24,13 +25,14 @@ import {
   type ChartOverlays,
   type OverlayBand,
   type ChartPalette,
+  type ChartStyle,
   type LiveCandle,
 } from './chart-render';
 
 // Re-exported so the many call sites that already import these from the
 // component keep working; they are defined next to the drawing code they
 // describe, which the off-screen renderer shares.
-export type { ChartOverlays, LiveCandle, OverlayBand };
+export type { ChartOverlays, ChartStyle, LiveCandle, OverlayBand };
 
 /**
  * An interactive candlestick chart (KLineChart, Apache-2.0).
@@ -59,6 +61,7 @@ export class LiveChart implements OnDestroy {
   readonly overlays = input<ChartOverlays | null>(null);
   /** e.g. "1D · 90d"; shown as the chart's own caption. */
   readonly timeframeLabel = input<string | null>(null);
+  readonly chartStyle = input<ChartStyle>('candle');
 
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('container');
 
@@ -103,6 +106,12 @@ export class LiveChart implements OnDestroy {
       void theme;
       this.withChart((target) => applyPalette(target, this.palette()));
     });
+
+    effect(() => {
+      const style = this.chartStyle();
+      if (!this.isBrowser) return;
+      this.withChart((target) => applyChartStyle(target, this.palette(), style));
+    });
   }
 
   ngOnDestroy(): void {
@@ -137,7 +146,7 @@ export class LiveChart implements OnDestroy {
   private async createChart(): Promise<CandleChart> {
     const element = this.host().nativeElement;
     const candles = untracked(this.candles);
-    const target = await createCandleChart(element, this.palette(), candles);
+    const target = await createCandleChart(element, this.palette(), candles, untracked(this.chartStyle));
 
     // The component can be torn down while the library is still downloading.
     if (this.destroyed) {

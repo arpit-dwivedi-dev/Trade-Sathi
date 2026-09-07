@@ -363,16 +363,48 @@
 }
 
 /* ── provenance chips inside the symbol cell ────────────── */
-/* The cell becomes a two-line stack: ticker, then its tags. */
-.sym:has(.history-tags) {
+/* The cell is a logo beside a text stack: ticker, company name, then tags. */
+.sym {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+}
+
+.history-sym-text-wrap {
   align-items: flex-start;
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 
 .history-sym-text {
   max-width: 100%;
+}
+
+.history-company-name {
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
+  max-width: 100%;
+}
+
+.history-logo {
+  align-items: center;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  flex: none;
+  font-size: 9px;
+  font-weight: 700;
+  height: 20px;
+  justify-content: center;
+  letter-spacing: 0;
+  width: 20px;
+}
+
+.history-logo-img {
+  background: none;
+  object-fit: contain;
 }
 
 .history-tags {

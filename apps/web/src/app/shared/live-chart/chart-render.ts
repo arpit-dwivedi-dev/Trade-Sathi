@@ -9,6 +9,17 @@ import type {
   YAxisOverride,
 } from 'klinecharts';
 
+/**
+ * The two chart styles the app exposes to the user. KLineChart itself has
+ * more (`ohlc`, stroke variants, …); these are the two names traders
+ * actually ask for, mapped onto the library's `candle.type` below.
+ */
+export type ChartStyle = 'candle' | 'line';
+
+function candleTypeFor(style: ChartStyle): 'candle_solid' | 'area' {
+  return style === 'line' ? 'area' : 'candle_solid';
+}
+
 import { FONT_UI } from '../typography';
 
 /**
@@ -255,7 +266,7 @@ function registerLevelOverlay(kc: KLineChartsModule): void {
  * is Helvetica Neue — a face neither Linux nor Windows has, so axis labels
  * were resolving to a different fallback than the DOM sitting beside them.
  */
-export function chartStyles(palette: ChartPalette): DeepPartial<Styles> {
+export function chartStyles(palette: ChartPalette, style: ChartStyle = 'candle'): DeepPartial<Styles> {
   const axis = {
     axisLine: { color: palette.line },
     tickLine: { color: palette.line },
@@ -275,6 +286,7 @@ export function chartStyles(palette: ChartPalette): DeepPartial<Styles> {
       vertical: { color: palette.line },
     },
     candle: {
+      type: candleTypeFor(style),
       bar: {
         upColor: palette.up,
         downColor: palette.down,
@@ -285,6 +297,18 @@ export function chartStyles(palette: ChartPalette): DeepPartial<Styles> {
         upWickColor: palette.up,
         downWickColor: palette.down,
         noChangeWickColor: palette.flat,
+      },
+      // Only read in 'area' mode — a single line+fill in the accent colour,
+      // rather than the up/down colouring candles use, since a line chart has
+      // no per-bar direction to colour by.
+      area: {
+        lineColor: palette.accent,
+        lineSize: 1.5,
+        value: 'close',
+        backgroundColor: [
+          { offset: 0, color: `${palette.accent}33` },
+          { offset: 1, color: `${palette.accent}00` },
+        ],
       },
       priceMark: {
         last: {
@@ -345,6 +369,8 @@ interface CandleFeed {
 export interface CandleChart {
   chart: Chart;
   feed: CandleFeed;
+  /** The style last applied, so a palette repaint doesn't drop back to candles. */
+  style: ChartStyle;
 }
 
 /**
@@ -356,11 +382,12 @@ export async function createCandleChart(
   element: HTMLElement,
   palette: ChartPalette,
   candles: LiveCandle[],
+  style: ChartStyle = 'candle',
 ): Promise<CandleChart> {
   const kc = await loadKLineCharts();
 
   const chart = kc.init(element, {
-    styles: chartStyles(palette),
+    styles: chartStyles(palette, style),
     locale: 'en-US',
   });
   if (!chart) throw new Error('KLineChart refused to initialise on this element');
@@ -407,7 +434,7 @@ export async function createCandleChart(
   );
   chart.overrideYAxis(VOLUME_AXIS);
 
-  return { chart, feed };
+  return { chart, feed, style };
 }
 
 /**
@@ -417,12 +444,18 @@ export async function createCandleChart(
  * colour would drag MACD's histogram along with it.
  */
 export function applyPalette(target: CandleChart, palette: ChartPalette): void {
-  target.chart.setStyles(chartStyles(palette));
+  target.chart.setStyles(chartStyles(palette, target.style));
   target.chart.overrideIndicator({
     id: VOLUME_INDICATOR_ID,
     name: 'VOL',
     styles: volumeStyles(palette),
   });
+}
+
+/** Switches between candle and line rendering without touching data, pan, or zoom. */
+export function applyChartStyle(target: CandleChart, palette: ChartPalette, style: ChartStyle): void {
+  target.style = style;
+  target.chart.setStyles(chartStyles(palette, style));
 }
 
 export function disposeCandleChart(target: CandleChart): void {

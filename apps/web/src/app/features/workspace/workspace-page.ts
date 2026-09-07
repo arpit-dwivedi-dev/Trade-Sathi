@@ -24,7 +24,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { type MarketTick } from '@chartanalyzer/shared';
 import { LiveService, type WorkspaceInterval } from '../../core/live.service';
 import { MarketStreamService } from '../../core/market-stream.service';
-import type { ChartOverlays, LiveCandle, OverlayBand } from '../../shared/live-chart/live-chart';
+import type { ChartOverlays, ChartStyle, LiveCandle, OverlayBand } from '../../shared/live-chart/live-chart';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import { AnalysisResult } from '../analyze/analysis-result';
@@ -143,6 +143,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
   protected readonly instrument = signal<WorkspaceInstrument | null>(null);
 
   protected readonly timeframe = signal<WorkspaceInterval>(DEFAULT_TIMEFRAME);
+  protected readonly chartStyle = signal<ChartStyle>('candle');
   protected readonly candles = signal<LiveCandle[]>([]);
   protected readonly loadingChart = signal(false);
   protected readonly chartError = signal<string | null>(null);
@@ -373,6 +374,11 @@ export class WorkspacePage implements OnInit, OnDestroy {
     // itself, and any run still in flight, are deliberately left alone.
     this.clearResult();
     void this.reload();
+  }
+
+  /** Purely a rendering choice — same candles, same analysis, so nothing else needs to change. */
+  protected selectChartStyle(value: ChartStyle): void {
+    this.chartStyle.set(value);
   }
 
   private async reload(): Promise<void> {
