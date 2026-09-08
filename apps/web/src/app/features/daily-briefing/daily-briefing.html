@@ -47,7 +47,12 @@
       </p>
     } @else {
       <div class="daily-briefing-table-wrap">
-        <p-table [value]="tableRows()" [dataKey]="'id'" styleClass="daily-briefing-table">
+        <p-table
+          [value]="tableRows()"
+          [dataKey]="'id'"
+          [rowTrackBy]="trackByItem"
+          styleClass="daily-briefing-table"
+        >
           <ng-template #header>
             <tr>
               <th>Symbol</th>
@@ -115,6 +120,7 @@
                     class="daily-briefing-time-field"
                     [timeOnly]="true"
                     [hourFormat]="'24'"
+                    [hideOnDateTimeSelect]="false"
                     [defaultDate]="midnightDefaultDate"
                     [ngModel]="scheduledTimeValue(item)"
                     (onSelect)="setScheduledTime(item, $any($event))"

@@ -189,6 +189,13 @@ export class DailyBriefing implements OnInit, OnDestroy {
     return [...this.items()];
   });
 
+  /**
+   * Keep each row component alive when an optimistic setting update replaces
+   * its item object. Without this, clicking a time picker's spinner updates
+   * the row, destroys the DatePicker overlay, and makes the picker close.
+   */
+  protected readonly trackByItem = (_index: number, item: DailyBriefingItem): string => item.id;
+
   /** How far back a settled run is still worth surfacing on load. */
   private static readonly RESUME_WINDOW_MS = 60 * 60 * 1000;
 
