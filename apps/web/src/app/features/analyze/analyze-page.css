@@ -76,6 +76,21 @@
   gap: var(--s2);
 }
 
+.state-card-processing {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 0;
+}
+
+.state-card-processing ::ng-deep .p-card-body,
+.state-card-processing ::ng-deep .p-card-content {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
 .state-skel {
   display: flex;
   flex-direction: column;

@@ -12,7 +12,6 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
@@ -244,7 +243,7 @@ export class DailyBriefing implements OnInit, OnDestroy {
     return busy;
   });
 
-  private briefingLogChannel: RealtimeChannel | null = null;
+  private briefingLogWatch: RowWatch | null = null;
 
   /**
    * Live run watches by run id, so ngOnDestroy can close their channels. A
@@ -295,10 +294,8 @@ export class DailyBriefing implements OnInit, OnDestroy {
     this.destroyed = true;
     for (const watch of this.runWatches.values()) watch.stop();
     this.runWatches.clear();
-    if (this.briefingLogChannel) {
-      void this.supabase.client?.removeChannel(this.briefingLogChannel);
-      this.briefingLogChannel = null;
-    }
+    this.briefingLogWatch?.stop();
+    this.briefingLogWatch = null;
   }
 
   constructor() {
@@ -706,19 +703,19 @@ export class DailyBriefing implements OnInit, OnDestroy {
     const profileId = this.auth.user()?.id;
     if (!client || !profileId) return;
 
-    this.briefingLogChannel = client
-      .channel(`watchlist-briefing-log-${profileId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'daily_briefing_log',
-          filter: `profile_id=eq.${profileId}`,
-        },
-        () => void this.loadProcessingSlots(),
-      )
-      .subscribe();
+    // startRowWatch, not a raw channel: a plain .subscribe() here has no
+    // reconnect path, so a dropped socket (CHANNEL_ERROR/TIMED_OUT/CLOSED)
+    // would silently freeze processingSlots at its last value forever — a
+    // scheduled run's row could sit stuck 'processing' in the UI long after
+    // it settled server-side. startRowWatch falls back to polling the moment
+    // the subscription is not live.
+    this.briefingLogWatch = startRowWatch(
+      client,
+      `watchlist-briefing-log-${profileId}`,
+      'daily_briefing_log',
+      `profile_id=eq.${profileId}`,
+      () => void this.loadProcessingSlots(),
+    );
   }
 
   /**

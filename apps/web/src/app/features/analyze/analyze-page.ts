@@ -1,7 +1,8 @@
 import { Component, OnDestroy, OnInit, inject, output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
-import { ProgressBarModule } from 'primeng/progressbar';
+import { KnobModule } from 'primeng/knob';
 
 import { AppIcon } from '../../shared/icons/app-icon';
 import { AnalysisResult } from './analysis-result';
@@ -24,7 +25,15 @@ type AnalyzeState =
  */
 @Component({
   selector: 'app-analyze-page',
-  imports: [ChartDrop, AnalysisResult, AppIcon, ButtonModule, CardModule, ProgressBarModule],
+  imports: [
+    ChartDrop,
+    AnalysisResult,
+    AppIcon,
+    ButtonModule,
+    CardModule,
+    FormsModule,
+    KnobModule,
+  ],
   styleUrl: './analyze-page.css',
   templateUrl: './analyze-page.html',
 })
@@ -49,6 +58,8 @@ export class AnalyzePage implements OnInit, OnDestroy {
    * remains the authority.
    */
   protected readonly quota = signal<QuotaStatus | null>(null);
+  /** Read-only display value for the `processing` state's knob. */
+  protected processingValue = 34;
 
   private poll: PollHandle | null = null;
 

@@ -30,33 +30,14 @@
 
   @switch (state()) {
     @case ('uploading') {
-      <p-card aria-live="polite">
-        <div class="state-card">
-          <div class="state-head">
-            <span class="st st-queued">Uploading</span>
-            <h3 class="state-title">Sending your chart</h3>
-          </div>
-          <p class="state-msg">Your screenshot is on its way to the analyzer.</p>
-          <p-progressbar mode="determinate" [value]="20" />
-        </div>
+      <p-card aria-live="polite" class="state-card-processing">
+        <p-knob [(ngModel)]="processingValue" [readonly]="true" [size]="96" valueTemplate="{value}%" />
       </p-card>
     }
 
     @case ('processing') {
-      <p-card aria-live="polite">
-        <div class="state-card">
-          <div class="state-head">
-            <span class="st st-processing">Processing</span>
-            <h3 class="state-title">Reading the chart</h3>
-          </div>
-          <p class="state-msg">This usually takes under a minute.</p>
-          <p-progressbar mode="determinate" [value]="34" />
-          <div class="state-skel" aria-hidden="true">
-            <div class="skel" style="height: 20px; width: 46%"></div>
-            <div class="skel" style="height: 12px; width: 86%"></div>
-            <div class="skel" style="height: 12px; width: 72%"></div>
-          </div>
-        </div>
+      <p-card aria-live="polite" class="state-card-processing">
+        <p-knob [(ngModel)]="processingValue" [readonly]="true" [size]="96" valueTemplate="{value}%" />
       </p-card>
     }
 

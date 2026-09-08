@@ -494,6 +494,83 @@ async function settleRun(
 }
 
 /**
+ * Window after which a `watchlist_analysis_runs` row still at 'processing' is
+ * considered stranded rather than genuinely in flight. Matches
+ * STRANDED_AFTER_MS in ai-analysis.service.ts — this pipeline is bounded by
+ * the same model-call/backoff/storage budget.
+ */
+const STRANDED_RUN_AFTER_MS = 10 * 60_000;
+
+/** Upper bound on rows settled per sweep, for the same reason as MAX_RECLAIM_BATCH. */
+const MAX_RECLAIM_RUN_BATCH = 20;
+
+/**
+ * Recovers "Analyze Now" runs left at 'processing' by a process restart.
+ *
+ * runWatchlistItemNow writes the row before starting processWatchlistItem in
+ * the background (see its doc comment) and relies on that promise's
+ * .then/.catch to call settleRun. If the process dies or restarts mid-run,
+ * that callback never fires and the row — and the client polling it — is
+ * stuck at 'processing' forever. There is no way to safely resume from here
+ * (the row does not record which entitlement source/period paid for it, so
+ * it cannot be refunded the way a stranded fundamentals analysis is), so this
+ * only unblocks the client by marking the run failed.
+ *
+ * Sequential and bounded, and never throws — it is called from a timer.
+ */
+export async function reclaimStrandedWatchlistRuns(): Promise<number> {
+  const cutoff = new Date(Date.now() - STRANDED_RUN_AFTER_MS).toISOString();
+
+  // Served by watchlist_analysis_runs_profile_created_idx.
+  const { data, error } = await supabaseAdmin
+    .from("watchlist_analysis_runs")
+    .select("id, profile_id, watchlist_item_id, created_at")
+    .eq("status", "processing")
+    .lt("created_at", cutoff)
+    .order("created_at", { ascending: true })
+    .limit(MAX_RECLAIM_RUN_BATCH)
+    .returns<{ id: string; profile_id: string; watchlist_item_id: string; created_at: string }[]>();
+
+  if (error) {
+    logger.error("stranded watchlist run sweep query failed", { cause: String(error) });
+    return 0;
+  }
+
+  const rows = data ?? [];
+  if (rows.length === 0) return 0;
+
+  logger.info("reclaiming stranded watchlist analysis runs", { count: rows.length });
+
+  for (const row of rows) {
+    const { error: markError } = await supabaseAdmin
+      .from("watchlist_analysis_runs")
+      .update({ status: "failed", updated_at: new Date().toISOString() })
+      .eq("id", row.id)
+      // Only if it is still processing: the pipeline may have settled it
+      // between the query above and this write.
+      .eq("status", "processing");
+    if (markError) {
+      logger.error("failed to mark stranded watchlist run as failed", {
+        runId: row.id,
+        cause: String(markError),
+      });
+      continue;
+    }
+    // Same reasoning as the analogous stranded-analysis case: nothing was
+    // running when this happened, so no request of the user's ever returned
+    // an error for it.
+    await logAppError(
+      row.profile_id,
+      "watchlist_run",
+      "The analysis was interrupted and could not be completed",
+      { runId: row.id, watchlistItemId: row.watchlist_item_id },
+    );
+  }
+
+  return rows.length;
+}
+
+/**
  * User-triggered, single-item counterpart to the scheduled job — the
  * "Analyze Now" button on a watchlist row. Shares the exact same entitlement
  * (same 30/month quota, same subscription check) and the exact same
