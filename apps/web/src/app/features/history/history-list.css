@@ -188,7 +188,7 @@
    display every other cell in the row keeps, which drops this one out of the
    row's table layout — the browser wraps it in an anonymous cell, it stops
    stretching to the row's height, and its bottom border lands ~11px above
-   every other cell's. That short, offset divider beside the download/chevron
+   every other cell's. That short, offset divider beside the action
    icons is what read as the last column being misaligned. The flex layout
    lives on this wrapper inside the cell instead. */
 .history-actions {
@@ -215,7 +215,6 @@
    only matters where the symbol column is squeezed narrow enough for a
    two-chip row to wrap onto a second line. */
 .history-row {
-  cursor: pointer;
   height: 64px;
   transition: background var(--dur-subtle) var(--ease-move);
 }
@@ -223,18 +222,6 @@
 .history-row:hover,
 .history-row:focus-visible {
   background: var(--surf-2);
-}
-
-.history-row-open {
-  background: var(--surf-2);
-}
-
-.history-detail-row {
-  height: auto;
-}
-
-.history-detail-cell {
-  padding: 0 !important;
 }
 
 /* Filter on the leading edge, count on the trailing one. */
@@ -289,45 +276,6 @@
 .history-unknown {
   color: var(--tx-3);
   font-weight: 500;
-}
-
-.history-chevron {
-  color: var(--tx-3);
-  display: flex;
-  justify-content: flex-end;
-}
-
-.history-chevron app-icon {
-  height: 18px;
-  transition: transform var(--dur-subtle) var(--ease-move);
-  width: 18px;
-}
-
-.history-chevron-open app-icon {
-  transform: rotate(90deg);
-}
-
-/* The expanded report is inset on a recessed ground so it reads as contained
-   by its row rather than as the next row along. Fades and settles in — this is
-   content genuinely entering the page, not just a style toggle. */
-.history-detail {
-  animation: history-detail-in var(--dur-screen) var(--ease-enter);
-  background: var(--surf-2);
-  border-top: 1px solid var(--line);
-  padding: var(--s6);
-}
-
-@keyframes history-detail-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .history-detail {
-    animation: none;
-  }
 }
 
 .history-msg {
@@ -420,10 +368,6 @@
 
   .tr-h {
     display: none;
-  }
-
-  .history-detail {
-    padding: var(--s4);
   }
 
   .history-head {

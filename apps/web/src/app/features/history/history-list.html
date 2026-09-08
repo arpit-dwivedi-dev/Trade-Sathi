@@ -34,7 +34,7 @@
   @if (loading()) {
     <div class="tbl" aria-busy="true">
       <div class="tr tr-h">
-        <span>Symbol</span><span>Structure</span><span>Setup</span>
+        <span>Company</span><span>Structure</span><span>Setup</span>
         <span>TF</span><span>Analyzed</span><span>Status</span><span></span>
       </div>
       @for (placeholder of [1, 2, 3, 4]; track placeholder) {
@@ -72,7 +72,7 @@
     </p-card>
   } @else {
     <div class="history-table-wrap">
-      <p-table [value]="tableRows()" [dataKey]="'id'" styleClass="history-table">
+      <p-table [value]="rows()" [dataKey]="'id'" styleClass="history-table">
         <ng-template #colgroup>
           <col class="col-logo" />
           <col class="col-symbol" />
@@ -106,15 +106,7 @@
           </tr>
         </ng-template>
         <ng-template #body let-row>
-          <tr
-            class="history-row"
-            [class.history-row-open]="expandedId() === row.id"
-            [attr.aria-expanded]="expandedId() === row.id"
-            tabindex="0"
-            (click)="toggle(row)"
-            (keydown.enter)="toggle(row)"
-            (keydown.space)="$event.preventDefault(); toggle(row)"
-          >
+          <tr class="history-row">
             <td class="col-logo">
               @if (logoUrl(row)) {
                 <img
@@ -200,7 +192,7 @@
                   [text]="true"
                   [disabled]="exportingId() !== null"
                   [attr.aria-label]="'Download PDF for ' + (displaySymbol(row) ?? 'this analysis')"
-                  (click)="exportPdf(row, $event)"
+                  (click)="exportPdf(row)"
                 >
                   @if (exportingId() === row.id) {
                     <p-progress-spinner [style]="{ width: '16px', height: '16px' }" strokeWidth="4" aria-hidden="true" />
@@ -213,46 +205,26 @@
                   [text]="true"
                   [disabled]="deleting()"
                   [attr.aria-label]="'Delete ' + (displaySymbol(row) ?? 'this analysis')"
-                  (click)="deleteOne(row, $event)"
+                  (click)="deleteOne(row)"
                 >
                   <app-icon aria-hidden="true" name="delete" />
                 </button>
-                <span class="history-chevron" [class.history-chevron-open]="expandedId() === row.id" aria-hidden="true">
-                  <app-icon aria-hidden="true" name="chevron_right" />
-                </span>
+                <a
+                  pButton
+                  [text]="true"
+                  [routerLink]="['/analysis', row.id]"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  [attr.aria-label]="'View analysis for ' + (displaySymbol(row) ?? 'this analysis') + ' (opens in a new tab)'"
+                  title="Open analysis in a new tab"
+                >
+                  <app-icon aria-hidden="true" name="visibility" />
+                </a>
               </span>
             </td>
           </tr>
 
-          @if (isExpandedRow(row)) {
-            <tr class="history-detail-row">
-              <td [attr.colspan]="columns.length" class="history-detail-cell">
-                <div class="history-detail">
-                  @if (detailLoading()) {
-                    <p class="history-msg"><p-progress-spinner [style]="{ width: '16px', height: '16px' }" strokeWidth="4" aria-hidden="true" /> Loading the full report…</p>
-                  } @else if (detailError()) {
-                    <p class="err" role="alert">{{ detailError() }}</p>
-                  } @else if (detail(); as loaded) {
-                    @if (loaded.row.status === 'queued' || loaded.row.status === 'processing') {
-                      <p class="history-msg">
-                        This analysis is still {{ loaded.row.status }}. Check back shortly.
-                      </p>
-                      @if (loaded.row.source !== 'fundamentals') {
-                        <app-chart-image
-                          [imageKey]="loaded.row.image_key"
-                          [label]="loaded.row.symbol_raw"
-                        />
-                      }
-                    } @else if (loaded.row.source === 'fundamentals') {
-                      <app-fundamentals-analysis-result [row]="loaded.row" />
-                    } @else {
-                      <app-analysis-result [row]="loaded.row" [patterns]="loaded.patterns" />
-                    }
-                  }
-                </div>
-              </td>
-            </tr>
-          }
+
         </ng-template>
       </p-table>
 

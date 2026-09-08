@@ -4,13 +4,13 @@ import {
   ElementRef,
   OnDestroy,
   OnInit,
-  computed,
   effect,
   inject,
   signal,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
@@ -21,14 +21,10 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
 import { AppIcon } from '../../shared/icons/app-icon';
-import { ChartImage } from '../../shared/chart-image';
 import { TimeframeLabelPipe } from '../../shared/timeframe-label.pipe';
-import { AnalysisResult } from '../analyze/analysis-result';
-import { FundamentalsAnalysisResultComponent } from '../fundamentals/fundamentals-analysis-result';
 import { AnalysisPdfService } from './analysis-pdf.service';
 import {
   HistoryService,
-  type HistoryDetail,
   type HistoryRow,
   type HistorySourceFilter,
 } from './history.service';
@@ -44,9 +40,7 @@ import {
   selector: 'app-history-list',
   imports: [
     NgTemplateOutlet,
-    AnalysisResult,
-    FundamentalsAnalysisResultComponent,
-    ChartImage,
+    RouterLink,
     AppIcon,
     ButtonModule,
     CardModule,
@@ -85,29 +79,6 @@ export class HistoryList implements OnInit, OnDestroy {
   protected readonly loading = signal(true);
   protected readonly loadingMore = signal(false);
   protected readonly error = signal<string | null>(null);
-
-  /** id of the row whose detail is expanded, or null when all are collapsed. */
-  protected readonly expandedId = signal<string | null>(null);
-  /** Whether this row's detail row should be rendered — only the currently-open
-   *  row's detail row exists in the DOM at all. */
-  protected readonly isExpandedRow = (row: HistoryRow): boolean => row.id === this.expandedId();
-
-  /**
-   * PrimeNG's Table only re-evaluates its `#body` template when the bound
-   * [value] reference itself changes (same as CdkTable's `when` predicates
-   * did before this migration) — toggling expandedId doesn't touch `rows`,
-   * so binding [value] to `rows()` directly would flip the chevron with no
-   * expanded row ever actually appearing. Reading expandedId() here and
-   * returning a fresh array is what makes the table notice and re-render on
-   * every toggle.
-   */
-  protected readonly tableRows = computed(() => {
-    this.expandedId();
-    return [...this.rows()];
-  });
-  protected readonly detail = signal<HistoryDetail | null>(null);
-  protected readonly detailLoading = signal(false);
-  protected readonly detailError = signal<string | null>(null);
 
   /**
    * Which provenance the list is restricted to. Applied server-side and reset
@@ -241,7 +212,7 @@ export class HistoryList implements OnInit, OnDestroy {
    * page, and dropping those rows under them is worse than a slightly stale
    * tail. Rows already held are updated in place (a 'queued' row becoming
    * 'complete' is exactly the case this exists for) and genuinely new ones
-   * are prepended, so scroll position and the expanded row both survive.
+   * are prepended, so scroll position and the current list position survive.
    */
   private async refreshFirstPage(): Promise<void> {
     // A page load or a "Load more" in flight owns `rows` and its cursor;
@@ -289,10 +260,6 @@ export class HistoryList implements OnInit, OnDestroy {
   protected async selectSource(source: HistorySourceFilter): Promise<void> {
     if (this.sourceFilter() === source) return;
     this.sourceFilter.set(source);
-    // The open row may not be in the new listing at all; collapsing avoids a
-    // detail panel hanging under a list that no longer contains its row.
-    this.expandedId.set(null);
-    this.detail.set(null);
     this.rows.set([]);
     this.nextCursor.set(null);
     this.deleteError.set(null);
@@ -300,8 +267,7 @@ export class HistoryList implements OnInit, OnDestroy {
   }
 
   /** Deletes a single row via the row action. */
-  protected async deleteOne(row: HistoryRow, event: Event): Promise<void> {
-    event.stopPropagation();
+  protected async deleteOne(row: HistoryRow): Promise<void> {
     if (this.deleting()) return;
     if (!confirm('Delete this analysis? This cannot be undone.')) return;
 
@@ -310,10 +276,6 @@ export class HistoryList implements OnInit, OnDestroy {
     try {
       await this.history.deleteAnalyses([row.id]);
       this.rows.update((existing) => existing.filter((r) => r.id !== row.id));
-      if (this.expandedId() === row.id) {
-        this.expandedId.set(null);
-        this.detail.set(null);
-      }
     } catch (cause) {
       console.warn('history delete failed', cause);
       this.deleteError.set("Couldn't delete. Try again.");
@@ -362,55 +324,14 @@ export class HistoryList implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Expands a row into its full analysis, collapsing it again if it was already
-   * open. Only one row is expanded at a time, so a single detail slot is enough.
-   */
-  protected async toggle(row: HistoryRow): Promise<void> {
-    if (this.expandedId() === row.id) {
-      this.expandedId.set(null);
-      this.detail.set(null);
-      this.detailError.set(null);
-      this.detailLoading.set(false);
-      return;
-    }
-
-    this.expandedId.set(row.id);
-    this.detail.set(null);
-    this.detailError.set(null);
-    this.detailLoading.set(true);
-    try {
-      const detail = await this.history.fetchDetail(row.id);
-      // A slower fetch for a row the user has since collapsed (or swapped away
-      // from) must not paint into the newly expanded one.
-      if (this.expandedId() !== row.id) return;
-      this.detail.set(detail);
-    } catch (cause) {
-      console.warn('analysis detail fetch failed', cause);
-      if (this.expandedId() !== row.id) return;
-      this.detailError.set("Couldn't load this analysis. Try again.");
-    } finally {
-      if (this.expandedId() === row.id) this.detailLoading.set(false);
-    }
-  }
-
-  /**
-   * Exports one analysis as a PDF. Works from the list row rather than only
-   * from an expanded detail, so it refetches the full row when the expanded
-   * detail is not the one being exported.
-   */
-  protected async exportPdf(row: HistoryRow, event: Event): Promise<void> {
-    // The row is a <button> that toggles the detail; exporting must not also
-    // expand or collapse it.
-    event.stopPropagation();
+  /** Exports one analysis as a PDF from the list row. */
+  protected async exportPdf(row: HistoryRow): Promise<void> {
     if (this.exportingId()) return;
 
     this.exportingId.set(row.id);
     this.exportError.set(null);
     try {
-      const loaded = this.detail();
-      const detail =
-        loaded && loaded.row.id === row.id ? loaded : await this.history.fetchDetail(row.id);
+      const detail = await this.history.fetchDetail(row.id);
       await this.pdf.download(detail.row, detail.patterns);
     } catch (cause) {
       console.warn('analysis pdf export failed', cause);

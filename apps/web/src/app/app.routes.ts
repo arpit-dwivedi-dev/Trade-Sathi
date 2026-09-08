@@ -29,6 +29,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/app/app-page').then((m) => m.AppPage),
   },
+  {
+    path: 'analysis/:id',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/history/analysis-detail-page').then((m) => m.AnalysisDetailPage),
+  },
   // Account and Chart Analysis are tabs inside the dashboard shell now (so
   // the nav rail stays visible by default), not routes of their own — these
   // only exist so a link or bookmark written against the old standalone URLs

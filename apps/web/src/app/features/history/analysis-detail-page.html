@@ -1,0 +1,59 @@
+<main class="analysis-detail-page" [attr.aria-busy]="loading()">
+  <header class="analysis-detail-header">
+    <div class="analysis-detail-header-inner">
+      <a class="brand analysis-detail-brand" routerLink="/" aria-label="ChartAnalyzer home">
+        <span class="brand-mark" aria-hidden="true"><app-icon name="candlestick_chart" /></span>
+        <b>ChartAnalyzer</b>
+      </a>
+      <a class="analysis-detail-back" routerLink="/app" [queryParams]="{ tab: 'history' }">
+        <app-icon aria-hidden="true" name="history" />
+        Back to history
+      </a>
+    </div>
+  </header>
+
+  <section class="analysis-detail-content content-max">
+    @if (loading()) {
+      <div class="analysis-detail-state" role="status" aria-live="polite">
+        <p-progress-spinner [style]="{ width: '24px', height: '24px' }" strokeWidth="4" aria-hidden="true" />
+        <p>Loading analysis…</p>
+      </div>
+    } @else if (error()) {
+      <div class="analysis-detail-state" role="alert">
+        <span class="st st-failed">Couldn't load</span>
+        <h1>Analysis unavailable</h1>
+        <p>{{ error() }}</p>
+        <button pButton type="button" (click)="retry()">
+          <app-icon aria-hidden="true" name="refresh" />
+          Try again
+        </button>
+      </div>
+    } @else if (detail(); as loaded) {
+      <header class="analysis-detail-title">
+        <div>
+          <span class="analysis-detail-eyebrow">Analysis result</span>
+          <h1>{{ loaded.row.symbol ?? loaded.row.symbol_raw ?? 'Unknown symbol' }}</h1>
+          <p>
+            {{ loaded.row.source === 'fundamentals' ? 'Fundamentals' : loaded.row.source === 'live' ? 'Live chart' : loaded.row.source === 'watchlist_daily' ? 'Daily briefing' : 'Chart analysis' }}
+            · {{ loaded.row.created_at | date: 'd MMM yyyy, HH:mm' }}
+          </p>
+        </div>
+        <span class="st st-{{ loaded.row.status }}">{{ loaded.row.status }}</span>
+      </header>
+
+      @if (loaded.row.status === 'queued' || loaded.row.status === 'processing') {
+        <section class="analysis-detail-pending" role="status" aria-live="polite">
+          <h2>Analysis {{ loaded.row.status }}</h2>
+          <p>This analysis is still {{ loaded.row.status }}. Check back shortly.</p>
+          @if (loaded.row.source !== 'fundamentals') {
+            <app-chart-image [imageKey]="loaded.row.image_key" [label]="loaded.row.symbol_raw" />
+          }
+        </section>
+      } @else if (loaded.row.source === 'fundamentals') {
+        <app-fundamentals-analysis-result [row]="loaded.row" />
+      } @else {
+        <app-analysis-result [row]="loaded.row" [patterns]="loaded.patterns" />
+      }
+    }
+  </section>
+</main>

@@ -177,7 +177,7 @@ export class HistoryService {
   }
 
   /**
-   * The full row plus its patterns, for the expanded view of one list entry.
+   * The full row plus its patterns, for the standalone report view of one list entry.
    * Same client-read path as fetchHistory — RLS scopes both tables to the
    * owner, so no backend endpoint is needed.
    */
@@ -194,7 +194,7 @@ export class HistoryService {
 
     // Patterns exist only on rows analyzed before the current prompts, which
     // prohibit pattern names outright. Still fetched, because those rows are
-    // the user's history and their detail view still renders them.
+    // the user's history and their report view still renders them.
     const { data: patterns, error: patternsError } = await client
       .from('analysis_patterns')
       .select('*')
