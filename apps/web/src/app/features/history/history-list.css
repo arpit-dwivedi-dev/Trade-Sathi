@@ -42,21 +42,43 @@
 }
 
 /* PrimeNG adds an inline overflow:auto to this container even when the table
-   is not configured with a bounded scroll height. Remove that nested scroll
-   context so the shell's `.body` remains the sticky header's scrollport. */
+   is not configured with a bounded scroll height. `clip` removes that nested
+   scroll context while still masking the table's square child edges at the
+   wrapper's rounded corners — `hidden`/`auto` would interfere with the page's
+   sticky header scrollport. */
 .history-table ::ng-deep .p-datatable-table-container {
+  border-radius: var(--r-lg);
   max-height: none !important;
-  overflow: visible !important;
+  overflow: clip !important;
 }
 
 /* PrimeNG places position:sticky on thead. Keep the whole two-row header as
    the one sticky element; making individual cells sticky as well lets body
-   rows paint through the gaps in Chromium's table layout. */
+   rows paint through the gaps in Chromium's table layout. The explicit radius
+   belongs on the generated descendants: without `::ng-deep`, Angular's
+   emulated style scoping cannot reach the table PrimeNG renders internally. */
 .history-table ::ng-deep .p-datatable-thead {
   background: var(--surf-2);
+  border-radius: var(--r-lg);
   position: sticky !important;
   top: calc(-1 * var(--s4));
   z-index: 31;
+}
+
+.history-table ::ng-deep .p-datatable-thead > tr:first-child > th:first-child {
+  border-top-left-radius: var(--r-lg);
+}
+
+.history-table ::ng-deep .p-datatable-thead > tr:first-child > th:last-child {
+  border-top-right-radius: var(--r-lg);
+}
+
+.history-table ::ng-deep .p-datatable-tbody > tr:last-child > td:first-child {
+  border-bottom-left-radius: var(--r-lg);
+}
+
+.history-table ::ng-deep .p-datatable-tbody > tr:last-child > td:last-child {
+  border-bottom-right-radius: var(--r-lg);
 }
 
 /* PrimeNG's Table renders a plain <table> here (no [scrollable] wrapper),
