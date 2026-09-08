@@ -231,9 +231,7 @@ async function mapWithConcurrency<T, R>(
     }
   };
 
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, () => worker()),
-  );
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
 
   return results;
 }
@@ -280,15 +278,13 @@ export async function runDailyBriefingForUser(
     }
   };
 
-  const { error: logInsertError } = await supabaseAdmin
-    .from("daily_briefing_log")
-    .insert({
-      profile_id: profileId,
-      briefing_date: briefingDate,
-      run_hour_ist: logHourIst,
-      run_minute_ist: logMinuteIst,
-      status: "processing",
-    });
+  const { error: logInsertError } = await supabaseAdmin.from("daily_briefing_log").insert({
+    profile_id: profileId,
+    briefing_date: briefingDate,
+    run_hour_ist: logHourIst,
+    run_minute_ist: logMinuteIst,
+    status: "processing",
+  });
 
   if (logInsertError) {
     // Unique-violation on (profile_id, briefing_date, run_hour_ist,
@@ -305,133 +301,160 @@ export async function runDailyBriefingForUser(
     return;
   }
 
-  const items = await getEnabledWatchlistItems(profileId, runHourIst, runMinuteIst);
-  if (items.length === 0) {
-    await markLog("skipped_no_symbols");
-    return;
-  }
-
-  const period = currentUtcPeriod();
-  const succeeded: BriefingItem[] = [];
-  const failed: FailedBriefingItem[] = [];
-
-  // Phase 1 — admission, strictly sequential. Entitlement is consumed one unit
-  // per item before any work starts, exactly as it was when the whole loop was
-  // sequential: the concurrency added below must never be able to consume more
-  // units than the user has, or to race two items against the same last unit.
-  // These are cheap RPC calls, so serialising them costs nothing worth saving.
-  //
-  // Each admission records WHICH entitlement paid for it, because a failure
-  // later has to give back that same one.
-  const admitted: { item: EnabledWatchlistItem; source: BriefingEntitlementSource }[] = [];
-  for (const item of items) {
-    const outcome = await consumeDailyBriefingEntitlement(profileId);
-    if (outcome === "no_subscription") {
-      // No Daily Briefing entitlement at all — no live subscription and no
-      // top-up credits: stop immediately, no market-data/AI calls for any
-      // symbol, no email. Distinct terminal status from
-      // 'skipped_quota_exhausted' for observability.
-      await markLog("skipped_no_entitlement");
+  try {
+    const items = await getEnabledWatchlistItems(profileId, runHourIst, runMinuteIst);
+    if (items.length === 0) {
+      await markLog("skipped_no_symbols");
       return;
     }
-    if (outcome === "quota_exhausted") break;
 
-    admitted.push({ item, source: outcome });
-  }
+    const period = currentUtcPeriod();
+    const succeeded: BriefingItem[] = [];
+    const failed: FailedBriefingItem[] = [];
 
-  // Phase 2 — the expensive part, a few at a time. Each item is a full pipeline
-  // (market data, chart render, model call) at roughly a minute each, so a ten
-  // symbol watchlist used to take the better part of ten minutes inside a single
-  // hourly tick, pushing later users' briefings well past the hour they asked
-  // for. Each item still releases its own entitlement on failure, inside
-  // processWatchlistItem, so failure handling is unchanged by running them
-  // alongside each other.
-  const outcomes = await mapWithConcurrency(admitted, BRIEFING_CONCURRENCY, ({ item, source }) =>
-    processWatchlistItem(profileId, item, source, period),
-  );
+    // Phase 1 — admission, strictly sequential. Entitlement is consumed one unit
+    // per item before any work starts, exactly as it was when the whole loop was
+    // sequential: the concurrency added below must never be able to consume more
+    // units than the user has, or to race two items against the same last unit.
+    // These are cheap RPC calls, so serialising them costs nothing worth saving.
+    //
+    // Each admission records WHICH entitlement paid for it, because a failure
+    // later has to give back that same one.
+    const admitted: { item: EnabledWatchlistItem; source: BriefingEntitlementSource }[] = [];
+    for (const item of items) {
+      const outcome = await consumeDailyBriefingEntitlement(profileId);
+      if (outcome === "no_subscription") {
+        // No Daily Briefing entitlement at all — no live subscription and no
+        // top-up credits: stop immediately, no market-data/AI calls for any
+        // symbol, no email. Distinct terminal status from
+        // 'skipped_quota_exhausted' for observability.
+        await markLog("skipped_no_entitlement");
+        return;
+      }
+      if (outcome === "quota_exhausted") break;
 
-  // Results are folded back in watchlist order, not completion order, so the
-  // email lists symbols in the order the user arranged them.
-  const succeededAnalysisIds: string[] = [];
-  admitted.forEach(({ item }, index) => {
-    const processed = outcomes[index];
-    if (processed) {
-      succeededAnalysisIds.push(processed.analysisId);
-      succeeded.push({
-        symbol: processed.item.symbol,
-        name: processed.item.name,
-        marketDataDate: processed.marketDataDate,
-        latestPrice: processed.latestPrice,
-        analysis: processed.analysis,
-      });
-    } else {
-      failed.push({ symbol: item.symbol, name: item.name });
+      admitted.push({ item, source: outcome });
     }
-  });
 
-  if (succeeded.length === 0 && failed.length === 0) {
-    // Every item was skipped because quota ran out before any could even be
-    // attempted (e.g. a user with zero remaining quota this period).
-    await markLog("skipped_quota_exhausted");
-    return;
-  }
+    // Phase 2 — the expensive part, a few at a time. Each item is a full pipeline
+    // (market data, chart render, model call) at roughly a minute each, so a ten
+    // symbol watchlist used to take the better part of ten minutes inside a single
+    // hourly tick, pushing later users' briefings well past the hour they asked
+    // for. Each item still releases its own entitlement on failure, inside
+    // processWatchlistItem, so failure handling is unchanged by running them
+    // alongside each other.
+    const outcomes = await mapWithConcurrency(admitted, BRIEFING_CONCURRENCY, ({ item, source }) =>
+      processWatchlistItem(profileId, item, source, period),
+    );
 
-  if (succeeded.length === 0) {
-    // Every attempted symbol failed; nothing worth emailing.
-    await markLog("failed", { symbols_failed: failed.length });
-    await logAppError(profileId, "briefing", "Every symbol in this scheduled briefing failed", {
-      briefingDate,
-      failed: failed.map((item) => item.symbol),
+    // Results are folded back in watchlist order, not completion order, so the
+    // email lists symbols in the order the user arranged them.
+    const succeededAnalysisIds: string[] = [];
+    admitted.forEach(({ item }, index) => {
+      const processed = outcomes[index];
+      if (processed) {
+        succeededAnalysisIds.push(processed.analysisId);
+        succeeded.push({
+          symbol: processed.item.symbol,
+          name: processed.item.name,
+          marketDataDate: processed.marketDataDate,
+          latestPrice: processed.latestPrice,
+          analysis: processed.analysis,
+        });
+      } else {
+        failed.push({ symbol: item.symbol, name: item.name });
+      }
     });
-    return;
-  }
 
-  const { data: profile, error: profileError } = await supabaseAdmin
-    .from("profiles")
-    .select("email")
-    .eq("id", profileId)
-    .single<{ email: string }>();
+    if (succeeded.length === 0 && failed.length === 0) {
+      // Every item was skipped because quota ran out before any could even be
+      // attempted (e.g. a user with zero remaining quota this period).
+      await markLog("skipped_quota_exhausted");
+      return;
+    }
 
-  if (profileError || !profile) {
-    logger.error("failed to load profile email for daily briefing", {
-      profileId,
-      cause: String(profileError),
-    });
-    await markLog("failed");
-    await logAppError(profileId, "briefing", "Could not load your profile to send the briefing email", {
-      briefingDate,
-    });
-    return;
-  }
+    if (succeeded.length === 0) {
+      // Every attempted symbol failed; nothing worth emailing.
+      await markLog("failed", { symbols_failed: failed.length });
+      await logAppError(profileId, "briefing", "Every symbol in this scheduled briefing failed", {
+        briefingDate,
+        failed: failed.map((item) => item.symbol),
+      });
+      return;
+    }
 
-  const { subject, html } = buildDailyBriefingEmail(briefingDate, succeeded, failed);
-  const attachments = await buildBriefingAttachments(succeededAnalysisIds);
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("id", profileId)
+      .single<{ email: string }>();
 
-  try {
-    await sendEmail({ to: profile.email, subject, html, attachments });
-  } catch (cause) {
-    logger.error("failed to send daily briefing email", {
-      profileId,
-      cause: String(cause),
-    });
-    await markLog("failed", {
+    if (profileError || !profile) {
+      logger.error("failed to load profile email for daily briefing", {
+        profileId,
+        cause: String(profileError),
+      });
+      await markLog("failed");
+      await logAppError(
+        profileId,
+        "briefing",
+        "Could not load your profile to send the briefing email",
+        {
+          briefingDate,
+        },
+      );
+      return;
+    }
+
+    const { subject, html } = buildDailyBriefingEmail(briefingDate, succeeded, failed);
+    const attachments = await buildBriefingAttachments(succeededAnalysisIds);
+
+    try {
+      await sendEmail({ to: profile.email, subject, html, attachments });
+    } catch (cause) {
+      logger.error("failed to send daily briefing email", {
+        profileId,
+        cause: String(cause),
+      });
+      await markLog("failed", {
+        symbols_sent: succeeded.length,
+        symbols_failed: failed.length,
+      });
+      await logAppError(
+        profileId,
+        "briefing",
+        "Briefing was generated but the email failed to send",
+        {
+          briefingDate,
+          symbolsSent: succeeded.length,
+          symbolsFailed: failed.length,
+        },
+      );
+      return;
+    }
+
+    await markAnalysesEmailed(succeededAnalysisIds);
+
+    await markLog(failed.length > 0 ? "sent_partial" : "sent", {
       symbols_sent: succeeded.length,
       symbols_failed: failed.length,
     });
-    await logAppError(profileId, "briefing", "Briefing was generated but the email failed to send", {
-      briefingDate,
-      symbolsSent: succeeded.length,
-      symbolsFailed: failed.length,
+  } catch (cause) {
+    logger.error("daily briefing processing failed unexpectedly", {
+      profileId,
+      cause: String(cause),
     });
-    return;
+    await markLog("failed");
+    await logAppError(
+      profileId,
+      "briefing",
+      "The daily briefing was interrupted and could not be completed",
+      {
+        briefingDate,
+        cause: String(cause),
+      },
+    );
   }
-
-  await markAnalysesEmailed(succeededAnalysisIds);
-
-  await markLog(failed.length > 0 ? "sent_partial" : "sent", {
-    symbols_sent: succeeded.length,
-    symbols_failed: failed.length,
-  });
 }
 
 export type AnalyzeNowResult =
@@ -504,6 +527,10 @@ const STRANDED_RUN_AFTER_MS = 10 * 60_000;
 /** Upper bound on rows settled per sweep, for the same reason as MAX_RECLAIM_BATCH. */
 const MAX_RECLAIM_RUN_BATCH = 20;
 
+/** Scheduled briefing logs have the same bounded pipeline as on-demand runs. */
+export const STRANDED_DAILY_BRIEFING_AFTER_MS = 10 * 60_000;
+const MAX_RECLAIM_DAILY_BRIEFING_BATCH = 20;
+
 /**
  * Recovers "Analyze Now" runs left at 'processing' by a process restart.
  *
@@ -564,6 +591,69 @@ export async function reclaimStrandedWatchlistRuns(): Promise<number> {
       "watchlist_run",
       "The analysis was interrupted and could not be completed",
       { runId: row.id, watchlistItemId: row.watchlist_item_id },
+    );
+  }
+
+  return rows.length;
+}
+
+/**
+ * Marks scheduled briefing logs stranded by a process restart as failed. The
+ * conditional status predicate prevents a run that settled during the query
+ * from being overwritten.
+ */
+export async function reclaimStrandedDailyBriefingLogs(): Promise<number> {
+  const cutoff = new Date(Date.now() - STRANDED_DAILY_BRIEFING_AFTER_MS).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("daily_briefing_log")
+    .select("id, profile_id, briefing_date, run_hour_ist, run_minute_ist, created_at")
+    .eq("status", "processing")
+    .lt("created_at", cutoff)
+    .order("created_at", { ascending: true })
+    .limit(MAX_RECLAIM_DAILY_BRIEFING_BATCH)
+    .returns<
+      {
+        id: string;
+        profile_id: string;
+        briefing_date: string;
+        run_hour_ist: number;
+        run_minute_ist: number;
+        created_at: string;
+      }[]
+    >();
+
+  if (error) {
+    logger.error("stranded daily briefing sweep query failed", { cause: String(error) });
+    return 0;
+  }
+
+  const rows = data ?? [];
+  if (rows.length === 0) return 0;
+
+  logger.info("reclaiming stranded daily briefing logs", { count: rows.length });
+  for (const row of rows) {
+    const { error: markError } = await supabaseAdmin
+      .from("daily_briefing_log")
+      .update({ status: "failed", updated_at: new Date().toISOString() })
+      .eq("id", row.id)
+      .eq("status", "processing");
+    if (markError) {
+      logger.error("failed to mark stranded daily briefing as failed", {
+        briefingLogId: row.id,
+        cause: String(markError),
+      });
+      continue;
+    }
+    await logAppError(
+      row.profile_id,
+      "briefing",
+      "The daily briefing was interrupted and could not be completed",
+      {
+        briefingLogId: row.id,
+        briefingDate: row.briefing_date,
+        runHourIst: row.run_hour_ist,
+        runMinuteIst: row.run_minute_ist,
+      },
     );
   }
 
@@ -660,11 +750,7 @@ async function runWatchlistItemNow(
   // that into something the user can see after a reload.
   void processWatchlistItem(profileId, item, source, period, providedChart)
     .then(async (processed) => {
-      await settleRun(
-        runRow.id,
-        processed ? "complete" : "failed",
-        processed?.analysisId ?? null,
-      );
+      await settleRun(runRow.id, processed ? "complete" : "failed", processed?.analysisId ?? null);
       // Emailed only after the run is settled, and only on the Brief Now path.
       // A failed run has nothing to report and has already refunded its
       // entitlement, so there is nothing to send.

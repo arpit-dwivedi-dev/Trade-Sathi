@@ -5,6 +5,7 @@ import { logger } from "./lib/logger.js";
 import { startDailyBriefingScheduler } from "./jobs/daily-briefing.job.js";
 import { startStrandedAnalysisSweeper } from "./jobs/stranded-analyses.job.js";
 import { startStrandedWatchlistRunSweeper } from "./jobs/stranded-watchlist-runs.job.js";
+import { startStrandedDailyBriefingSweeper } from "./jobs/stranded-daily-briefings.job.js";
 import { analysesRouter } from "./routes/analyses.route.js";
 import { billingRouter } from "./routes/billing.route.js";
 import { healthRouter } from "./routes/health.route.js";
@@ -32,7 +33,9 @@ app.set("trust proxy", true);
 app.use(webhooksRouter);
 
 app.use(express.json());
-app.use(resolveGeo);
+app.use((req, res, next) => {
+  resolveGeo(req, res, next).catch(next);
+});
 app.use(healthRouter);
 app.use(meRouter);
 app.use(analysesRouter);
@@ -82,3 +85,6 @@ startStrandedAnalysisSweeper();
 // restart — the counterpart to the fire-and-forget dispatch in
 // runWatchlistItemNow (daily-briefing.service.ts).
 startStrandedWatchlistRunSweeper();
+
+// Recovers scheduled briefing logs stranded at 'processing' by a restart.
+startStrandedDailyBriefingSweeper();

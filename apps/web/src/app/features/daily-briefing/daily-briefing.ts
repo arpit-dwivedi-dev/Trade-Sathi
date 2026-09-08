@@ -31,6 +31,7 @@ import { ChartCaptureService } from '../../shared/live-chart/chart-capture.servi
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import { BillingService } from '../billing/billing.service';
 import { LiveService } from '../../core/live.service';
+import { currentProcessingSlots, utcDateFor } from './daily-briefing-processing';
 
 interface DailyBriefingItem {
   id: string;
@@ -59,7 +60,6 @@ interface DailyBriefingRun {
   updated_at: string;
 }
 
-
 /**
  * Chart windows offered per row, in days. Must stay inside the 1-365 CHECK on
  * watchlist_items.analysis_lookback_days — the DB is the real guard, this
@@ -78,7 +78,6 @@ const LOOKBACK_OPTIONS = [
 
 const MIN_LOOKBACK_DAYS = 1;
 const MAX_LOOKBACK_DAYS = 365;
-
 
 /**
  * Symbols a user wants to keep an eye on. Reads/writes go straight to
@@ -509,7 +508,10 @@ export class DailyBriefing implements OnInit, OnDestroy {
   private async patchSettings(
     item: DailyBriefingItem,
     patch: Partial<
-      Pick<DailyBriefingItem, 'analysis_lookback_days' | 'scheduled_hour_ist' | 'scheduled_minute_ist'>
+      Pick<
+        DailyBriefingItem,
+        'analysis_lookback_days' | 'scheduled_hour_ist' | 'scheduled_minute_ist'
+      >
     >,
   ): Promise<void> {
     const client = this.supabase.client;
@@ -613,10 +615,17 @@ export class DailyBriefing implements OnInit, OnDestroy {
         return;
       }
 
-      let message = mode === 'brief' ? 'Briefing failed. Please try again.' : 'Analysis failed. Please try again.';
+      let message =
+        mode === 'brief'
+          ? 'Briefing failed. Please try again.'
+          : 'Analysis failed. Please try again.';
       if (cause instanceof HttpErrorResponse) {
         const body: unknown = cause.error;
-        if (body && typeof body === 'object' && typeof (body as { error?: unknown }).error === 'string') {
+        if (
+          body &&
+          typeof body === 'object' &&
+          typeof (body as { error?: unknown }).error === 'string'
+        ) {
           message = (body as { error: string }).error;
         }
       }
@@ -681,12 +690,17 @@ export class DailyBriefing implements OnInit, OnDestroy {
 
     const { data, error } = await client
       .from('daily_briefing_log')
-      .select('run_hour_ist, run_minute_ist')
+      .select('briefing_date, run_hour_ist, run_minute_ist')
+      .eq('briefing_date', utcDateFor(new Date()))
       .eq('status', 'processing');
     if (error || this.destroyed) return;
 
-    const rows = (data ?? []) as { run_hour_ist: number; run_minute_ist: number }[];
-    this.processingSlots.set(rows.map((row) => ({ hour: row.run_hour_ist, minute: row.run_minute_ist })));
+    const rows = (data ?? []) as {
+      briefing_date: string;
+      run_hour_ist: number;
+      run_minute_ist: number;
+    }[];
+    this.processingSlots.set(currentProcessingSlots(rows));
   }
 
   /**
