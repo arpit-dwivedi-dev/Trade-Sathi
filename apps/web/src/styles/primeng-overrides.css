@@ -11,3 +11,13 @@
 .p-button-icon app-icon svg {
   display: block;
 }
+
+/* PrimeNG centres a spinner with `margin: 0 auto` by default. That is useful
+   when a spinner stands alone, but wrong when it is a flex item beside a
+   loading label: the auto margins consume the button/callout's free space and
+   leave the spinner far away from its text. Every app spinner is used as part
+   of a labelled state, so keep it as a normal, non-growing flex item. */
+p-progress-spinner.p-progressspinner {
+  flex: 0 0 auto;
+  margin: 0;
+}

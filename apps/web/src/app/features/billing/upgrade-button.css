@@ -12,8 +12,7 @@
   padding-block: var(--s3);
 }
 
-.billing-msg .ico,
-.billing-msg mat-progress-spinner {
+.billing-msg .ico {
   flex-shrink: 0;
 }
 

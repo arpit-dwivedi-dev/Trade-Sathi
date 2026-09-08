@@ -40,7 +40,7 @@
     </div> -->
 
     @if (loading()) {
-      <p class="daily-briefing-state"><p-progress-spinner styleClass="daily-briefing-spinner" aria-hidden="true" /> Loading your daily-briefing…</p>
+      <p class="daily-briefing-state"><p-progress-spinner styleClass="daily-briefing-spinner" [style]="{ width: '28px', height: '28px' }" aria-hidden="true" /> Loading your daily-briefing…</p>
     } @else if (items().length === 0) {
       <p class="daily-briefing-state">
         No symbols yet. Search in the bar at the top of the page to start tracking one.
@@ -77,8 +77,10 @@
                        cell below so the whole row reads as blurred; this cell
                        is the one that carries the message. -->
                   <span class="daily-briefing-cell-overlay" aria-live="polite">
-                    <p-progress-spinner styleClass="daily-briefing-spinner" aria-hidden="true" />
-                    Background process is running on this item ({{ displaySymbol(item) }})
+                    <span class="daily-briefing-cell-overlay-copy">
+                      <p-progress-spinner styleClass="daily-briefing-cell-spinner" [style]="{ width: '16px', height: '16px' }" aria-hidden="true" />
+                      <span>Background process is running on this item ({{ displaySymbol(item) }})</span>
+                    </span>
                   </span>
                 }
               </td>
@@ -182,9 +184,9 @@
                     (click)="analyzeNow(item)"
                   >
                     @if (preparing()[item.id]) {
-                      <p-progress-spinner styleClass="daily-briefing-spinner-sm" aria-hidden="true" /> Drawing chart…
+                      <p-progress-spinner styleClass="daily-briefing-spinner-sm" [style]="{ width: '16px', height: '16px' }" aria-hidden="true" /> Drawing chart…
                     } @else if (runIdFor(item.id)) {
-                      <p-progress-spinner styleClass="daily-briefing-spinner-sm" aria-hidden="true" /> Analyzing…
+                      <p-progress-spinner styleClass="daily-briefing-spinner-sm" [style]="{ width: '16px', height: '16px' }" aria-hidden="true" /> Analyzing…
                     } @else {
                       Analyze now
                     }
