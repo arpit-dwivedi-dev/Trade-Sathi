@@ -33,6 +33,7 @@ export class AuthPage implements OnInit, OnDestroy {
   protected readonly mode = signal<'signin' | 'signup' | 'otp'>('signin');
   protected readonly email = signal('');
   protected readonly password = signal('');
+  protected readonly passwordVisible = signal(false);
   protected readonly otp = signal('');
   protected readonly error = signal<string | null>(null);
   protected readonly notice = signal<string | null>(null);
@@ -104,9 +105,14 @@ export class AuthPage implements OnInit, OnDestroy {
     return null;
   }
 
+  protected togglePasswordVisibility(): void {
+    this.passwordVisible.update((visible) => !visible);
+  }
+
   protected toggleMode(): void {
     if (this.busy()) return;
     this.mode.update((m) => (m === 'signin' ? 'signup' : 'signin'));
+    this.passwordVisible.set(false);
     this.error.set(null);
     this.notice.set(null);
   }
@@ -192,6 +198,7 @@ export class AuthPage implements OnInit, OnDestroy {
   /** Lets the user correct a mistyped email instead of resending to it forever. */
   protected useDifferentEmail(): void {
     this.mode.set('signup');
+    this.passwordVisible.set(false);
     this.otp.set('');
     this.error.set(null);
     this.notice.set(null);

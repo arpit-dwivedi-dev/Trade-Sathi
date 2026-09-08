@@ -20,6 +20,8 @@ export class ResetPasswordPage implements OnInit {
 
   protected readonly password = signal('');
   protected readonly confirm = signal('');
+  protected readonly passwordVisible = signal(false);
+  protected readonly confirmVisible = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly busy = signal(false);
 
@@ -53,6 +55,14 @@ export class ResetPasswordPage implements OnInit {
     // of its initial restoration, so the session is only known once that ends.
     await this.auth.whenRestored();
     this.ready.set(this.auth.session() !== null);
+  }
+
+  protected togglePasswordVisibility(): void {
+    this.passwordVisible.update((visible) => !visible);
+  }
+
+  protected toggleConfirmVisibility(): void {
+    this.confirmVisible.update((visible) => !visible);
   }
 
   protected async submit(): Promise<void> {
