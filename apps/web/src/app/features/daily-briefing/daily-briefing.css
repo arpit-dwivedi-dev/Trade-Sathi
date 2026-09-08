@@ -108,15 +108,15 @@
   text-align: center;
 }
 
-/* The page itself scrolls, same as History — the table does not own a
-   vertical scrollbox of its own. overflow-y stays `clip` (not `hidden`) so
-   it only rounds the corners over the table's square edges without making
-   this a scroll container that would capture the sticky header; overflow-x
-   is `auto` so the table can still scroll sideways under --nav-w. */
+/* The page body is the vertical scrollport, just like History. Do not put
+   `overflow-x: auto` or `overflow: auto` here: any non-visible overflow makes
+   this wrapper a scroll container, so the sticky header sticks to this box
+   instead of following the page under the top toolbar. The shell's .body
+   already provides the horizontal scrollport when the 900px table floor is
+   wider than the available content column. */
 .daily-briefing-table-wrap {
   flex-shrink: 0;
-  overflow-x: auto;
-  overflow-y: clip;
+  overflow: visible;
 }
 
 .daily-briefing-table {
@@ -125,12 +125,29 @@
   width: 100%;
 }
 
-/* The wrapper no longer owns a vertical scrollbox — .body (the page) does,
-   same as History — so the header sticks against .body's own scrollport.
-   The offset matches History's: .daily-briefing pads .body by var(--s4),
-   and a sticky offset resolves against the scroll container's content box,
-   so pulling up by that padding parks the header flush under the topbar
-   instead of var(--s4) low. */
+/* PrimeNG always gives this non-scrollable table an inline `overflow: auto`
+   on its inner container. Even when that container is as tall as its content,
+   it is still a scrolling ancestor, so the header scrolls away with the page
+   instead of sticking to `.body`. Remove that inner scroll container; `.body`
+   is the only vertical scrollport for this page. `!important` is needed to
+   override PrimeNG's inline overflow declaration. */
+.daily-briefing-table ::ng-deep .p-datatable-table-container {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* The table is inside the scrolling `.body`, which begins below the topbar.
+   PrimeNG also puts `position: sticky` on the `<thead>` itself. Keep the
+   sticky positioning on that one row and make each cell static; nested sticky
+   cells can paint the body row through the header in Chromium's table layout.
+   The opaque row background is what masks every cell underneath it. */
+.daily-briefing-table ::ng-deep .p-datatable-thead {
+  background: var(--surf-2);
+  position: sticky !important;
+  top: calc(-1 * var(--s4));
+  z-index: 31;
+}
+
 .daily-briefing-table th {
   background: var(--surf-2);
   border-bottom: 1px solid var(--line);
@@ -139,11 +156,9 @@
   font-size: var(--t-2xs);
   font-weight: 600;
   letter-spacing: 0.05em;
-  position: sticky;
+  position: static;
   text-transform: uppercase;
-  top: calc(-1 * var(--s4));
   white-space: nowrap;
-  z-index: 1;
 }
 
 .daily-briefing-table td {
@@ -392,14 +407,9 @@
 }
 
 @media (max-width: 640px) {
-  /* Narrow screens scroll the page rather than a box inside it. */
+  /* Narrow screens still use the page body as the one vertical scrollport. */
   .daily-briefing-card {
     flex: none;
-  }
-
-  .daily-briefing-table-wrap {
-    flex: none;
-    max-height: 70vh;
   }
 
   .daily-briefing-add {
