@@ -98,6 +98,12 @@
   white-space: nowrap;
 }
 
+/* Sits under the symbol/chip row now, so it reads as this analysis's
+   timestamp rather than crowding the status pill and download button. */
+.result-ident .result-time {
+  margin-top: -2px;
+}
+
 .result-tiles {
   gap: var(--s3);
 }

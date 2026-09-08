@@ -75,7 +75,7 @@ for (const theme of THEMES) {
   test(`06 history — ${theme}`, async ({ page }) => {
     await signIn(page, theme);
     await page.getByRole('button', { name: 'History' }).click();
-    await expect(page.locator('.trow').first()).toBeVisible();
+    await expect(page.locator('.history-row').first()).toBeVisible();
     await shoot(page, '06-history', theme);
   });
 
@@ -84,7 +84,13 @@ for (const theme of THEMES) {
     await page.getByRole('button', { name: 'History' }).click();
     // Newest-first puts the in-flight row on top, so pick by status rather
     // than position: the first completed analysis is the seeded RELIANCE one.
-    await page.locator('.trow', { has: page.locator('.st-complete') }).first().click();
+    const completedHref = await page
+      .locator('.history-row', { has: page.locator('.st-complete') })
+      .first()
+      .locator('a[title="Open analysis in a new tab"]')
+      .getAttribute('href');
+    expect(completedHref).toBeTruthy();
+    await page.goto(completedHref!);
     await expect(page.locator('app-analysis-result')).toBeVisible({ timeout: 15_000 });
     await shoot(page, '07-analysis-result', theme);
   });
@@ -92,7 +98,13 @@ for (const theme of THEMES) {
   test(`08 history failed row — ${theme}`, async ({ page }) => {
     await signIn(page, theme);
     await page.getByRole('button', { name: 'History' }).click();
-    await page.locator('.trow', { has: page.locator('.st-failed') }).first().click();
+    const failedHref = await page
+      .locator('.history-row', { has: page.locator('.st-failed') })
+      .first()
+      .locator('a[title="Open analysis in a new tab"]')
+      .getAttribute('href');
+    expect(failedHref).toBeTruthy();
+    await page.goto(failedHref!);
     await expect(page.locator('.result-failed')).toBeVisible({ timeout: 15_000 });
     await shoot(page, '08-result-failed', theme);
   });

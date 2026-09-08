@@ -29,6 +29,8 @@ export class ChartImage {
   readonly label = input<string | null>(null);
   /** Small, unframed thumbnail (e.g. a history-table cell) instead of the full report figure. */
   readonly compact = input(false);
+  /** Prioritise the full report image so it is present during an immediate print/screenshot. */
+  readonly priority = input(false);
 
   protected readonly url = signal<string | null>(null);
   protected readonly loading = signal(false);

@@ -1681,3 +1681,443 @@ button.nav-toggle {
   }
 }
 
+/* Standalone history report composition. Keep this route-specific so the
+   result embedded in Analyze and Workspace retains its denser layout. */
+.result-standalone {
+  gap: var(--s5);
+}
+
+.result-standalone .result-head {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  gap: var(--s5);
+  padding-bottom: var(--s4);
+}
+
+/* The timestamp now sits under the symbol/chip row instead of beside the
+   status pill and download button, so it reads as this analysis's own
+   metadata rather than crowding the header's action corner. */
+.result-standalone .result-time {
+  align-self: flex-start;
+  display: block;
+  font-size: var(--t-xs);
+  margin-top: 2px;
+}
+
+.result-standalone .result-title-row {
+  gap: var(--s3);
+}
+
+.result-standalone .result-sym {
+  color: var(--tx);
+  font-size: clamp(2rem, 4vw, 3rem);
+  letter-spacing: -0.045em;
+}
+
+.result-standalone .result-chips {
+  gap: 6px;
+}
+
+.result-standalone .result-chips p-chip,
+.result-standalone .result-head-end .st {
+  text-transform: uppercase;
+}
+
+.result-standalone .result-chips p-chip {
+  font-size: var(--t-2xs);
+  padding-block: 3px;
+  padding-inline: var(--s2);
+}
+
+/* Both classes sit on the same <section>; the doubled selector is deliberate —
+   the component's own view-encapsulated rule (.result-head-end[_ngcontent])
+   declares flex-direction: column, and at equal specificity the later source
+   (the inline component sheet) would win. One extra class bumps specificity so
+   the standalone single-row arrangement the header needs actually holds. */
+.result.result-standalone .result-head-end {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: var(--s3);
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.result-standalone .result-head-end .st,
+.result-standalone .result-download {
+  align-self: center;
+  flex: none;
+}
+
+.result-standalone .result-download {
+  margin: 0;
+  width: auto;
+}
+
+/* Icon-only now — square like the theme toggle it sits near, not a
+   labelled pill. */
+.result-download.p-button {
+  align-items: center;
+  background: var(--surf-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--tx);
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
+}
+
+.result-download:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--tx-3);
+}
+
+.result-download:active:not(:disabled) {
+  background: var(--line);
+}
+
+.result-download:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.result-download:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.result-download app-icon {
+  color: var(--tx-2);
+  height: 16px;
+  width: 16px;
+}
+
+.result-download p-progress-spinner {
+  display: inline-flex;
+}
+
+.result-standalone .result-caveats {
+  border-radius: var(--r-lg);
+  margin-top: calc(var(--s2) * -1);
+}
+
+.result-standalone .result-tiles {
+  gap: var(--s3);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.result-standalone .result-tiles .tile {
+  border-radius: var(--r-lg);
+  min-height: 108px;
+  padding: var(--s4) var(--s5);
+}
+
+.result-standalone .result-tiles .tile b {
+  font-size: var(--t-lg);
+  margin-top: auto;
+}
+
+.result-standalone .result-summary-card,
+.result-standalone .result-falsifier-card,
+.result-standalone .result-chart-card,
+.result-standalone p-card {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  color: var(--tx);
+}
+
+.result-standalone .result-summary-card,
+.result-standalone .result-falsifier-card,
+.result-standalone .result-chart-card {
+  gap: 0;
+  padding: var(--s5) var(--s6);
+}
+
+.result-standalone p-card {
+  display: block;
+  overflow: hidden;
+}
+
+.result-standalone p-card .p-card-body,
+.result-standalone p-card .p-card-content {
+  background: transparent;
+  color: inherit;
+}
+
+.result-standalone p-card .p-card-body {
+  padding: 0;
+}
+
+.result-standalone p-card .p-card-content {
+  padding: var(--s4);
+}
+
+.result-standalone .result-summary-card .result-block-head,
+.result-standalone .result-falsifier-card .result-block-head,
+.result-standalone .result-chart-card .result-block-head {
+  margin-bottom: var(--s3);
+}
+
+.result-standalone .result-summary-card .result-summary {
+  max-width: 78ch;
+}
+
+.result-standalone .result-body {
+  align-items: start;
+  gap: clamp(var(--s5), 3vw, var(--s8));
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
+}
+
+.result-standalone .result-main,
+.result-standalone .result-aside {
+  gap: var(--s6);
+}
+
+.result-standalone .result-aside {
+  position: static;
+}
+
+/* Structured reports are a two-column matrix, not two independent flex
+   stacks. Pairing each left card with its right-hand card removes the blank
+   track created when one column's previous card is taller than the other. */
+.result-standalone:not(.result-legacy-standalone) .result-main,
+.result-standalone:not(.result-legacy-standalone) .result-aside {
+  display: contents;
+}
+
+.result-standalone:not(.result-legacy-standalone) .result-body {
+  grid-template-areas:
+    'setup zones'
+    'falsifier glance'
+    'base .';
+}
+
+/* The matrix pairs each left card with its right-hand neighbour. The base
+   .result-body rule sets align-items: start so the legacy two-stack layout
+   keeps its natural heights — but in the paired matrix that leaves a dead
+   track under the shorter card of each row. Stretch (the grid default) makes
+   each card fill its row's full height, so the pair's bottoms align and the
+   box model has no empty space to show. */
+.result-standalone:not(.result-legacy-standalone) .result-body {
+  align-items: stretch;
+}
+
+/* A stretched section that is not a flex column keeps its child at natural
+   height, so the dead track simply moves inside the section. Make the
+   matrix's cards flex columns and let the card body grow, so the fill reaches
+   the bottom edge instead of leaving the box half-empty. */
+.result-standalone:not(.result-legacy-standalone) .result-setup-block,
+.result-standalone:not(.result-legacy-standalone) .result-falsifier-card,
+.result-standalone:not(.result-legacy-standalone) .result-main > .result-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.result-standalone:not(.result-legacy-standalone) .result-aside > .result-block p-card,
+.result-standalone:not(.result-legacy-standalone) .result-main > .result-block p-card,
+.result-standalone:not(.result-legacy-standalone) .result-setup-block .result-panel,
+.result-standalone:not(.result-legacy-standalone) .result-setup-block .result-abstain {
+  flex: 1 1 auto;
+}
+
+.result-standalone:not(.result-legacy-standalone) .result-main > .result-setup-block {
+  grid-area: setup;
+}
+
+.result-standalone:not(.result-legacy-standalone) .result-main > .result-falsifier-card {
+  grid-area: falsifier;
+}
+
+.result-standalone:not(.result-legacy-standalone) .result-main > .result-block:not(.result-setup-block):not(.result-falsifier-card) {
+  grid-area: base;
+}
+
+.result-standalone:not(.result-legacy-standalone) .result-aside > .result-block:first-child {
+  grid-area: zones;
+}
+
+.result-standalone:not(.result-legacy-standalone) .result-aside > .result-block:nth-child(2) {
+  grid-area: glance;
+}
+
+.result-standalone .result-setup-block,
+.result-standalone .result-falsifier-card,
+.result-standalone .result-aside .result-block {
+  min-width: 0;
+}
+
+.result-standalone .result-setup-block .result-block-head {
+  border-bottom: 0;
+  margin-bottom: calc(var(--s2) * -1);
+}
+
+.result-standalone .result-panel,
+.result-standalone .result-abstain {
+  background: var(--surf);
+  border-color: var(--line);
+  border-radius: var(--r-lg);
+  color: var(--tx);
+}
+
+.result-standalone .result-panel .result-scenario-head {
+  border-bottom-color: var(--line-soft);
+}
+
+.result-standalone .result-panel .result-scenario-trigger,
+.result-standalone .result-panel .result-scenario-note {
+  color: var(--tx-2);
+}
+
+.result-standalone .result-panel .result-scenario-note {
+  border-top-color: var(--line-soft);
+}
+
+.result-standalone .result-panel .cell {
+  border-color: var(--line-soft);
+}
+
+.result-standalone .result-panel .cell .tnum,
+.result-standalone .result-panel b {
+  color: var(--tx);
+}
+
+.result-standalone .result-panel .lbl {
+  color: var(--tx-3);
+}
+
+/* Keep the six setup values in the same theme-aware card surface as the rest
+   of the standalone report. This overrides the generic analytical slab only
+   for the route report; the embedded Analyze/Workspace panel stays unchanged. */
+.result-standalone .result-panel .result-scenario-head,
+.result-standalone .result-panel .result-cells,
+.result-standalone .result-panel .result-scenario-note {
+  background: transparent;
+}
+
+.result-standalone .result-falsifier-card {
+  gap: var(--s2);
+}
+
+.result-standalone .result-chart-card {
+  padding-bottom: var(--s4);
+}
+
+.result-standalone .result-chart-card app-chart-image {
+  display: block;
+}
+
+.result-standalone .result-disc {
+  border-top: 1px solid var(--line);
+  margin-top: calc(var(--s2) * -1);
+  padding-top: var(--s5);
+}
+
+@media (max-width: 1024px) {
+  .result-standalone .result-body {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  }
+}
+
+@media (max-width: 900px) {
+  .result-standalone .result-body {
+    grid-template-areas: none;
+    grid-template-columns: 1fr;
+  }
+
+  /* :not(.result-legacy-standalone) matches the specificity of the
+     unconditional "display: contents" rule above (which the matrix layout
+     needs at wide viewports) so this reset actually wins here instead of
+     losing to it and leaving both columns collapsed onto stale grid-areas
+     that no longer exist once grid-template-areas is cleared above. */
+  .result-standalone:not(.result-legacy-standalone) .result-main,
+  .result-standalone:not(.result-legacy-standalone) .result-aside,
+  .result-standalone .result-main,
+  .result-standalone .result-aside {
+    display: flex;
+  }
+
+  .result-standalone:not(.result-legacy-standalone) .result-aside,
+  .result-standalone .result-aside {
+    display: grid;
+    gap: var(--s6);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .result-standalone .result-aside .result-block:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  /* .result.result-standalone (not .result-standalone) for the same reason as
+     the base rule above: the encapsulated component rule would otherwise win. */
+  .result.result-standalone .result-head-end {
+    align-items: flex-start;
+    flex-direction: row;
+    justify-content: flex-start;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .result-standalone .result-head-end .st,
+  .result-standalone .result-download {
+    align-self: flex-start;
+  }
+
+  .result-standalone .result-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .result-standalone .result-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .result-standalone .result-body,
+  .result-standalone .result-aside,
+  .result-standalone .result-main {
+    gap: var(--s5);
+  }
+
+  .result-standalone .result-aside {
+    display: flex;
+  }
+
+  .result-standalone:not(.result-legacy-standalone) .result-body {
+    grid-template-areas: none;
+  }
+
+  .result-standalone .result-summary-card,
+  .result-standalone .result-falsifier-card,
+  .result-standalone .result-chart-card {
+    padding: var(--s4);
+  }
+
+  .result-standalone .result-cells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .result-standalone .result-tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .result-standalone .result-cells {
+    grid-template-columns: 1fr;
+  }
+
+  .result-standalone .result-cells .cell {
+    border-left: 0;
+    border-top: 1px solid var(--slab-line);
+  }
+
+  .result-standalone .result-cells .cell:first-child {
+    border-top: 0;
+  }
+}

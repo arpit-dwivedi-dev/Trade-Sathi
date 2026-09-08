@@ -5,10 +5,28 @@
         <span class="brand-mark" aria-hidden="true"><app-icon name="candlestick_chart" /></span>
         <b>ChartAnalyzer</b>
       </a>
-      <a class="analysis-detail-back" routerLink="/app" [queryParams]="{ tab: 'history' }">
-        <app-icon aria-hidden="true" name="history" />
-        Back to history
-      </a>
+      <div class="analysis-detail-header-actions">
+        <a
+          class="analysis-detail-back"
+          routerLink="/app"
+          [queryParams]="{ tab: 'history' }"
+          aria-label="Back to history"
+          title="Back to history"
+        >
+          <app-icon aria-hidden="true" name="history" />
+        </a>
+        <button
+          pButton
+          type="button"
+          [text]="true"
+          class="analysis-detail-theme-toggle"
+          (click)="toggleTheme()"
+          [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+          [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+        >
+          <app-icon aria-hidden="true" [name]="theme() === 'dark' ? 'light_mode' : 'dark_mode'" />
+        </button>
+      </div>
     </div>
   </header>
 
@@ -29,17 +47,23 @@
         </button>
       </div>
     } @else if (detail(); as loaded) {
-      <header class="analysis-detail-title">
-        <div>
-          <span class="analysis-detail-eyebrow">Analysis result</span>
-          <h1>{{ loaded.row.symbol ?? loaded.row.symbol_raw ?? 'Unknown symbol' }}</h1>
-          <p>
-            {{ loaded.row.source === 'fundamentals' ? 'Fundamentals' : loaded.row.source === 'live' ? 'Live chart' : loaded.row.source === 'watchlist_daily' ? 'Daily briefing' : 'Chart analysis' }}
-            · {{ loaded.row.created_at | date: 'd MMM yyyy, HH:mm' }}
-          </p>
-        </div>
-        <span class="st st-{{ loaded.row.status }}">{{ loaded.row.status }}</span>
-      </header>
+      @if (loaded.row.source === 'fundamentals' || loaded.row.status !== 'complete') {
+        <header class="analysis-detail-title">
+          <div>
+            <span class="analysis-detail-eyebrow">Analysis result</span>
+            <h1>{{ loaded.row.symbol ?? loaded.row.symbol_raw ?? 'Unknown symbol' }}</h1>
+            <p>
+              {{ loaded.row.source === 'fundamentals' ? 'Fundamentals' : loaded.row.source === 'live' ? 'Live chart' : loaded.row.source === 'watchlist_daily' ? 'Daily briefing' : 'Chart analysis' }}
+              · {{ loaded.row.created_at | date: 'd MMM yyyy, HH:mm' }}
+            </p>
+          </div>
+          <span class="st st-{{ loaded.row.status }}">{{ loaded.row.status }}</span>
+        </header>
+      }
+
+      @if (downloadError()) {
+        <p class="analysis-detail-download-error" role="alert">{{ downloadError() }}</p>
+      }
 
       @if (loaded.row.status === 'queued' || loaded.row.status === 'processing') {
         <section class="analysis-detail-pending" role="status" aria-live="polite">
@@ -52,7 +76,13 @@
       } @else if (loaded.row.source === 'fundamentals') {
         <app-fundamentals-analysis-result [row]="loaded.row" />
       } @else {
-        <app-analysis-result [row]="loaded.row" [patterns]="loaded.patterns" />
+        <app-analysis-result
+          [row]="loaded.row"
+          [patterns]="loaded.patterns"
+          [standalone]="true"
+          [downloadBusy]="downloadBusy()"
+          (downloadRequested)="download()"
+        />
       }
     }
   </section>

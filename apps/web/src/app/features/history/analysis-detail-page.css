@@ -1,3 +1,7 @@
+:host {
+  display: block;
+}
+
 .analysis-detail-page {
   background: var(--ground);
   color: var(--tx);
@@ -6,9 +10,9 @@
 }
 
 .analysis-detail-header {
-  background: color-mix(in srgb, var(--surf) 92%, transparent);
+  background: var(--surf);
   border-bottom: 1px solid var(--line);
-  padding: var(--s4) var(--s6);
+  padding: 14px clamp(20px, 4vw, 64px);
 }
 
 .analysis-detail-header-inner {
@@ -17,40 +21,69 @@
   gap: var(--s4);
   justify-content: space-between;
   margin: 0 auto;
-  max-width: 76rem;
+  max-width: 1240px;
 }
 
 .analysis-detail-brand {
   font-size: var(--t-lg);
 }
 
+.analysis-detail-header-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--s3);
+}
+
+/* Both icon buttons in the header share one box model — same square hit
+   area, same hover/active feedback — so the history link (a plain <a>, not
+   a pButton) reads as the same kind of control as the theme toggle next to
+   it instead of a smaller, inert-looking icon. */
+.analysis-detail-theme-toggle,
 .analysis-detail-back {
   align-items: center;
+  border-radius: var(--r-sm);
   color: var(--tx-2);
   display: inline-flex;
-  font-size: var(--t-sm);
-  gap: var(--s2);
+  height: 36px;
+  justify-content: center;
+  padding: 0;
   text-decoration: none;
+  transition:
+    background var(--dur-subtle) var(--ease-move),
+    color var(--dur-subtle) var(--ease-move);
+  width: 36px;
 }
 
-.analysis-detail-back:hover {
-  color: var(--acc-tx);
-}
-
-.analysis-detail-back:focus-visible {
-  border-radius: var(--r-sm);
-  outline: 2px solid var(--acc);
-  outline-offset: 3px;
-}
-
+.analysis-detail-theme-toggle app-icon,
 .analysis-detail-back app-icon {
-  height: 16px;
-  width: 16px;
+  height: 18px;
+  width: 18px;
+}
+
+.analysis-detail-theme-toggle:hover,
+.analysis-detail-back:hover {
+  background: var(--bg-hover);
+  color: var(--tx);
+}
+
+.analysis-detail-theme-toggle:active,
+.analysis-detail-back:active {
+  background: var(--line);
+}
+
+.analysis-detail-theme-toggle:focus-visible,
+.analysis-detail-back:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .analysis-detail-content {
+  display: flex;
+  flex-direction: column;
   gap: var(--s6);
-  padding: var(--s8) var(--s6) var(--s12);
+  margin: 0 auto;
+  max-width: 1240px;
+  padding: clamp(28px, 4vw, 48px) clamp(20px, 4vw, 48px) 64px;
 }
 
 .analysis-detail-title {
@@ -84,6 +117,16 @@
   margin: 0;
 }
 
+.analysis-detail-download-error {
+  background: color-mix(in srgb, var(--down) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--down) 25%, transparent);
+  border-radius: var(--r-md);
+  color: var(--down);
+  font-size: var(--t-sm);
+  margin: calc(var(--s3) * -1) 0 0;
+  padding: var(--s3) var(--s4);
+}
+
 .analysis-detail-state {
   align-items: center;
   display: flex;
@@ -111,7 +154,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--s3);
-  padding: var(--s6);
+  padding: clamp(var(--s5), 4vw, var(--s8));
 }
 
 .analysis-detail-pending h2 {
@@ -132,6 +175,11 @@
   .analysis-detail-title {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .analysis-detail-header-actions {
+    align-self: stretch;
+    justify-content: space-between;
   }
 
   .analysis-detail-content {

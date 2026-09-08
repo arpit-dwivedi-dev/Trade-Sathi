@@ -17,6 +17,20 @@
   width: 100%;
 }
 
+/* Full report figures get a deeper matte and more vertical room. The image
+   remains contained so an uploaded screenshot is never cropped or distorted. */
+.chart-image:not(.chart-image-compact) .chart-image-img {
+  background: var(--surf-2);
+  border-color: var(--line);
+  border-radius: var(--r-md);
+  max-height: 720px;
+  padding: clamp(8px, 1.2vw, 16px);
+}
+
+.chart-image-priority .chart-image-img {
+  content-visibility: auto;
+}
+
 .chart-image-skel {
   border-radius: var(--r-md);
   height: 260px;

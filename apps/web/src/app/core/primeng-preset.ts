@@ -174,13 +174,24 @@ const components = {
       color: 'var(--acc-tx)',
     },
   },
+  /* Colors nested under colorScheme for the same reason as togglebutton
+     above: Aura's own chip.colorScheme.light/dark.root.background
+     ({surface.100}/{surface.800}) otherwise wins over a flat root override,
+     which is why these pills rendered as a near-black surface regardless of
+     the app's own light/dark state. */
   chip: {
     root: {
       borderRadius: 'var(--r-sm)',
       paddingX: 'var(--s3)',
       paddingY: '4px',
-      background: 'var(--surf-2)',
-      color: 'var(--text-main)',
+    },
+    colorScheme: {
+      light: {
+        root: { background: 'var(--surf-2)', color: 'var(--text-main)' },
+      },
+      dark: {
+        root: { background: 'var(--surf-2)', color: 'var(--text-main)' },
+      },
     },
   },
   checkbox: {

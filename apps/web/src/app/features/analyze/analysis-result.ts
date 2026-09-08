@@ -1,10 +1,14 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
-import { Component, computed, effect, input } from '@angular/core';
+import { DatePipe, DecimalPipe, UpperCasePipe } from '@angular/common';
+import { Component, computed, effect, input, output } from '@angular/core';
+import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ChipModule } from 'primeng/chip';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import type { AnalysisResult as Analysis, AnalysisScenario } from '@chartanalyzer/shared';
 
 import { ChartImage } from '../../shared/chart-image';
+import { TimeframeLabelPipe } from '../../shared/timeframe-label.pipe';
+import { AppIcon } from '../../shared/icons/app-icon';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
 
 /** Exported because fundamentals-analysis-result.ts (the Fundamentals tab's
@@ -77,13 +81,27 @@ interface Tile {
  */
 @Component({
   selector: 'app-analysis-result',
-  imports: [ChartImage, DatePipe, DecimalPipe, CardModule, ChipModule],
+  imports: [
+    AppIcon,
+    ButtonModule,
+    CardModule,
+    ChartImage,
+    ChipModule,
+    DatePipe,
+    DecimalPipe,
+    ProgressSpinnerModule,
+    TimeframeLabelPipe,
+    UpperCasePipe,
+  ],
   templateUrl: './analysis-result.html',
   styleUrl: './analysis-result.css',
 })
 export class AnalysisResult {
   readonly row = input.required<AnalysisRow>();
   readonly patterns = input<AnalysisPattern[]>([]);
+  readonly standalone = input(false);
+  readonly downloadBusy = input(false);
+  readonly downloadRequested = output<void>();
 
   protected readonly failed = computed(() => this.row().status === 'failed');
 
