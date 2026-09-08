@@ -141,7 +141,7 @@
   flex-direction: column;
   gap: var(--s2);
   grid-area: tools;
-  overflow-y: auto;
+  /* overflow-y: auto; */
   padding: var(--s3) var(--s2);
 }
 

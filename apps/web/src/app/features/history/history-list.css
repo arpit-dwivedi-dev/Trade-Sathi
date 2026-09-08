@@ -1,18 +1,7 @@
-/* The page itself scrolls — the table does not own a scrollbox of its own.
-   Pinning this section to `calc(100vh - var(--top-h))` and giving the table
-   wrapper `overflow: auto` inside it produced the one thing a data table must
-   never do: the wrapper's bottom edge fell wherever the viewport happened to
-   end, so the last row on screen sat permanently sliced in half against it,
-   with no page scrollbar anywhere to explain why. Letting the list run at its
-   natural height inside .body — the shell's one scrolling column — gives the
-   list a real end instead: scroll down and you reach the last row whole, then
-   the end-of-list line, then the page's own bottom padding. The column
-   headings lose nothing by it; they stay put via matHeaderRowDef's own
-   `sticky: true`, which pins them against .body's scrollport.
-
-   The loading skeleton above the table is still the hand-rolled .tbl/.tr grid
-   (mat-table only exists once real rows are being rendered) and keeps its own
-   max-height — at four rows it never reaches it. */
+/* The shell's `.body` is the only scrollport for History. Keeping the table
+   at its natural height lets the page reach every row, while PrimeNG's
+   `<thead>` sticks directly below the topbar as the page scrolls. The loading
+   skeleton remains the hand-rolled `.tbl`/`.tr` grid until real rows exist. */
 
 /* Tighter padding than the default page body — a 900px-min table wants every
    column it can get. The sticky-header offset below is tied to the inline
@@ -22,39 +11,17 @@
   padding: var(--s4) var(--s4) var(--s12);
 }
 
-/* overflow-y stays `clip` rather than `hidden`: both round the corners over
-   the table's own square edges, but `hidden` would make this a scroll
-   container on BOTH axes and capture the sticky header, re-creating the
-   clipped-row problem one level down. `clip` does not scroll, so the header
-   keeps sticking to the page.
-
-   overflow-x is `auto` — unconditionally, not just under the narrow-screen
-   breakpoint below. The old max-width:900px cutover assumed the *viewport*
-   was the constraint, but the real constraint is the content column left
-   over after the --nav-w sidebar, which is narrower than the viewport by up
-   to 264px. Between roughly 900px and 1230px wide, that left the table's
-   own min-width wider than the available space with nowhere for the excess
-   to go: `clip` on both axes simply erased the Status/Actions columns with
-   no scrollbar to reach them. Setting only overflow-x does not trigger the
-   usual "visible forces the other axis to auto" coercion, because neither
-   axis here is `visible` — so vertical stays non-scrolling (page-level
-   scroll, sticky header intact) while horizontal gets a real escape valve at
-   every viewport width, not just the phone-width case. */
-/* flex-shrink: 0 — .body is a flex column with a fixed viewport height, and
-   a flex item's default min-height is `auto`... except this one has no
-   min-content floor of its own (a table can shrink arbitrarily), so without
-   this the wrap would compress to whatever space .body has left instead of
-   staying at the table's real height. That let .body's own scrollHeight
-   equal its clientHeight — nothing to scroll to — while overflow-y: clip
-   silently ate the rows that no longer fit. */
+/* flex-shrink: 0 keeps the table card at its natural height inside the
+   shell's scrolling flex column. Its 900px minimum lets the page body expose
+   the complete wide table horizontally on narrower content columns. */
 .history-table-wrap {
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--sh-1);
   flex-shrink: 0;
-  overflow-x: auto;
-  overflow-y: clip;
+  min-width: 900px;
+  overflow: visible;
 }
 
 /* Fixed layout with declared column widths, so the columns do not re-measure
@@ -72,6 +39,24 @@
   min-width: 900px;
   table-layout: fixed;
   width: 100%;
+}
+
+/* PrimeNG adds an inline overflow:auto to this container even when the table
+   is not configured with a bounded scroll height. Remove that nested scroll
+   context so the shell's `.body` remains the sticky header's scrollport. */
+.history-table ::ng-deep .p-datatable-table-container {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* PrimeNG places position:sticky on thead. Keep the whole two-row header as
+   the one sticky element; making individual cells sticky as well lets body
+   rows paint through the gaps in Chromium's table layout. */
+.history-table ::ng-deep .p-datatable-thead {
+  background: var(--surf-2);
+  position: sticky !important;
+  top: calc(-1 * var(--s4));
+  z-index: 31;
 }
 
 /* PrimeNG's Table renders a plain <table> here (no [scrollable] wrapper),
@@ -94,23 +79,37 @@
   font-size: var(--t-2xs);
   font-weight: 600;
   letter-spacing: 0.05em;
+  position: static;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
-/* No CdkTable here to write its own sticky styles, so the header is pinned by
-   hand: `position: sticky` against .body — the page's own scrollport, since
-   .history-table-wrap below deliberately does not own a vertical scrollbox
-   (see the comment on it). A sticky offset resolves against the scroll
-   container's *content* box, which here is .body's own top padding below the
-   topbar, so without this the header would park var(--s4) low and rows would
-   scroll through the visible band above it. Pulling it up by exactly that
-   padding parks it flush under the topbar, so a row passes out of sight under
-   the header and nowhere else. */
-.history-table th {
-  position: sticky;
-  top: calc(-1 * var(--s4));
-  z-index: 1;
+.history-table thead tr:first-child th:first-child {
+  border-top-left-radius: var(--r-lg);
+}
+
+.history-table thead tr:first-child th:last-child {
+  border-top-right-radius: var(--r-lg);
+}
+
+.history-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: var(--r-lg);
+}
+
+.history-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: var(--r-lg);
+}
+
+/* The filter row is a toolbar rather than a column-label row, so keep it
+   readable and let the controls determine its height. Both rows stay opaque
+   while the thead is sticky, masking body rows underneath. */
+.history-filter-cell {
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.history-filter-row .history-filter-cell {
+  border-bottom-color: var(--line-soft);
 }
 
 .history-table td {
@@ -287,9 +286,8 @@
 }
 
 /* The expanded report is inset on a recessed ground so it reads as contained
-   by its row rather than as the next row along. Fades and settles in — this
-   is content genuinely entering the page (matRowDef's `when` predicate keeps
-   it out of the DOM entirely until expanded), not just a style toggle. */
+   by its row rather than as the next row along. Fades and settles in — this is
+   content genuinely entering the page, not just a style toggle. */
 .history-detail {
   animation: history-detail-in var(--dur-screen) var(--ease-enter);
   background: var(--surf-2);

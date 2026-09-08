@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import {
   Component,
   ElementRef,
@@ -42,6 +43,7 @@ import {
 @Component({
   selector: 'app-history-list',
   imports: [
+    NgTemplateOutlet,
     AnalysisResult,
     FundamentalsAnalysisResultComponent,
     ChartImage,

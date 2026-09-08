@@ -1,23 +1,31 @@
 <section class="body content-max history">
-  <!-- Filter and row count on one line. The count used to own a row of its
-       own above this, which spent a whole band of the page on two words. -->
-  <div class="history-head">
-    <!-- Provenance filter. Uploads, live runs and briefings were one
-         undifferentiated list, so a user who wanted "what did my briefing
-         send me" had to open rows one at a time to find out. -->
-    <p-selectButton class="seg" aria-label="Filter by source"
-                     [options]="sourceFilters" optionLabel="label" optionValue="value"
-                     [ngModel]="sourceFilter()" (onChange)="selectSource($event.value)" />
+  <!-- The toolbar is part of the table header when rows exist, so the source
+       filter and count stay with the sticky column headings. During loading or
+       an empty/error state there is no table to host it, so the same toolbar
+       stays above that state instead. -->
+  <ng-template #historyToolbar>
+    <div class="history-head">
+      <!-- Provenance filter. Uploads, live runs and briefings were one
+           undifferentiated list, so a user who wanted "what did my briefing
+           send me" had to open rows one at a time to find out. -->
+      <p-selectButton class="seg" aria-label="Filter by source"
+                       [options]="sourceFilters" optionLabel="label" optionValue="value"
+                       [ngModel]="sourceFilter()" (onChange)="selectSource($event.value)" />
 
-    @if (!loading() && rows().length) {
-      <span class="history-head-trailing">
-        <span class="history-count">
-          <span class="tnum">{{ rows().length }}</span>
-          <span class="lbl">shown</span>
+      @if (!loading() && rows().length) {
+        <span class="history-head-trailing">
+          <span class="history-count">
+            <span class="tnum">{{ rows().length }}</span>
+            <span class="lbl">shown</span>
+          </span>
         </span>
-      </span>
-    }
-  </div>
+      }
+    </div>
+  </ng-template>
+
+  @if (loading() || rows().length === 0) {
+    <ng-container [ngTemplateOutlet]="historyToolbar" />
+  }
 
   @if (deleteError()) {
     <p class="err" role="alert">{{ deleteError() }}</p>
@@ -65,8 +73,23 @@
   } @else {
     <div class="history-table-wrap">
       <p-table [value]="tableRows()" [dataKey]="'id'" styleClass="history-table">
+        <ng-template #colgroup>
+          <col class="col-logo" />
+          <col class="col-symbol" />
+          <col class="col-structure" />
+          <col class="col-setup" />
+          <col class="col-tf" />
+          <col class="col-analyzed" />
+          <col class="col-status" />
+          <col class="col-actions" />
+        </ng-template>
         <ng-template #header>
-          <tr>
+          <tr class="history-filter-row">
+            <th class="history-filter-cell" [attr.colspan]="columns.length">
+              <ng-container [ngTemplateOutlet]="historyToolbar" />
+            </th>
+          </tr>
+          <tr class="history-columns-row">
             <!-- Bare icon column, no header label — the column exists only so
                  the logo isn't competing with the ticker/company text for the
                  same cell. -->
