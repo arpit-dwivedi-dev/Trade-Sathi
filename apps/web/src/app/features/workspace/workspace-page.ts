@@ -164,6 +164,9 @@ export class WorkspacePage implements OnInit, OnDestroy {
   /** True while this screen (not the whole document) is Fullscreen-API-fullscreen. */
   protected readonly isFullscreen = signal(false);
 
+  /** The drawings rail starts open, but can give the chart more room on demand. */
+  protected readonly drawingsPanelOpen = signal(true);
+
   private readonly toolPopover = viewChild<Popover>('toolPopover');
   /** Which tool-rail group's flyout is open — read by the one shared popover template. */
   protected readonly openToolGroup = signal<ToolGroup | null>(null);
@@ -598,6 +601,10 @@ export class WorkspacePage implements OnInit, OnDestroy {
 
   protected onSelectDrawing(id: string | null): void {
     this.selectedDrawingId.set(id);
+  }
+
+  protected toggleDrawingsPanel(): void {
+    this.drawingsPanelOpen.update((open) => !open);
   }
 
   protected deleteDrawing(id: string): void {

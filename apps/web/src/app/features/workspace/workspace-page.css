@@ -34,6 +34,12 @@
   overflow: hidden;
 }
 
+/* Closing the drawings panel keeps a narrow icon rail in the grid, rather than
+   removing the side entirely — drawings remain discoverable and removable. */
+.ws-shell.ws-drawings-collapsed {
+  grid-template-columns: 52px 1fr 52px;
+}
+
 /* The Fullscreen API sizes its target to the screen on its own in most
    browsers, but a couple leave sizing to the page — explicit here so the
    shell never renders smaller than the screen it was asked to fill. The card
@@ -329,9 +335,20 @@
 .ws-side {
   background: var(--surf);
   border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
   grid-area: side;
+  min-width: 0;
   overflow-y: auto;
   padding: var(--s4);
+}
+
+.ws-side-head {
+  align-items: center;
+  display: flex;
+  flex: none;
+  justify-content: space-between;
+  margin-block-end: var(--s3);
 }
 
 .ws-side-title {
@@ -339,8 +356,44 @@
   font-size: var(--t-xs);
   font-weight: 600;
   letter-spacing: 0.04em;
-  margin-block-end: var(--s3);
+  margin: 0;
   text-transform: uppercase;
+}
+
+.ws-side-toggle {
+  align-items: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-xs);
+  color: var(--tx-3);
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  width: 28px;
+}
+
+.ws-side-toggle app-icon {
+  font-size: 17px;
+  height: 17px;
+  width: 17px;
+}
+
+.ws-side-toggle:hover {
+  background: var(--surf-3);
+  color: var(--tx);
+}
+
+.ws-side-toggle:focus-visible,
+.ws-drawing-delete:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.ws-side-content {
+  min-width: 0;
 }
 
 .ws-side-empty {
@@ -354,16 +407,23 @@
   flex-direction: column;
   gap: var(--s1);
   list-style: none;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+  width: 100%;
 }
 
 .ws-drawing-list li {
   align-items: center;
   border-radius: var(--r-sm);
+  box-sizing: border-box;
   display: flex;
   font-size: var(--t-xs);
   gap: var(--s2);
   justify-content: space-between;
-  padding: var(--s2) var(--s2);
+  min-width: 0;
+  padding: var(--s2);
+  width: 100%;
 }
 
 .ws-drawing-list li:hover {
@@ -372,6 +432,10 @@
 
 .ws-drawing-selected {
   background: var(--acc-soft);
+}
+
+.ws-drawing-list li > .trunc {
+  min-width: 0;
 }
 
 .ws-drawing-delete {
@@ -383,15 +447,93 @@
   cursor: pointer;
   display: flex;
   flex: none;
-  height: 20px;
+  height: 24px;
   justify-content: center;
   padding: 0;
-  width: 20px;
+  width: 24px;
+}
+
+.ws-drawing-delete app-icon {
+  font-size: 15px;
+  height: 15px;
+  width: 15px;
 }
 
 .ws-drawing-delete:hover {
   background: var(--surf-2);
   color: var(--down);
+}
+
+/* The closed panel is an icon rail. Its delete buttons stay in the layout so
+   hover/focus can reveal an X without moving the drawing icon underneath. */
+.ws-side-collapsed {
+  align-items: center;
+  padding: var(--s3) var(--s2);
+}
+
+.ws-side-collapsed .ws-side-head {
+  flex-direction: column;
+  gap: var(--s2);
+  margin-block-end: var(--s3);
+}
+
+.ws-side-collapsed .ws-side-title {
+  font-size: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.ws-side-collapsed .ws-side-toggle {
+  order: -1;
+}
+
+.ws-side-collapsed .ws-drawing-list {
+  align-items: center;
+  gap: var(--s2);
+}
+
+.ws-side-collapsed .ws-drawing-list li {
+  color: var(--tx-2);
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  width: 36px;
+}
+
+.ws-side-collapsed .ws-drawing-list li > app-icon {
+  font-size: 18px;
+  height: 18px;
+  width: 18px;
+}
+
+.ws-side-collapsed .ws-drawing-selected {
+  color: var(--acc);
+}
+
+.ws-side-collapsed .ws-drawing-delete {
+  background: var(--surf-2);
+  color: var(--down);
+  height: 20px;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  transition: opacity var(--dur-subtle) var(--ease-move);
+  width: 20px;
+}
+
+.ws-side-collapsed .ws-drawing-list li:hover .ws-drawing-delete,
+.ws-side-collapsed .ws-drawing-list li:focus-within .ws-drawing-delete {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ws-side-collapsed .ws-drawing-delete app-icon {
+  font-size: 13px;
+  height: 13px;
+  width: 13px;
 }
 
 /* ── AI analysis ─────────────────────────────────────── */
@@ -417,10 +559,33 @@
     grid-template-rows: auto 1fr auto;
   }
 
+  /* The side panel moves below the chart on narrow screens, so its closed
+     icon rail must keep the same two-column shell geometry. */
+  .ws-shell.ws-drawings-collapsed {
+    grid-template-columns: 44px 1fr;
+  }
+
   .ws-side {
     border-left: 0;
     border-top: 1px solid var(--line);
     max-height: 180px;
+  }
+
+  .ws-side.ws-side-collapsed {
+    align-items: stretch;
+    flex-direction: row;
+    max-height: 64px;
+    padding: var(--s2) var(--s3);
+  }
+
+  .ws-side-collapsed .ws-side-head {
+    flex-direction: row;
+    margin: 0 var(--s3) 0 0;
+  }
+
+  .ws-side-collapsed .ws-drawing-list {
+    flex-direction: row;
+    overflow-x: auto;
   }
 
   .ws-timeframes {

@@ -1,7 +1,12 @@
 <!-- Wrapped in the shell's own .body so this tab sits on the same padded
      canvas as Live and Chart Image Analysis; .ws-shell is then the card on it. -->
 <section class="body workspace">
-  <div class="ws-shell" #shell [class.ws-fullscreen]="isFullscreen()">
+  <div
+    class="ws-shell"
+    #shell
+    [class.ws-fullscreen]="isFullscreen()"
+    [class.ws-drawings-collapsed]="!drawingsPanelOpen()"
+  >
     <header class="ws-topbar">
       @if (instrument(); as picked) {
         <span class="ws-ident">
@@ -189,19 +194,66 @@
     </main>
 
     @if (instrument()) {
-      <aside class="ws-side" aria-label="Drawings">
-        <h2 class="ws-side-title">Drawings</h2>
-        @if (drawings().length === 0) {
-          <p class="ws-side-empty">Nothing drawn yet. Pick a tool on the left and click the chart.</p>
+      <aside
+        id="ws-drawings-panel"
+        class="ws-side"
+        [class.ws-side-collapsed]="!drawingsPanelOpen()"
+        aria-label="Drawings"
+      >
+        <header class="ws-side-head">
+          <h2 class="ws-side-title">Drawings</h2>
+          <button
+            type="button"
+            class="ws-side-toggle"
+            (click)="toggleDrawingsPanel()"
+            [attr.aria-expanded]="drawingsPanelOpen()"
+            aria-controls="ws-drawings-panel-content"
+            [title]="drawingsPanelOpen() ? 'Close drawings panel' : 'Open drawings panel'"
+            [attr.aria-label]="drawingsPanelOpen() ? 'Close drawings panel' : 'Open drawings panel'"
+          >
+            <app-icon aria-hidden="true" [name]="drawingsPanelOpen() ? 'left_panel_close' : 'left_panel_open'" />
+          </button>
+        </header>
+
+        @if (drawingsPanelOpen()) {
+          <div id="ws-drawings-panel-content" class="ws-side-content">
+            @if (drawings().length === 0) {
+              <p class="ws-side-empty">Nothing drawn yet. Pick a tool on the left and click the chart.</p>
+            } @else {
+              <ul class="ws-drawing-list">
+                @for (drawing of drawings(); track drawing.id) {
+                  <li [class.ws-drawing-selected]="selectedDrawingId() === drawing.id">
+                    <span class="trunc">{{ drawingLabel(drawing) }}</span>
+                    <button
+                      type="button"
+                      class="ws-drawing-delete"
+                      (click)="deleteDrawing(drawing.id)"
+                      [title]="'Delete ' + drawingLabel(drawing)"
+                      [attr.aria-label]="'Delete ' + drawingLabel(drawing)"
+                    >
+                      <app-icon aria-hidden="true" name="close" />
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
         } @else {
-          <ul class="ws-drawing-list">
+          <ul id="ws-drawings-panel-content" class="ws-drawing-list ws-drawing-list-collapsed">
             @for (drawing of drawings(); track drawing.id) {
-              <li [class.ws-drawing-selected]="selectedDrawingId() === drawing.id">
-                <span class="trunc">{{ drawingLabel(drawing) }}</span>
-                <button type="button" class="ws-drawing-delete" (click)="deleteDrawing(drawing.id)" title="Delete" aria-label="Delete drawing">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" aria-hidden="true">
-                    <path d="M18 6 6 18M6 6l12 12" />
-                  </svg>
+              <li
+                [class.ws-drawing-selected]="selectedDrawingId() === drawing.id"
+                [title]="drawingLabel(drawing)"
+              >
+                <app-icon aria-hidden="true" [name]="toolIcon(drawing.kind)" />
+                <button
+                  type="button"
+                  class="ws-drawing-delete"
+                  (click)="deleteDrawing(drawing.id); $event.stopPropagation()"
+                  [title]="'Delete ' + drawingLabel(drawing)"
+                  [attr.aria-label]="'Delete ' + drawingLabel(drawing)"
+                >
+                  <app-icon aria-hidden="true" name="close" />
                 </button>
               </li>
             }
