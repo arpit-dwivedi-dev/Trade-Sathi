@@ -1,79 +1,127 @@
 <section class="body content-max logs">
-  @if (error(); as err) {
-    <p class="err" role="alert">{{ err }}</p>
+  <!-- Same pattern as History: the toolbar lives in the table header when rows
+       exist, and above the state message otherwise. -->
+  <ng-template #logsToolbar>
+    <div class="logs-head">
+      <p-selectButton class="seg" aria-label="Filter by activity type"
+                      [options]="typeFilters" optionLabel="label" optionValue="value"
+                      [ngModel]="typeFilter()" (onChange)="selectType($event.value)" />
+
+      @if (!loading() && visibleRows().length) {
+        <span class="logs-head-trailing">
+          <span class="logs-count">
+            <span class="tnum">{{ visibleRows().length }}</span>
+            <span class="lbl">shown</span>
+          </span>
+        </span>
+      }
+    </div>
+  </ng-template>
+
+  @if (loading() || visibleRows().length === 0) {
+    <ng-container [ngTemplateOutlet]="logsToolbar" />
+  }
+
+  @if (error()) {
+    <p class="err" role="alert">{{ error() }}</p>
   }
 
   @if (loading()) {
-    <p class="logs-state"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading your logs…</p>
+    <div class="tbl" aria-busy="true">
+      <div class="tr tr-h">
+        <span>Type</span><span>Detail</span><span>Amount</span>
+        <span>Status</span><span>Date</span>
+      </div>
+      @for (placeholder of [1, 2, 3, 4]; track placeholder) {
+        <div class="tr">
+          <span class="skel logs-skel"></span>
+          <span class="skel logs-skel"></span>
+          <span class="skel logs-skel"></span>
+          <span class="skel logs-skel"></span>
+          <span class="skel logs-skel"></span>
+        </div>
+      }
+    </div>
+  } @else if (error() && visibleRows().length === 0) {
+    <p-card class="logs-empty" role="alert">
+      <span class="st st-failed">Couldn't load</span>
+      <p class="logs-msg">{{ error() }}</p>
+    </p-card>
+  } @else if (visibleRows().length === 0) {
+    <p-card class="logs-empty logs-empty-first">
+      <span class="logs-empty-icon" aria-hidden="true">
+        <app-icon name="history" />
+      </span>
+      <h2 class="logs-empty-title">No activity yet</h2>
+      <p class="logs-msg">
+        Payments, subscription changes, credit movements and background failures will
+        appear here as they happen.
+      </p>
+    </p-card>
   } @else {
-    <p-card class="logs-card">
-      <div class="hd">
-        <span class="lbl-h">Scheduled briefings</span>
-        <span class="lbl">Toggle + Run-at time</span>
-      </div>
-      @if (briefingLog().length === 0) {
-        <p class="logs-empty">No scheduled runs yet.</p>
-      } @else {
-        <ul class="logs-list">
-          @for (row of briefingLog(); track row.id) {
-            <li class="logs-row">
-              @if (row.status === 'processing') {
-                <p-progress-spinner [style]="{width:'14px',height:'14px'}" strokeWidth="4" aria-hidden="true" />
-              }
-              <span class="logs-time">{{ briefingTimeLabel(row) }}</span>
-              <span class="logs-date">{{ row.briefing_date }}</span>
-              <span class="logs-status" [class.logs-status-fail]="briefingIsFailure(row)">
-                {{ briefingStatusLabel(row) }}
+    <div class="logs-table-wrap">
+      <p-table [value]="visibleRows()" [dataKey]="'id'">
+        <ng-template #colgroup>
+          <col class="col-kind" />
+          <col class="col-detail" />
+          <col class="col-amount" />
+          <col class="col-status" />
+          <col class="col-date" />
+        </ng-template>
+        <ng-template #header>
+          <tr class="logs-filter-row">
+            <th class="logs-filter-cell" colspan="5">
+              <ng-container [ngTemplateOutlet]="logsToolbar" />
+            </th>
+          </tr>
+          <tr class="logs-columns-row">
+            <th class="col-kind">Type</th>
+            <th class="col-detail">Detail</th>
+            <th class="col-amount">Amount</th>
+            <th class="col-status">Status</th>
+            <th class="col-date">Date</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-row>
+          <tr class="logs-row">
+            <td class="col-kind">
+              <span class="logs-kind">
+                <span class="logs-kind-icon" [class.logs-kind-icon-error]="row.kind === 'error'">
+                  <app-icon [name]="kindIcon(row.kind)" aria-hidden="true" />
+                </span>
+                <span class="logs-kind-label">{{ kindLabel(row.kind) }}</span>
               </span>
-            </li>
-          }
-        </ul>
-      }
-    </p-card>
+            </td>
 
-    <p-card class="logs-card">
-      <div class="hd">
-        <span class="lbl-h">Manual runs</span>
-        <span class="lbl">Analyze now / Brief now</span>
-      </div>
-      @if (watchlistRuns().length === 0) {
-        <p class="logs-empty">No manual runs yet.</p>
-      } @else {
-        <ul class="logs-list">
-          @for (row of watchlistRuns(); track row.id) {
-            <li class="logs-row">
-              @if (row.status === 'processing' || row.status === 'queued') {
-                <p-progress-spinner [style]="{width:'14px',height:'14px'}" strokeWidth="4" aria-hidden="true" />
+            <!-- Errors carry a free-text message; everything else has a short
+                 product-style title. The message needs to wrap, so it is not
+                 ellipsized. -->
+            <td class="col-detail">
+              @if (row.kind === 'error') {
+                <span class="logs-detail-error">{{ row.title }}</span>
+              } @else {
+                <span class="logs-detail">{{ row.title }}</span>
               }
-              <span class="sym logs-sym">{{ runSymbol(row) }}</span>
-              <span class="logs-date">{{ formatTimestamp(row.created_at) }}</span>
-              <span class="logs-status" [class.logs-status-fail]="row.status === 'failed'">
-                {{ runStatusLabel(row) }}
-              </span>
-            </li>
-          }
-        </ul>
-      }
-    </p-card>
+            </td>
 
-    <p-card class="logs-card">
-      <div class="hd">
-        <span class="lbl-h">Errors</span>
-        <span class="lbl">Background failures</span>
-      </div>
-      @if (errorLog().length === 0) {
-        <p class="logs-empty">No errors recorded. Good sign.</p>
-      } @else {
-        <ul class="logs-list logs-list-errors">
-          @for (row of errorLog(); track row.id) {
-            <li class="logs-row logs-row-error">
-              <p-chip class="logs-category">{{ categoryLabel(row.category) }}</p-chip>
-              <span class="logs-message">{{ row.message }}</span>
-              <span class="logs-date">{{ formatTimestamp(row.created_at) }}</span>
-            </li>
-          }
-        </ul>
+            <td class="col-amount tnum">
+              {{ amountLabel(row) }}
+            </td>
+
+            <td class="col-status">
+              <span class="st {{ row.statusClass }}">{{ row.status }}</span>
+            </td>
+
+            <td class="col-date tnum">
+              {{ formatTimestamp(row.createdAt) }}
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      @if (rows().length >= 50) {
+        <p class="logs-end">Showing the most recent 50 events.</p>
       }
-    </p-card>
+    </div>
   }
 </section>
