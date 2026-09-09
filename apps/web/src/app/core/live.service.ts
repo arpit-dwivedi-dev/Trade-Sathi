@@ -69,6 +69,9 @@ export class LiveService {
       if (status === 502 || status === 404) {
         return { ok: false, message: 'Market data is unavailable for this symbol right now.' };
       }
+      if (status === 401) {
+        return { ok: false, message: 'Your session expired. Please sign in again.' };
+      }
       return { ok: false, message: 'Could not load chart data. Please try again.' };
     }
   }

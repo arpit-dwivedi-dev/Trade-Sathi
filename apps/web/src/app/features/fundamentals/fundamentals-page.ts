@@ -126,8 +126,12 @@ export class FundamentalsPage implements OnDestroy {
   protected readonly annualMetric = signal<AnnualMetric>('revenue');
   protected readonly summaryOpen = signal(false);
 
-  /** The symbol a load is in flight for, so a stale response can be dropped. */
-  private pendingInstrumentId: string | null = null;
+  /**
+   * Bumped on every load() call so a stale response can be dropped even when
+   * it is for the same instrument id as the request that superseded it (the
+   * same symbol can be selected twice in a row — see the effect below).
+   */
+  private requestSeq = 0;
 
   /* ── Analyze with AI ─────────────────────────────────────── */
 
@@ -153,7 +157,7 @@ export class FundamentalsPage implements OnDestroy {
   }
 
   private async load(instrumentId: string): Promise<void> {
-    this.pendingInstrumentId = instrumentId;
+    const seq = ++this.requestSeq;
     this.loading.set(true);
     this.error.set(null);
     // The previous company's figures are dropped up front: they are labelled
@@ -167,8 +171,8 @@ export class FundamentalsPage implements OnDestroy {
     this.resetAi();
 
     const result = await this.fundamentals.fetchFundamentals(instrumentId);
-    // A second symbol picked while this was in flight owns the screen now.
-    if (this.pendingInstrumentId !== instrumentId) return;
+    // A later load — even for this same instrument id — owns the screen now.
+    if (seq !== this.requestSeq) return;
 
     this.loading.set(false);
     if (result.ok) this.data.set(result.fundamentals);

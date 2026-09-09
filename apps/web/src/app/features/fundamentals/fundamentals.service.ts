@@ -68,6 +68,9 @@ export class FundamentalsService {
       if (status === 502) {
         return { ok: false, message: 'Fundamental data is unavailable right now. Try again shortly.' };
       }
+      if (status === 401) {
+        return { ok: false, message: 'Your session expired. Please sign in again.' };
+      }
       return { ok: false, message: 'Could not load fundamentals. Please try again.' };
     }
   }

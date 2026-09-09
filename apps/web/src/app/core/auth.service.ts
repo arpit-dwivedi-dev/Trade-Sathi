@@ -73,7 +73,25 @@ export class AuthService {
 
     await this.restoredPromise;
     const { data } = await client.auth.getSession();
-    return data.session?.access_token ?? null;
+    const session = data.session;
+    if (!session) return null;
+
+    // getSession() returns whatever is cached in storage, which can be a
+    // token past its expiry if the background autoRefreshToken timer missed
+    // a beat (backgrounded tab, laptop sleep, long-lived session). Refresh it
+    // explicitly rather than send a request doomed to 401.
+    const expiresAt = session.expires_at;
+    if (expiresAt !== undefined && expiresAt * 1000 <= Date.now()) {
+      const { data: refreshed, error } = await client.auth.refreshSession();
+      if (error || !refreshed.session) {
+        this._session.set(null);
+        return null;
+      }
+      this._session.set(refreshed.session);
+      return refreshed.session.access_token;
+    }
+
+    return session.access_token;
   }
 
   async signUp(email: string, password: string): Promise<AuthResult> {
