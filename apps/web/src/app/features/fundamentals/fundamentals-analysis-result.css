@@ -1,40 +1,124 @@
-/* This report is one more section of the Fundamentals tab, so it is laid out
-   as a stack of full-width cards exactly like the raw-data cards below it —
-   not as its own two-column "report" page. Angular scopes styles per
-   component, so the handful of primitives fundamentals-page.css also defines
-   (.fund-card, .fund-figures, .fund-figure, .fund-figure-val) are copied here
-   rather than shared: harmless duplication of a few small rules, not a new
-   design. Everything else (.tiles/.tile/.hd/.lbl/.meta/.dim/.lvl/.tnum/.disc/
-   .err/.panel/.cells/.cell) is already global, from src/styles/components.css. */
-
 .fund-ai {
+  /* Every block inside a card indents to the same rail. The card heads, the
+     bodies, the hairline-divided lists and the diagnostics toggle all read
+     this one value, so a new block can never land on its own margin. */
+  --fund-x: var(--s5);
   display: flex;
   flex-direction: column;
+  gap: var(--s6);
+}
+
+/* The failed branch renders this p-card outside the .result-standalone
+   section, so none of the global overrides that hand a p-card its surface and
+   border reach it: in light theme that left a white card on a white page with
+   no border and no shadow — invisible. State the shell here, and zero
+   PrimeNG's own body padding so the card is not inset twice. */
+.fund-ai-status {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  display: block;
+  overflow: hidden;
+  padding: 0;
+}
+
+.fund-ai-status .p-card-body {
+  padding: var(--s4) var(--fund-x);
+}
+
+.fund-ai-status .p-card-content {
+  padding: 0;
+}
+
+.fund-failed-head {
+  align-items: center;
+  display: flex;
   gap: var(--s3);
 }
 
-.fund-card {
-  display: block;
-  overflow: visible;
+.fund-failed-head h2 {
+  font-size: var(--t-lg);
 }
 
-.fund-ai-status {
-  padding: var(--s4) var(--s5);
+.result-head {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  justify-content: space-between;
+  padding-bottom: var(--s4);
 }
 
-/* ── caveats ─────────────────────────────────────────────── */
-.fund-ai-caveats {
-  background: color-mix(in srgb, var(--warn) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--warn) 24%, transparent);
+.result-ident {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: var(--s3) var(--s4);
+  gap: 6px;
+  min-width: 0;
 }
 
-/* ── tiles ───────────────────────────────────────────────── */
-.tile b {
-  text-transform: capitalize;
+.result-title-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.result-sym {
+  font-family: var(--fm);
+  font-size: var(--t-3xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.result-chips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.result-time {
+  align-self: flex-start;
+  color: var(--tx-3);
+  font-family: var(--fm);
+  font-size: var(--t-2xs);
+  margin-top: -2px;
+  white-space: nowrap;
+}
+
+.result-head-end {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: var(--s3);
+}
+
+/* Only one of the four tiles carries a hint, and the shared standalone rule
+   pins the *value* to the tile's bottom edge — which drops that one value a
+   line lower than the other three. Pin the hint instead, so all four readings
+   sit on one baseline and the qualifier hangs off the bottom. */
+.result-tiles .tile b {
+  margin-top: 0;
+}
+
+/* The shared 108px floor is sized for the chart report, where every tile
+   carries a hint. Here three of the four do not, so it becomes 40px of empty
+   card under three of the readings. The grid still equalises the row against
+   the one tile that does. */
+.result-tiles .tile {
+  min-height: 0;
+}
+
+/* Unstyled here otherwise: .result-tile-hint is declared in the chart
+   report's own view-encapsulated sheet, so this component gets none of it. */
+.result-tile-hint {
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
+  line-height: 1.4;
+  margin-top: auto;
 }
 
 .tile b[data-tone='up'] {
@@ -45,33 +129,166 @@
   color: var(--down);
 }
 
-.fund-ai-hint {
-  font-size: var(--t-2xs);
+.result-caveats {
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 24%, transparent);
+  /* --r-lg and the shared rail, so the banner reads as one of the report's
+     cards; it was on --r-md at a 16px inset. The zeroed margin drops a
+     negative margin-top left over from the old double-spacing scheme, which
+     pulled it 8px out of the report's 24px rhythm. */
+  border-radius: var(--r-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: var(--s3) var(--fund-x);
 }
 
-/* ── card bodies ─────────────────────────────────────────── */
-.fund-ai-body {
+.result-caveat {
+  color: var(--tx-2);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+}
+
+.result-caveats-lbl {
+  color: var(--tx-2);
+}
+
+.result-block {
   display: flex;
   flex-direction: column;
   gap: var(--s3);
-  padding: var(--s3) var(--s5) var(--s4);
+  min-width: 0;
 }
 
-.fund-ai-sub {
+/* A card's blocks are edge-to-edge and carry their own padding, so the card
+   itself must not add a flex gap on top of it. Every block used to be spaced
+   twice — once by this gap, once by its own padding — and the negative
+   margins that used to sit here were an attempt to cancel the first. */
+.fund-card,
+.result-executive-card {
+  gap: 0;
+}
+
+.result-block-head {
+  align-items: baseline;
+  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  justify-content: space-between;
+  padding-bottom: var(--s3);
+}
+
+.fund-card > .result-block-head,
+.result-executive-card > .result-block-head {
+  padding: var(--s4) var(--fund-x) var(--s3);
+}
+
+.result-h {
+  font-size: var(--t-md);
+  font-weight: 600;
+  letter-spacing: -0.014em;
+}
+
+.result-summary {
+  color: var(--tx);
+  font-size: var(--t-md);
+  line-height: 1.7;
+  max-width: 78ch;
+}
+
+.fund-ai-falsifier {
+  border-top: 1px solid var(--line-soft);
+  margin: 0;
+  padding: var(--s3) var(--fund-x);
+}
+
+/* One gap value for the whole report: the two body columns, the cards
+   stacked inside each of them, and the top-level sections all sit 24px
+   apart, so no seam is wider or tighter than its neighbour. */
+.result-body {
+  align-items: start;
+  display: grid;
+  gap: var(--s6);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+}
+.result-main,
+.result-aside {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--s6);
+  min-width: 0;
+}
+.result-aside {
+  position: sticky;
+  top: calc(var(--top-h) + var(--s4));
 }
 
-/* ── deciding factors / claim lists ─────────────────────────
-   Same band-with-hairline rhythm as .fund-figure, but a full-width sentence
-   per row rather than a label/value pair. */
+/* The chart report uses a grid matrix at this breakpoint, but this report has
+   four independent main-column sections and a separate information rail. The
+   stronger selectors restore the fundamentals composition instead of letting
+   the chart-only matrix collapse every section into one grid cell. */
+.fund-ai.result.result-standalone .result-main,
+.fund-ai.result.result-standalone .result-aside {
+  display: flex;
+}
+
+.fund-ai.result.result-standalone .result-main {
+  flex-direction: column;
+}
+
+.fund-ai.result.result-standalone .result-main > .result-block,
+.fund-ai.result.result-standalone .result-aside > .result-block {
+  grid-area: auto;
+}
+
+.fund-card,
+.result-executive-card {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  color: var(--tx);
+  /* Named so the section-verdict matrix can size its columns against the
+     card it is in, not against the viewport. */
+  container: fund-card / inline-size;
+  overflow: hidden;
+}
+
+.fund-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4) var(--fund-x);
+}
+
+.fund-card-foot {
+  border-top: 1px solid var(--line-soft);
+  margin: 0;
+  padding: var(--s3) var(--fund-x);
+}
+
 .fund-ai-factors,
-.fund-ai-claims {
+.fund-ai-claims,
+.fund-ai-list {
   display: flex;
   flex-direction: column;
   list-style: none;
-  padding: 0 var(--s5) var(--s2);
+  margin: 0;
+  padding: 0;
+}
+
+.fund-ai-factors,
+.fund-ai-claims {
+  padding: var(--s2) var(--fund-x) var(--s4);
+}
+
+/* The deciding factors follow the verdict paragraph with no heading of their
+   own, so without a rule the change of register reads as a hole in the card
+   rather than as a new block. */
+.fund-card-body + .fund-ai-factors {
+  border-top: 1px solid var(--line-soft);
 }
 
 .fund-ai-factors li,
@@ -86,60 +303,34 @@
 .fund-ai-factors li:first-child,
 .fund-ai-claims li:first-child {
   border-top: 0;
+  padding-top: 0;
+}
+
+.fund-ai-factors li:last-child,
+.fund-ai-claims li:last-child {
+  padding-bottom: 0;
 }
 
 .fund-ai-evidence {
+  color: var(--tx-3);
   font-family: var(--fm);
   font-size: var(--t-2xs);
 }
 
-.fund-ai-falsifier {
-  border-top: 1px solid var(--line-soft);
-  margin: 0 calc(var(--s5) * -1) calc(var(--s4) * -1);
-  padding: var(--s3) var(--s5) var(--s4);
-}
-
-/* ── section verdicts (reuses the fundamentals-page figure-band pattern) ─── */
-.fund-figures {
-  column-gap: var(--s8);
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
-  list-style: none;
-  padding: var(--s2) var(--s5) var(--s4);
-}
-
-.fund-figure {
-  border-bottom: 1px solid var(--line-soft);
-  padding: var(--s3) 0;
-}
-
-.fund-figure-val {
-  color: var(--tx);
-  font-size: var(--t-sm);
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.fund-ai-section .lvl {
-  margin-bottom: 4px;
-}
-
-.fund-ai-section p {
-  line-height: 1.5;
-}
-
-/* ── plain bullet lists (inflections, missing information) ─────────────── */
 .fund-ai-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  list-style: none;
-  padding: 0;
+  gap: var(--s2);
+}
+
+/* Two classes on purpose: .fund-ai-list's own `padding: 0` reset sits later
+   in this sheet than .fund-card-body, so a single-class rule would lose the
+   card inset and the list would run to the card's border. */
+.fund-ai-list.fund-card-body {
+  padding: var(--s4) var(--fund-x);
 }
 
 .fund-ai-list li {
   border-top: 1px solid var(--line-soft);
-  padding-top: 6px;
+  padding-top: var(--s2);
 }
 
 .fund-ai-list li:first-child {
@@ -147,34 +338,116 @@
   padding-top: 0;
 }
 
-/* ── scenarios: the dark analytical slab, same role .panel plays for the
-   chart AI scenario elsewhere in the product ─────────────────────────── */
-.fund-ai-scenarios-hd {
-  border-bottom: 0;
-  padding-inline: 2px;
+.fund-ai-subgrid {
+  display: grid;
+  gap: var(--s4) var(--s8);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fund-ai-subgrid p,
+.fund-figure p {
+  color: var(--tx-2);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  margin-top: var(--s2);
+}
+
+.fund-periods {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+/* Explicit column counts, driven by the card's own width rather than the
+   viewport: auto-fill cannot tell a rule which items open a row, and the
+   first row must not carry one. The card is the query container. */
+.fund-figures {
+  column-gap: var(--s8);
+  display: grid;
+  grid-template-columns: 1fr;
+  list-style: none;
+  margin: 0;
+  padding: var(--s2) var(--fund-x) var(--s4);
+}
+.fund-figure {
+  border-top: 1px solid var(--line-soft);
+  padding: var(--s3) 0;
+}
+.fund-figure:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+@container fund-card (min-width: 460px) {
+  .fund-figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .fund-figure:nth-child(-n + 2) {
+    border-top: 0;
+    padding-top: 0;
+  }
+}
+
+@container fund-card (min-width: 720px) {
+  .fund-figures {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .fund-figure:nth-child(-n + 3) {
+    border-top: 0;
+    padding-top: 0;
+  }
+}
+.fund-figure-val {
+  color: var(--tx);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.fund-scenarios-block > .result-block-head {
+  padding-bottom: var(--s3);
 }
 
 .fund-ai-scenarios {
   display: grid;
-  gap: var(--s3);
+  gap: var(--s4);
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.fund-ai-scenario {
+/* The scenarios were the last blocks in this report still on the dark
+   analytical slab. That slab marks the two places in the product where model
+   output is shown among the user's own data — but here every card is model
+   output, so it carried no information and only broke the theme: in light,
+   three near-black panels among white cards; in dark, --slab is #131722, the
+   page canvas exactly, so they read as holes punched in the page. */
+.fund-ai-scenario.panel {
+  background: var(--surf);
+  border-color: var(--line);
+  color: var(--tx);
   display: flex;
   flex-direction: column;
 }
 
+/* The slab's neutral ramp runs the other way, so .panel's own overrides for
+   these leave dim text too pale and bold text too bright on a card. */
+.fund-ai-scenario .dim,
+.fund-ai-scenario .lbl {
+  color: var(--tx-3);
+}
+
+.fund-ai-scenario b {
+  color: var(--tx);
+}
+
 .fund-ai-scenario-head {
-  border-bottom: 1px solid var(--slab-line);
-  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--line-soft);
+  padding: var(--s3) var(--fund-x);
 }
 
 .fund-ai-scenario-id {
   font-family: var(--fh);
   font-size: var(--t-sm);
   font-weight: 600;
-  letter-spacing: -0.005em;
   text-transform: capitalize;
 }
 
@@ -190,7 +463,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--s2);
-  padding: var(--s4);
+  padding: var(--s4) var(--fund-x);
 }
 
 .fund-ai-scenario-body p {
@@ -198,60 +471,124 @@
   line-height: 1.55;
 }
 
-@media (max-width: 720px) {
-  .fund-ai-scenarios {
-    grid-template-columns: 1fr;
+.fund-ai-debug-toggle {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--s3);
+  justify-content: space-between;
+  padding: var(--s4) var(--fund-x);
+  text-align: left;
+  width: 100%;
+}
+.fund-ai-debug-toggle:hover {
+  background: var(--bg-hover);
+}
+.fund-ai-debug-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.fund-debug-body {
+  border-top: 1px solid var(--line-soft);
+  padding: var(--s4) var(--fund-x);
+}
+/* The table runs full-bleed to the card's inner edges rather than the text
+   rail: at this row count the rail would start it scrolling for no reason. */
+.fund-ai-debug-table {
+  margin-inline: calc(var(--fund-x) * -1);
+  overflow-x: auto;
+  padding-inline: var(--fund-x);
+}
+.fund-ai-debug-table table {
+  border-collapse: collapse;
+  font-size: var(--t-xs);
+  width: 100%;
+}
+.fund-ai-debug-table th,
+.fund-ai-debug-table td {
+  border-bottom: 1px solid var(--line-soft);
+  padding: 6px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+.fund-ai-debug-table tr[data-state='unreliable'] td {
+  color: var(--warn);
+}
+.fund-ai-debug-table tr[data-state='missing'] td {
+  opacity: 0.6;
+}
+/* The download button and the uppercase header chips are styled once, in
+   src/styles/components.css, and those rules are global — they reach this
+   component's DOM unchanged. This sheet used to restate all of them. */
+
+@media (max-width: 980px) {
+  .fund-ai.result.result-standalone .result-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s6);
+  }
+
+  .fund-ai .result-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fund-ai.result.result-standalone .result-main,
+  .fund-ai.result.result-standalone .result-aside {
+    flex: none;
+    width: 100%;
+  }
+
+  .fund-ai.result.result-standalone .result-aside {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    position: static;
+  }
+
+  .fund-ai.result.result-standalone .result-aside > .result-block:first-child {
+    grid-column: 1 / -1;
   }
 }
 
-/* ── data notes ─────────────────────────────────────────────────────────
-   Deterministic statements about the DATA, distinct from the model's own
-   caveats above. A "caution" note gets the warning accent; an "info" note
-   reads as ordinary context and must not look like a problem. */
-.fund-ai-data-notes li[data-severity='caution'] b {
-  color: var(--warn, #b26a00);
-}
+@media (max-width: 720px) {
+  .result-sym {
+    font-size: var(--t-2xl);
+  }
 
-/* ── derivation trace ───────────────────────────────────────────────────
-   Collapsed by default. Deliberately plain: it is a debugging surface, not
-   part of the report's visual language. */
-.fund-ai-debug-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  text-align: left;
-  color: inherit;
-  font: inherit;
-}
+  .fund-ai.result.result-standalone .result-aside {
+    display: flex;
+  }
 
-.fund-ai-debug-table {
-  overflow-x: auto;
-  margin-top: 0.75rem;
-}
+  .result-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 
-.fund-ai-debug-table table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.78rem;
-}
+  .result-head-end {
+    align-items: flex-start;
+    width: 100%;
+  }
 
-.fund-ai-debug-table th,
-.fund-ai-debug-table td {
-  padding: 0.25rem 0.5rem;
-  text-align: left;
-  white-space: nowrap;
-  border-bottom: 1px solid var(--border, rgb(0 0 0 / 8%));
-}
+  .fund-ai {
+    --fund-x: var(--s4);
+  }
 
-.fund-ai-debug-table tr[data-state='unreliable'] td {
-  color: var(--warn, #b26a00);
-}
+  .fund-ai-subgrid,
+  .fund-ai-scenarios {
+    grid-template-columns: 1fr;
+  }
 
-.fund-ai-debug-table tr[data-state='missing'] td {
-  opacity: 0.6;
+  /* Not scoped to .result-standalone: the report also renders embedded in the
+     Fundamentals tab, where the two-column body has no breakpoint of its own
+     and the 300px rail would push the main column past the container. */
+  .result-body {
+    grid-template-columns: 1fr;
+  }
+
+  .result-aside {
+    position: static;
+  }
 }

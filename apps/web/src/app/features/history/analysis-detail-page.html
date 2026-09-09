@@ -47,7 +47,7 @@
         </button>
       </div>
     } @else if (detail(); as loaded) {
-      @if (loaded.row.source === 'fundamentals' || loaded.row.status !== 'complete') {
+      @if (loaded.row.status !== 'complete') {
         <header class="analysis-detail-title">
           <div>
             <span class="analysis-detail-eyebrow">Analysis result</span>
@@ -74,7 +74,12 @@
           }
         </section>
       } @else if (loaded.row.source === 'fundamentals') {
-        <app-fundamentals-analysis-result [row]="loaded.row" />
+        <app-fundamentals-analysis-result
+          [row]="loaded.row"
+          [standalone]="true"
+          [downloadBusy]="downloadBusy()"
+          (downloadRequested)="download()"
+        />
       } @else {
         <app-analysis-result
           [row]="loaded.row"

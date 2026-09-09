@@ -1,239 +1,316 @@
 @if (failed()) {
-  <p-card class="fund-card fund-ai-status">
+  <p-card role="alert" class="fund-ai-status">
+    <div class="fund-failed-head">
+      <span class="st st-failed">Failed</span>
+      <h2>Analysis failed</h2>
+    </div>
     <p class="err">{{ failureMessage() }}</p>
   </p-card>
 } @else if (result(); as analysis) {
-  <section class="fund-ai">
-    @if (showCaveats()) {
-      <p-card class="fund-card fund-ai-caveats">
-        <span class="lbl">How to read this</span>
-        @for (caveat of caveats(); track $index) {
-          <p class="meta">{{ caveat }}</p>
+  <section class="result fund-ai" [class.result-standalone]="standalone()">
+    <header class="result-head">
+      <div class="result-ident">
+        <div class="result-title-row">
+          <h2 class="sym result-sym trunc" translate="no">
+            {{ row().symbol ?? row().symbol_raw ?? 'Unknown symbol' }}
+          </h2>
+          <span class="result-chips" aria-label="Analysis metadata">
+            <p-chip translate="no">{{ row().asset_class ?? 'equity' }}</p-chip>
+            <p-chip>fundamentals</p-chip>
+          </span>
+        </div>
+        <time class="result-time" [attr.datetime]="row().created_at">
+          {{ row().created_at | date: 'd MMM yyyy, HH:mm' }}
+        </time>
+      </div>
+
+      <div class="result-head-end">
+        @if (!standalone()) {
+          <span class="st st-complete">Complete</span>
         }
-      </p-card>
+        @if (standalone()) {
+          <button
+            pButton
+            type="button"
+            [outlined]="true"
+            class="result-download"
+            [disabled]="downloadBusy()"
+            [attr.title]="downloadBusy() ? 'Preparing PDF' : 'Download analysis as PDF'"
+            [attr.aria-label]="downloadBusy() ? 'Preparing PDF' : 'Download analysis as PDF'"
+            (click)="downloadRequested.emit()"
+          >
+            @if (downloadBusy()) {
+              <p-progress-spinner
+                [style]="{ width: '15px', height: '15px' }"
+                strokeWidth="4"
+                aria-hidden="true"
+              />
+            } @else {
+              <app-icon aria-hidden="true" name="download" />
+            }
+          </button>
+        }
+      </div>
+    </header>
+
+    @if (showCaveats()) {
+      <aside class="result-caveats" role="note">
+        <span class="lbl result-caveats-lbl">How to read this</span>
+        @for (caveat of caveats(); track $index) {
+          <p class="result-caveat">{{ caveat }}</p>
+        }
+      </aside>
     }
 
-    <!-- ── headline readings ──────────────────────────────── -->
-    <div class="tiles">
+    <div class="tiles result-tiles">
       @for (tile of tiles(); track tile.label) {
         <div class="tile">
           <span class="lbl">{{ tile.label }}</span>
           <b [attr.data-tone]="tile.tone">{{ tile.value }}</b>
           @if (tile.hint) {
-            <span class="meta dim fund-ai-hint">{{ tile.hint }}</span>
+            <span class="result-tile-hint">{{ tile.hint }}</span>
           }
         </div>
       }
     </div>
 
-    <!-- ── executive verdict ──────────────────────────────── -->
-    <p-card class="fund-card">
-      <div class="hd">
-        <span class="lbl">Executive verdict · model-generated, not investment advice</span>
-        <p-chip>{{ humanise(stance() ?? '') }}</p-chip>
+    <section class="fund-card result-block result-executive-card">
+      <div class="result-block-head">
+        <span class="lbl result-h">Executive verdict</span>
+        <p-chip>{{ humanise(analysis.executive_verdict.stance) }}</p-chip>
       </div>
-      <div class="fund-ai-body">
-        <p class="meta">{{ analysis.executive_verdict.commitment }}</p>
-        <ul class="fund-ai-factors">
-          @for (factor of analysis.executive_verdict.deciding_factors; track $index) {
-            <li>
-              <span class="meta">{{ factor.claim }}</span>
-              <span class="meta dim fund-ai-evidence">{{ factor.evidence }}</span>
-            </li>
-          }
-        </ul>
-        <p class="meta dim fund-ai-falsifier">
-          <b>What would prove this wrong —</b> {{ analysis.executive_verdict.falsifier }}
-        </p>
+      <div class="fund-card-body">
+        <p class="result-summary">{{ analysis.executive_verdict.commitment }}</p>
       </div>
-    </p-card>
-
-    <!-- ── summary ─────────────────────────────────────────── -->
-    <p-card class="fund-card">
-      <div class="hd"><span class="lbl">Summary</span></div>
-      <p class="meta fund-ai-body">{{ analysis.summary }}</p>
-    </p-card>
-
-    <!-- ── business & performance ─────────────────────────── -->
-    <p-card class="fund-card">
-      <div class="hd"><span class="lbl">Business &amp; performance</span></div>
-      <div class="fund-ai-body">
-        <p class="meta">{{ analysis.business.statement }}</p>
-        <div class="fund-ai-sub">
-          <span class="lbl">Revenue trend</span>
-          <p class="meta">{{ analysis.performance.revenue_trend.statement }}</p>
-        </div>
-        <div class="fund-ai-sub">
-          <span class="lbl">Earnings trend</span>
-          <p class="meta">{{ analysis.performance.earnings_trend.statement }}</p>
-        </div>
-        <p class="meta dim">
-          Growth supports earnings — {{ humanise(analysis.performance.growth_supports_earnings) }}
-        </p>
-      </div>
-    </p-card>
-
-    <!-- ── the seven section verdicts ─────────────────────── -->
-    <p-card class="fund-card">
-      <div class="hd"><span class="lbl">Section verdicts</span></div>
-      <ul class="fund-figures fund-ai-sections">
-        @for (section of sections(); track section.title) {
-          <li class="fund-figure fund-ai-section">
-            <div class="lvl">
-              <span class="meta"><b>{{ section.title }}</b></span>
-              <span class="fund-figure-val">{{ section.verdictValue }}</span>
-            </div>
-            <p class="meta dim">{{ section.statement }}</p>
+      <ul class="fund-ai-factors">
+        @for (factor of analysis.executive_verdict.deciding_factors; track $index) {
+          <li>
+            <span class="meta">{{ factor.claim }}</span>
+            <span class="meta dim fund-ai-evidence">{{ factor.evidence }}</span>
           </li>
         }
       </ul>
-    </p-card>
+      <p class="result-falsifier meta dim fund-ai-falsifier">
+        <b>What would prove this wrong —</b> {{ analysis.executive_verdict.falsifier }}
+      </p>
+    </section>
 
-    <!-- ── historical trend ───────────────────────────────── -->
-    <p-card class="fund-card">
-      <div class="hd"><span class="lbl">Historical trend</span></div>
-      <div class="fund-ai-body">
-        <p class="meta">{{ analysis.historical_trend.statement }}</p>
-        @if (analysis.historical_trend.strongest_period || analysis.historical_trend.weakest_period) {
-          <div class="lvl">
-            <span class="meta dim">Strongest period</span>
-            <span class="tnum">{{ analysis.historical_trend.strongest_period ?? '—' }}</span>
+    <div class="result-body">
+      <div class="result-main">
+        <section class="fund-card result-block">
+          <div class="result-block-head">
+            <span class="lbl result-h">Section verdicts</span>
           </div>
-          <div class="lvl">
-            <span class="meta dim">Weakest period</span>
-            <span class="tnum">{{ analysis.historical_trend.weakest_period ?? '—' }}</span>
-          </div>
-        }
-        @if (analysis.historical_trend.inflections.length) {
-          <ul class="fund-ai-list">
-            @for (inflection of analysis.historical_trend.inflections; track $index) {
-              <li class="meta">{{ inflection }}</li>
+          <ul class="fund-figures">
+            @for (section of sections(); track section.title) {
+              <li class="fund-figure">
+                <div class="lvl">
+                  <span class="meta"
+                    ><b>{{ section.title }}</b></span
+                  >
+                  <span class="fund-figure-val">{{ section.verdictValue }}</span>
+                </div>
+                <p class="meta dim">{{ section.statement }}</p>
+              </li>
             }
           </ul>
-        }
+        </section>
+
+        <section class="fund-card result-block">
+          <div class="result-block-head">
+            <span class="lbl result-h">Business &amp; performance</span>
+          </div>
+          <div class="fund-card-body">
+            <p class="meta">{{ analysis.business.statement }}</p>
+            <div class="fund-ai-subgrid">
+              <div>
+                <span class="lbl">Revenue trend</span>
+                <p class="meta">{{ analysis.performance.revenue_trend.statement }}</p>
+              </div>
+              <div>
+                <span class="lbl">Earnings trend</span>
+                <p class="meta">{{ analysis.performance.earnings_trend.statement }}</p>
+              </div>
+            </div>
+          </div>
+          <p class="meta dim fund-card-foot">
+            Growth supports earnings —
+            <b>{{ humanise(analysis.performance.growth_supports_earnings) }}</b>
+          </p>
+        </section>
+
+        <section class="fund-card result-block">
+          <div class="result-block-head">
+            <span class="lbl result-h">Historical trend</span>
+          </div>
+          <div class="fund-card-body">
+            <p class="meta">{{ analysis.historical_trend.statement }}</p>
+            @if (
+              analysis.historical_trend.strongest_period || analysis.historical_trend.weakest_period
+            ) {
+              <div class="fund-periods">
+                <div class="lvl">
+                  <span class="meta dim">Strongest period</span>
+                  <span class="tnum">{{ analysis.historical_trend.strongest_period ?? '—' }}</span>
+                </div>
+                <div class="lvl">
+                  <span class="meta dim">Weakest period</span>
+                  <span class="tnum">{{ analysis.historical_trend.weakest_period ?? '—' }}</span>
+                </div>
+              </div>
+            }
+            @if (analysis.historical_trend.inflections.length) {
+              <ul class="fund-ai-list">
+                @for (inflection of analysis.historical_trend.inflections; track $index) {
+                  <li class="meta">{{ inflection }}</li>
+                }
+              </ul>
+            }
+          </div>
+        </section>
       </div>
-    </p-card>
 
-    <!-- ── positive signals ────────────────────────────────── -->
-    <p-card class="fund-card">
-      <div class="hd"><span class="lbl">Positive signals</span></div>
-      @if (positiveSignals().length) {
-        <ul class="fund-ai-claims">
-          @for (signal of positiveSignals(); track $index) {
-            <li>
-              <span class="meta">{{ signal.claim }}</span>
-              <span class="meta dim fund-ai-evidence">{{ signal.evidence }}</span>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="meta dim fund-ai-body">None the data clearly supports.</p>
-      }
-    </p-card>
-
-    <!-- ── red flags ───────────────────────────────────────── -->
-    <p-card class="fund-card">
-      <div class="hd"><span class="lbl">Red flags</span></div>
-      @if (redFlags().length) {
-        <ul class="fund-ai-claims">
-          @for (flag of redFlags(); track $index) {
-            <li>
-              <span class="meta">{{ flag.claim }}</span>
-              <span class="meta dim fund-ai-evidence">{{ flag.evidence }}</span>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="meta dim fund-ai-body">None the data clearly supports.</p>
-      }
-    </p-card>
-
-    <!-- ── scenarios — the one dark analytical slab in the report,
-         matching the chart AI scenario treatment elsewhere in the product ── -->
-    <div class="hd fund-ai-scenarios-hd"><span class="lbl">Scenarios · qualitative, no price or earnings forecast</span></div>
-    <div class="fund-ai-scenarios">
-      @for (scenario of scenarios(); track scenario.id) {
-        <div class="panel fund-ai-scenario">
-          <div class="fund-ai-scenario-head">
-            <span class="fund-ai-scenario-id" [attr.data-tone]="scenarioTone(scenario.id)">
-              {{ scenario.id }}
-            </span>
+      <aside class="result-aside">
+        <section class="fund-card result-block">
+          <div class="result-block-head">
+            <span class="lbl result-h">Summary</span>
           </div>
-          <div class="fund-ai-scenario-body">
-            <p>{{ scenario.view }}</p>
-            <p class="dim"><b>Requires</b> {{ scenario.requires }}</p>
-            <p class="dim"><b>Falsifier</b> {{ scenario.falsifier }}</p>
+          <p class="meta fund-card-body">{{ analysis.summary }}</p>
+        </section>
+
+        <section class="fund-card result-block">
+          <div class="result-block-head">
+            <span class="lbl result-h">Positive signals</span>
+            <span class="lbl">{{ positiveSignals().length }}</span>
           </div>
-        </div>
-      }
+          @if (positiveSignals().length) {
+            <ul class="fund-ai-claims">
+              @for (signal of positiveSignals(); track $index) {
+                <li>
+                  <span class="meta">{{ signal.claim }}</span>
+                  <span class="meta dim fund-ai-evidence">{{ signal.evidence }}</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="meta dim fund-card-body">None reported.</p>
+          }
+        </section>
+
+        <section class="fund-card result-block">
+          <div class="result-block-head">
+            <span class="lbl result-h">Red flags</span>
+            <span class="lbl">{{ redFlags().length }}</span>
+          </div>
+          @if (redFlags().length) {
+            <ul class="fund-ai-claims">
+              @for (flag of redFlags(); track $index) {
+                <li>
+                  <span class="meta">{{ flag.claim }}</span>
+                  <span class="meta dim fund-ai-evidence">{{ flag.evidence }}</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="meta dim fund-card-body">None reported.</p>
+          }
+        </section>
+
+        @if (analysis.missing_information.length) {
+          <section class="fund-card result-block">
+            <div class="result-block-head">
+              <span class="lbl result-h">Missing information</span>
+            </div>
+            <ul class="fund-ai-list fund-card-body">
+              @for (item of analysis.missing_information; track $index) {
+                <li class="meta">
+                  <b>{{ item.item }}</b> — {{ item.impact }}
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      </aside>
     </div>
 
-    <!-- ── missing information ────────────────────────────── -->
-    @if (analysis.missing_information.length) {
-      <p-card class="fund-card">
-        <div class="hd"><span class="lbl">Missing information</span></div>
-        <ul class="fund-ai-list fund-ai-body">
-          @for (item of analysis.missing_information; track $index) {
-            <li class="meta"><b>{{ item.item }}</b> — {{ item.impact }}</li>
-          }
-        </ul>
-      </p-card>
-    }
+    <section class="result-block fund-scenarios-block">
+      <div class="result-block-head">
+        <span class="lbl result-h">Scenarios</span>
+        <span class="lbl">Qualitative, no price or earnings forecast</span>
+      </div>
+      <div class="fund-ai-scenarios">
+        @for (scenario of scenarios(); track scenario.id) {
+          <div class="panel fund-ai-scenario">
+            <div class="fund-ai-scenario-head">
+              <span class="fund-ai-scenario-id" [attr.data-tone]="scenarioTone(scenario.id)">
+                {{ scenario.id }}
+              </span>
+            </div>
+            <div class="fund-ai-scenario-body">
+              <p>{{ scenario.view }}</p>
+              <p class="dim"><b>Requires</b> {{ scenario.requires }}</p>
+              <p class="dim"><b>Falsifier</b> {{ scenario.falsifier }}</p>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
 
-    <!-- ── data notes ─────────────────────────────────────── -->
-    <!-- Written by the API's plausibility gate, not by the model: plain
-         statements about the data itself, with no field paths and no raw
-         floats. Shown even when the reading above is confident, because a
-         confident reading of shaky data is exactly what needs flagging. -->
     @if (dataNotes().length) {
-      <p-card class="fund-card fund-ai-data-notes">
-        <div class="hd"><span class="lbl">Data notes</span></div>
-        <ul class="fund-ai-list fund-ai-body">
+      <section class="fund-card result-block fund-diagnostics">
+        <div class="result-block-head">
+          <span class="lbl result-h">Data notes</span>
+        </div>
+        <ul class="fund-ai-list fund-card-body">
           @for (note of dataNotes(); track $index) {
             <li class="meta" [attr.data-severity]="note.severity">
               <b>{{ note.title }}</b> — {{ note.detail }}
             </li>
           }
         </ul>
-      </p-card>
+      </section>
     }
 
-    <!-- ── debug trace ────────────────────────────────────── -->
-    <!-- Collapsed by default: this is for working out why a number reads the
-         way it does, not for the ordinary reader. -->
     @if (debugTrace(); as trace) {
-      <p-card class="fund-card fund-ai-debug">
-        <button type="button" class="fund-ai-debug-toggle" (click)="toggleDebug()">
-          <span class="lbl">Derivation trace</span>
-          <span class="meta">{{ debugOpen() ? 'Hide' : 'Show' }}</span>
+      <section class="fund-card result-block fund-diagnostics">
+        <button
+          type="button"
+          class="fund-ai-debug-toggle"
+          [attr.aria-expanded]="debugOpen()"
+          (click)="toggleDebug()"
+        >
+          <span class="lbl result-h">Derivation trace</span>
+          <span class="lbl">{{ debugOpen() ? 'Hide' : 'Show' }}</span>
         </button>
-
         @if (debugOpen()) {
-          <div class="fund-ai-body">
-            <p class="meta">
-              Quarters used: {{ trace.quartersUsed.join(', ') || 'none' }}
-            </p>
-
+          <div class="fund-debug-body fund-card-body">
+            <p class="meta">Quarters used: {{ trace.quartersUsed.join(', ') || 'none' }}</p>
             @if (trace.findings.length) {
               <ul class="fund-ai-list">
                 @for (finding of trace.findings; track $index) {
-                  <li class="meta"><b>{{ finding.metric }}</b> · {{ finding.rule }} — {{ finding.detail }}</li>
+                  <li class="meta">
+                    <b>{{ finding.metric }}</b> · {{ finding.rule }} — {{ finding.detail }}
+                  </li>
                 }
               </ul>
             }
-
             <div class="fund-ai-debug-table">
               <table>
                 <thead>
-                  <tr><th>Metric</th><th>Value</th><th>Period</th><th>State</th></tr>
+                  <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                    <th>Period</th>
+                    <th>State</th>
+                  </tr>
                 </thead>
                 <tbody>
-                  @for (row of debugMetrics(); track row.key) {
-                    <tr [attr.data-state]="row.reliability">
-                      <td>{{ row.key }}</td>
-                      <td>{{ row.value }}</td>
-                      <td>{{ row.period }}</td>
-                      <td>{{ row.reliability }}</td>
+                  @for (metric of debugMetrics(); track metric.key) {
+                    <tr [attr.data-state]="metric.reliability">
+                      <td>{{ metric.key }}</td>
+                      <td>{{ metric.value }}</td>
+                      <td>{{ metric.period }}</td>
+                      <td>{{ metric.reliability }}</td>
                     </tr>
                   }
                 </tbody>
@@ -241,10 +318,10 @@
             </div>
           </div>
         }
-      </p-card>
+      </section>
     }
 
-    <p class="disc">
+    <p class="disc result-disc">
       Every reading here is generated by the model from the fundamentals data alone. ChartAnalyzer
       does not connect to a broker, hold positions, or track what happens after an analysis.
     </p>

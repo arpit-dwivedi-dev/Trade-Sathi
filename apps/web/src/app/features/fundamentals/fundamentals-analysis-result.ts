@@ -1,6 +1,11 @@
-import { Component, computed, effect, input, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, computed, effect, input, output, signal } from '@angular/core';
+import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ChipModule } from 'primeng/chip';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+
+import { AppIcon } from '../../shared/icons/app-icon';
 import type {
   FundamentalsAnalysisResult as FundamentalsResult,
   FundamentalsClaim,
@@ -50,22 +55,23 @@ const SCENARIO_ORDER: FundamentalsScenarioId[] = ['bull', 'base', 'bear'];
  * bull/base/bear scenarios, and the positive-signal/red-flag/missing-
  * information lists — the report `analyses.fundamentals_result` produced.
  *
- * Deliberately styled as one more section of the Fundamentals tab rather than
- * as its own "report" page: it sits directly below the identity card and the
- * raw-data cards (Valuation & ratios, Profitability & returns, ...) below it,
- * so it reuses their exact primitives (.fund-card, .hd, .lbl, .meta, .tiles,
- * .fund-figures) instead of the chart AnalysisResult component's own
- * editorial layout, which belongs to a different screen with a different
- * visual language.
+ * The standalone detail route shares the chart report's editorial shell: the
+ * identity header, headline tiles, bordered cards, two-column body, scenario
+ * slab, and compact diagnostics all use the same visual rhythm. The embedded
+ * Fundamentals tab still renders this component without `standalone`, so the
+ * report remains usable in that denser context too.
  */
 @Component({
   selector: 'app-fundamentals-analysis-result',
-  imports: [CardModule, ChipModule],
+  imports: [AppIcon, ButtonModule, CardModule, ChipModule, DatePipe, ProgressSpinnerModule],
   templateUrl: './fundamentals-analysis-result.html',
   styleUrl: './fundamentals-analysis-result.css',
 })
 export class FundamentalsAnalysisResultComponent {
   readonly row = input.required<AnalysisRow>();
+  readonly standalone = input(false);
+  readonly downloadBusy = input(false);
+  readonly downloadRequested = output<void>();
 
   protected readonly failed = computed(() => this.row().status === 'failed');
 
@@ -115,7 +121,12 @@ export class FundamentalsAnalysisResultComponent {
         label: 'Confidence',
         value: this.humanise(result.meta.confidence),
         hint: `${result.meta.completeness}/8 checklist items`,
-        tone: result.meta.confidence === 'high' ? 'up' : result.meta.confidence === 'low' ? 'down' : null,
+        tone:
+          result.meta.confidence === 'high'
+            ? 'up'
+            : result.meta.confidence === 'low'
+              ? 'down'
+              : null,
       },
       {
         label: 'Valuation',
@@ -153,7 +164,9 @@ export class FundamentalsAnalysisResultComponent {
     if (!result) return [];
     const lines = [...result.meta.data_issues, ...result.meta.notes];
     if (result.meta.material_conflict) {
-      lines.unshift('The source data contains a conflict that caps how confident this read can be.');
+      lines.unshift(
+        'The source data contains a conflict that caps how confident this read can be.',
+      );
     }
     return lines;
   });
@@ -217,13 +230,41 @@ export class FundamentalsAnalysisResultComponent {
     const r = this.result();
     if (!r) return [];
     return [
-      { title: 'Profitability', statement: r.profitability.statement, verdictValue: this.humanise(r.profitability.direction) },
-      { title: 'Per-share', statement: r.per_share.statement, verdictValue: this.humanise(r.per_share.dilution) },
-      { title: 'Balance sheet', statement: r.balance_sheet.statement, verdictValue: this.humanise(r.balance_sheet.leverage) },
-      { title: 'Cash flow', statement: r.cash_flow.statement, verdictValue: this.humanise(r.cash_flow.assessable) },
-      { title: 'Capital efficiency', statement: r.capital_efficiency.statement, verdictValue: this.humanise(r.capital_efficiency.assessable) },
-      { title: 'Dividend', statement: r.dividend.statement, verdictValue: this.humanise(r.dividend.sustainability) },
-      { title: 'Valuation', statement: r.valuation.statement, verdictValue: this.humanise(r.valuation.read) },
+      {
+        title: 'Profitability',
+        statement: r.profitability.statement,
+        verdictValue: this.humanise(r.profitability.direction),
+      },
+      {
+        title: 'Per-share',
+        statement: r.per_share.statement,
+        verdictValue: this.humanise(r.per_share.dilution),
+      },
+      {
+        title: 'Balance sheet',
+        statement: r.balance_sheet.statement,
+        verdictValue: this.humanise(r.balance_sheet.leverage),
+      },
+      {
+        title: 'Cash flow',
+        statement: r.cash_flow.statement,
+        verdictValue: this.humanise(r.cash_flow.assessable),
+      },
+      {
+        title: 'Capital efficiency',
+        statement: r.capital_efficiency.statement,
+        verdictValue: this.humanise(r.capital_efficiency.assessable),
+      },
+      {
+        title: 'Dividend',
+        statement: r.dividend.statement,
+        verdictValue: this.humanise(r.dividend.sustainability),
+      },
+      {
+        title: 'Valuation',
+        statement: r.valuation.statement,
+        verdictValue: this.humanise(r.valuation.read),
+      },
     ];
   });
 

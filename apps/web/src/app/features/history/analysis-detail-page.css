@@ -3,6 +3,10 @@
 }
 
 .analysis-detail-page {
+  /* One gutter for the header bar and the report below it. Both used to
+     clamp their own — to different ceilings — so the brand and the symbol
+     landed on rails up to 48px apart on a wide screen. */
+  --detail-gutter: clamp(20px, 4vw, 48px);
   background: var(--ground);
   color: var(--tx);
   min-height: 100vh;
@@ -12,7 +16,7 @@
 .analysis-detail-header {
   background: var(--surf);
   border-bottom: 1px solid var(--line);
-  padding: 14px clamp(20px, 4vw, 64px);
+  padding: 14px var(--detail-gutter);
 }
 
 .analysis-detail-header-inner {
@@ -82,8 +86,14 @@
   flex-direction: column;
   gap: var(--s6);
   margin: 0 auto;
-  max-width: 1240px;
-  padding: clamp(28px, 4vw, 48px) clamp(20px, 4vw, 48px) 64px;
+  /* The gutter is added to, not taken out of, the 1240px measure: under
+     border-box it would otherwise make the report 2×gutter narrower than the
+     header's inner row and pull its left edge inward by that much. */
+  max-width: calc(1240px + var(--detail-gutter) * 2);
+  /* The gutter itself has to stay — max-width alone leaves the report flush
+     against the viewport edge on every screen narrower than 1240px, and the
+     640px rule below is far too late to catch it. */
+  padding: clamp(28px, 4vw, 48px) var(--detail-gutter) 64px;
 }
 
 .analysis-detail-title {
@@ -167,8 +177,8 @@
 }
 
 @media (max-width: 640px) {
-  .analysis-detail-header {
-    padding-inline: var(--s4);
+  .analysis-detail-page {
+    --detail-gutter: var(--s4);
   }
 
   .analysis-detail-header-inner,
@@ -180,9 +190,5 @@
   .analysis-detail-header-actions {
     align-self: stretch;
     justify-content: space-between;
-  }
-
-  .analysis-detail-content {
-    padding-inline: var(--s4);
   }
 }
