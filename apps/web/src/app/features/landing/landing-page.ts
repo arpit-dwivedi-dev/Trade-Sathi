@@ -1,7 +1,5 @@
 import { Component, inject } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
-import { ChipModule } from 'primeng/chip';
 import { RouterLink } from '@angular/router';
 
 import { AppIcon } from '../../shared/icons/app-icon';
@@ -13,7 +11,7 @@ import { ThemeService } from '../../core/theme.service';
  */
 @Component({
   selector: 'app-landing-page',
-  imports: [RouterLink, AppIcon, ButtonModule, CardModule, ChipModule],
+  imports: [RouterLink, AppIcon, ButtonModule],
   styleUrl: './landing-page.css',
   templateUrl: './landing-page.html',
 })
