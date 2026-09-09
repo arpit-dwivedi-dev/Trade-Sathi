@@ -25,6 +25,7 @@ import { DailyBriefing } from '../daily-briefing/daily-briefing';
 import { WorkspacePage } from '../workspace/workspace-page';
 import { NavRail, type NavTab } from '../../shared/nav-rail/nav-rail';
 import { SymbolSearch, type SymbolSelection } from '../../shared/symbol-search/symbol-search';
+import type { OpenInstrumentRequest } from './open-instrument';
 import { AuthService } from '../../core/auth.service';
 import { MarketStatusService } from '../../core/market-status.service';
 import { ThemeService } from '../../core/theme.service';
@@ -328,6 +329,20 @@ export class AppPage implements OnInit {
       queryParams: { tab },
       replaceUrl: true,
     });
+  }
+
+  /**
+   * A child tab (History, Daily Briefing) reopening an instrument on its own
+   * destination tab. Sets that tab's per-tab selection then switches to it —
+   * the same path a top-bar search pick takes, so the reopened symbol lands on
+   * the Analyze-by-Symbol chart or Fundamentals screen already loaded rather
+   * than on a blank one.
+   */
+  protected onOpenInstrument({ instrument, tab }: OpenInstrumentRequest): void {
+    const selection: SymbolSelection = { instrument, requestId: ++this.selectionSeq };
+    if (tab === 'fundamentals') this.fundamentalsSelection.set(selection);
+    else this.workspaceSelection.set(selection);
+    this.select(tab);
   }
 
   protected async signOut(): Promise<void> {

@@ -29,6 +29,7 @@ import { startRowWatch, type RowWatch } from '../../core/row-watch';
 import { SupabaseClientService } from '../../core/supabase-client';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
+import type { OpenInstrumentRequest } from '../app/open-instrument';
 import { BillingService } from '../billing/billing.service';
 import { LiveService } from '../../core/live.service';
 import { currentProcessingSlots, utcDateFor } from './daily-briefing-processing';
@@ -41,7 +42,21 @@ interface DailyBriefingItem {
   analysis_lookback_days: number;
   scheduled_hour_ist: number | null;
   scheduled_minute_ist: number | null;
-  instruments: { exchange: string; symbol: string; name: string } | null;
+  /**
+   * The resolved catalogue instrument, joined on instrument_id. Null for a
+   * legacy free-text entry that predates the instrument catalogue — such a row
+   * has no instrument to chart, so its symbol renders without a reopen link.
+   * Carries the full identity (id, exchange, symbol, name, instrument_type)
+   * so a resolved row can be reopened on the Analyze-by-Symbol tab.
+   */
+  instruments: {
+    id: string;
+    exchange: string;
+    symbol: string;
+    name: string;
+    instrument_type: string;
+    logo_url: string | null;
+  } | null;
 }
 
 /** A recorded Analyze Now run, as stored in watchlist_analysis_runs. */
@@ -288,6 +303,13 @@ export class DailyBriefing implements OnInit, OnDestroy {
   readonly addCompleted = output<void>();
 
   /**
+   * Asks the shell to reopen a resolved row's instrument on the Analyze-by-
+   * Symbol (workspace) tab. Raised only for rows with a resolved catalogue
+   * instrument; a legacy free-text entry renders no link (see reopenTarget).
+   */
+  readonly openInstrument = output<OpenInstrumentRequest>();
+
+  /**
    * The Daily Briefing tab is unmounted whenever the user looks at another tab.
    * A run watch outlives that on its own — it would keep querying for up to
    * two minutes after destruction and keep writing to signals nobody is
@@ -338,7 +360,8 @@ export class DailyBriefing implements OnInit, OnDestroy {
         .from('watchlist_items')
         .select(
           'id, symbol, instrument_id, enabled_for_daily_analysis, analysis_lookback_days, ' +
-            'scheduled_hour_ist, scheduled_minute_ist, instruments(exchange, symbol, name)',
+            'scheduled_hour_ist, scheduled_minute_ist, ' +
+            'instruments(id, exchange, symbol, name, instrument_type, logo_url)',
         )
         .order('created_at', { ascending: false });
       if (error) {
@@ -944,5 +967,31 @@ export class DailyBriefing implements OnInit, OnDestroy {
 
   protected displayName(item: DailyBriefingItem): string | null {
     return item.instruments?.name ?? null;
+  }
+
+  /** Whether a row's symbol is clickable — true only for a resolved instrument. */
+  protected canReopen(item: DailyBriefingItem): boolean {
+    return item.instruments !== null;
+  }
+
+  /**
+   * Reopens a resolved row on the Analyze-by-Symbol workspace, building the
+   * instrument from the joined catalogue row. No-op for a legacy free-text
+   * entry with no instrument to chart.
+   */
+  protected reopen(item: DailyBriefingItem): void {
+    const instrument = item.instruments;
+    if (!instrument) return;
+    this.openInstrument.emit({
+      instrument: {
+        id: instrument.id,
+        exchange: instrument.exchange,
+        symbol: instrument.symbol,
+        name: instrument.name,
+        instrumentType: instrument.instrument_type,
+        logoUrl: instrument.logo_url ?? undefined,
+      },
+      tab: 'workspace',
+    });
   }
 }

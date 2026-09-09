@@ -476,3 +476,48 @@
   display: inline-flex;
   gap: 3px;
 }
+
+/* ── reopen links inside the symbol cell ────────────────────
+   A resolved row's logo and company name are buttons that reopen the
+   instrument on its own tab (Analyze by Symbol, or Fundamentals for a
+   fundamentals analysis). Each resets its button chrome so it reads exactly
+   like the plain logo/text it replaces, and only announces itself as a link
+   with an underline on hover/focus — never a permanent colour or underline. */
+.history-logo-link {
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 0;
+  padding: 0;
+}
+
+.history-logo-link:hover {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent);
+}
+
+.history-logo-link:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+}
+
+/* Reuses .history-sym-text/.trunc (max-width + nowrap ellipsis), so the
+   button has to be a real block-level-ish flex child for that to constrain it
+   — min-width: 0 lets it shrink to the cell's width, where trunc kicks in. */
+.history-sym-link {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.history-sym-link:hover,
+.history-sym-link:focus-visible {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 70%, transparent);
+  text-underline-offset: 3px;
+}

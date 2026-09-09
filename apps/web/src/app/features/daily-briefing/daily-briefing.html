@@ -65,7 +65,17 @@
           <ng-template #body let-item>
             <tr class="daily-briefing-row">
               <td>
-                <span class="sym daily-briefing-symbol">{{ displaySymbol(item) }}</span>
+                @if (canReopen(item)) {
+                  <button
+                    type="button"
+                    class="sym daily-briefing-symbol daily-briefing-symbol-link"
+                    (click)="reopen(item)"
+                    [attr.aria-label]="'Open ' + displaySymbol(item) + ' on the Analyze by Symbol tab'"
+                    [title]="'Open ' + displaySymbol(item) + ' in Analyze by Symbol'"
+                  >{{ displaySymbol(item) }}</button>
+                } @else {
+                  <span class="sym daily-briefing-symbol">{{ displaySymbol(item) }}</span>
+                }
                 @if (displayName(item); as name) {
                   <span class="daily-briefing-item-name">{{ name }}</span>
                 }

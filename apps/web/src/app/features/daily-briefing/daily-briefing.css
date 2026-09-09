@@ -344,6 +344,26 @@ p-progress-spinner.daily-briefing-cell-spinner {
   font-size: var(--t-sm);
 }
 
+/* A resolved row's symbol is a button that reopens the instrument on the
+   Analyze-by-Symbol tab. It resets its button chrome (it wears the same .sym
+   ticker style as the plain symbol it replaces) and only announces itself as a
+   link with an underline on hover/focus — never a permanent colour. */
+.daily-briefing-symbol-link {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.daily-briefing-symbol-link:hover,
+.daily-briefing-symbol-link:focus-visible {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 70%, transparent);
+  text-underline-offset: 3px;
+}
+
 /* p-toggleswitch and its On/Off label are both inline-level by default and
    align on the text baseline, which sits near the bottom of the switch
    rather than its centre — reads as visibly offset next to short label

@@ -108,7 +108,28 @@
         <ng-template #body let-row>
           <tr class="history-row">
             <td class="col-logo">
-              @if (logoUrl(row)) {
+              @if (canReopen(row)) {
+                <button
+                  type="button"
+                  class="history-logo-link"
+                  (click)="reopen(row)"
+                  [attr.aria-label]="reopenLabel(row)"
+                  [title]="reopenLabel(row)"
+                >
+                  @if (logoUrl(row)) {
+                    <img
+                      class="history-logo history-logo-img"
+                      [src]="logoUrl(row)"
+                      (error)="onLogoError($event)"
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                    />
+                  } @else {
+                    <span class="history-logo" [style.background]="avatarColor(row)" aria-hidden="true">{{ initials(row) }}</span>
+                  }
+                </button>
+              } @else if (logoUrl(row)) {
                 <img
                   class="history-logo history-logo-img"
                   [src]="logoUrl(row)"
@@ -127,7 +148,13 @@
                     [class.history-unknown]="!displaySymbol(row)"
                     [attr.title]="(displaySymbol(row) ?? 'Symbol not detected') + ' · from ' + sourceLabel(row)">
                 @if (companyName(row); as name) {
-                  <span class="history-sym-text trunc">{{ name }}</span>
+                  <button
+                    type="button"
+                    class="history-sym-text trunc history-sym-link"
+                    (click)="reopen(row)"
+                    [attr.aria-label]="reopenLabel(row)"
+                    [title]="reopenLabel(row)"
+                  >{{ name }}</button>
                 } @else {
                   <span class="history-sym-text trunc">{{ displaySymbol(row) ?? 'Not detected' }}</span>
                 }

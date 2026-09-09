@@ -6,6 +6,7 @@ import {
   OnInit,
   effect,
   inject,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
@@ -22,6 +23,10 @@ import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
 import { AppIcon } from '../../shared/icons/app-icon';
 import { TimeframeLabelPipe } from '../../shared/timeframe-label.pipe';
+import type {
+  OpenInstrumentRequest,
+  ChartDestinationTab,
+} from '../app/open-instrument';
 import { AnalysisPdfService } from './analysis-pdf.service';
 import {
   HistoryService,
@@ -58,6 +63,15 @@ export class HistoryList implements OnInit, OnDestroy {
   private readonly pdf = inject(AnalysisPdfService);
   private readonly supabase = inject(SupabaseClientService);
   private readonly auth = inject(AuthService);
+
+  /**
+   * Asks the shell to reopen a resolved row's instrument on the tab that row
+   * belongs to — the Fundamentals tab for a fundamentals analysis, the
+   * Analyze-by-Symbol chart workspace for every chart analysis. Raised only
+   * when the row resolved to a catalogue instrument; unresolvable rows render
+   * no link (see reopenTarget).
+   */
+  readonly openInstrument = output<OpenInstrumentRequest>();
 
   protected readonly columns = [
     'logo',
@@ -354,6 +368,54 @@ export class HistoryList implements OnInit, OnDestroy {
   /** Company name from the joined catalogue instrument; null for a manual upload. */
   protected companyName(row: HistoryRow): string | null {
     return row.instruments?.name ?? null;
+  }
+
+  /**
+   * The destination for a resolved row: an instrument built from the joined
+   * catalogue row plus which shell tab to open it on. Null when the row has no
+   * resolved instrument (a manual upload the model could not map to a
+   * catalogue symbol) — those rows are not reopenable and render no link.
+   *
+   * A fundamentals analysis reads a company, so it is reopened on the
+   * Fundamentals tab; every other analysis is of a chart, so it is reopened on
+   * the Analyze-by-Symbol workspace.
+   */
+  protected reopenTarget(row: HistoryRow): OpenInstrumentRequest | null {
+    const instrument = row.instruments;
+    if (!instrument) return null;
+    const tab: ChartDestinationTab = row.source === 'fundamentals' ? 'fundamentals' : 'workspace';
+    return {
+      instrument: {
+        id: instrument.id,
+        exchange: instrument.exchange,
+        symbol: instrument.symbol,
+        name: instrument.name,
+        instrumentType: instrument.instrument_type,
+        logoUrl: instrument.logo_url ?? undefined,
+      },
+      tab,
+    };
+  }
+
+  /**
+   * Whether a row's company/logo are clickable — true only for rows with a
+   * resolved instrument. The template calls this to decide between rendering a
+   * link and plain text.
+   */
+  protected canReopen(row: HistoryRow): boolean {
+    return this.reopenTarget(row) !== null;
+  }
+
+  /** Reopens a resolved row on its destination tab. */
+  protected reopen(row: HistoryRow): void {
+    const target = this.reopenTarget(row);
+    if (target) this.openInstrument.emit(target);
+  }
+
+  /** Link label naming the symbol and where clicking takes it. */
+  protected reopenLabel(row: HistoryRow): string {
+    const symbol = this.displaySymbol(row) ?? this.companyName(row) ?? 'this analysis';
+    return `Open ${symbol} on the ${this.reopenTarget(row)?.tab === 'fundamentals' ? 'Fundamentals' : 'Analyze by Symbol'} tab`;
   }
 
   protected logoUrl(row: HistoryRow): string | null {

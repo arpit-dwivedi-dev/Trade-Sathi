@@ -37,8 +37,20 @@ export type HistoryRow = Pick<
    * logo — null for a manual upload, which has no instrument_id to join on.
    * Supabase returns the joined row as an object here (a to-one FK), not the
    * array shape a to-many join would produce.
+   *
+   * Beyond the display columns (name/logo_url) it carries the instrument's
+   * full identity (id, symbol, exchange, instrument_type) so a resolved row
+   * can be reopened on the Analyze-by-Symbol or Fundamentals tab — HistoryRow
+   * has no instrument_id of its own on which to join again.
    */
-  instruments: { name: string; logo_url: string | null } | null;
+  instruments: {
+    id: string;
+    exchange: string;
+    symbol: string;
+    name: string;
+    instrument_type: string;
+    logo_url: string | null;
+  } | null;
 };
 
 // `symbol` and `source` join the list because symbol_raw alone was not enough
@@ -50,7 +62,7 @@ export type HistoryRow = Pick<
 const HISTORY_COLUMNS =
   'id, created_at, symbol, symbol_raw, instrument_type, structure_state, setup_format, ' +
   'call_direction, status, source, source_type, timeframe, emailed_at, image_key, asset_class, trend, ' +
-  'fundamentals_stance, instruments(name, logo_url)';
+  'fundamentals_stance, instruments(id, exchange, symbol, name, instrument_type, logo_url)';
 
 /**
  * Which provenances a listing is restricted to. 'all' is the absence of a

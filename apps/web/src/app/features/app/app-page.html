@@ -103,7 +103,10 @@
          nothing renders until this tab is activated. -->
     @defer (when tab() === 'history') {
       @if (tab() === 'history') {
-        <app-history-list class="tab-pane" />
+        <app-history-list
+          class="tab-pane"
+          (openInstrument)="onOpenInstrument($event)"
+        />
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading your history…</p>
@@ -119,6 +122,7 @@
           class="tab-pane"
           [selection]="dailyBriefingSelection()"
           (addCompleted)="clearSearch()"
+          (openInstrument)="onOpenInstrument($event)"
         />
       }
     } @loading (after 150ms; minimum 300ms) {
