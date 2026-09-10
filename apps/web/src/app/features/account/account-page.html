@@ -43,23 +43,33 @@
         </div>
 
         <div class="acct-form">
-          <label for="acct-full-name">Full name</label>
-          <input pInputText id="acct-full-name" type="text" name="fullName" maxlength="120"
-                 autocomplete="name" placeholder="Your name"
-                 [attr.aria-invalid]="profileError() ? 'true' : null"
-                 [ngModel]="fullName()"
-                 (ngModelChange)="fullName.set($event); profileSaved.set(false)" />
+          <div class="field">
+            <label for="acct-full-name">Full name</label>
+            <input pInputText id="acct-full-name" type="text" name="fullName" maxlength="120"
+                   autocomplete="name" placeholder="Your name"
+                   [attr.aria-invalid]="profileError() ? 'true' : null"
+                   [ngModel]="fullName()"
+                   (ngModelChange)="fullName.set($event); profileSaved.set(false)" />
+          </div>
 
           <div class="acct-field-row">
-            <div>
+            <div class="field">
               <label for="acct-phone">Phone number</label>
-              <input pInputText id="acct-phone" type="tel" name="phoneNumber" maxlength="20"
-                     autocomplete="tel" placeholder="+91 98765 43210"
-                     [ngModel]="phoneNumber()"
-                     (ngModelChange)="phoneNumber.set($event); profileSaved.set(false)" />
+              <ngx-intl-tel-input class="acct-phone" [cssClass]="'input'" [inputId]="'acct-phone'"
+                                   name="phoneNumber" [maxLength]="18"
+                                   [enableAutoCountrySelect]="true" [enablePlaceholder]="true"
+                                   [searchCountryFlag]="true"
+                                   [searchCountryField]="[SearchCountryField.Iso2, SearchCountryField.Name]"
+                                   [preferredCountries]="phonePreferredCountries"
+                                   [selectedCountryISO]="CountryISO.India"
+                                   [ngModel]="phoneNumber()" #phoneCtrl="ngModel"
+                                   (ngModelChange)="onPhoneChange($event)" />
+              @if (phoneCtrl.invalid && phoneCtrl.dirty) {
+                <p class="err acct-phone-err" role="alert">Enter a valid phone number.</p>
+              }
             </div>
 
-            <div>
+            <div class="field">
               <label for="acct-profession">Profession</label>
               <input pInputText id="acct-profession" type="text" name="profession" maxlength="100"
                      autocomplete="organization-title" placeholder="e.g. Software Engineer"
@@ -68,25 +78,32 @@
             </div>
           </div>
 
-          <label for="acct-location">Location</label>
-          <input pInputText id="acct-location" type="text" name="location" maxlength="100"
-                 autocomplete="address-level2" placeholder="City, Country"
-                 [ngModel]="location()"
-                 (ngModelChange)="location.set($event); profileSaved.set(false)" />
+          <div class="field">
+            <label for="acct-location">Location</label>
+            <input pInputText id="acct-location" type="text" name="location" maxlength="100"
+                   autocomplete="address-level2" placeholder="City, Country"
+                   [ngModel]="location()"
+                   (ngModelChange)="location.set($event); profileSaved.set(false)" />
+          </div>
         </div>
 
-        @if (profileError(); as message) {
-          <p class="err" role="alert">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="1.6" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 8v5M12 16h.01" />
-            </svg>
-            {{ message }}
-          </p>
-        } @else if (profileSaved()) {
-          <p class="acct-sub">Saved.</p>
-        }
+        <!-- Reserves the message's line height whether or not one is showing,
+             so a save result appearing/disappearing doesn't shift the note
+             and footer below it. -->
+        <div class="acct-status">
+          @if (profileError(); as message) {
+            <p class="err" role="alert">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.6" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8v5M12 16h.01" />
+              </svg>
+              {{ message }}
+            </p>
+          } @else if (profileSaved()) {
+            <p class="acct-sub">Saved.</p>
+          }
+        </div>
 
         <!-- Billing is a screen of its own; this page says nothing about plans
              or balances, it only points at where they live. -->

@@ -10,6 +10,9 @@ import { ChipModule } from 'primeng/chip';
 import { InputTextModule } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
 
+import type { ChangeData } from 'ngx-intl-tel-input-gg';
+import { CountryISO, NgxIntlTelInputModule, SearchCountryField } from 'ngx-intl-tel-input-gg';
+
 import { AuthService } from '../../core/auth.service';
 import { ProfileService } from './profile.service';
 
@@ -40,6 +43,7 @@ function splitMultiChoice(value: string | undefined): string[] {
     CheckboxModule,
     ChipModule,
     InputTextModule,
+    NgxIntlTelInputModule,
     Select,
   ],
   styleUrl: './account-page.css',
@@ -70,6 +74,9 @@ export class AccountPage implements OnInit {
     this.profileService.cachedName()?.trim() ? (this.user()?.email ?? '') : 'Signed in with email',
   );
   protected readonly phoneNumber = signal('');
+  protected readonly CountryISO = CountryISO;
+  protected readonly SearchCountryField = SearchCountryField;
+  protected readonly phonePreferredCountries = [CountryISO.India, CountryISO.UnitedStates, CountryISO.UnitedKingdom];
   protected readonly profession = signal('');
   protected readonly location = signal('');
   protected readonly savingProfile = signal(false);
@@ -172,6 +179,17 @@ export class AccountPage implements OnInit {
     const answers = this.surveyAnswers();
     return survey.questions.every((q) => (answers[q.id] ?? '').trim().length > 0);
   });
+
+  /**
+   * The phone input reports a parsed `ChangeData` object (or `null` when
+   * cleared) rather than a plain string — E.164 is what's stored and sent to
+   * the backend, since it's unambiguous regardless of which country's flag
+   * was selected.
+   */
+  protected onPhoneChange(data: ChangeData | null): void {
+    this.phoneNumber.set(data?.e164Number ?? '');
+    this.profileSaved.set(false);
+  }
 
   protected async saveProfile(): Promise<void> {
     const trimmedName = this.fullName().trim();

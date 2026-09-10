@@ -25,6 +25,7 @@
               }
             ],
             "styles": [
+              "node_modules/intl-tel-input/dist/css/intlTelInput.css",
               "src/styles/primeng-overrides.css",
               "src/styles.scss"
             ],
