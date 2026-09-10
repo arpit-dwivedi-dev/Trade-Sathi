@@ -1,11 +1,9 @@
 import { Component, OnDestroy, OnInit, inject, output, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
-import { KnobModule } from 'primeng/knob';
 
-import { AppIcon } from '../../shared/icons/app-icon';
-import { AnalysisResult } from './analysis-result';
+import { LottiePlayer } from '../../shared/lottie-player';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
 import { AnalyzeService, type PollHandle, type QuotaStatus } from './analyze.service';
 import { ChartDrop, type ChartFileSelection } from './chart-drop';
@@ -27,12 +25,10 @@ type AnalyzeState =
   selector: 'app-analyze-page',
   imports: [
     ChartDrop,
-    AnalysisResult,
-    AppIcon,
     ButtonModule,
     CardModule,
-    FormsModule,
-    KnobModule,
+    LottiePlayer,
+    RouterLink,
   ],
   styleUrl: './analyze-page.css',
   templateUrl: './analyze-page.html',
@@ -50,6 +46,12 @@ export class AnalyzePage implements OnInit, OnDestroy {
   protected readonly state = signal<AnalyzeState>('idle');
   protected readonly row = signal<AnalysisRow | null>(null);
   protected readonly patterns = signal<AnalysisPattern[]>([]);
+  /**
+   * The id of the analysis being polled, known as soon as it's submitted.
+   * The "view report" link is driven by this rather than `row`, since `row`
+   * only fills in once a poll tick returns a row and shouldn't gate the link.
+   */
+  protected readonly analysisId = signal<string | null>(null);
   /** Set only for a failed submission; otherwise the state carries the copy. */
   protected readonly error = signal<string | null>(null);
   /**
@@ -58,8 +60,6 @@ export class AnalyzePage implements OnInit, OnDestroy {
    * remains the authority.
    */
   protected readonly quota = signal<QuotaStatus | null>(null);
-  /** Read-only display value for the `processing` state's knob. */
-  protected processingValue = 34;
 
   private poll: PollHandle | null = null;
 
@@ -85,6 +85,7 @@ export class AnalyzePage implements OnInit, OnDestroy {
     this.error.set(null);
     this.row.set(null);
     this.patterns.set([]);
+    this.analysisId.set(null);
 
     let blob: Blob;
     try {
@@ -112,6 +113,7 @@ export class AnalyzePage implements OnInit, OnDestroy {
     }
 
     void this.refreshQuota();
+    this.analysisId.set(submitted.id);
     this.state.set('processing');
     this.startPolling(submitted.id);
   }
@@ -173,6 +175,7 @@ export class AnalyzePage implements OnInit, OnDestroy {
     this.poll = null;
     this.row.set(null);
     this.patterns.set([]);
+    this.analysisId.set(null);
     this.error.set(null);
     this.state.set('idle');
   }

@@ -31,6 +31,7 @@
     "intl-tel-input": "^29.2.3",
     "jspdf": "^4.2.1",
     "klinecharts": "10.0.3",
+    "lottie-web": "^5.13.0",
     "ngx-intl-tel-input-gg": "^2.0.1",
     "primeng": "^21.1.9",
     "rxjs": "~7.8.0",

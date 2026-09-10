@@ -31,19 +31,29 @@
   @switch (state()) {
     @case ('uploading') {
       <p-card aria-live="polite" class="state-card-processing">
-        <p-knob [(ngModel)]="processingValue" [readonly]="true" [size]="96" valueTemplate="{value}%" />
+        <app-lottie-player class="analyzing-lottie" path="/analyzing.json" />
       </p-card>
     }
 
     @case ('processing') {
       <p-card aria-live="polite" class="state-card-processing">
-        <p-knob [(ngModel)]="processingValue" [readonly]="true" [size]="96" valueTemplate="{value}%" />
+        <app-lottie-player class="analyzing-lottie" path="/analyzing.json" />
       </p-card>
     }
 
     @case ('complete') {
-      @if (row(); as completed) {
-        <app-analysis-result [row]="completed" [patterns]="patterns()" />
+      @if (analysisId(); as id) {
+        <p-card class="state-card-processing">
+          <div class="state-card">
+            <div class="state-head">
+              <span class="st st-complete">Done</span>
+              <h3 class="state-title">Your analysis is ready</h3>
+            </div>
+            <a pButton [routerLink]="['/analysis', id]">
+              View report
+            </a>
+          </div>
+        </p-card>
       }
     }
 
@@ -122,12 +132,5 @@
         </div>
       </p-card>
     }
-  }
-
-  @if (state() !== 'idle' && state() !== 'uploading' && state() !== 'processing') {
-    <button pButton [outlined]="true" class="analyze-again" (click)="reset()">
-      <app-icon name="refresh" aria-hidden="true" />
-      Analyze another chart
-    </button>
   }
 </section>

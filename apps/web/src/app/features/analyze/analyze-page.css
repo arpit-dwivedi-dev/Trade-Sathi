@@ -91,15 +91,16 @@
   justify-content: center;
 }
 
+.analyzing-lottie {
+  height: 220px;
+  width: 220px;
+}
+
 .state-skel {
   display: flex;
   flex-direction: column;
   gap: var(--s2);
   padding-top: var(--s1);
-}
-
-.analyze-again {
-  align-self: flex-start;
 }
 
 /* The quota-block actions sit side by side, wrapping on narrow screens. Each
