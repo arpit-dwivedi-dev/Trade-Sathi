@@ -91,14 +91,22 @@
     <!-- ── AI verdict ─────────────────────────────────────── -->
     @switch (aiState()) {
       @case ('queued') {
-        <p-card class="fund-card fund-ai-status" aria-busy="true">
-          <p-progress-spinner [style]="{width:'20px',height:'20px'}" strokeWidth="4" aria-hidden="true" />
+        <p-card class="fund-card fund-ai-status fund-ai-status-queued" aria-busy="true">
+          <app-lottie-player path="/analyzing.json" class="fund-ai-lottie" />
           <p class="meta">Reading the fundamentals above and building a verdict — this usually takes under a minute.</p>
         </p-card>
       }
       @case ('complete') {
-        @if (aiRow(); as row) {
-          <app-fundamentals-analysis-result [row]="row" />
+        @if (aiAnalysisId(); as id) {
+          <p-card class="fund-card fund-ai-status">
+            <div class="state-head">
+              <span class="st st-complete">Done</span>
+              <h3 class="state-title">Your analysis is ready</h3>
+            </div>
+            <a pButton [routerLink]="['/analysis', id]">
+              View report
+            </a>
+          </p-card>
         }
       }
       @case ('failed') {
@@ -151,155 +159,238 @@
       }
     </div>
 
-    <!-- ── 52-week range ──────────────────────────────────── -->
-    @if (rangePosition() !== null) {
-      <p-card class="fund-card fund-range-card">
-        <div class="fund-range-head">
-          <span class="lbl">52-week range</span>
-          <span class="tnum dim fund-range-now">Last {{ price(f.snapshot.price) }}</span>
-        </div>
-        <div class="fund-range" role="img"
-             [attr.aria-label]="'Last price ' + price(f.snapshot.price)
-               + ' within a 52-week range of ' + price(f.snapshot.fiftyTwoWeekLow)
-               + ' to ' + price(f.snapshot.fiftyTwoWeekHigh)">
-          <span class="fund-range-track"></span>
-          <span class="fund-range-mark" [style.left.%]="rangePosition()"></span>
-        </div>
-        <div class="lvl fund-range-ends">
-          <span class="tnum dim">{{ price(f.snapshot.fiftyTwoWeekLow) }}</span>
-          <span class="tnum dim">{{ price(f.snapshot.fiftyTwoWeekHigh) }}</span>
-        </div>
-      </p-card>
-    }
-
-    <!-- Sections stack full width and read in the order the questions come
-         in: what am I paying for it, what does it earn, can it survive, what
-         has it reported — and trading statistics last, below, since they
-         describe the share price rather than the business.
-
-         Each section's figures flow into as many columns as the width holds
-         (see .fund-figures), which is why a section is a short wide band and
-         not a tall narrow list. Side-by-side cards were tried first and could
-         not work: a column of 13 figures beside a column of 3 leaves the
-         short one's card half empty however the cards are packed. -->
-
-    <!-- ── what the market is paying ─────────────────────── -->
-    <p-card class="fund-card">
-      <div class="hd"><span class="lbl">Valuation &amp; ratios</span></div>
-      <ul class="fund-figures">
-        @for (figure of valuationFigures(); track figure.label) {
-          <li class="lvl fund-figure">
-            <span class="meta">{{ figure.label }}</span>
-            <span class="tnum fund-figure-val">{{ figure.value }}</span>
-          </li>
+    <!-- ── 52-week and day's ranges, side by side ─────────── -->
+    @if (rangePosition() !== null || dayRangePosition() !== null) {
+      <div class="fund-range-grid">
+        @if (rangePosition() !== null) {
+          <p-card class="fund-card fund-range-card">
+            <div class="fund-range-head">
+              <span class="lbl">52-week range</span>
+              <span class="tnum dim fund-range-now">last {{ price(f.snapshot.price) }}</span>
+            </div>
+            <div class="fund-range" role="img"
+                 [attr.aria-label]="'Last price ' + price(f.snapshot.price)
+                   + ' within a 52-week range of ' + price(f.snapshot.fiftyTwoWeekLow)
+                   + ' to ' + price(f.snapshot.fiftyTwoWeekHigh)">
+              <span class="fund-range-track"></span>
+              <span class="fund-range-mark" [style.left.%]="rangePosition()"></span>
+            </div>
+            <div class="lvl fund-range-ends">
+              <span class="tnum dim">{{ price(f.snapshot.fiftyTwoWeekLow) }}</span>
+              <span class="tnum dim">{{ price(f.snapshot.fiftyTwoWeekHigh) }}</span>
+            </div>
+          </p-card>
         }
-      </ul>
-    </p-card>
 
-    <!-- ── what the company earns ────────────────────────── -->
-    <p-card class="fund-card">
-      <div class="hd"><span class="lbl">Profitability &amp; returns</span></div>
-      <div class="fund-bars">
-        @for (row of profitabilityRatios(); track row.label) {
-          <div class="fund-bar">
-            <span class="lvl">
-              <span class="meta">{{ row.label }}</span>
-              <span class="tnum fund-figure-val">{{ percent(row.value) }}</span>
-            </span>
-            <span class="meter fund-meter"><i [style.width.%]="row.fill"></i></span>
-          </div>
+        @if (dayRangePosition() !== null) {
+          <p-card class="fund-card fund-range-card">
+            <div class="fund-range-head">
+              <span class="lbl">Day's range</span>
+              <span class="tnum dim fund-range-now">prev close {{ price(f.snapshot.previousClose) }}</span>
+            </div>
+            <div class="fund-range" role="img"
+                 [attr.aria-label]="'Last price ' + price(f.snapshot.price)
+                   + ' within a day\'s range of ' + price(f.snapshot.dayLow)
+                   + ' to ' + price(f.snapshot.dayHigh)">
+              <span class="fund-range-track"></span>
+              <span class="fund-range-mark" [style.left.%]="dayRangePosition()"></span>
+            </div>
+            <div class="lvl fund-range-ends">
+              <span class="tnum dim">{{ price(f.snapshot.dayLow) }}</span>
+              <span class="tnum dim">{{ price(f.snapshot.dayHigh) }}</span>
+            </div>
+          </p-card>
         }
       </div>
+    }
 
-      <div class="hd fund-hd-mid"><span class="lbl">Growth</span></div>
-      <ul class="fund-figures">
-        @for (figure of growthFigures(); track figure.label) {
-          <li class="lvl fund-figure">
-            <span class="meta">{{ figure.label }}</span>
-            <span class="tnum fund-figure-val" [attr.data-tone]="figure.tone ?? null">
-              {{ figure.value }}
-            </span>
-          </li>
-        }
-      </ul>
-    </p-card>
-
-    <!-- ── what it is built on ───────────────────────────── -->
-    <p-card class="fund-card">
-      <div class="hd"><span class="lbl">Scale &amp; balance sheet</span></div>
-      <ul class="fund-figures">
-        @for (figure of healthFigures(); track figure.label) {
-          <li class="lvl fund-figure">
-            <span class="meta">{{ figure.label }}</span>
-            <span class="tnum fund-figure-val">{{ figure.value }}</span>
-          </li>
-        }
-      </ul>
-    </p-card>
-
-    <!-- ── reported years ─────────────────────────────────── -->
-    @if (annualRows().length > 0) {
+    <!-- ── reported years: chart pair, then the table ─────── -->
+    @if (data(); as f) {
       <p-card class="fund-card">
         <div class="hd fund-annual-head">
-          <span class="lbl">Reported years</span>
+          <span class="fund-annual-head-text">
+            <span class="lbl">Reported years</span>
+            @if (annualYearRange(); as range) {
+              <span class="meta dim fund-annual-sub">{{ range }}, as published</span>
+            }
+          </span>
           <p-selectButton class="seg" aria-label="Financial metric"
                           [options]="annualMetricOptions" optionLabel="label" optionValue="key"
                           [ngModel]="annualMetric()" (onChange)="selectAnnualMetric($event.value)" />
         </div>
 
         <div class="fund-annual-body">
-          @if (annualBars().length > 0) {
-            <div class="fund-chart">
-              <span class="fund-chart-zero" [style.bottom.%]="annualZeroPct()"
-                    aria-hidden="true"></span>
-              @for (bar of annualBars(); track bar.asOfDate) {
-                <div class="fund-chart-col"
-                     [title]="annualMetricLabel() + ' ' + bar.year + ': ' + bar.label">
-                  <span class="fund-chart-val tnum">{{ bar.label }}</span>
-                  @if (!bar.missing) {
-                    <span class="fund-chart-bar" [class.fund-chart-bar-neg]="bar.negative"
-                          [style.height.%]="bar.heightPct" [style.bottom.%]="bar.basePct"></span>
+          <div class="fund-chart-grid">
+            @if (revenueChartData().hasData) {
+              <div class="fund-chart-pane">
+                <div class="fund-chart-pane-head">
+                  <span>
+                    <b class="fund-chart-title">{{ annualMetricLabel() }}</b>
+                    <span class="meta dim fund-chart-sub">by fiscal year</span>
+                  </span>
+                  @if (annualCagr(); as cagr) {
+                    <span class="tnum fund-cagr" [attr.data-tone]="cagr >= 0 ? 'up' : 'down'">
+                      {{ signedPercent(cagr) }} CAGR
+                    </span>
                   }
-                  <span class="fund-chart-year tnum">{{ bar.year }}</span>
                 </div>
-              }
-            </div>
-          }
-
-          <div class="tbl fund-tbl">
-            <div class="tr tr-h fund-tr">
-              <span>Fiscal year end</span>
-              <span class="fund-tbl-num">Revenue</span>
-              <span class="fund-tbl-num">Operating income</span>
-              <span class="fund-tbl-num">Net income</span>
-              <span class="fund-tbl-num">Diluted EPS</span>
-            </div>
-            @for (period of annualRows(); track period.asOfDate) {
-              <div class="tr fund-tr">
-                <span class="tnum">{{ period.asOfDate }}</span>
-                <span class="tnum fund-tbl-num">{{ annualValue(period, 'revenue') }}</span>
-                <span class="tnum fund-tbl-num">{{ annualValue(period, 'operatingIncome') }}</span>
-                <span class="tnum fund-tbl-num">{{ annualValue(period, 'netIncome') }}</span>
-                <span class="tnum fund-tbl-num">{{ annualValue(period, 'dilutedEps') }}</span>
+                <div class="fund-chart-canvas">
+                  <p-chart type="bar" [data]="revenueChartData().chartData"
+                           [options]="revenueChartOptions()" [plugins]="barChartPlugins" />
+                </div>
               </div>
             }
+
+            @if (marginTrendData().hasData) {
+              <div class="fund-chart-pane">
+                <div class="fund-chart-pane-head">
+                  <span class="fund-chart-title">Margin trend</span>
+                  <span class="fund-legend">
+                    <span class="fund-legend-item"><i class="fund-legend-dot fund-legend-dot-acc"></i>Operating</span>
+                    <span class="fund-legend-item"><i class="fund-legend-dot fund-legend-dot-up"></i>Net</span>
+                  </span>
+                </div>
+                <div class="fund-chart-canvas">
+                  <p-chart type="line" [data]="marginTrendData().chartData"
+                           [options]="marginTrendOptions()" />
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="fund-tbl-wrap">
+            <p-table [value]="annualRows()" [dataKey]="'asOfDate'">
+              <ng-template #header>
+                <tr>
+                  <th>Fiscal year end</th>
+                  <th class="fund-tbl-num">Revenue</th>
+                  <th class="fund-tbl-num">Operating income</th>
+                  <th class="fund-tbl-num">Net income</th>
+                  <th class="fund-tbl-num">Diluted EPS</th>
+                </tr>
+              </ng-template>
+              <ng-template #body let-period>
+                <tr>
+                  <td class="tnum">{{ period.asOfDate }}</td>
+                  <td class="tnum fund-tbl-num">{{ annualValue(period, 'revenue') }}</td>
+                  <td class="tnum fund-tbl-num">{{ annualValue(period, 'operatingIncome') }}</td>
+                  <td class="tnum fund-tbl-num">{{ annualValue(period, 'netIncome') }}</td>
+                  <td class="tnum fund-tbl-num">{{ annualValue(period, 'dilutedEps') }}</td>
+                </tr>
+              </ng-template>
+            </p-table>
           </div>
         </div>
       </p-card>
     }
 
-    <!-- ── the share itself ──────────────────────────────── -->
-    <p-card class="fund-card">
-      <div class="hd"><span class="lbl">Trading</span></div>
-      <ul class="fund-figures">
-        @for (figure of tradingFigures(); track figure.label) {
-          <li class="lvl fund-figure">
-            <span class="meta">{{ figure.label }}</span>
-            <span class="tnum fund-figure-val">{{ figure.value }}</span>
-          </li>
+    <!-- ── ratios: a wide valuation card beside profitability
+         and growth, then a wide balance-sheet card beside
+         trading — five cards in document order across a
+         2fr/1fr/1fr grid, so the two wide cards line up in the
+         first column and the last cell is simply left empty. ── -->
+    <div class="fund-ratio-grid">
+      <p-card class="fund-card">
+        <div class="hd"><span class="lbl">Valuation &amp; ratios</span></div>
+        <ul class="fund-figures fund-figures-3col">
+          @for (figure of valuationFigures(); track figure.label) {
+            <li class="lvl fund-figure">
+              <span class="meta">{{ figure.label }}</span>
+              <span class="tnum fund-figure-val">{{ figure.value }}</span>
+            </li>
+          }
+        </ul>
+      </p-card>
+
+      <p-card class="fund-card">
+        <div class="hd"><span class="lbl">Profitability &amp; returns</span></div>
+        <div class="fund-bars">
+          @for (row of marginBars(); track row.label) {
+            <div class="fund-bar">
+              <span class="lvl">
+                <span class="meta">{{ row.label }}</span>
+                <span class="tnum fund-figure-val">{{ percent(row.value) }}</span>
+              </span>
+              <span class="meter fund-meter"><i [style.width.%]="row.fill"></i></span>
+            </div>
+          }
+        </div>
+        <ul class="fund-figures fund-figures-2col fund-returns">
+          @for (figure of returnFigures(); track figure.label) {
+            <li class="lvl fund-figure">
+              <span class="meta">{{ figure.label }}</span>
+              <span class="tnum fund-figure-val">{{ figure.value }}</span>
+            </li>
+          }
+        </ul>
+      </p-card>
+
+      <p-card class="fund-card fund-growth-card">
+        <div class="hd"><span class="lbl">Growth · year on year</span></div>
+        <div class="fund-bars fund-growth-bars">
+          @for (row of growthBars(); track row.label) {
+            <div class="fund-bar">
+              <span class="lvl">
+                <span class="meta">{{ row.label }}</span>
+                <span class="tnum fund-figure-val" [attr.data-tone]="row.tone ?? null">
+                  {{ row.display }}
+                </span>
+              </span>
+              <span class="meter fund-meter" [attr.data-tone]="row.tone ?? null">
+                <i [style.width.%]="row.fill"></i>
+              </span>
+            </div>
+          }
+        </div>
+        <p class="meta dim fund-growth-note">
+          Bars scale to a 40% ceiling, shared across the three rows.
+        </p>
+      </p-card>
+
+      <p-card class="fund-card">
+        <div class="hd"><span class="lbl">Scale &amp; balance sheet</span></div>
+        <ul class="fund-figures fund-figures-3col">
+          @for (figure of healthFigures(); track figure.label) {
+            <li class="lvl fund-figure">
+              <span class="meta">{{ figure.label }}</span>
+              <span class="tnum fund-figure-val">{{ figure.value }}</span>
+            </li>
+          }
+        </ul>
+
+        @if (cashDebt(); as cd) {
+          <div class="fund-cashdebt">
+            <span class="lbl fund-cashdebt-lbl">Cash against debt</span>
+            <div class="fund-cashdebt-row">
+              <span class="meta fund-cashdebt-name">Total cash</span>
+              <span class="meter fund-meter fund-cashdebt-meter" data-tone="up">
+                <i [style.width.%]="cd.cashFill"></i>
+              </span>
+              <span class="tnum fund-cashdebt-val">{{ cd.cashLabel }}</span>
+            </div>
+            <div class="fund-cashdebt-row">
+              <span class="meta fund-cashdebt-name">Total debt</span>
+              <span class="meter fund-meter fund-cashdebt-meter" data-tone="down">
+                <i [style.width.%]="cd.debtFill"></i>
+              </span>
+              <span class="tnum fund-cashdebt-val">{{ cd.debtLabel }}</span>
+            </div>
+          </div>
         }
-      </ul>
-    </p-card>
+      </p-card>
+
+      <p-card class="fund-card">
+        <div class="hd"><span class="lbl">Trading</span></div>
+        <ul class="fund-figures fund-figures-1col">
+          @for (figure of tradingFigures(); track figure.label) {
+            <li class="lvl fund-figure">
+              <span class="meta">{{ figure.label }}</span>
+              <span class="tnum fund-figure-val">{{ figure.value }}</span>
+            </li>
+          }
+        </ul>
+      </p-card>
+    </div>
 
     <p class="disc">
       Figures are as published by the market-data provider

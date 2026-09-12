@@ -139,25 +139,27 @@ describe('FundamentalsPage', () => {
 
     // Valuation — the section that was rendering.
     expect(text).toContain('P/E (trailing)');
-    // Profitability, growth, balance sheet and trading — the sections that
-    // were not.
-    expect(host.querySelectorAll('.fund-bar').length).toBe(6);
+    // Profitability (4 margin bars; return on equity/assets are plain
+    // figures, not bars — see marginBars/returnFigures), growth, balance
+    // sheet and trading — the sections that were not.
+    expect(host.querySelectorAll('.fund-bar').length).toBe(4 + 3);
     expect(text).toContain('Gross margin');
-    expect(text).toContain('Revenue growth (yoy)');
+    expect(text).toContain('Return on equity');
+    expect(text).toContain('Revenue growth');
     expect(text).toContain('Shares outstanding');
-    expect(text).toContain('Previous close');
+    expect(text).toContain("50-day average");
     // Reported years, which was not rendering either.
-    expect(host.querySelectorAll('.fund-chart-bar').length).toBe(3);
-    expect(host.querySelectorAll('.fund-tbl .tr').length).toBe(4);
+    expect(host.querySelectorAll('.fund-tbl-wrap tbody tr').length).toBe(3);
   });
 
   it('draws a dash for a figure the provider does not report', async () => {
     const fixture = await renderWithSelection();
     const host = fixture.nativeElement as HTMLElement;
 
-    // returnOnEquity is null above; its bar must still be drawn, at zero.
-    const bars = [...host.querySelectorAll('.fund-bar')];
-    const roe = bars.find((bar) => bar.textContent?.includes('Return on equity'));
+    // returnOnEquity is null above; it must still read as a dash rather than
+    // being dropped from the card.
+    const figures = [...host.querySelectorAll('.fund-figure')];
+    const roe = figures.find((figure) => figure.textContent?.includes('Return on equity'));
 
     expect(roe?.textContent).toContain('—');
   });

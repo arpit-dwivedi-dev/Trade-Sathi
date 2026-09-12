@@ -31,7 +31,19 @@
 
 /* ── identity card ───────────────────────────────────────── */
 
+/* p-card's own preset (primeng-preset.ts) only hands it a background, radius
+   and color — no border. That reads fine in dark theme, where the canvas and
+   the card surface are different colours (#131722 vs #1e222d) and the card
+   still separates from the page without one; in light theme canvas and
+   surface are both #ffffff, so a borderless card is literally invisible
+   against the page. Every other surface on this page (.tile, .fund-range-card
+   before it grew this, .fund-placeholder, .fund-empty) already draws its own
+   1px hairline for exactly this reason — this brings p-card in line with them
+   rather than leaving it the one surface relying on a theme where the trick
+   happens to still read. */
 .fund-card {
+  border: 1px solid var(--line);
+  box-shadow: var(--sh-1);
   display: block;
   overflow: visible;
 }
@@ -132,7 +144,16 @@
   margin-top: calc(var(--s2) * -1);
 }
 
-/* ── 52-week range ───────────────────────────────────────── */
+/* ── 52-week and day's ranges ────────────────────────────── */
+
+/* Two cards of identical shape, side by side — the day's range is the same
+   reading at a tighter scale, so it earns the same width rather than a
+   half-width afterthought under the 52-week band. */
+.fund-range-grid {
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 
 .fund-range-card {
   display: flex;
@@ -212,6 +233,24 @@
   padding: var(--s2) var(--s5) var(--s4);
 }
 
+/* The ratio-grid cards below are narrower than a full-width section, so their
+   own figure lists take a fixed column count instead of the auto-fill above
+   — at these widths a 280px minimum would collapse every one of them to a
+   single column regardless of how many the card was actually laid out for. */
+.fund-figures-3col {
+  column-gap: var(--s4);
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.fund-figures-2col {
+  column-gap: var(--s4);
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.fund-figures-1col {
+  grid-template-columns: 1fr;
+}
+
 .fund-figure {
   border-bottom: 1px solid var(--line-soft);
   padding: var(--s3) 0;
@@ -258,95 +297,236 @@
 }
 
 /* .meter takes its fill from currentColor; the accent is what these bars mean
-   here — a magnitude, not a direction. */
+   here — a magnitude, not a direction. Growth and the cash/debt pair below
+   carry an explicit tone instead, since there the direction is the point. */
 .fund-meter {
   color: var(--acc);
 }
 
-/* ── annual chart and table ──────────────────────────────── */
+.fund-meter[data-tone='up'] {
+  color: var(--up);
+}
+
+.fund-meter[data-tone='down'] {
+  color: var(--down);
+}
+
+/* The margins above are bars; return on equity/assets read as plain figures
+   — a return can run past 100%, which draws as a false "full" bar, so it
+   only ever gets the number. A rule marks it as the card's second group. */
+.fund-returns {
+  border-top: 1px solid var(--line-soft);
+  margin-top: var(--s2);
+}
+
+/* Growth stays single-column even inside the narrow third of the ratio grid
+   (see .fund-ratio-grid) — the auto-fill above would only ever resolve to
+   one column there anyway, but this makes the intent explicit. */
+.fund-growth-bars {
+  grid-template-columns: 1fr;
+}
+
+.fund-growth-note {
+  font-size: var(--t-3xs);
+  padding: 0 var(--s5) var(--s4);
+}
+
+/* ── ratio grid ──────────────────────────────────────────── */
+
+/* Valuation and Scale & balance sheet both carry far more figures than
+   Profitability, Growth or Trading, so they take the wide first track and
+   the other three share the narrower two — five cards in document order
+   naturally fill a 2/1/1 grid two rows deep, with the sixth cell (row two,
+   column three) simply left empty rather than stretched to fill it. */
+.fund-ratio-grid {
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: 2fr 1fr 1fr;
+}
+
+.fund-growth-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── cash against debt ───────────────────────────────────── */
+
+.fund-cashdebt {
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4) var(--s5) var(--s5);
+}
+
+.fund-cashdebt-lbl {
+  padding: 0;
+}
+
+.fund-cashdebt-row {
+  align-items: center;
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+}
+
+.fund-cashdebt-name {
+  white-space: nowrap;
+}
+
+.fund-cashdebt-meter {
+  height: 8px;
+}
+
+.fund-cashdebt-val {
+  color: var(--tx);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── annual charts and table ─────────────────────────────── */
 
 .fund-annual-head {
   flex-wrap: wrap;
 }
 
+.fund-annual-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.fund-annual-sub {
+  font-size: var(--t-2xs);
+}
+
 .fund-annual-body {
   display: flex;
   flex-direction: column;
-  gap: var(--s4);
+  gap: var(--s5);
   padding: var(--s4) var(--s5) var(--s5);
 }
 
-/* Bars are positioned against a shared zero line rather than the floor, so a
-   loss-making year is drawn downwards instead of clipped to nothing. */
-.fund-chart {
-  align-items: stretch;
+/* The revenue/metric chart and the margin trend sit side by side — two views
+   of the same reported years, one in money and one in percent, so they read
+   as a pair rather than a stack. */
+.fund-chart-grid {
+  display: grid;
+  gap: var(--s5);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fund-chart-pane {
   display: flex;
+  flex-direction: column;
   gap: var(--s3);
-  height: 200px;
-  position: relative;
-}
-
-.fund-chart-zero {
-  background: var(--line);
-  height: 1px;
-  left: 0;
-  position: absolute;
-  right: 0;
-}
-
-.fund-chart-col {
-  display: flex;
-  flex: 1 1 0;
-  justify-content: center;
   min-width: 0;
-  position: relative;
 }
 
-.fund-chart-bar {
-  background: var(--acc);
-  border-radius: var(--r-xs) var(--r-xs) 0 0;
-  min-height: 2px;
-  position: absolute;
-  transition:
-    height var(--dur-screen) var(--ease-enter),
-    bottom var(--dur-screen) var(--ease-enter);
-  width: min(56px, 70%);
+.fund-chart-pane-head {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
 }
 
-/* A negative year hangs from the zero line, so its corners round the other way. */
-.fund-chart-bar-neg {
-  background: var(--down);
-  border-radius: 0 0 var(--r-xs) var(--r-xs);
-}
-
-.fund-chart-val {
-  color: var(--tx-2);
-  font-size: var(--t-3xs);
+.fund-chart-title {
+  color: var(--tx);
+  font-family: var(--fh);
+  font-size: var(--t-sm);
   font-weight: 600;
-  position: absolute;
-  top: 0;
+  letter-spacing: -0.005em;
+}
+
+.fund-chart-sub {
+  font-size: var(--t-xs);
+  margin-left: var(--s2);
+}
+
+.fund-cagr {
+  font-size: var(--t-xs);
+  font-weight: 600;
+}
+
+.fund-cagr[data-tone='up'] {
+  color: var(--up);
+}
+
+.fund-cagr[data-tone='down'] {
+  color: var(--down);
+}
+
+.fund-legend {
+  align-items: center;
+  display: flex;
+  gap: var(--s4);
+}
+
+.fund-legend-item {
+  align-items: center;
+  color: var(--tx-2);
+  display: inline-flex;
+  font-size: var(--t-xs);
+  gap: 6px;
+}
+
+.fund-legend-dot {
+  border-radius: var(--r-pill);
+  height: 8px;
+  width: 8px;
+}
+
+.fund-legend-dot-acc {
+  background: var(--acc);
+}
+
+.fund-legend-dot-up {
+  background: var(--up);
+}
+
+/* Chart.js resizes its canvas to fill this box (options set
+   maintainAspectRatio: false), so the height here is the chart's real height
+   — without it the canvas collapses to 0 and never draws. */
+.fund-chart-canvas {
+  height: 260px;
+  position: relative;
+  width: 100%;
+}
+
+/* Mirrors logs-page.css's table treatment: a bordered, rounded card wrapping
+   PrimeNG's own table, whose header/row/border colors already come from the
+   app's datatable preset tokens (primeng-preset.ts) — this only adds the
+   surface chrome PrimeNG's root doesn't carry on its own. */
+.fund-tbl-wrap {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: auto;
+}
+
+.fund-tbl-wrap ::ng-deep .p-datatable-table-container {
+  border-radius: var(--r-lg);
+}
+
+.fund-tbl-wrap ::ng-deep th,
+.fund-tbl-wrap ::ng-deep td {
+  padding: var(--s3) var(--s5);
+}
+
+.fund-tbl-wrap ::ng-deep th {
+  color: var(--tx-3);
+  font-family: var(--fh);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
-.fund-chart-year {
-  bottom: -20px;
-  color: var(--tx-3);
-  font-size: var(--t-2xs);
-  position: absolute;
-}
-
-/* Clears the year labels, which sit below the track. */
-.fund-annual-body .fund-chart {
-  margin-bottom: var(--s5);
-}
-
-/* Five columns, not the eight .tr is cut for elsewhere. */
-.fund-tbl {
-  --tr-min-w: 640px;
-}
-
-.fund-tr {
-  grid-template-columns: 132px repeat(4, minmax(0, 1fr));
+.fund-tbl-wrap ::ng-deep td {
+  color: var(--tx);
+  font-size: var(--t-sm);
 }
 
 .fund-tbl-num {
@@ -441,10 +621,32 @@
   max-width: 46ch;
 }
 
+@media (max-width: 1100px) {
+  .fund-ratio-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .fund-range-grid,
+  .fund-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fund-ratio-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .fund-placeholder-features {
     flex-direction: column;
     gap: var(--s3);
+  }
+
+  .fund-figures-3col,
+  .fund-figures-2col {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -469,12 +671,40 @@
 
 /* ── AI verdict status states ────────────────────────────── */
 
-.fund-ai-status {
+/* p-card projects its content into an inner .p-card-body > .p-card-content
+   pair, so the flex layout has to land there rather than on the p-card host
+   — a class on the host only ever has that one wrapper as its child. */
+.fund-ai-status ::ng-deep .p-card-body,
+.fund-ai-status ::ng-deep .p-card-content {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--s3);
   justify-content: space-between;
-  padding: var(--s4) var(--s5);
+}
+
+.fund-ai-status-queued ::ng-deep .p-card-body,
+.fund-ai-status-queued ::ng-deep .p-card-content {
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.fund-ai-lottie {
+  flex: none;
+  height: 32px;
+  width: 32px;
+}
+
+.state-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.state-title {
+  font-size: var(--t-lg);
+  letter-spacing: -0.017em;
 }
 
