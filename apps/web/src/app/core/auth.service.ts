@@ -3,6 +3,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { isDisposableEmail } from '@chartanalyzer/shared';
 
 import { SupabaseClientService } from './supabase-client';
+import { environment } from '../../environments/environment';
 
 /** Methods report failure as a value so components never need try/catch. */
 export type AuthResult = { ok: true } | { ok: false; message: string };
@@ -100,7 +101,8 @@ export class AuthService {
 
     // Fast path only. The `before_user_created` auth hook is the real
     // boundary and rejects the full disposable-domain list server-side.
-    if (isDisposableEmail(email)) {
+    // Skipped outside production so temp emails work for local dev signups.
+    if (environment.production && isDisposableEmail(email)) {
       return {
         ok: false,
         message:

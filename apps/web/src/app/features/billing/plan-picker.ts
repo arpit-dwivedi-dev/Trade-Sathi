@@ -194,7 +194,7 @@ export class PlanPicker {
     return MANUAL_PLAN_KEYS.has(plan.key) ? 'analyses / month' : 'briefings / month';
   }
 
-  /** Minor units + currency → "₹399" / "$9". Zero (Inactive) renders as "—". */
+  /** Minor units + currency → "₹399" / "$9". Zero (Free plan) renders as "—". */
   protected priceLabel(plan: PurchasablePlan): string {
     return formatPriceMinor(plan.amountMinor, plan.currency);
   }
@@ -226,7 +226,7 @@ export class PlanPicker {
           .select('amount_minor, currency, plans!inner(key, name, analyses_per_month)')
           .eq('region', region)
           .eq('is_active', true)
-          // Cheapest first, so Inactive reads before Starter before Pro.
+          // Cheapest first, so Free plan reads before Starter before Pro.
           .order('amount_minor', { ascending: true })
           .returns<PlanPriceRow[]>(),
         client

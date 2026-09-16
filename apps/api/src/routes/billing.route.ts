@@ -4,7 +4,7 @@ import { asyncRoute } from "../lib/async-route.js";
 import { logger } from "../lib/logger.js";
 import { requireAuth } from "../middleware/auth.js";
 import { createSubscription } from "../services/billing.service.js";
-import { createCreditOrder, type CreditPackKind } from "../services/credits.service.js";
+import { createCreditOrder, reconcileCreditOrder, type CreditPackKind } from "../services/credits.service.js";
 import { ensurePricingRegion } from "../services/pricing-region.service.js";
 import { redeemPromoCode } from "../services/promo.service.js";
 
@@ -163,6 +163,71 @@ billingRouter.post(
   "/api/billing/buy-entry-pass",
   asyncRoute(requireAuth),
   creditPackRoute("entry_pass"),
+);
+
+/**
+ * POST /api/billing/verify-order — body { orderId: string }.
+ *
+ * "I think I paid for this order — please check." Called by the client when the
+ * payments row it has been polling has not flipped to 'captured', which in
+ * practice means the Razorpay webhook has not arrived: it is a push with no
+ * delivery guarantee, and it cannot reach a local dev server at all.
+ *
+ * Answers 200 for both settled and not-yet-paid, because neither is an error:
+ * the purchase either happened or it hasn't. Only a provider outage (502) or a
+ * failure on our side (500) is an error status.
+ */
+billingRouter.post(
+  "/api/billing/verify-order",
+  asyncRoute(requireAuth),
+  asyncRoute(async (req: Request, res: Response) => {
+    const { orderId } = (req.body ?? {}) as { orderId?: unknown };
+    // Bounded because it is used as a query value against our own table and
+    // forwarded to the provider; Razorpay's order ids are far shorter than this.
+    if (typeof orderId !== "string" || orderId.length === 0 || orderId.length > 64) {
+      res.status(400).json({ error: "orderId must be a non-empty string" });
+      return;
+    }
+
+    try {
+      // Non-null: requireAuth ran before this handler and only calls next()
+      // after setting profileId.
+      const result = await reconcileCreditOrder(req.profileId!, orderId);
+
+      if (result.ok) {
+        res.json({ status: "captured" });
+        return;
+      }
+
+      switch (result.reason) {
+        case "not_paid":
+          res.json({ status: "pending" });
+          return;
+        case "not_found":
+          // No such order for this profile. Not a 500: the client is asking
+          // about something that isn't ours, or isn't an order of theirs.
+          logger.warn("verify-order: no matching payment row", {
+            profileId: req.profileId,
+          });
+          res.status(404).json({ error: "No such order" });
+          return;
+        case "provider_error":
+          // 502, distinct from a bug on our side: Razorpay could not be reached
+          // or refused the query. The client keeps the purchase unconfirmed.
+          logger.error("razorpay order lookup failed during reconciliation", {
+            profileId: req.profileId,
+          });
+          res.status(502).json({ error: "Payment provider unavailable" });
+          return;
+      }
+    } catch (cause) {
+      logger.error("failed to verify order", {
+        profileId: req.profileId,
+        cause: String(cause),
+      });
+      res.status(500).json({ error: "Failed to verify order" });
+    }
+  }),
 );
 
 /**

@@ -13,5 +13,6 @@ enabled = true
 port = 54323
 
 [auth.hook.before_user_created]
-enabled = true
+# TODO: re-enable before going to production — disabled for local dev to allow temp/disposable emails
+enabled = false
 uri = "pg-functions://postgres/public/reject_disposable_email_signup"

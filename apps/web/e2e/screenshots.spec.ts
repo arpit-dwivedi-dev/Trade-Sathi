@@ -147,7 +147,7 @@ for (const theme of THEMES) {
  * state on every pass.
  *
  * Needs `seed-screenshot-user.ts --subscribed`: on the default seed the account
- * is on the Inactive plan, and the screen then reads 0 / 0 with no add-on and
+ * is on the Free plan, and the screen then reads 0 / 0 with no add-on and
  * nothing to look at.
  */
 for (const theme of THEMES) {

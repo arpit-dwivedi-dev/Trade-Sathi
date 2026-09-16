@@ -19,9 +19,9 @@ interface PlanPriceJoinRow {
 /**
  * The manual tiers a public pricing overview advertises.
  *
- * Deliberately narrower than what is purchasable: the Inactive (ex-free) tier
- * has active ₹0/$0 price rows but is not a product to sell — advertising a
- * zero price would read as a free tier the paywall just removed — and
+ * Deliberately narrower than what is purchasable: the free plan has active
+ * ₹0/$0 price rows but is not a product to sell — advertising a zero price
+ * would read as a tier the paywall no longer grants — and
  * daily_briefing_monthly is an add-on, not a tier; folding it into a tier list
  * is the exact manual-tier/add-on conflation the rest of the billing code is
  * at pains to avoid. Mirrors, rather than shares, PURCHASABLE_PLAN_KEYS in

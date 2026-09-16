@@ -1,0 +1,33 @@
+-- ChartAnalyzer — give the free plan its name back.
+--
+-- 20260912120100_paywall_free_tier.sql renamed this row to 'Inactive' so that no
+-- surface would read as a free tier after the allowance was retired. In
+-- practice that label reports the wrong thing. profiles.plan_id is NOT NULL and
+-- handle_new_user() assigns this row to every signup, so 'Inactive' is not the
+-- absence of a plan — it is the tier the account is actually on, and it is what
+-- the Billing screen prints under "Current plan" and in the "What you're
+-- billed for" receipt.
+--
+-- Read there, "Inactive" is indistinguishable from "your account is inactive":
+-- a user who has just paid ₹49 for the entry pass still sees
+-- "Current plan: Inactive", which is the report this migration answers. The
+-- paywall is real and unchanged — it lives in analyses_per_month (0) and in the
+-- entitlement functions — so the honest label for a tier that grants nothing is
+-- 'Free plan', not 'Inactive'.
+--
+-- Display name only. Nothing branches on plans.name: every read of it in
+-- apps/web and apps/api renders it (billing-page, plan-picker, the landing
+-- pricing section, GET /api/pricing). The plan key stays 'free' and is what all
+-- logic uses — plan-picker's FREE_PLAN_KEY, nav-rail's 'Upgrade' label,
+-- handle_new_user(), PURCHASABLE_PLAN_KEYS.
+--
+-- Region-wise this is one change for both bands: plans.name is not region-scoped
+-- — plan_prices carries the per-region amount and currency, and this row keeps
+-- its ₹0 IN and $0 GLOBAL price rows exactly as they are. India and Global both
+-- start reading "Free plan". The zero prices stay active on purpose, per
+-- 20260912120100: plan_prices must resolve a price for every plan in every
+-- region, and a zero amount is already printed as an em dash rather than as a
+-- price (see formatPriceMinor).
+update public.plans
+set name = 'Free plan'
+where key = 'free';

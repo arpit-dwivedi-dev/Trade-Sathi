@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, output, signal } from '@angular/core';
 import { CardModule } from 'primeng/card';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
@@ -39,6 +39,15 @@ export class BillingPage implements OnInit {
 
   protected readonly quota = signal<QuotaStatus | null>(null);
   protected readonly loading = signal(true);
+
+  /**
+   * Lets the shell reset any other screen's stale "out of analyses" state
+   * once a plan or credit purchase actually lands — the same signal the
+   * plans overlay used to emit before Billing became a plain tab instead of
+   * a popup.
+   */
+  readonly upgraded = output<void>();
+  readonly creditsAdded = output<void>();
 
   /**
    * The shared BillingService cache, not a private copy. The picker below marks
@@ -113,6 +122,7 @@ export class BillingPage implements OnInit {
   protected onCreditsAdded(): void {
     void this.billing.refreshPlanSummary();
     void this.refreshQuota();
+    this.creditsAdded.emit();
   }
 
   /** A redeemed promo code lands as credits — same re-read as a top-up. */
@@ -124,6 +134,7 @@ export class BillingPage implements OnInit {
   protected onUpgraded(): void {
     void this.billing.refreshPlanSummary();
     void this.refreshQuota();
+    this.upgraded.emit();
   }
 
   /**

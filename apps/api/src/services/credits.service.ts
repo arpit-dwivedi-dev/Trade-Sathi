@@ -1,7 +1,7 @@
 import type { PricingRegion, PublicTopUpPackPrice } from "@chartanalyzer/shared";
 import { env } from "../lib/env.js";
 import { razorpay } from "../lib/razorpay-client.js";
-import { supabaseAdmin } from "../lib/supabase.js";
+import { callRpc, supabaseAdmin } from "../lib/supabase.js";
 
 /**
  * What one pack costs in one region. A pack sold in a single currency lists
@@ -272,4 +272,99 @@ export async function createCreditOrder(
     amountMinor: price.amountMinor,
     currency: price.currency,
   };
+}
+
+export type ReconcileCreditOrderResult =
+  | { ok: true; outcome: "applied" | "duplicate" }
+  | { ok: false; reason: "not_found" | "not_paid" | "provider_error" };
+
+/**
+ * Establishes whether an Order this profile created has actually been paid, by
+ * asking Razorpay directly, and grants if it has.
+ *
+ * This is the second, independent way a purchase can be confirmed. The webhook
+ * is the first, and remains the fast path — but it is a push from a third party
+ * with no delivery guarantee and, on a local dev server, no route to us at all.
+ * Without this, a missed delivery means a customer has paid and the only
+ * automated recovery is none: the client polls a row that will never change.
+ *
+ * The two paths converge on the same grant functions, so the balance movement
+ * and the idempotency guard live in one place. If the webhook lands while this
+ * is in flight, the FOR UPDATE in the function serializes them and the loser
+ * returns 'duplicate'.
+ *
+ * 'captured' is the only provider status acted on, matching exactly what the
+ * webhook path acts on (payment.captured). An 'authorized' payment is money
+ * reserved but not yet taken — granting on it would hand over credits for a
+ * payment that can still fail or be voided.
+ *
+ * Expected outcomes are returned as a discriminated result; only a DB read
+ * failure throws, and the route maps that to 500.
+ */
+export async function reconcileCreditOrder(
+  profileId: string,
+  providerOrderId: string,
+): Promise<ReconcileCreditOrderResult> {
+  // Scoped to the caller's own profile, not looked up by order id alone: this
+  // endpoint moves credits, and the order id travels through the browser.
+  const { data: payment, error: lookupError } = await supabaseAdmin
+    .from("payments")
+    .select("id, purpose, status")
+    .eq("provider_order_id", providerOrderId)
+    .eq("profile_id", profileId)
+    .maybeSingle<{ id: string; purpose: string; status: string }>();
+
+  if (lookupError) {
+    throw new Error(lookupError.message);
+  }
+
+  if (!payment) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  // Already settled — by the webhook, or by an earlier call to this function.
+  // Answered without a provider round-trip, so the client's retries are cheap.
+  if (payment.status === "captured") {
+    return { ok: true, outcome: "duplicate" };
+  }
+
+  const grantFunction = CREDIT_GRANT_FUNCTION_BY_PURPOSE[payment.purpose];
+  if (!grantFunction) {
+    // The retired-SKU case the webhook also handles: a payments row whose
+    // purpose has no grant function. Nothing to grant and nothing that a retry
+    // would change, so it reads to the client as "no such purchase".
+    return { ok: false, reason: "not_found" };
+  }
+
+  // Not inspected or forwarded, for the same reason as in createCreditOrder:
+  // Razorpay error payloads can echo request details and key material.
+  const orderPayments = await razorpay.orders
+    .fetchPayments(providerOrderId)
+    .catch(() => null);
+
+  if (orderPayments === null) {
+    return { ok: false, reason: "provider_error" };
+  }
+
+  const captured = orderPayments.items.find((item) => item.status === "captured");
+  if (!captured) {
+    // The user has not completed Checkout yet, or the payment failed. Not an
+    // error — the honest answer is that there is nothing to confirm yet.
+    return { ok: false, reason: "not_paid" };
+  }
+
+  const outcome = await callRpc<string>(grantFunction, {
+    p_provider_order_id: providerOrderId,
+    p_provider_payment_id: captured.id,
+    // False, and it is not a shortcoming: this capture was established by
+    // querying Razorpay's API, not by checking a signature over a webhook body.
+    // The column records which of the two happened.
+    p_signature_verified: false,
+  });
+
+  if (outcome === "order_not_found") {
+    return { ok: false, reason: "not_found" };
+  }
+
+  return { ok: true, outcome: outcome === "duplicate" ? "duplicate" : "applied" };
 }

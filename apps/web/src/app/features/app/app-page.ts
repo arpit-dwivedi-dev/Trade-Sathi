@@ -18,7 +18,6 @@ import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingPage } from '../billing/billing-page';
 import { BillingService } from '../billing/billing.service';
 import { FundamentalsPage } from '../fundamentals/fundamentals-page';
-import { PlansOverlay } from '../billing/plans-overlay';
 import { HistoryList } from '../history/history-list';
 import { LogsPage } from '../logs/logs-page';
 import { DailyBriefing } from '../daily-briefing/daily-briefing';
@@ -112,7 +111,6 @@ function parseTab(value: string | null): Tab {
     ButtonModule,
     ProgressSpinnerModule,
     NavRail,
-    PlansOverlay,
     SymbolSearch,
     DailyBriefing,
     WorkspacePage,
@@ -142,7 +140,6 @@ export class AppPage implements OnInit {
   protected readonly selectedStatusMarket = signal<'NSE' | 'NASDAQ' | null>(null);
   protected readonly marketStatus = signal<MarketStatus | null>(null);
   private marketStatusTimerId: ReturnType<typeof setTimeout> | null = null;
-  protected readonly plansOpen = signal(false);
   /** Drawer state. Only consulted below 900px, where the rail is off-canvas. */
   protected readonly navOpen = signal(false);
   /**
@@ -303,12 +300,13 @@ export class AppPage implements OnInit {
     this.navOpen.set(false);
   }
 
+  /**
+   * Billing is a plain tab now, not a popup — see plans-overlay.ts removal.
+   * Both entry points (the nav rail's own link and the quota block's
+   * button) land here so they behave identically.
+   */
   protected openPlans(): void {
-    this.plansOpen.set(true);
-  }
-
-  protected closePlans(): void {
-    this.plansOpen.set(false);
+    this.select('billing');
   }
 
   protected onUpgraded(): void {
