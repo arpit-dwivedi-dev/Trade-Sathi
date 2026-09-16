@@ -1,7 +1,9 @@
 @if (error()) {
   <p class="err" role="alert">{{ error() }}</p>
 } @else if (plans() === null) {
-  <p class="plan-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading plans…</p>
+  <!-- A div, not a p: p-progress-spinner renders a div, and a block inside a
+       paragraph is invalid HTML the browser's parser splits. -->
+  <div class="plan-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading plans…</div>
 } @else {
   <!-- Two sections, not one list. A monthly tier is the slot the user occupies;
        an add-on stacks on top of whichever tier that is. Rendering them as one
@@ -37,13 +39,18 @@
   <p-card class="plan-card" [class.plan-card-current]="isCurrent(plan)">
     <div class="plan-head">
       <span class="plan-name">{{ plan.name }}</span>
-      @if (isCurrent(plan)) {
-        <span class="st st-complete">Current</span>
-      }
+      <span class="plan-tags">
+        @if (isCurrent(plan)) {
+          <span class="st st-complete">Current</span>
+        }
+        @if (isMostPopular(plan)) {
+          <span class="plan-popular">Most popular</span>
+        }
+      </span>
     </div>
 
     <p class="plan-price">
-      <span class="tnum plan-amount">{{ priceLabel(plan.amountMinor) }}</span>
+      <span class="tnum plan-amount">{{ priceLabel(plan) }}</span>
       @if (plan.amountMinor > 0) {
         <span class="plan-per">/ month</span>
       }

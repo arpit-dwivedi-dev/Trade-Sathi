@@ -4,10 +4,12 @@
 // service-role client for everything, and it always cleans up after itself.
 //
 //   pnpm tsx scripts/seed-screenshot-user.ts
+//   pnpm tsx scripts/seed-screenshot-user.ts --subscribed
+//   pnpm tsx scripts/seed-screenshot-user.ts --quota-full
 //   pnpm tsx scripts/seed-screenshot-user.ts --cleanup
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
 const envLines = readFileSync(path.join(repoRoot, '.env'), 'utf8').split('\n');
@@ -27,6 +29,22 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 const cleanupOnly = process.argv.includes('--cleanup');
 // Seeds usage at the plan limit so the quota-exhausted branch can be verified.
 const quotaFull = process.argv.includes('--quota-full');
+// Seeds the PAID state instead of the default Inactive one: the Billing screen
+// is mostly hidden behind the paywall once the free tier grants nothing, so
+// without this flag that screen screenshots as 0 / 0 with no cards worth
+// looking at.
+const subscribed = process.argv.includes('--subscribed');
+
+/** Milliseconds in a billing month, for the seeded renewal date. */
+const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** The manual tier the subscribed seed puts the account on (30 analyses/month). */
+const STARTER_PLAN_KEY = 'starter_monthly';
+/** The add-on that gives the Billing screen its second meter. */
+const DAILY_BRIEFING_PLAN_KEY = 'daily_briefing_monthly';
+/** Figure the subscribed seed spends from that second meter — see below for why
+ *  it is not zero. */
+const BRIEFING_SEED_USED = 3;
 
 const MODEL = { model_id: 'gpt-4o-mini', prompt_version: 'v4' };
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -184,19 +202,92 @@ async function main() {
   if (insertErr) throw insertErr;
 
   const period = new Date().toISOString().slice(0, 7);
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('plans(analyses_per_month)')
-    .eq('id', profile_id)
-    .single<{ plans: { analyses_per_month: number } }>();
-  const limit = profile?.plans?.analyses_per_month ?? 3;
+
+  // Figures chosen to exercise the whole Billing screen rather than to depict a
+  // realistic user: 12 of 30 spent leaves both a readable remainder AND a meter
+  // with a visible fill, and 4 credits puts a non-zero balance next to the
+  // allowance it is deliberately kept out of. A zeroed counter renders an empty
+  // progress track, which verifies nothing. Overwritten below when not
+  // subscribing, where the limit is the free plan's.
+  let used = 12;
+
+  if (subscribed) {
+    const { data: plans, error: planErr } = await admin
+      .from('plans')
+      .select('id, key')
+      .in('key', [STARTER_PLAN_KEY, DAILY_BRIEFING_PLAN_KEY])
+      .returns<{ id: string; key: string }[]>();
+    if (planErr) throw planErr;
+
+    const starter = plans?.find((p) => p.key === STARTER_PLAN_KEY);
+    const briefing = plans?.find((p) => p.key === DAILY_BRIEFING_PLAN_KEY);
+    if (!starter || !briefing) {
+      throw new Error(`Missing seed plans: ${STARTER_PLAN_KEY} / ${DAILY_BRIEFING_PLAN_KEY}`);
+    }
+
+    const now = Date.now();
+    const periodEnd = new Date(now + MONTH_MS).toISOString();
+    // Service role, because pricing_region and its neighbours are guarded by
+    // Trigger C against every other writer — including the postgres role the
+    // migrations themselves run as. It is exactly what the backend does the
+    // first time it resolves an authenticated request's region.
+    const { error: profileErr } = await admin
+      .from('profiles')
+      .update({
+        plan_id: starter.id,
+        credit_balance: 4,
+        daily_briefing_credit_balance: 0,
+        // 'geoip' is the source pricing-region.service.ts writes when it locks a
+        // region, and the lock timestamp is how the screen knows the band is
+        // settled rather than still being derived.
+        pricing_region: 'IN',
+        pricing_region_source: 'geoip',
+        pricing_region_locked_at: new Date(now).toISOString(),
+        detected_country_code: 'IN',
+      })
+      .eq('id', profile_id);
+    if (profileErr) throw profileErr;
+
+    // A live add-on row is the only thing that makes the briefing meter appear:
+    // fetchPlanSummary() shows it only for an add-on key present in the live
+    // subscription set. amount_minor is paise — the ₹299 price, as an integer.
+    const { error: subErr } = await admin.from('subscriptions').insert({
+      profile_id,
+      plan_id: briefing.id,
+      provider_subscription_id: `sub_seed_${profile_id.slice(0, 8)}_${now}`,
+      status: 'active',
+      current_period_start: new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      current_period_end: periodEnd,
+      charge_at: periodEnd,
+      amount_minor: 29900,
+      currency: 'INR',
+    });
+    if (subErr) throw subErr;
+
+    const { error: briefingErr } = await admin
+      .from('daily_briefing_usage_counters')
+      .upsert(
+        { profile_id, period, analyses_used: BRIEFING_SEED_USED },
+        { onConflict: 'profile_id,period' },
+      );
+    if (briefingErr) throw briefingErr;
+
+    console.log(`Subscribed seed: ${STARTER_PLAN_KEY} + ${DAILY_BRIEFING_PLAN_KEY}, region IN`);
+  } else {
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('plans(analyses_per_month)')
+      .eq('id', profile_id)
+      .single<{ plans: { analyses_per_month: number } }>();
+    const limit = profile?.plans?.analyses_per_month ?? 3;
+    // One short of the limit, so the default seed leaves an analysis unspent and
+    // the out-of-quota branch stays opt-in via --quota-full.
+    used = quotaFull ? limit : Math.max(0, limit - 1);
+  }
 
   const { error: usageErr } = await admin
     .from('usage_counters')
-    .upsert(
-      { profile_id, period, analyses_used: quotaFull ? limit : Math.max(0, limit - 1) },
-      { onConflict: 'profile_id,period' },
-    );
+    .upsert({ profile_id, period, analyses_used: used }, { onConflict: 'profile_id,period' });
   if (usageErr) throw usageErr;
 
   console.log(`Seeded ${rows.length} analyses and usage for ${period}.`);

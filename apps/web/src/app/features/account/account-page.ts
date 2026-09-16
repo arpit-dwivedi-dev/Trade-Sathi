@@ -28,9 +28,10 @@ function splitMultiChoice(value: string | undefined): string[] {
 
 /**
  * Identity, editable profile details, and the onboarding survey. Billing —
- * plans, usage, credits — still lives on the Billing tab; this tab only adds
- * the credit balance as a small readout so completing the survey has a
- * visible payoff right where it happened.
+ * plans, usage, credits — still lives on the Billing tab; this tab has no
+ * credit surface of its own. The survey grants no credit (see
+ * 20260916120000_survey_no_credit.sql) — it exists purely to tailor the
+ * product to how the user trades.
  */
 @Component({
   selector: 'app-account-page',
@@ -111,7 +112,10 @@ export class AccountPage implements OnInit {
   protected readonly surveyAnswers = signal<SurveyAnswers>({});
   protected readonly submittingSurvey = signal(false);
   protected readonly surveyError = signal<string | null>(null);
-  protected readonly surveyJustEarnedCredit = signal(false);
+  /** Whether the most recent submission left no further survey pending — the
+   * "you're all caught up" card. No credit is granted any more; this only
+   * tracks completion. */
+  protected readonly surveyJustCompleted = signal(false);
 
   ngOnInit(): void {
     void this.loadProfile();
@@ -235,8 +239,7 @@ export class AccountPage implements OnInit {
     }
 
     if (result.outcome === 'applied') {
-      this.surveyJustEarnedCredit.set(true);
-      this.profile.update((p) => (p ? { ...p, creditBalance: p.creditBalance + 1 } : p));
+      this.surveyJustCompleted.set(true);
     }
 
     // Re-fetch: a new survey may already be waiting, or this really was the

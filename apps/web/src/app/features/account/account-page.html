@@ -125,7 +125,6 @@
       <p-card class="acct-card">
         <div class="hd">
           <span class="lbl-h">{{ survey.title }}</span>
-          <span class="st st-processing">+1 credit</span>
         </div>
         <div class="acct-body">
           @if (survey.description) {
@@ -176,21 +175,18 @@
         <div class="acct-foot">
           <button pButton [disabled]="!surveyComplete() || submittingSurvey()"
                   (click)="submitSurvey()">
-            {{ submittingSurvey() ? 'Submitting…' : 'Submit and earn 1 credit' }}
+            {{ submittingSurvey() ? 'Submitting…' : 'Submit' }}
           </button>
         </div>
       </p-card>
-    } @else if (!surveyLoading() && surveyJustEarnedCredit()) {
+    } @else if (!surveyLoading() && surveyJustCompleted()) {
       <p-card class="acct-card">
         <div class="hd">
           <span class="lbl-h">Surveys</span>
           <span class="st st-complete">Up to date</span>
         </div>
         <div class="acct-body">
-          <p class="meta">
-            You're all caught up — thanks for completing our surveys. We'll add more here as they
-            come up, each worth another free credit.
-          </p>
+          <p class="meta">You're all caught up — thanks for completing our surveys. We'll add more here as they come up.</p>
         </div>
       </p-card>
     }

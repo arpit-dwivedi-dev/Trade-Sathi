@@ -139,3 +139,24 @@ for (const theme of THEMES) {
     await shoot(page, '10-analyze-quota', theme);
   });
 }
+
+/**
+ * The Billing tab. Its own wait condition is the summary slab resolving: the
+ * page renders a spinner in place of the figures until both the quota read and
+ * the cached plan summary resolve, and shooting that would capture the loading
+ * state on every pass.
+ *
+ * Needs `seed-screenshot-user.ts --subscribed`: on the default seed the account
+ * is on the Inactive plan, and the screen then reads 0 / 0 with no add-on and
+ * nothing to look at.
+ */
+for (const theme of THEMES) {
+  test(`11 billing — ${theme}`, async ({ page }) => {
+    await signIn(page, theme);
+    await page.goto('/app?tab=billing', { waitUntil: 'networkidle' });
+    await expect(page.locator('app-billing-page')).toBeVisible();
+    await expect(page.locator('.bill-cells')).toBeVisible({ timeout: 15_000 });
+    await page.evaluate(() => document.fonts.ready);
+    await shoot(page, '11-billing', theme);
+  });
+}

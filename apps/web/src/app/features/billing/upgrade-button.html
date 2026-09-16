@@ -3,14 +3,17 @@
     <app-plan-picker
       [currentPlanKey]="currentPlanKey()"
       [heldAddOnKeys]="heldAddOnKeys()"
+      [region]="pricingRegion()"
       (planSelected)="onPlanSelected($event)"
     />
   }
   @case ('subscribing') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Starting your upgrade…</p>
+    <!-- A div, not a p: p-progress-spinner renders a div, and a block inside a
+         paragraph is invalid HTML the browser's parser splits. -->
+    <div class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Starting your upgrade…</div>
   }
   @case ('loading_checkout') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Opening the payment window…</p>
+    <div class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Opening the payment window…</div>
   }
   @case ('checkout_open') {
     <p class="note billing-msg" style="--tone: var(--tx-3)">
@@ -19,7 +22,7 @@
     </p>
   }
   @case ('confirming') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Confirming your payment…</p>
+    <div class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Confirming your payment…</div>
   }
   @case ('success') {
     <p class="note billing-msg billing-msg-ok" style="--tone: var(--up)">

@@ -7,20 +7,117 @@
   padding: var(--s4) var(--s4) var(--s8);
 }
 
-/* ── summary slab ───────────────────────────────────────── */
-.bill-cells {
-  border-bottom: 1px solid var(--slab-line);
+/* ── page head ──────────────────────────────────────────── */
+.bill-head {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s4);
+  justify-content: space-between;
+  padding-top: var(--s1);
 }
 
-.bill-figure {
+.bill-head-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.bill-title {
+  font-size: var(--t-xl);
+}
+
+.bill-sub {
+  color: var(--tx-2);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  max-width: 72ch;
+}
+
+.bill-sub b {
+  color: var(--tx);
+  font-weight: 600;
+}
+
+/* A statement, not a control — see the template. Deliberately styled nothing
+   like a segmented control or a select: no hover state, no pointer cursor, no
+   affordance that would invite a click the backend cannot honour. */
+.bill-region {
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--tx-2);
+  flex: none;
+  font-size: var(--t-2xs);
+  font-weight: 500;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+/* ── summary slab ───────────────────────────────────────── */
+/* A card on the page's own surface — the same background, hairline and radius
+   as every p-card beside it. Not the shared .panel: that slab is dark on both
+   themes on purpose, because it marks the two places the *model's* output is
+   shown, and this panel holds the user's own account data instead. As the only
+   near-black block on a light page it read as a widget from another product. */
+.bill-slab {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  flex: none;
+  overflow: hidden;
+}
+
+/* The row owns its own grid rather than borrowing the shared .cells, which is
+   built for the dark slab: it hard-codes three columns and divides with
+   --slab-line. Both are overridden here, but as a second class of equal weight
+   they would have won or lost purely on which stylesheet Angular happened to
+   inject last, so the shared class is dropped from the markup instead.
+   Four columns, not three: the plan, both allowances and the credit reserve are
+   read as one row, and dropping the plan out would leave the two that follow it
+   without a subject. */
+.bill-cells {
+  border-bottom: 1px solid var(--line-soft);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* The shared .cell divides with --slab-line, which is tuned for a near-black
+   ground and all but disappears on a white card. Same divide, page hairline.
+   The :first-child reset has to be restated at this specificity: the shared
+   `.cell:first-child` is one class lighter, so it would lose here and the first
+   cell would draw a hairline down the card's own left edge. */
+.bill-cells .cell {
+  border-left: 1px solid var(--line-soft);
+}
+
+.bill-cells .cell:first-child {
+  border-left: 0;
+}
+
+/* Three classes deep on purpose. The shared `.cell .tnum` in components.css
+   sets font-size and weight on this very element — the figure carries both
+   classes — and at equal specificity the winner is whichever stylesheet Angular
+   injected last. Naming the cell here puts this rule one class ahead of it, so
+   the larger figure is a decision rather than an accident of injection order. */
+.bill-cells .cell .bill-figure {
   font-size: var(--t-2xl);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
 
+/* The denominator, set as a suffix of the figure rather than beside it: it is
+   part of the same reading ("18 of 30"), not a second figure. */
+.bill-figure-of {
+  font-size: var(--t-md);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
 .bill-note {
-  color: var(--slab-dim);
+  color: var(--tx-3);
   font-size: var(--t-2xs);
 }
 
@@ -44,18 +141,24 @@
   justify-content: space-between;
 }
 
-/* Inside the slab the accent has to carry on a near-black ground, so the
-   brighter dark-theme value is used on both themes here. */
+/* Height and radius only. The colour overrides that used to live here existed
+   solely because this panel was the dark slab — a near-black ground needed the
+   track and fill restated, and the preset's own track (--border-subtle, a light
+   grey in the light theme) would have been drawn straight across it. On a
+   themed card the preset's bindings are already correct and already follow the
+   theme, so restating them here could only make them disagree with it.
+
+   The token names are PrimeNG's, not Material's: --mat-progress-bar-*, which
+   this rule used to set, has been read by nothing since the migration, so the
+   meter silently fell back to the preset's own defaults. */
 .bill-meter {
-  --mat-progress-bar-active-indicator-color: var(--acc);
-  --mat-progress-bar-track-color: color-mix(in srgb, var(--acc) 18%, transparent);
-  --mat-progress-bar-active-indicator-height: 6px;
-  --mat-progress-bar-track-height: 6px;
+  --p-progressbar-border-radius: var(--r-pill);
+  --p-progressbar-height: 6px;
 }
 
 .bill-state {
   align-items: center;
-  color: var(--slab-dim);
+  color: var(--tx-3);
   display: flex;
   font-size: var(--t-sm);
   gap: var(--s2);
@@ -117,7 +220,27 @@
   font-weight: 600;
 }
 
+.bill-promo-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
 /* ── cards and rows ─────────────────────────────────────── */
+/* Every p-card on this page carries its own hairline, for the same reason
+   .acct-card does: the Aura preset themes a card with a background and a
+   radius but neither a border nor a shadow (card.root.shadow is 'none', and
+   Aura has no borderColor token to bind). With --bg-surface and --bg-canvas
+   both #ffffff in the light theme, a card without one is not a faint card —
+   it is no card at all, and these four would read as loose text on the page.
+   --line, not .acct-card's --line-soft: this is a free-standing card on the
+   page ground, which is what --line is for, and it is what .tile, .plate and
+   .tbl use. */
+.bill-topup,
+.bill-current {
+  border: 1px solid var(--line);
+}
+
 .bill-current-body {
   display: flex;
   flex-direction: column;
@@ -186,16 +309,32 @@
   padding-top: var(--s4);
 }
 
+/* Two rows of two before they stack: at 1000px four columns squeeze the
+   figures into numbers with no room for their own labels. */
+@media (max-width: 1000px) {
+  .bill-cells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bill-cells .cell:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .bill-cells .cell:nth-child(n + 3) {
+    border-top: 1px solid var(--line-soft);
+  }
+}
+
 @media (max-width: 700px) {
-  /* Three figures on one row become unreadable narrow columns, so the slab
-     stacks and the hairlines move from the sides to between the rows. */
+  /* Inside the slab, the third and fourth figures now start a new column of
+     their own, so the hairlines move from the sides to between the rows. */
   .bill-cells {
     grid-template-columns: 1fr;
   }
 
   .bill-cells .cell {
     border-left: 0;
-    border-top: 1px solid var(--slab-line);
+    border-top: 1px solid var(--line-soft);
   }
 
   .bill-cells .cell:first-child {

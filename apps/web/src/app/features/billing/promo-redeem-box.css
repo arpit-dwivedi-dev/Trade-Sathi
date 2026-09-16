@@ -1,0 +1,24 @@
+/* The input + Redeem button sit on one row that wraps on narrow viewports. */
+.promo {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.promo-input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+/* Tone via a class, not --tone: that hook belongs to .note/.billing-msg (see
+   upgrade-button.css), and this control has no such ancestor to inherit it. */
+.promo-msg {
+  color: var(--down);
+  font-size: var(--t-xs);
+  margin-top: var(--s2);
+}
+
+.promo-msg-ok {
+  color: var(--up);
+}

@@ -1,17 +1,28 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
+import type { PricingRegion } from '@chartanalyzer/shared';
+
 import { SupabaseClientService } from '../../core/supabase-client';
-import { MANUAL_PLAN_KEYS } from './billing.service';
+import { formatPriceMinor, MANUAL_PLAN_KEYS } from './billing.service';
 
 /**
- * The free tier's key. It is listed on a card for orientation but is never
- * purchasable — see isChoosable().
+ * The free tier's key. Its row still exists (new signups are assigned it) but
+ * grants nothing — see isChoosable(). It is listed on a card for orientation
+ * only, never as something to buy.
  */
 const FREE_PLAN_KEY = 'free';
+
+/**
+ * The tier the product recommends, marked on its card. Hardcoded for the same
+ * reason PURCHASABLE_PLAN_KEYS is server-side: there is one recommended SKU,
+ * and it is a merchandising choice rather than a column on plans. A key that
+ * matches no card simply marks nothing.
+ */
+const MOST_POPULAR_PLAN_KEY = 'pro_monthly';
 
 /** One plan, as rendered on a card. */
 export interface PurchasablePlan {
@@ -19,6 +30,7 @@ export interface PurchasablePlan {
   name: string;
   analysesPerMonth: number;
   amountMinor: number;
+  currency: string;
 }
 
 /**
@@ -27,6 +39,7 @@ export interface PurchasablePlan {
  */
 interface PlanPriceRow {
   amount_minor: number;
+  currency: string;
   plans: { key: string; name: string; analyses_per_month: number } | null;
 }
 
@@ -56,8 +69,12 @@ interface DailyBriefingEntitlementRow {
  * plans and plan_prices have client-readable select policies for is_active
  * rows, so no backend endpoint is needed.
  *
- * region is hardcoded to 'IN', matching the backend's purchase-time lookup;
- * region detection is not built yet.
+ * The region comes in as an input (BillingService's read of the profile's
+ * locked pricing_region) rather than being hardcoded: it must be the same
+ * region the backend's purchase-time lookup uses, or the card would show one
+ * price and Checkout charge another. Null (not yet loaded / read failure)
+ * falls back to 'IN' — the backend's own detection fallback, and the only
+ * region with chargeable prices today.
  */
 @Component({
   selector: 'app-plan-picker',
@@ -65,7 +82,7 @@ interface DailyBriefingEntitlementRow {
   styleUrl: './plan-picker.css',
   templateUrl: './plan-picker.html',
 })
-export class PlanPicker implements OnInit {
+export class PlanPicker {
   private readonly supabase = inject(SupabaseClientService);
 
   /**
@@ -82,6 +99,12 @@ export class PlanPicker implements OnInit {
    * as current, and was offered for sale again.
    */
   readonly heldAddOnKeys = input.required<ReadonlySet<string>>();
+
+  /**
+   * The price band to list: the profile's locked pricing_region. See the
+   * class comment — this must match what the backend charges.
+   */
+  readonly region = input<PricingRegion | null>(null);
 
   readonly planSelected = output<string>();
 
@@ -102,8 +125,27 @@ export class PlanPicker implements OnInit {
     () => this.plans()?.filter((plan) => !MANUAL_PLAN_KEYS.has(plan.key)) ?? [],
   );
 
-  ngOnInit(): void {
-    void this.load();
+  /** The region the current plan list was loaded for, or null before load. */
+  private loadedRegion: PricingRegion | null = null;
+
+  /**
+   * Bumped per load; a load whose generation is no longer the newest discards
+   * its own result. See load().
+   */
+  private loadGeneration = 0;
+
+  constructor() {
+    // Reacting to the region input rather than loading once in ngOnInit: the
+    // picker can mount before the shared plan summary resolves (the billing
+    // page), in which case region() is still null. Null falls back to 'IN' —
+    // the backend's own detection fallback — and a late non-null value
+    // re-queries, so a GLOBAL user briefly sees the IN list rather than a
+    // dead spinner or, worse, buying against the wrong band. The lock means
+    // the region never changes twice.
+    effect(() => {
+      const region = this.region() ?? 'IN';
+      if (region !== this.loadedRegion) void this.load(region);
+    });
   }
 
   /**
@@ -135,6 +177,15 @@ export class PlanPicker implements OnInit {
   }
 
   /**
+   * Whether this is the tier the product recommends. Rendered as a badge and
+   * nothing else — the card's own border is reserved for the plan the user is
+   * actually on, so the two markers never read as the same state.
+   */
+  protected isMostPopular(plan: PurchasablePlan): boolean {
+    return plan.key === MOST_POPULAR_PLAN_KEY;
+  }
+
+  /**
    * Add-on quota is automated briefing runs, not the manual analyses the tier
    * cards count. Labelling both "analyses / month" implied the add-on's 30
    * replaced the tier's allowance rather than sitting beside it.
@@ -143,10 +194,9 @@ export class PlanPicker implements OnInit {
     return MANUAL_PLAN_KEYS.has(plan.key) ? 'analyses / month' : 'briefings / month';
   }
 
-  /** Paise → "₹399", matching AccountPage.priceLabel. Free reads as "Free". */
-  protected priceLabel(amountMinor: number): string {
-    if (amountMinor === 0) return 'Free';
-    return `₹${(amountMinor / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  /** Minor units + currency → "₹399" / "$9". Zero (Inactive) renders as "—". */
+  protected priceLabel(plan: PurchasablePlan): string {
+    return formatPriceMinor(plan.amountMinor, plan.currency);
   }
 
   protected onChoose(plan: PurchasablePlan): void {
@@ -157,20 +207,26 @@ export class PlanPicker implements OnInit {
     this.planSelected.emit(plan.key);
   }
 
-  private async load(): Promise<void> {
+  private async load(region: PricingRegion): Promise<void> {
     const client = this.supabase.client;
     // SSR has no Supabase client. Leaving plans() null renders the loading
-    // state, and ngOnInit runs again in the browser to fill it in.
+    // state, and the effect above re-runs in the browser to fill it in.
     if (!client) return;
+
+    // Two loads can overlap — the effect fires again when the region input
+    // resolves — and without this the slower one would win, leaving a GLOBAL
+    // account on the INR price list with loadedRegion claiming it was current
+    // and nothing left to correct it. Only the newest load may write.
+    const generation = ++this.loadGeneration;
 
     try {
       const [{ data, error }, entitlements] = await Promise.all([
         client
           .from('plan_prices')
-          .select('amount_minor, plans!inner(key, name, analyses_per_month)')
-          .eq('region', 'IN')
+          .select('amount_minor, currency, plans!inner(key, name, analyses_per_month)')
+          .eq('region', region)
           .eq('is_active', true)
-          // Cheapest first, so free reads before Starter before Pro.
+          // Cheapest first, so Inactive reads before Starter before Pro.
           .order('amount_minor', { ascending: true })
           .returns<PlanPriceRow[]>(),
         client
@@ -179,12 +235,22 @@ export class PlanPicker implements OnInit {
           .returns<DailyBriefingEntitlementRow[]>(),
       ]);
 
+      if (generation !== this.loadGeneration) return;
+
       if (error) throw error;
+      // Checked, not ignored. The substitution below is the only reason an
+      // add-on card shows a real quota — plans.analyses_per_month is 0 for it
+      // — so falling back to that column on a failed read would print
+      // "0 briefings / month" and read as a product decision.
+      if (entitlements.error) throw entitlements.error;
 
       const addonQuota = new Map(
         (entitlements.data ?? []).map((row) => [row.plan_key, row.monthly_auto_analyses]),
       );
 
+      // Record the loaded band only after a successful read: a failed query
+      // must not stop the effect from retrying on its next run.
+      this.loadedRegion = region;
       this.plans.set(
         (data ?? [])
           .filter((row): row is PlanPriceRow & { plans: NonNullable<PlanPriceRow['plans']> } =>
@@ -195,9 +261,11 @@ export class PlanPicker implements OnInit {
             name: row.plans.name,
             analysesPerMonth: addonQuota.get(row.plans.key) ?? row.plans.analyses_per_month,
             amountMinor: row.amount_minor,
+            currency: row.currency,
           })),
       );
     } catch (cause) {
+      if (generation !== this.loadGeneration) return;
       console.warn('plan list lookup failed', cause);
       this.error.set("Couldn't load the plans. Please try again.");
     }

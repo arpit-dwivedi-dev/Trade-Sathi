@@ -209,6 +209,12 @@ export class AppPage implements OnInit {
     // reads the cache it fills rather than querying again.
     void this.billing.ensurePlanSummary();
 
+    // Same idea for the price list: the pack buttons in the overlay and on the
+    // billing tab label themselves from it, and reading it once here means
+    // they are priced by the time either surface is opened. The endpoint
+    // resolves the region from this account's locked profile column.
+    void this.billing.ensurePricing();
+
     this.destroyRef.onDestroy(() => this.clearMarketStatusTimer());
   }
 

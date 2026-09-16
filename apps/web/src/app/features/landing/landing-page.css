@@ -339,6 +339,37 @@
   line-height: 1.6;
 }
 
+/* ── pricing ────────────────────────────────────────────── */
+/* The price sits between the plan name and its copy, sized to be the number
+   the section is scrolled to for, with the cadence ("once", "/ month") as a
+   quiet suffix rather than a second competing figure. */
+.landing-price {
+  align-items: baseline;
+  display: flex;
+  font-size: var(--t-2xl);
+  font-weight: 600;
+  gap: 6px;
+  letter-spacing: -0.02em;
+  margin: var(--s1) 0 var(--s2);
+}
+
+.landing-price-note {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
+  font-weight: 400;
+}
+
+/* The grid items' s2 gap is tight for a card with a CTA at the bottom; the
+   button gets breathing room and is pushed to the foot of the card so the
+   three CTAs align however tall the copy above them is. */
+.landing-grid-item .landing-grid-copy {
+  flex: 1;
+}
+
+.landing-pricing-pending {
+  color: var(--tx-3);
+}
+
 /* ── steps ──────────────────────────────────────────────── */
 .landing-steps {
   counter-reset: step;
