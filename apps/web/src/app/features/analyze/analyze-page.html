@@ -19,8 +19,13 @@
         <path d="M12 8v5M12 16h.01" />
       </svg>
       <span class="analyze-quota-copy">
-        <b>You've used all your analyses this month.</b>
-        Upgrade to keep going, or wait for the quota to reset.
+        @if (hasNoPlan()) {
+          <b>You don't have an active plan.</b>
+          Choose a plan to start analyzing charts.
+        } @else {
+          <b>You've used all your analyses this month.</b>
+          Upgrade to keep going, or wait for the quota to reset.
+        }
       </span>
       <button pButton class="analyze-quota-cta" (click)="plansRequested.emit()">
         See plans

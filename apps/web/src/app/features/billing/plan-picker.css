@@ -43,7 +43,11 @@
   display: flex;
   gap: var(--s2);
   justify-content: space-between;
-  min-height: 22px;
+  /* Matches the rendered height of the .st / .plan-popular badges (24px), not
+     an arbitrary round number — a card with no badge must reach the same row
+     height as one with a badge, or its price/quota rows sit higher than its
+     neighbours in the same grid row. */
+  min-height: 24px;
 }
 
 .plan-name {
@@ -66,6 +70,11 @@
 /* The recommendation. On the accent — but as a badge only: the card's border
    stays reserved for the plan the user is actually on (see .plan-card-current),
    so "you have this" and "we suggest this" never look like one state. */
+/* line-height and padding are pinned to match .st's box model exactly
+   (components.css) — otherwise this badge renders ~3px shorter than the
+   "Current" .st-complete badge beside it, and a card showing both badges
+   grows taller than a card showing only one, pushing its price/quota rows
+   out of line with the other cards in the same grid row. */
 .plan-popular {
   background: var(--acc-soft);
   border: 1px solid var(--acc-line);
@@ -75,7 +84,8 @@
   font-size: var(--t-3xs);
   font-weight: 600;
   letter-spacing: 0.02em;
-  padding: 3px 8px;
+  line-height: 1;
+  padding: 5.5px 8px;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -114,12 +124,21 @@
   font-size: var(--t-xs);
 }
 
-/* Pushed to the bottom so every card's button sits on one line, whether or not
-   the card beside it is the marked one. */
+/* Full width, label centred. Nothing in the rule that used to be here survived
+   the move to p-card: align-self and margin-top only reach a flex item, and
+   p-card projects this content into a plain .p-card-content block — the flex
+   column it looks like it belongs to is the .p-card-body wrapping that block —
+   so both were inert and the button kept the width of its own label, leaving
+   the three cards' buttons ragged. padding-top: 0, left over from when the
+   button was one of the card's own flex rows, is what sat the label high in its
+   box: it cancelled the preset's button.padding.y on the top edge only, and the
+   8px below it stayed.
+   display: flex rather than width: 100% — it also takes the button out of the
+   line box, so no inline baseline gap is left under it. The buttons still land
+   on one line across a row because the grid stretches every card to the same
+   height and the rows above the button are the same height in each card. */
 .plan-choose {
-  align-self: stretch;
-  margin-top: auto;
-  padding-top: 0;
+  display: flex;
 }
 
 .plan-loading {

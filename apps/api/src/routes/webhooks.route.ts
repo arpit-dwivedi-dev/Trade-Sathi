@@ -286,6 +286,13 @@ async function handlePaymentCaptured(
     const outcome = await callRpc<string>(grantFunction, {
       p_provider_order_id: providerOrderId,
       p_provider_payment_id: providerPaymentId,
+      // Reaching this line means the signature check above passed, so this is
+      // the stronger of the two facts a captured row can carry. Stated
+      // explicitly because the reconciliation path (POST /api/billing/
+      // verify-order) calls the same function having established something
+      // different — a live query against Razorpay, not a signature — and
+      // recording one as the other would put a falsehood in the audit trail.
+      p_signature_verified: true,
     });
 
     // All outcomes are 200, same policy as the subscription webhook: none of

@@ -1,5 +1,6 @@
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import type {
@@ -108,10 +109,50 @@ export type BuyCreditsResult =
 
 export type CreditPollOutcome = 'captured' | 'timed_out' | 'poll_error';
 
+/**
+ * The answer to "is this order paid?", as far as the backend could establish.
+ *
+ * 'unknown' is deliberately not folded into 'pending': pending means the
+ * provider was reached and says not yet, unknown means nobody found out. Both
+ * leave the purchase unconfirmed, but only one is a statement about the
+ * payment, and the caller may want to word them differently later.
+ */
+export type ReconcileOutcome = 'captured' | 'pending' | 'unknown';
+
 export interface CreditPollHandle {
   result: Promise<CreditPollOutcome>;
   cancel: () => void;
 }
+
+/**
+ * Where the in-flight purchase is remembered across a page reload.
+ *
+ * Written when Checkout reports the user submitted, cleared the moment the
+ * purchase is resolved one way or another. It exists because the confirming
+ * state is otherwise purely in memory: a refresh during confirmation dropped
+ * the user back to an enabled Buy button with no sign their payment was ever in
+ * flight, and no way back to watching for it.
+ *
+ * It carries the pack kind as well as the order id, and every read is scoped to
+ * one kind. All three pack buttons render on the billing page at once, so a
+ * single shared entry would have every one of them resume the same order and
+ * claim to be confirming it.
+ *
+ * It is a hint about this browser, not a record: the payments row is the
+ * record, and nothing about entitlement is ever read from here.
+ */
+const PENDING_ORDER_STORAGE_KEY = 'chartanalyzer.pending-credit-order';
+
+/**
+ * How long a remembered order stays resumable.
+ *
+ * An abandoned Checkout leaves a 'created' payments row behind by design (it is
+ * inert until a webhook captures it), so the row alone cannot distinguish "in
+ * flight" from "given up on". Recency is the cheapest honest discriminator: an
+ * order this age has been paid or it never will be, and Razorpay's own Checkout
+ * session is long gone by then.
+ */
+const PENDING_ORDER_MAX_AGE_MS = 30 * 60 * 1000;
 
 /**
  * The manual-analysis tiers, of which a user holds exactly one at a time — the
@@ -262,8 +303,9 @@ interface LiveSubscriptionRow {
  * money surface (plan cards, pack buttons, billing receipt, public pricing)
  * must print the same number the same way.
  *
- * Zero is NOT "Free" — there is no free tier any more; a zero amount is the
- * Inactive plan, which has no price to show, so it renders as an em dash.
+ * Zero is NOT a price. A zero amount is the free plan, which grants no
+ * allowance (the paywall retired it) and therefore has nothing to charge, so
+ * it renders as an em dash rather than as free-of-charge.
  */
 export function formatPriceMinor(amountMinor: number, currency: string): string {
   if (amountMinor === 0) return '—';
@@ -295,6 +337,13 @@ export class BillingService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly supabase = inject(SupabaseClientService);
+
+  /**
+   * localStorage does not exist during SSR, the same guard ThemeService uses.
+   * Only the remembered-pending-order helpers need it — they are about this
+   * particular browser, not about the account.
+   */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /** Cached so concurrent callers share one script injection. */
   private checkoutScript: Promise<void> | null = null;
@@ -569,6 +618,125 @@ export class BillingService {
         reason: 'error',
         message: "Couldn't start the purchase. Please try again.",
       };
+    }
+  }
+
+  /**
+   * Asks the backend to ask Razorpay whether this Order has been paid, and to
+   * grant its credits if so.
+   *
+   * This is the fallback for the case the polling loop cannot cover: the webhook
+   * never arrived. It exists because that is not an edge case — a Razorpay
+   * webhook is a push from outside with no delivery guarantee, and against a
+   * local dev server there is no route to us at all, so the purchase could
+   * otherwise never be confirmed no matter how long the user waited.
+   *
+   * Returns 'unknown' rather than throwing for every failure, because the caller
+   * has nothing different to do about any of them: the purchase stays
+   * unconfirmed, and the user is told so plainly.
+   */
+  async reconcileCreditOrder(orderId: string): Promise<ReconcileOutcome> {
+    const token = await this.auth.getAccessToken();
+    if (!token) return 'unknown';
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<{ status: 'captured' | 'pending' }>(
+          '/api/billing/verify-order',
+          { orderId },
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      );
+      return response.status === 'captured' ? 'captured' : 'pending';
+    } catch (cause) {
+      // 404 (not our order), 502 (provider down) and 500 (our bug) are all the
+      // same thing to the user: still unconfirmed. Logged so a real fault is
+      // distinguishable from an unpaid order when someone goes looking.
+      console.warn('order reconciliation failed', cause);
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Remembers the order the user is currently waiting on, so a reload can
+   * resume watching it. See PENDING_ORDER_STORAGE_KEY.
+   */
+  rememberPendingCreditOrder(orderId: string, kind: CreditPackKind): void {
+    if (!this.isBrowser) return;
+    try {
+      localStorage.setItem(
+        PENDING_ORDER_STORAGE_KEY,
+        JSON.stringify({ orderId, kind, at: Date.now() }),
+      );
+    } catch {
+      // Private-mode or blocked storage. The purchase still confirms — this
+      // only costs the resume-on-reload behaviour.
+    }
+  }
+
+  /**
+   * Drops the remembered order for one pack — it is no longer in flight.
+   *
+   * Scoped by kind like the read, so a pack settling cannot clear the record of
+   * a different pack's purchase while that one is still being confirmed.
+   */
+  forgetPendingCreditOrder(kind: CreditPackKind): void {
+    if (!this.isBrowser) return;
+    try {
+      if (this.readPendingOrder()?.kind === kind) {
+        localStorage.removeItem(PENDING_ORDER_STORAGE_KEY);
+      }
+    } catch {
+      // Nothing to do: a stale entry is discarded by age on the next read.
+    }
+  }
+
+  /**
+   * The order id to resume watching for one pack, or null if there is nothing
+   * worth resuming. Scoped by kind because every pack button reads this, and
+   * only the one that started the purchase has anything to resume.
+   *
+   * An expired entry is cleared as it is read, so a stale one cannot keep
+   * re-arming itself.
+   */
+  readPendingCreditOrder(kind: CreditPackKind): string | null {
+    const pending = this.readPendingOrder();
+    if (pending === null) return null;
+
+    if (Date.now() - pending.at >= PENDING_ORDER_MAX_AGE_MS) {
+      this.forgetPendingCreditOrder(kind);
+      return null;
+    }
+
+    return pending.kind === kind ? pending.orderId : null;
+  }
+
+  /**
+   * The stored entry, whatever pack it belongs to, or null when there is none
+   * or it cannot be read. Every failure is treated as "nothing remembered": the
+   * cost is a Buy button that reappears, which is where this started.
+   */
+  private readPendingOrder(): { orderId: string; kind: string; at: number } | null {
+    if (!this.isBrowser) return null;
+
+    try {
+      const raw = localStorage.getItem(PENDING_ORDER_STORAGE_KEY);
+      if (!raw) return null;
+
+      const parsed: unknown = JSON.parse(raw);
+      if (parsed === null || typeof parsed !== 'object') return null;
+      const { orderId, kind, at } = parsed as {
+        orderId?: unknown;
+        kind?: unknown;
+        at?: unknown;
+      };
+      if (typeof orderId !== 'string' || typeof kind !== 'string' || typeof at !== 'number') {
+        return null;
+      }
+      return { orderId, kind, at };
+    } catch {
+      // Unparseable, or storage unavailable (private mode, blocked site data).
+      return null;
     }
   }
 

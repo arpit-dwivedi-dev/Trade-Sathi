@@ -143,7 +143,11 @@
          analysis, so a fresh mount per visit is the re-read. -->
     @defer (when tab() === 'billing') {
       @if (tab() === 'billing') {
-        <app-billing-page class="tab-pane" />
+        <app-billing-page
+          class="tab-pane"
+          (upgraded)="onUpgraded()"
+          (creditsAdded)="onCreditsAdded()"
+        />
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading billing…</p>
@@ -158,16 +162,6 @@
       }
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading your account…</p>
-    }
-
-    <!-- Mounted only while open, so closing tears the purchase buttons down
-         through their own ngOnDestroy and a reopen starts from a clean state. -->
-    @if (plansOpen()) {
-      <app-plans-overlay
-        (closed)="closePlans()"
-        (upgraded)="onUpgraded()"
-        (creditsAdded)="onCreditsAdded()"
-      />
     }
     </div>
   } @else {

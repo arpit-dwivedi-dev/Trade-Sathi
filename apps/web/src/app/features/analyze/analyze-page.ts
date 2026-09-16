@@ -73,6 +73,17 @@ export class AnalyzePage implements OnInit, OnDestroy {
     return quota !== null && quota.remaining <= 0;
   }
 
+  /**
+   * A brand-new account has no plan at all (limit 0), so its remaining is
+   * also 0 — same as an account that burned through a real allowance. Those
+   * two must not share the "you've used all your analyses" copy: this one
+   * never had any to use.
+   */
+  protected hasNoPlan(): boolean {
+    const quota = this.quota();
+    return quota !== null && quota.limit <= 0;
+  }
+
   private async refreshQuota(): Promise<void> {
     this.quota.set(await this.analyze.fetchQuota());
   }
