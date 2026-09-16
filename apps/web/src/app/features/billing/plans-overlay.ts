@@ -10,6 +10,7 @@ import {
   output,
   signal,
   viewChild,
+  viewChildren,
 } from '@angular/core';
 import { A11yModule } from '@angular/cdk/a11y';
 import { ButtonModule } from 'primeng/button';
@@ -18,6 +19,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { AppIcon } from '../../shared/icons/app-icon';
 import { BillingService } from './billing.service';
 import { BuyCreditsButton } from './buy-credits-button';
+import { PromoRedeemBox } from './promo-redeem-box';
 import { UpgradeButton } from './upgrade-button';
 
 /**
@@ -26,9 +28,9 @@ import { UpgradeButton } from './upgrade-button';
  * so there is no second arrangement of these buttons to keep in sync.
  *
  * It arranges existing pieces and owns no purchase logic of its own:
- * UpgradeButton and BuyCreditsButton are mounted unchanged, each keeping its
- * own state machine, polling and ngOnDestroy cancellation. Closing the overlay
- * unmounts them, which is exactly the teardown they already handle.
+ * UpgradeButton, BuyCreditsButton and PromoRedeemBox are mounted unchanged,
+ * each keeping its own state. Closing the overlay unmounts them, which is
+ * exactly the teardown the purchase flows already handle.
  *
  * DELIBERATELY NOT a <dialog>.showModal(). A modal dialog is promoted to the
  * browser's top layer, which paints above every z-index on the page — including
@@ -52,6 +54,7 @@ import { UpgradeButton } from './upgrade-button';
     ProgressSpinnerModule,
     UpgradeButton,
     BuyCreditsButton,
+    PromoRedeemBox,
   ],
   styleUrl: './plans-overlay.css',
   templateUrl: './plans-overlay.html',
@@ -63,15 +66,31 @@ export class PlansOverlay implements OnInit, OnDestroy {
   readonly closed = output<void>();
   /** Forwarded from the mounted UpgradeButton, unchanged. */
   readonly upgraded = output<void>();
-  /** Forwarded from the mounted BuyCreditsButton, unchanged. */
+  /** Forwarded from the mounted BuyCreditsButton, or a promo redemption. */
   readonly creditsAdded = output<void>();
 
   /** The shared cached read — not a query of its own. */
   protected readonly plan = this.billing.currentPlan;
   protected readonly loading = signal(true);
 
+  /**
+   * Whether the one-off top-up packs are on sale for this account. Gates the
+   * section offering them: a pack with no price for the region is one the
+   * backend must refuse with 'pack_unavailable', so it is not shown. The
+   * answer comes from the price catalogue rather than from comparing the
+   * region name to 'GLOBAL' — see BillingService.hasTopUpPacks.
+   */
+  protected readonly hasTopUpPacks = this.billing.hasTopUpPacks;
+
   private readonly upgrade = viewChild(UpgradeButton);
-  private readonly credits = viewChild(BuyCreditsButton);
+  /**
+   * Every mounted buy button, not just the first. The overlay mounts two — the
+   * entry pass and the one-off top-up — and viewChild resolves only the first,
+   * so a top-up purchase in flight read as "nothing running" and the overlay
+   * closed on it: that unmounts the button, whose ngOnDestroy cancels the poll
+   * that is the only thing telling the user whether their payment landed.
+   */
+  private readonly credits = viewChildren(BuyCreditsButton);
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
 
   /** The page's own overflow, restored on close. */
@@ -93,11 +112,15 @@ export class PlansOverlay implements OnInit, OnDestroy {
    * indication that anything had happened.
    */
   protected purchaseInFlight(): boolean {
-    return this.upgrade()?.busy() === true || this.credits()?.busy() === true;
+    return this.upgrade()?.busy() === true || this.credits().some((button) => button.busy());
   }
 
   ngOnInit(): void {
-    void this.billing.ensurePlanSummary().finally(() => this.loading.set(false));
+    // Both reads the body draws from, awaited together so the panel opens with
+    // its sections already decided rather than settling a moment later.
+    void Promise.all([this.billing.ensurePlanSummary(), this.billing.ensurePricing()]).finally(
+      () => this.loading.set(false),
+    );
 
     // The page behind a fixed scrim still scrolls, so a scroll gesture over
     // the overlay moved the content underneath it instead of the panel.

@@ -1,14 +1,23 @@
 @switch (state()) {
   @case ('idle') {
-    <button pButton (click)="onBuyClick()">
-      {{ buyLabel() }}
-    </button>
+    @if (isEntryPassUsed()) {
+      <div class="note billing-msg" style="--tone: var(--tx-3)">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></svg>
+        This account has already used its entry pass.
+      </div>
+    } @else {
+      <button pButton (click)="onBuyClick()">
+        {{ buyLabel() }}
+      </button>
+    }
   }
   @case ('ordering') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Starting your purchase…</p>
+    <!-- A div, not a p: p-progress-spinner renders a div, and a block inside a
+         paragraph is invalid HTML the browser's parser splits. -->
+    <div class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Starting your purchase…</div>
   }
   @case ('loading_checkout') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Opening the payment window…</p>
+    <div class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Opening the payment window…</div>
   }
   @case ('checkout_open') {
     <p class="note billing-msg" style="--tone: var(--tx-3)">
@@ -17,7 +26,7 @@
     </p>
   }
   @case ('confirming') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Confirming your payment…</p>
+    <div class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Confirming your payment…</div>
   }
   @case ('success') {
     <p class="note billing-msg billing-msg-ok" style="--tone: var(--up)">
@@ -29,6 +38,12 @@
     <p class="note billing-msg billing-msg-warn" style="--tone: var(--warn)">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 17H2.5L12 3z"/><path d="M12 10v4M12 17h.01"/></svg>
       Still confirming your payment — this can take a minute, check back shortly.
+    </p>
+  }
+  @case ('used_up') {
+    <p class="note billing-msg" style="--tone: var(--tx-3)">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></svg>
+      This account has already used its entry pass.
     </p>
   }
   @case ('poll_error') {

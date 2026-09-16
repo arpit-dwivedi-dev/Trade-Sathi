@@ -1,3 +1,4 @@
+import type { PricingRegion } from "@chartanalyzer/shared";
 import { env } from "../lib/env.js";
 import { razorpay } from "../lib/razorpay-client.js";
 import { supabaseAdmin } from "../lib/supabase.js";
@@ -46,12 +47,17 @@ export type CreateSubscriptionResult =
  * caller is responsible for restricting it to keys that are actually
  * purchasable; an unknown or unpriced key resolves to 'plan_unavailable' here.
  *
+ * `region` is the caller's resolved pricing region — the same
+ * profiles.pricing_region the credit-order path reads, so both purchase paths
+ * charge the same band for one account.
+ *
  * Expected outcomes are returned as a discriminated result; only genuinely
  * unexpected failures (DB errors) throw, and the route maps those to 500.
  */
 export async function createSubscription(
   profileId: string,
   planKey: string,
+  region: PricingRegion,
 ): Promise<CreateSubscriptionResult> {
   // (a2) Resolve the internal plan and its Razorpay counterpart. Deliberately
   // resolved BEFORE the "already subscribed" check below, so that check can be
@@ -64,17 +70,15 @@ export async function createSubscription(
   // purchase flows; they are left in place rather than removed here, since
   // dropping columns needs a broader sweep for other references — future
   // cleanup, not part of this task.
-  //
-  // region is hardcoded to 'IN': region detection is not built yet. This is a
-  // known, temporary simplification, not a bug to fix in this task.
   const { data: price, error: priceError } = await supabaseAdmin
     .from("plan_prices")
-    .select("amount_minor, razorpay_plan_id, plans!inner(id, key)")
+    .select("amount_minor, currency, razorpay_plan_id, plans!inner(id, key)")
     .eq("plans.key", planKey)
-    .eq("region", "IN")
+    .eq("region", region)
     .eq("is_active", true)
     .maybeSingle<{
       amount_minor: number;
+      currency: string;
       razorpay_plan_id: string | null;
       plans: { id: string; key: string };
     }>();
@@ -182,6 +186,8 @@ export async function createSubscription(
   // plan_id is the internal plans.id, not Razorpay's plan_xxx.
   // provider_customer_id stays null — the webhook handler (a separate future
   // task) fills it in once Razorpay populates it post-checkout.
+  // currency comes from the plan_prices row, so a GLOBAL subscription is
+  // recorded in USD without this code knowing the region's currency.
   const { error: insertError } = await supabaseAdmin
     .from("subscriptions")
     .insert({
@@ -191,7 +197,7 @@ export async function createSubscription(
       provider_subscription_id: subscription.id,
       status: subscription.status,
       amount_minor: price.amount_minor,
-      currency: "INR",
+      currency: price.currency,
     });
   if (insertError) {
     throw insertError;

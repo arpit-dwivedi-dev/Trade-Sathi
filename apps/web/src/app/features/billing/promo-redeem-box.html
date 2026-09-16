@@ -1,0 +1,23 @@
+<form class="promo" (submit)="$event.preventDefault(); onRedeem()">
+  <input
+    #promoCodeInput
+    class="input promo-input"
+    type="text"
+    autocomplete="off"
+    placeholder="Enter code"
+    [value]="code()"
+    (input)="code.set(promoCodeInput.value)"
+    [disabled]="busy()"
+  />
+  <button pButton size="small" [outlined]="true" type="submit"
+          [disabled]="busy() || code().trim().length === 0">
+    @if (busy()) {
+      Redeeming…
+    } @else {
+      Redeem
+    }
+  </button>
+</form>
+@if (message(); as m) {
+  <p class="promo-msg" [class.promo-msg-ok]="m.tone === 'ok'">{{ m.text }}</p>
+}

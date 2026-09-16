@@ -5,8 +5,9 @@ import { ProgressBarModule } from 'primeng/progressbar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import { AnalyzeService, type QuotaStatus } from '../analyze/analyze.service';
-import { BillingService } from './billing.service';
+import { BillingService, formatPriceMinor } from './billing.service';
 import { BuyCreditsButton } from './buy-credits-button';
+import { PromoRedeemBox } from './promo-redeem-box';
 import { UpgradeButton } from './upgrade-button';
 
 /**
@@ -23,6 +24,7 @@ import { UpgradeButton } from './upgrade-button';
   imports: [
     BuyCreditsButton,
     UpgradeButton,
+    PromoRedeemBox,
     DatePipe,
     CardModule,
     ProgressBarModule,
@@ -48,6 +50,36 @@ export class BillingPage implements OnInit {
   protected readonly analysisCredits = computed(() => this.plan()?.creditBalance ?? 0);
   protected readonly briefingCredits = computed(() => this.plan()?.briefingCreditBalance ?? 0);
   protected readonly briefingUsage = computed(() => this.plan()?.briefingUsage ?? null);
+
+  /**
+   * The account's locked price band, as a display label — or null until the
+   * summary has loaded, so the badge is never briefly wrong. Read from the plan
+   * summary rather than from pricingRegion() alone for exactly that reason:
+   * both are null before the load, but only one of them also carries the "this
+   * has actually been read" fact. A null region inside a loaded summary is the
+   * documented fallback to 'IN' — the band the backend itself falls back to.
+   */
+  protected readonly regionLabel = computed(() => {
+    const summary = this.plan();
+    if (summary === null) return null;
+    return summary.pricingRegion === 'GLOBAL'
+      ? 'Billing region: Global · $ USD'
+      : 'Billing region: India · ₹ INR';
+  });
+
+  /** Explains the badge, which is a statement rather than a control. */
+  protected readonly REGION_NOTE =
+    'Prices and payment are set for the region this account was first used in, ' +
+    'and cannot be changed.';
+
+  /**
+   * Whether the one-off top-up packs can be sold to this account, from the
+   * price catalogue the order endpoints charge from — the same signal the
+   * overlay gates its section on, so the two surfaces cannot disagree about
+   * what is for sale. See BillingService.hasTopUpPacks for why this is not a
+   * comparison against 'GLOBAL'.
+   */
+  protected readonly hasTopUpPacks = this.billing.hasTopUpPacks;
 
   /**
    * Whether the briefing block is worth rendering at all. Credits alone are
@@ -83,15 +115,25 @@ export class BillingPage implements OnInit {
     void this.refreshQuota();
   }
 
+  /** A redeemed promo code lands as credits — same re-read as a top-up. */
+  protected onPromoRedeemed(): void {
+    this.onCreditsAdded();
+  }
+
   /** An upgrade changes the allowance, so the meter has to be re-read too. */
   protected onUpgraded(): void {
     void this.billing.refreshPlanSummary();
     void this.refreshQuota();
   }
 
-  /** Paise -> "₹499" / "₹0". Money is integer minor units end to end. */
-  protected priceLabel(paise: number): string {
-    return `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  /**
+   * Minor units + currency → "₹499" / "$9" / "—" for a zero amount. The shared
+   * formatter, because the picker, the pack buttons and the public pricing
+   * section print the same numbers and must agree with this screen. Money is
+   * integer minor units end to end.
+   */
+  protected priceLabel(amountMinor: number, currency: string): string {
+    return formatPriceMinor(amountMinor, currency);
   }
 
   protected usedPercent(): number {
@@ -113,6 +155,9 @@ export class BillingPage implements OnInit {
       // ensure, not fetch: the shell already loaded this on mount, and both the
       // summary above and the picker below read the cache it fills.
       this.billing.ensurePlanSummary(),
+      // Awaited with the summary so the top-up section is decided before the
+      // page draws, rather than appearing after the slab has settled.
+      this.billing.ensurePricing(),
     ]);
     this.loading.set(false);
   }

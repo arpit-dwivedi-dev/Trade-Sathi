@@ -22,4 +22,62 @@
       </nav>
     </div>
   </header>
+
+  <!-- The public price list. Prices come from GET /api/pricing, so what a
+       visitor sees here is the same catalogue — and the same region's prices —
+       the billing screen charges from. -->
+  <section class="landing-section-wrap">
+    <div class="landing-inner">
+      <div class="landing-section" id="pricing">
+        <div class="landing-section-head">
+          <h2 class="landing-h2">Pricing</h2>
+          <p class="landing-section-sub">
+            Start with a one-time entry pass, or subscribe for a monthly allowance.
+            @if (pricing(); as p) {
+              {{ p.region === 'GLOBAL' ? 'Prices in US dollars.' : 'Prices in Indian rupees.' }}
+            }
+          </p>
+        </div>
+
+        @if (pricing(); as p) {
+          <!-- panel for the slab surface (bg/border/radius, no padding) — the
+               grid items carry their own padding and hairline dividers. -->
+          <div class="landing-grid panel">
+            <!-- First among the cards on purpose: it is the cheapest way in and
+                 the one a paywalled product wants a new visitor to see first. -->
+            <div class="landing-grid-item">
+              <span class="landing-grid-num">01</span>
+              <h3 class="landing-h3">Entry pass</h3>
+              <p class="landing-price">
+                {{ priceLabel(p.entryPass.amountMinor, p.entryPass.currency) }}
+                <span class="landing-price-note">once</span>
+              </p>
+              <p class="landing-grid-copy">
+                {{ p.entryPass.credits }} chart analyses, one-time. Once per account — the cheapest
+                way to start.
+              </p>
+              <a pButton size="small" [outlined]="true" routerLink="/login">Get started</a>
+            </div>
+
+            @for (plan of p.plans; track plan.key) {
+              <div class="landing-grid-item">
+                <span class="landing-grid-num">0{{ $index + 2 }}</span>
+                <h3 class="landing-h3">{{ plan.name }}</h3>
+                <p class="landing-price">
+                  {{ priceLabel(plan.amountMinor, plan.currency) }}
+                  <span class="landing-price-note">/ month</span>
+                </p>
+                <p class="landing-grid-copy">
+                  {{ plan.analysesPerMonth }} analyses every month, billed by Razorpay.
+                </p>
+                <a pButton size="small" [outlined]="true" routerLink="/login">Get started</a>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="landing-grid-copy landing-pricing-pending">Loading prices…</p>
+        }
+      </div>
+    </div>
+  </section>
 </main>

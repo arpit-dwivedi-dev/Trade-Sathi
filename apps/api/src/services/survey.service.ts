@@ -67,9 +67,14 @@ export type SubmitSurveyResult =
   | { ok: false; reason: "survey_not_found" };
 
 /**
- * Records a survey response and grants the completion credit, via the
- * submit_survey_response() RPC so the insert and the credit grant are one
- * atomic, idempotent operation — see that function for the reasoning.
+ * Records a survey response, via the submit_survey_response() RPC so the
+ * insert is idempotent (a duplicate submission changes nothing) — see that
+ * function for the reasoning.
+ *
+ * No credit is granted any more (20260916120000_survey_no_credit.sql):
+ * signup is free and the product is paywalled, so an automatic credit here
+ * was an unintended free entry — removed rather than kept as an intentional
+ * free taste.
  */
 export async function submitSurveyResponse(
   profileId: string,

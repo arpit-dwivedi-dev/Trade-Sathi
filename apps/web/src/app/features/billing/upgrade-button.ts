@@ -59,6 +59,12 @@ export class UpgradeButton implements OnDestroy {
    */
   protected readonly heldAddOnKeys = this.billing.heldAddOnKeys;
 
+  /**
+   * The price band the picker should list. From the same shared cache as
+   * currentPlanKey — it must match the region the backend charges in.
+   */
+  protected readonly pricingRegion = this.billing.pricingRegion;
+
   protected readonly state = signal<UpgradeState>('idle');
   protected readonly error = signal<string | null>(null);
 

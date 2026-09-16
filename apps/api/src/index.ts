@@ -15,6 +15,7 @@ import { internalRouter } from "./routes/internal.route.js";
 import { attachMarketStream } from "./routes/market-stream.route.js";
 import { marketRouter } from "./routes/market.route.js";
 import { meRouter } from "./routes/me.route.js";
+import { pricingRouter } from "./routes/pricing.route.js";
 import { surveyRouter } from "./routes/survey.route.js";
 import { dailyBriefingRouter } from "./routes/daily-briefing.route.js";
 import { webhooksRouter } from "./routes/webhooks.route.js";
@@ -38,6 +39,7 @@ app.use((req, res, next) => {
 });
 app.use(healthRouter);
 app.use(meRouter);
+app.use(pricingRouter);
 app.use(analysesRouter);
 app.use(billingRouter);
 app.use(instrumentsRouter);

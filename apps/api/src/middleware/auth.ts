@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { supabaseAuth } from "../lib/supabase.js";
+import { ensurePricingRegion } from "../services/pricing-region.service.js";
 
 declare global {
   // Express's own types are declared in the `Express` namespace, so augmenting
@@ -69,6 +70,16 @@ export async function requireAuth(
     return;
   }
   req.profileId = profileId;
+
+  // Fire-and-forget: lock the profile's pricing region on its first
+  // authenticated request, without adding a DB round trip to this request's
+  // critical path. ensurePricingRegion never throws (it logs and falls back
+  // to 'IN'), and its own memo skips work entirely once the region is locked.
+  // Called here — not in a route — because requireAuth is the one gate every
+  // authenticated request passes, which is what "first authenticated request"
+  // means; scoping it to billing routes would leave prices unlocked until a
+  // purchase was attempted.
+  void ensurePricingRegion(profileId, req);
 
   next();
 }

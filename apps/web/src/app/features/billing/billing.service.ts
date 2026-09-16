@@ -2,6 +2,14 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+import type {
+  EntryPassPrice,
+  PricingOverview,
+  PricingRegion,
+  PromoRedeemOutcome,
+  PublicTopUpPackPrice,
+} from '@chartanalyzer/shared';
+
 import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
 
@@ -66,8 +74,13 @@ export interface SubscriptionPollHandle {
  * Which credit currency a top-up buys. 'analysis' tops up manual analyses;
  * 'daily_briefing' tops up automated watchlist runs. Deliberately not
  * interchangeable — see CREDIT_PACKS in apps/api/src/services/credits.service.ts.
+ *
+ * 'entry_pass' is not a currency but a one-time, once-per-account starter
+ * purchase of 5 analysis credits. It rides the same order → Checkout → poll
+ * machinery, so it lives in this union and CREDIT_ENDPOINTS rather than in a
+ * parallel copy of the whole flow.
  */
-export type CreditPackKind = 'analysis' | 'daily_briefing';
+export type CreditPackKind = 'analysis' | 'daily_briefing' | 'entry_pass';
 
 /**
  * One endpoint per currency, not one endpoint taking the currency: a client
@@ -77,11 +90,21 @@ export type CreditPackKind = 'analysis' | 'daily_briefing';
 const CREDIT_ENDPOINTS: Record<CreditPackKind, string> = {
   analysis: '/api/billing/buy-credits',
   daily_briefing: '/api/billing/buy-briefing-credits',
+  entry_pass: '/api/billing/buy-entry-pass',
 };
 
+/**
+ * The payments.purpose an entry-pass purchase is recorded under, mirrored from
+ * CREDIT_PACKS.entry_pass.purpose in apps/api/src/services/credits.service.ts —
+ * the same copy-not-share trade as LIVE_SUBSCRIPTION_STATUSES below. It is how
+ * the once-per-account gate is recognised in payment history, so it is read
+ * here to answer "has this account already used its pass?" before offering it.
+ */
+const ENTRY_PASS_PURPOSE = 'entry_pass_5';
+
 export type BuyCreditsResult =
-  | { ok: true; orderId: string; keyId: string; amountMinor: number }
-  | { ok: false; reason: 'error'; message: string };
+  | { ok: true; orderId: string; keyId: string; amountMinor: number; currency: string }
+  | { ok: false; reason: 'error' | 'already_purchased'; message: string };
 
 export type CreditPollOutcome = 'captured' | 'timed_out' | 'poll_error';
 
@@ -153,6 +176,8 @@ export interface AddOnSummary {
   key: string;
   name: string;
   amountMinor: number;
+  /** From the subscriptions row — the currency actually being charged. */
+  currency: string;
   currentPeriodEnd: string | null;
 }
 
@@ -165,8 +190,24 @@ export interface PlanSummary {
   /** plans.key — 'free', 'starter_monthly', 'pro_monthly'. */
   key: string;
   name: string;
-  priceInrPaise: number;
+  /**
+   * The plan's price in the account's locked region, with its currency —
+   * the same plan_prices row the backend charges from. The base
+   * plans.price_inr_paise stays in the query only as the fallback when no
+   * region row matches, which would itself be catalogue drift.
+   */
+  priceMinor: number;
+  currency: string;
   analysesPerMonth: number;
+  /**
+   * The locked pricing region this account is billed in ('IN' | 'GLOBAL').
+   * Read from the profile alongside the plan, because both the plan picker's
+   * price query and the pack buttons' labels must use the same region the
+   * backend will charge in. Null when it could not be read — callers fall
+   * back to 'IN', the region with active prices, matching the backend's
+   * detection fallback.
+   */
+  pricingRegion: PricingRegion | null;
   /**
    * The renewal date of the MANUAL tier's own subscription, and only that one.
    * Reading "the newest subscription row" instead put an add-on's renewal date
@@ -198,13 +239,55 @@ export interface PlanSummary {
    * would claim an exhausted quota that does not exist.
    */
   briefingUsage: UsageStatus | null;
+  /**
+   * Whether the once-per-account entry pass has been bought and captured. Its
+   * button reads this so the offer is not made a second time: the backend
+   * would answer the attempt with a 409 after the user had already sat through
+   * a checkout window.
+   */
+  entryPassUsed: boolean;
 }
 
 /** A live subscriptions row joined to its plan, as fetchPlanSummary reads it. */
 interface LiveSubscriptionRow {
   current_period_end: string | null;
   amount_minor: number;
+  currency: string;
   plans: { key: string; name: string } | null;
+}
+
+/**
+ * Formats an integer minor-unit amount with its currency's symbol and
+ * grouping: 39900/INR → "₹399", 500/USD → "$5". One formatter because every
+ * money surface (plan cards, pack buttons, billing receipt, public pricing)
+ * must print the same number the same way.
+ *
+ * Zero is NOT "Free" — there is no free tier any more; a zero amount is the
+ * Inactive plan, which has no price to show, so it renders as an em dash.
+ */
+export function formatPriceMinor(amountMinor: number, currency: string): string {
+  if (amountMinor === 0) return '—';
+  const symbol = currency === 'INR' ? '₹' : currency === 'USD' ? '$' : `${currency} `;
+  const locale = currency === 'INR' ? 'en-IN' : 'en-US';
+  return `${symbol}${(amountMinor / 100).toLocaleString(locale, { maximumFractionDigits: 2 })}`;
+}
+
+/** The set of PromoRedeemOutcome values other than 'applied' — every rejected
+ * redemption reason the backend can send. */
+const REJECTED_PROMO_OUTCOMES: ReadonlySet<string> = new Set([
+  'duplicate',
+  'invalid_code',
+  'expired',
+  'exhausted',
+]);
+
+/** Narrows an unknown error-body field to a rejected PromoRedeemOutcome,
+ * without trusting the server to have sent one of the values the type
+ * promises. */
+function isRejectedPromoOutcome(
+  value: unknown,
+): value is Exclude<PromoRedeemOutcome, 'applied'> {
+  return typeof value === 'string' && REJECTED_PROMO_OUTCOMES.has(value);
 }
 
 @Injectable({ providedIn: 'root' })
@@ -227,9 +310,62 @@ export class BillingService {
    */
   private readonly planSummary = signal<PlanSummary | null>(null);
 
+  /** GET /api/pricing, cached — see ensurePricing(). */
+  private readonly pricing = signal<PricingOverview | null>(null);
+
+  /** Dedupes concurrent first-loads onto one in-flight request. */
+  private pricingRequest: Promise<PricingOverview | null> | null = null;
+
   /** null until the first load resolves, and for users whose plan can't be read. */
   readonly currentPlanKey = computed(() => this.planSummary()?.key ?? null);
   readonly currentPlan = this.planSummary.asReadonly();
+
+  /**
+   * The account's locked pricing region, or null while unknown (not loaded /
+   * read failure). Consumers displaying region-priced amounts must treat null
+   * as 'IN' — the backend's own fallback, and the only region with active
+   * prices today — never as "hide the price".
+   */
+  readonly pricingRegion = computed<PricingRegion | null>(
+    () => this.planSummary()?.pricingRegion ?? null,
+  );
+
+  /**
+   * The paid one-off packs, priced by the backend's own catalogue — the same
+   * rows the order endpoints charge from, so an advertised amount and a
+   * charged amount are one number. Empty while unknown, and empty for a region
+   * that sells none: a pack we cannot price is a pack we must not offer, since
+   * createCreditOrder answers it with 'pack_unavailable'.
+   */
+  readonly topUpPacks = computed<readonly PublicTopUpPackPrice[]>(
+    () => this.pricing()?.topUpPacks ?? [],
+  );
+
+  /** The entry pass's price and grant for this account's region. */
+  readonly entryPassPrice = computed<EntryPassPrice | null>(
+    () => this.pricing()?.entryPass ?? null,
+  );
+
+  /**
+   * Whether the one-off top-up packs can be sold to this account. Gates the
+   * sections offering them.
+   *
+   * Read from the price catalogue rather than by comparing pricingRegion() to
+   * 'GLOBAL': the catalogue is what decides what is sellable, and comparing
+   * region names treated an *unknown* region — not loaded yet, or a failed
+   * summary read — as India, offering a GLOBAL account two packs the backend
+   * refuses. False while unknown, so the packs appear only once they are known
+   * to be purchasable.
+   */
+  readonly hasTopUpPacks = computed(() => this.topUpPacks().length > 0);
+
+  /**
+   * Whether the once-per-account entry pass has been spent. False while the
+   * summary hasn't loaded — the button is left on screen rather than hidden on
+   * a failed read, because the order endpoint still holds the real gate and
+   * its 409 is handled as 'used_up'.
+   */
+  readonly entryPassUsed = computed(() => this.planSummary()?.entryPassUsed ?? false);
 
   /**
    * Keys of the add-ons the user already holds. The picker reads this to mark
@@ -284,12 +420,54 @@ export class BillingService {
   /**
    * Re-reads the plan, bypassing the cache. Called after a successful upgrade,
    * when the cached tier is exactly what has just gone stale.
+   *
+   * Concurrent callers share the one request. Two surfaces do refresh on the
+   * same event — a redeemed promo fires both the redeem box's own refresh and
+   * its host's — and without this they issued two identical reads and raced to
+   * write the same signal.
    */
   async refreshPlanSummary(): Promise<PlanSummary | null> {
-    this.planSummaryRequest = null;
-    const summary = await this.fetchPlanSummary();
-    this.planSummary.set(summary);
-    return summary;
+    this.planSummaryRequest ??= this.fetchPlanSummary().then((summary) => {
+      this.planSummary.set(summary);
+      this.planSummaryRequest = null;
+      return summary;
+    });
+    return this.planSummaryRequest;
+  }
+
+  /**
+   * Loads the region's price list once and caches it. Same discipline as
+   * ensurePlanSummary: repeat callers take the cache, concurrent callers share
+   * the one request, and a failed read is not cached — so the next caller
+   * retries instead of pinning the app to "no prices".
+   *
+   * The endpoint is public, but the token is sent anyway: an authenticated
+   * caller gets the region locked on their profile, which is the region the
+   * backend will charge in.
+   */
+  async ensurePricing(): Promise<PricingOverview | null> {
+    const cached = this.pricing();
+    if (cached) return cached;
+    this.pricingRequest ??= this.fetchPricing().finally(() => {
+      this.pricingRequest = null;
+    });
+    return this.pricingRequest;
+  }
+
+  private async fetchPricing(): Promise<PricingOverview | null> {
+    try {
+      const token = await this.auth.getAccessToken();
+      const overview = await firstValueFrom(
+        this.http.get<PricingOverview>('/api/pricing', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }),
+      );
+      this.pricing.set(overview);
+      return overview;
+    } catch (cause) {
+      console.warn('pricing lookup failed', cause);
+      return null;
+    }
   }
 
   /**
@@ -347,11 +525,12 @@ export class BillingService {
   /**
    * Asks the backend to create a Razorpay Order for one credit pack.
    *
-   * Unlike subscribe() there is no 409-equivalent: credit packs are one-time
-   * purchases with no "already has one" state, so every non-201 collapses to a
-   * single 'error' reason.
+   * Unlike subscribe() there is no 409-equivalent for the top-up packs — they
+   * are repeatable one-time purchases. The entry pass is the exception: it is
+   * once per account, so the backend answers 409 'already_purchased' and the
+   * button renders that as a used-up state rather than an error.
    */
-  async buyCredits(kind: CreditPackKind = 'analysis'): Promise<BuyCreditsResult> {
+  async buyCredits(kind: CreditPackKind): Promise<BuyCreditsResult> {
     const token = await this.auth.getAccessToken();
     if (!token) {
       return { ok: false, reason: 'error', message: 'You are not signed in.' };
@@ -359,7 +538,7 @@ export class BillingService {
 
     try {
       const response = await firstValueFrom(
-        this.http.post<{ orderId: string; keyId: string; amountMinor: number }>(
+        this.http.post<{ orderId: string; keyId: string; amountMinor: number; currency: string }>(
           CREDIT_ENDPOINTS[kind],
           {},
           { headers: { Authorization: `Bearer ${token}` } },
@@ -370,8 +549,18 @@ export class BillingService {
         orderId: response.orderId,
         keyId: response.keyId,
         amountMinor: response.amountMinor,
+        currency: response.currency,
       };
     } catch (cause) {
+      const status = cause instanceof HttpErrorResponse ? cause.status : 0;
+
+      if (status === 409) {
+        return {
+          ok: false,
+          reason: 'already_purchased',
+          message: 'This account has already used its entry pass.',
+        };
+      }
       // 500 (our own misconfiguration) and 502 (the provider failed) are both
       // nothing the user can act on differently, so they share one reason.
       console.warn('credit order request failed', cause);
@@ -380,6 +569,50 @@ export class BillingService {
         reason: 'error',
         message: "Couldn't start the purchase. Please try again.",
       };
+    }
+  }
+
+  /**
+   * Redeems a promo code. Returns the raw outcome rather than a message: the
+   * words differ per outcome and per surface, and the balance refresh — not
+   * this call — is what shows the granted credits.
+   */
+  async redeemPromoCode(code: string): Promise<
+    { ok: true; outcome: 'applied' } | { ok: false; outcome: Exclude<PromoRedeemOutcome, 'applied'> }
+  > {
+    const token = await this.auth.getAccessToken();
+    if (!token) {
+      // The redeem input only renders for signed-in users; reaching here means
+      // the session dropped between render and click.
+      return { ok: false, outcome: 'invalid_code' };
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<{ outcome: PromoRedeemOutcome }>(
+          '/api/billing/redeem-promo',
+          { code },
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      );
+      return response.outcome === 'applied'
+        ? { ok: true, outcome: 'applied' }
+        : { ok: false, outcome: response.outcome };
+    } catch (cause) {
+      const status = cause instanceof HttpErrorResponse ? cause.status : 0;
+      // The non-'applied' outcomes arrive as their mapped error statuses
+      // (409 duplicate/exhausted, 404 invalid, 410 expired) carrying the
+      // outcome in the body; read it back out rather than flattening every
+      // failure to a generic one. The body is `unknown` — HttpErrorResponse
+      // types `.error` as `any`, so it's narrowed by hand rather than cast.
+      const body: unknown = cause instanceof HttpErrorResponse ? cause.error : undefined;
+      const bodyOutcome =
+        body !== null && typeof body === 'object' && 'outcome' in body ? body.outcome : undefined;
+      if (isRejectedPromoOutcome(bodyOutcome)) {
+        return { ok: false, outcome: bodyOutcome };
+      }
+      console.warn('promo redeem request failed', { status, cause });
+      return { ok: false, outcome: 'invalid_code' };
     }
   }
 
@@ -467,11 +700,19 @@ export class BillingService {
    *
    * The script is the same one the subscribe flow loads, so loadCheckoutScript
    * is reused as-is and is already cached after the first load.
+   *
+   * amount and currency are passed through from the order response rather
+   * than assumed here: the server owns the price — and the region picks the
+   * currency (₹49 IN vs $5 GLOBAL entry pass), so a hardcoded 'INR' would
+   * make Checkout reject the order Razorpay just created. The description is
+   * the caller's label for the same reason.
    */
   openCreditCheckout(
     orderId: string,
     keyId: string,
     amountMinor: number,
+    currency: string,
+    description: string,
     prefillEmail: string | null,
   ): Promise<CheckoutOutcome> {
     if (!this.supabase.isBrowser) {
@@ -493,9 +734,9 @@ export class BillingService {
         // server owns the price, and a client-side constant could drift from
         // it silently. Razorpay validates it against the Order regardless.
         amount: amountMinor,
-        currency: 'INR',
+        currency,
         name: 'ChartAnalyzer',
-        description: '10 analysis credits',
+        description,
         prefill: prefillEmail ? { email: prefillEmail } : undefined,
         handler: () => resolve({ outcome: 'submitted' }),
         modal: { ondismiss: () => resolve({ outcome: 'dismissed' }) },
@@ -714,60 +955,87 @@ export class BillingService {
     const period = new Date().toISOString().slice(0, 7);
 
     try {
-      const [profile, subscriptions, briefingCounter, briefingEntitlement] = await Promise.all([
-        client
-          .from('profiles')
-          .select(
-            'credit_balance, daily_briefing_credit_balance, plans(key, name, price_inr_paise, analyses_per_month)',
-          )
-          .eq('id', profileId)
-          .single<{
-            credit_balance: number;
-            daily_briefing_credit_balance: number;
-            plans: {
-              key: string;
-              name: string;
-              price_inr_paise: number;
-              analyses_per_month: number;
-            } | null;
-          }>(),
-        client
-          .from('subscriptions')
-          .select('current_period_end, amount_minor, plans!inner(key, name)')
-          // Every live subscription, not just the newest one: a user can hold a
-          // manual tier and an add-on at the same time, and both are needed
-          // here. Newest first so that when a plan has accumulated rows over
-          // time (a resubscribe writes a new one) the current period wins.
-          .eq('profile_id', profileId)
-          .in('status', [...LIVE_SUBSCRIPTION_STATUSES])
-          .order('created_at', { ascending: false })
-          .returns<LiveSubscriptionRow[]>(),
-        // Both briefing reads are issued unconditionally rather than after the
-        // subscription check: whether the add-on is held is only known once
-        // that query resolves, and sequencing on it would cost a second
-        // round-trip to save two cheap reads (one own-row counter, one
-        // publicly-readable entitlement row). The result is discarded below if
-        // no live subscription turns up.
-        client
-          .from('daily_briefing_usage_counters')
-          .select('analyses_used')
-          .eq('profile_id', profileId)
-          .eq('period', period)
-          .maybeSingle<{ analyses_used: number }>(),
-        client
-          .from('daily_briefing_entitlements')
-          .select('monthly_auto_analyses')
-          .eq('plan_key', DAILY_BRIEFING_PLAN_KEY)
-          .maybeSingle<{ monthly_auto_analyses: number }>(),
-      ]);
+      const [profile, subscriptions, briefingCounter, briefingEntitlement, entryPass] =
+        await Promise.all([
+          client
+            .from('profiles')
+            .select(
+              'credit_balance, daily_briefing_credit_balance, pricing_region, ' +
+                'plans(key, name, price_inr_paise, analyses_per_month, ' +
+                'plan_prices(amount_minor, currency, region))',
+            )
+            .eq('id', profileId)
+            .single<{
+              credit_balance: number;
+              daily_briefing_credit_balance: number;
+              pricing_region: PricingRegion | null;
+              plans: {
+                key: string;
+                name: string;
+                price_inr_paise: number;
+                analyses_per_month: number;
+                plan_prices: { amount_minor: number; currency: string; region: PricingRegion }[];
+              } | null;
+            }>(),
+          client
+            .from('subscriptions')
+            .select('current_period_end, amount_minor, currency, plans!inner(key, name)')
+            // Every live subscription, not just the newest one: a user can hold a
+            // manual tier and an add-on at the same time, and both are needed
+            // here. Newest first so that when a plan has accumulated rows over
+            // time (a resubscribe writes a new one) the current period wins.
+            .eq('profile_id', profileId)
+            .in('status', [...LIVE_SUBSCRIPTION_STATUSES])
+            .order('created_at', { ascending: false })
+            .returns<LiveSubscriptionRow[]>(),
+          // Both briefing reads are issued unconditionally rather than after the
+          // subscription check: whether the add-on is held is only known once
+          // that query resolves, and sequencing on it would cost a second
+          // round-trip to save two cheap reads (one own-row counter, one
+          // publicly-readable entitlement row). The result is discarded below if
+          // no live subscription turns up.
+          client
+            .from('daily_briefing_usage_counters')
+            .select('analyses_used')
+            .eq('profile_id', profileId)
+            .eq('period', period)
+            .maybeSingle<{ analyses_used: number }>(),
+          client
+            .from('daily_briefing_entitlements')
+            .select('monthly_auto_analyses')
+            .eq('plan_key', DAILY_BRIEFING_PLAN_KEY)
+            .maybeSingle<{ monthly_auto_analyses: number }>(),
+          // Whether the once-per-account entry pass is spent. Mirrors
+          // createCreditOrder's own gate exactly — same purpose, same 'captured'
+          // status — because the point is to not offer the purchase the order
+          // endpoint is about to refuse. payments is readable for own rows, so
+          // this needs no backend endpoint.
+          client
+            .from('payments')
+            .select('id', { count: 'exact', head: true })
+            .eq('purpose', ENTRY_PASS_PURPOSE)
+            .eq('status', 'captured'),
+        ]);
 
       if (profile.error) throw profile.error;
       if (subscriptions.error) throw subscriptions.error;
       if (briefingCounter.error) throw briefingCounter.error;
       if (briefingEntitlement.error) throw briefingEntitlement.error;
+      if (entryPass.error) throw entryPass.error;
 
       const plan = profile.data?.plans;
       if (!plan) return null;
+
+      // Both regions' rows arrive (PostgREST can't filter a nested select on a
+      // sibling column of the same outer row); the account's locked region —
+      // 'IN' as fallback, matching the backend's detection fallback — picks
+      // which one is the real price.
+      const region: PricingRegion = profile.data?.pricing_region ?? 'IN';
+      const regionPrice = plan.plan_prices?.find((row) => row.region === region);
+      // Falling back to the plan's IN list price keeps the screen readable if
+      // the region row is missing, but that is catalogue drift worth noticing.
+      const priceMinor = regionPrice?.amount_minor ?? plan.price_inr_paise;
+      const currency = regionPrice?.currency ?? 'INR';
 
       const live = subscriptions.data ?? [];
 
@@ -788,6 +1056,7 @@ export class BillingService {
           key: rowPlan.key,
           name: rowPlan.name,
           amountMinor: row.amount_minor,
+          currency: row.currency,
           currentPeriodEnd: row.current_period_end,
         });
       }
@@ -804,8 +1073,10 @@ export class BillingService {
       return {
         key: plan.key,
         name: plan.name,
-        priceInrPaise: plan.price_inr_paise,
+        priceMinor,
+        currency,
         analysesPerMonth: plan.analyses_per_month,
+        pricingRegion: profile.data?.pricing_region ?? null,
         currentPeriodEnd: manual?.current_period_end ?? null,
         addOns: [...addOns.values()],
         briefingCreditBalance: profile.data?.daily_briefing_credit_balance ?? 0,
@@ -818,6 +1089,7 @@ export class BillingService {
                 limit: briefingLimit,
                 remaining: Math.max(0, briefingLimit - briefingUsed),
               },
+        entryPassUsed: (entryPass.count ?? 0) > 0,
       };
     } catch (cause) {
       console.warn('plan summary lookup failed', cause);
