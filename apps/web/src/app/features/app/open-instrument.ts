@@ -1,4 +1,4 @@
-import type { Instrument } from '@chartanalyzer/shared';
+import type { Instrument } from '@tradesathi/shared';
 
 /**
  * The shell tab an instrument can be opened onto from inside another tab.

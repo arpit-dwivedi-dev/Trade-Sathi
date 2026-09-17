@@ -1,4 +1,4 @@
--- ChartAnalyzer — credit purchase bounds, as config.
+-- TradeSathi — credit purchase bounds, as config.
 --
 -- Three changes to credit_pricing_regions, all of them numbers, per that
 -- table's own rule that repricing never requires a code change.

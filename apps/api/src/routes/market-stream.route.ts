@@ -4,7 +4,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 import type {
   MarketStreamClientMessage,
   MarketStreamServerMessage,
-} from "@chartanalyzer/shared";
+} from "@tradesathi/shared";
 import { logger } from "../lib/logger.js";
 import { frameToString } from "../lib/ws-frame.js";
 import { yahooTickerStream } from "../lib/market-data/yahoo-stream.js";

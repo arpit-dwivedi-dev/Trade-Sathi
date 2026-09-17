@@ -1,4 +1,4 @@
-import type { MarketStatus } from "@chartanalyzer/shared";
+import type { MarketStatus } from "@tradesathi/shared";
 import { marketDataProvider } from "./market-chart.service.js";
 
 /**

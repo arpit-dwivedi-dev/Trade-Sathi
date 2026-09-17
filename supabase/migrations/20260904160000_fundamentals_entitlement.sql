@@ -1,4 +1,4 @@
--- ChartAnalyzer — the fundamentals AI analysis entitlement.
+-- TradeSathi — the fundamentals AI analysis entitlement.
 --
 -- A fully separate pool from the manual chart-analysis quota/credit and from
 -- the Daily Briefing subscription: pricing and plans for this feature are not

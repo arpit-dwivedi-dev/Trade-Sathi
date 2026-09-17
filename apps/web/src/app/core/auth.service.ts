@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import type { Session, User } from '@supabase/supabase-js';
-import { isDisposableEmail } from '@chartanalyzer/shared';
+import { isDisposableEmail } from '@tradesathi/shared';
 
 import { SupabaseClientService } from './supabase-client';
 import { environment } from '../../environments/environment';

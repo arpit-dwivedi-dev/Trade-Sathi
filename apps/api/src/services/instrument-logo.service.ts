@@ -1,4 +1,4 @@
-import type { MarketCode } from "@chartanalyzer/shared";
+import type { MarketCode } from "@tradesathi/shared";
 import { logger } from "../lib/logger.js";
 
 /**

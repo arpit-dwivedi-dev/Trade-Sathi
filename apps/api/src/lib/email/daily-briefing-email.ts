@@ -1,4 +1,4 @@
-import type { AnalysisResult } from "@chartanalyzer/shared";
+import type { AnalysisResult } from "@tradesathi/shared";
 
 export interface BriefingItem {
   symbol: string;

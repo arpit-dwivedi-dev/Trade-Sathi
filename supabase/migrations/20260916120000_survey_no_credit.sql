@@ -1,4 +1,4 @@
--- ChartAnalyzer — remove the survey's free-credit grant.
+-- TradeSathi — remove the survey's free-credit grant.
 --
 -- submit_survey_response() (20260902130100) granted 1 analysis credit on
 -- first completion of each survey. With the hard paywall in place
@@ -59,5 +59,5 @@ $$;
 -- Retire the "earns you 1 free analysis credit" promise from the seeded
 -- survey's description — the copy the Account page renders verbatim.
 update public.surveys
-set description = 'Four quick questions to help us tailor ChartAnalyzer to how you trade.'
+set description = 'Four quick questions to help us tailor TradeSathi to how you trade.'
 where slug = 'trading-profile';

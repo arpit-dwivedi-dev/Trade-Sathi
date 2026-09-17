@@ -17,7 +17,7 @@ import { MarketDataError } from "../types.js";
  * including the cookie/crumb handshake below, which is refused outright
  * without one.
  */
-export const YAHOO_USER_AGENT = "Mozilla/5.0 (compatible; ChartAnalyzer/1.0)";
+export const YAHOO_USER_AGENT = "Mozilla/5.0 (compatible; TradeSathi/1.0)";
 
 /**
  * Node's fetch has no default timeout, and Yahoo under load soft-throttles by

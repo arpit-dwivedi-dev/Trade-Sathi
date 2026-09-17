@@ -17,7 +17,7 @@ import { Select } from 'primeng/select';
 import { Subject, firstValueFrom } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
-import { MARKETS, type Instrument, type MarketCode } from '@chartanalyzer/shared';
+import { MARKETS, type Instrument, type MarketCode } from '@tradesathi/shared';
 import { AppIcon } from '../icons/app-icon';
 import { AuthService } from '../../core/auth.service';
 import { ProfileService } from '../../features/account/profile.service';

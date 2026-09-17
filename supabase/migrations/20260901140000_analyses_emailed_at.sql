@@ -1,4 +1,4 @@
--- ChartAnalyzer — record when an analysis was emailed to its owner.
+-- TradeSathi — record when an analysis was emailed to its owner.
 --
 -- Two paths now email an analysis: the scheduled daily briefing digest, and
 -- the per-row "Brief Now" action. Both leave an ordinary `analyses` row behind,

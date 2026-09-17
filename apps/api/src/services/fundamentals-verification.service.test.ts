@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { InstrumentFundamentals } from "@chartanalyzer/shared";
+import type { InstrumentFundamentals } from "@tradesathi/shared";
 
 const search = vi.fn();
 const isConfigured = vi.fn(() => true);

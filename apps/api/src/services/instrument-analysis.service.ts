@@ -5,7 +5,7 @@ import {
   SERIES_PROMPT_VERSION,
   analysisResultColumns,
 } from "./ai-analysis.service.js";
-import type { AnalysisResult } from "@chartanalyzer/shared";
+import type { AnalysisResult } from "@tradesathi/shared";
 import {
   MAX_CANDLES_FOR_CHART,
   getCandlesForInstrument,

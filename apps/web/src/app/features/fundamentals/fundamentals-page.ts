@@ -19,7 +19,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TableModule } from 'primeng/table';
 
-import type { FundamentalsAnnualPeriod, InstrumentFundamentals } from '@chartanalyzer/shared';
+import type { FundamentalsAnnualPeriod, InstrumentFundamentals } from '@tradesathi/shared';
 import { ThemeService } from '../../core/theme.service';
 import { AppIcon } from '../../shared/icons/app-icon';
 import { LottiePlayer } from '../../shared/lottie-player';
@@ -167,19 +167,6 @@ export class FundamentalsPage implements OnDestroy {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly document = inject(DOCUMENT);
   private readonly themeService = inject(ThemeService);
-
-  /**
-   * "Costs N credits", read from the centrally configured feature cost list
-   * rather than hardcoded — this screen has no opinion of its own on what a
-   * fundamentals analysis costs. Null until pricing has loaded.
-   */
-  protected readonly aiCostLabel = computed(() => {
-    const cost = this.billing
-      .pricing()
-      ?.featureCosts.find((row) => row.featureKey === 'fundamental_analysis');
-    if (!cost) return null;
-    return `Costs ${cost.credits} credit${cost.credits === 1 ? '' : 's'}`;
-  });
 
   /**
    * "Costs N credits", read from the centrally configured feature cost list

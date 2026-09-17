@@ -3,7 +3,7 @@ import type {
   DerivedFundamentals,
   FundamentalsAnalysisResult,
   Metric,
-} from "@chartanalyzer/shared";
+} from "@tradesathi/shared";
 
 /**
  * The zod mirror of apps/api/src/prompts/fundamentals-analysis.ts's

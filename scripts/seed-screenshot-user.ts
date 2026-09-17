@@ -19,7 +19,7 @@ const getEnv = (key: string) =>
 const SUPABASE_URL = getEnv('SUPABASE_URL');
 const SERVICE_ROLE_KEY = getEnv('SUPABASE_SERVICE_ROLE_KEY');
 
-const EMAIL = getEnv('SCREENSHOT_USER_EMAIL') ?? 'screenshots@chartanalyzer.dev';
+const EMAIL = getEnv('SCREENSHOT_USER_EMAIL') ?? 'screenshots@tradesathi.dev';
 const PASSWORD = getEnv('SCREENSHOT_USER_PASSWORD') ?? 'TestPassword123!';
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {

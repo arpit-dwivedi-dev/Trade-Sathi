@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import type { InstrumentFundamentals } from '@chartanalyzer/shared';
+import type { InstrumentFundamentals } from '@tradesathi/shared';
 import { AuthService } from '../../core/auth.service';
 import { startRowWatch, type RowWatch } from '../../core/row-watch';
 import { SupabaseClientService } from '../../core/supabase-client';

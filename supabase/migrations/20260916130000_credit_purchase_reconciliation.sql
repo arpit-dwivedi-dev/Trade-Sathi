@@ -1,4 +1,4 @@
--- ChartAnalyzer — reconciling a credit purchase against Razorpay directly.
+-- TradeSathi — reconciling a credit purchase against Razorpay directly.
 --
 -- Until now the ONLY thing that could mark a payments row 'captured' was the
 -- payment.captured webhook. That is a single point of failure with no recovery:

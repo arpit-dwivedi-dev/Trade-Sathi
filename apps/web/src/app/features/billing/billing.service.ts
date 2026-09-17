@@ -8,7 +8,7 @@ import type {
   PricingOverview,
   PricingRegion,
   PromoRedeemOutcome,
-} from '@chartanalyzer/shared';
+} from '@tradesathi/shared';
 
 import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
@@ -91,7 +91,7 @@ export interface CreditPollHandle {
  * unlike the old plan-era version of this key — there is nothing to scope the
  * entry by beyond the order id itself.
  */
-const PENDING_ORDER_STORAGE_KEY = 'chartanalyzer.pending-credit-order';
+const PENDING_ORDER_STORAGE_KEY = 'tradesathi.pending-credit-order';
 
 /**
  * How long a remembered order stays resumable.
@@ -609,7 +609,7 @@ export class BillingService {
         // it silently. Razorpay validates it against the Order regardless.
         amount: amountMinor,
         currency,
-        name: 'ChartAnalyzer',
+        name: 'TradeSathi',
         description,
         prefill: prefillEmail ? { email: prefillEmail } : undefined,
         handler: () => resolve({ outcome: 'submitted' }),

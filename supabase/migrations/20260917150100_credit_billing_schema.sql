@@ -1,4 +1,4 @@
--- ChartAnalyzer — unified credit billing, part 2: new tables and columns.
+-- TradeSathi — unified credit billing, part 2: new tables and columns.
 --
 -- One balance (profiles.credit_balance, already existed), one ledger, feature
 -- cost and region price as pure config data. See the plan this batch
@@ -239,7 +239,7 @@ set search_path = ''
 as $$
 begin
   if current_user <> 'service_role'
-     and coalesce(current_setting('chartanalyzer.trusted_profile_sync', true), 'off') <> 'on'
+     and coalesce(current_setting('tradesathi.trusted_profile_sync', true), 'off') <> 'on'
      and (
        new.email                    is distinct from old.email or
        new.email_verified           is distinct from old.email_verified or

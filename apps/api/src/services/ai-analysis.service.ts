@@ -3,7 +3,7 @@ import {
   callDirectionFor,
   primaryScenario,
   type AnalysisResult,
-} from "@chartanalyzer/shared";
+} from "@tradesathi/shared";
 import {
   SeriesAnalysisSchema,
   VisionAnalysisSchema,
@@ -27,7 +27,7 @@ import {
   repairDisallowedUnkClaimTags,
   repairHoistedVerdictKeys,
 } from "./fundamentals-analysis-schema.js";
-import type { DerivedFundamentals, FundamentalsAnalysisResult } from "@chartanalyzer/shared";
+import type { DerivedFundamentals, FundamentalsAnalysisResult } from "@tradesathi/shared";
 import { APIConnectionTimeoutError, AuthenticationError, RateLimitError } from "openai";
 import { aiProviders, type AiProvider } from "../lib/ai-client.js";
 import { logAppError } from "../lib/error-log.js";

@@ -16,7 +16,7 @@ const OUT = 'e2e/__screenshots__';
 async function gotoWithTheme(page: Page, path: string, theme: Theme): Promise<void> {
   await page.addInitScript(
     ([key, value]) => localStorage.setItem(key, value),
-    ['chartanalyzer.theme', theme] as const,
+    ['tradesathi.theme', theme] as const,
   );
   await page.goto(path, { waitUntil: 'networkidle' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme);

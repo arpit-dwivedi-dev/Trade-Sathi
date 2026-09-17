@@ -1,4 +1,4 @@
--- ChartAnalyzer — combined quota + credit entitlement consumption.
+-- TradeSathi — combined quota + credit entitlement consumption.
 --
 -- Quota and one-off credits are two independent entitlements. Every analysis
 -- must draw from exactly one of them, quota first, and the decision must be as

@@ -4,7 +4,7 @@ import {
   type AnalysisLevel,
   type AnalysisReasonCode,
   type AnalysisResult,
-} from "@chartanalyzer/shared";
+} from "@tradesathi/shared";
 
 /**
  * The zod mirrors of the two prompts in ../prompts, and the normaliser that

@@ -1,4 +1,4 @@
--- ChartAnalyzer — one-off Daily Briefing credit packs.
+-- TradeSathi — one-off Daily Briefing credit packs.
 --
 -- The Daily Briefing add-on is a subscription, and a user may hold exactly one
 -- live subscription per plan — buying the same subscription twice would charge
@@ -48,7 +48,7 @@ set search_path = ''
 as $$
 begin
   if current_user <> 'service_role'
-     and coalesce(current_setting('chartanalyzer.trusted_profile_sync', true), 'off') <> 'on'
+     and coalesce(current_setting('tradesathi.trusted_profile_sync', true), 'off') <> 'on'
      and (
        new.plan_id                      is distinct from old.plan_id or
        new.email                        is distinct from old.email or

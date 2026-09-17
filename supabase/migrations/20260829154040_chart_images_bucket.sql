@@ -1,4 +1,4 @@
--- ChartAnalyzer — private storage bucket for uploaded chart images.
+-- TradeSathi — private storage bucket for uploaded chart images.
 
 -- ---------------------------------------------------------------------------
 -- 1. BUCKET: chart-images

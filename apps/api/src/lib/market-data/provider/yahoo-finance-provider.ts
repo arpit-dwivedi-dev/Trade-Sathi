@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { FundamentalsAnnualPeriod, InstrumentFundamentals } from "@chartanalyzer/shared";
+import type { FundamentalsAnnualPeriod, InstrumentFundamentals } from "@tradesathi/shared";
 import { logger } from "../../logger.js";
 import {
   fetchYahoo,

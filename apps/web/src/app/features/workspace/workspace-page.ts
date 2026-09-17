@@ -21,7 +21,7 @@ import { Popover } from 'primeng/popover';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SelectButtonModule } from 'primeng/selectbutton';
 
-import { type MarketTick } from '@chartanalyzer/shared';
+import { type MarketTick } from '@tradesathi/shared';
 import { LiveService, type WorkspaceInterval } from '../../core/live.service';
 import { MarketStreamService } from '../../core/market-stream.service';
 import { AppIcon } from '../../shared/icons/app-icon';

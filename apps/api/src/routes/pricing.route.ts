@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import type { PricingOverview } from "@chartanalyzer/shared";
+import type { PricingOverview } from "@tradesathi/shared";
 import { asyncRoute } from "../lib/async-route.js";
 import { logger } from "../lib/logger.js";
 import { verifyAccessToken } from "../middleware/auth.js";

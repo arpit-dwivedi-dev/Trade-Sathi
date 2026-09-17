@@ -1,4 +1,4 @@
-import type { DerivedFundamentals, DerivedMetricKey, Metric } from "@chartanalyzer/shared";
+import type { DerivedFundamentals, DerivedMetricKey, Metric } from "@tradesathi/shared";
 import { formatAmount, formatPercent } from "../services/fundamentals/display.js";
 
 export interface FundamentalsAnalysisPrompt {

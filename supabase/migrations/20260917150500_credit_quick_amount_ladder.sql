@@ -1,4 +1,4 @@
--- ChartAnalyzer — the quick-select ladder, as credits rather than as money.
+-- TradeSathi — the quick-select ladder, as credits rather than as money.
 --
 -- quick_amounts_minor is what the buy form's chips show. The values it has
 -- carried were sized backwards: a round amount of money (₹199, $4.99) divided

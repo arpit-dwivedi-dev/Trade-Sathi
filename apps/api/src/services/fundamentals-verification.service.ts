@@ -22,7 +22,7 @@
  * keeping them separated prevents them being reused by accident.
  */
 
-import type { InstrumentFundamentals } from "@chartanalyzer/shared";
+import type { InstrumentFundamentals } from "@tradesathi/shared";
 import { env } from "../lib/env.js";
 import { logAppError } from "../lib/error-log.js";
 import { logger } from "../lib/logger.js";

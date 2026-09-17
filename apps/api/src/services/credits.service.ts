@@ -1,4 +1,4 @@
-import type { CreditPricing, FeatureCreditCost, PricingRegion } from "@chartanalyzer/shared";
+import type { CreditPricing, FeatureCreditCost, PricingRegion } from "@tradesathi/shared";
 import { env } from "../lib/env.js";
 import { logger } from "../lib/logger.js";
 import { razorpay } from "../lib/razorpay-client.js";

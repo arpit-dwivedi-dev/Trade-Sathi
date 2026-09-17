@@ -1,4 +1,4 @@
-import type { ReportingBasis } from "@chartanalyzer/shared";
+import type { ReportingBasis } from "@tradesathi/shared";
 
 /** Which upstream produced a period's figures. See statements-merge.ts. */
 export type StatementSource = "yahoo" | "sec-edgar" | "nse-bse";

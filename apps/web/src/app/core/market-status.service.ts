@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import type { MarketStatus } from '@chartanalyzer/shared';
+import type { MarketStatus } from '@tradesathi/shared';
 import { AuthService } from './auth.service';
 
 /**

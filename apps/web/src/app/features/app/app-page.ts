@@ -11,7 +11,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
-import type { Instrument, MarketCode, MarketStatus } from '@chartanalyzer/shared';
+import type { Instrument, MarketCode, MarketStatus } from '@tradesathi/shared';
 import { AppIcon } from '../../shared/icons/app-icon';
 import { AccountPage } from '../account/account-page';
 import { AnalyzePage } from '../analyze/analyze-page';

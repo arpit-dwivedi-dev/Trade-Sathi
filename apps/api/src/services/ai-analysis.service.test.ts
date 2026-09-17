@@ -13,7 +13,7 @@ const EIGHT_QUARTER_ENDS = [
   "2026-03-31",
   "2026-06-30",
 ];
-import { callDirectionFor } from "@chartanalyzer/shared";
+import { callDirectionFor } from "@tradesathi/shared";
 
 const create = vi.fn();
 const fallbackCreate = vi.fn();

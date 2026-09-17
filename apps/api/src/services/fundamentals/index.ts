@@ -1,4 +1,4 @@
-import type { AnnualHistoryEntry, DerivedFundamentals } from "@chartanalyzer/shared";
+import type { AnnualHistoryEntry, DerivedFundamentals } from "@tradesathi/shared";
 import type { RawStatements } from "../../lib/market-data/statements.js";
 import { fiscalYearEndMonthFromStatements } from "../../lib/market-data/provider/yahoo-statements.js";
 import { deriveMetrics } from "./derive-metrics.js";

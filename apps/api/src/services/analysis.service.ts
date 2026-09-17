@@ -1,4 +1,4 @@
-import type { FeatureCreditKey } from "@chartanalyzer/shared";
+import type { FeatureCreditKey } from "@tradesathi/shared";
 import { createHash, randomUUID } from "node:crypto";
 import { logger } from "../lib/logger.js";
 import { callRpc, supabaseAdmin } from "../lib/supabase.js";

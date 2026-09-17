@@ -12,7 +12,7 @@ import type {
   FundamentalsDataNote,
   FundamentalsScenario,
   FundamentalsScenarioId,
-} from '@chartanalyzer/shared';
+} from '@tradesathi/shared';
 
 import { FAILURE_COPY, GENERIC_FAILURE } from '../analyze/analysis-result';
 import type { AnalysisRow } from '../analyze/analysis.types';

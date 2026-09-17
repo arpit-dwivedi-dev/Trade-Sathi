@@ -52,7 +52,7 @@ export async function searchYahooSymbols(query: string): Promise<YahooSearchResu
     response = await fetch(url, {
       headers: {
         Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 (compatible; ChartAnalyzer/1.0)",
+        "User-Agent": "Mozilla/5.0 (compatible; TradeSathi/1.0)",
       },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });

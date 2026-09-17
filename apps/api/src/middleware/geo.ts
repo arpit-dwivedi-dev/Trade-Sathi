@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import geoip from "geoip-lite";
-import type { SessionGeo } from "@chartanalyzer/shared";
+import type { SessionGeo } from "@tradesathi/shared";
 import { logger } from "../lib/logger.js";
 
 declare global {

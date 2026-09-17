@@ -1,4 +1,4 @@
--- ChartAnalyzer — compensating decrement for a consumed-but-unusable quota unit.
+-- TradeSathi — compensating decrement for a consumed-but-unusable quota unit.
 --
 -- check_and_increment_usage consumes a unit up front, before the image upload
 -- and the analyses insert. If either of those fails, the API hands the unit back

@@ -27,7 +27,7 @@ import type { RawPeriod, RawStatements } from "../statements.js";
 
 const TICKER_MAP_URL = "https://www.sec.gov/files/company_tickers.json";
 const COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts";
-const SEC_USER_AGENT = "ChartAnalyzer fundamentals-fallback contact@chartanalyzer.app";
+const SEC_USER_AGENT = "TradeSathi fundamentals-fallback contact@tradesathi.app";
 const REQUEST_TIMEOUT_MS = 8_000;
 
 const TickerMapSchema = z.record(

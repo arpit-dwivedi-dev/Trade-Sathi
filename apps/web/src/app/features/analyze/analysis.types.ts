@@ -1,4 +1,4 @@
-import type { AnalysisResult, FundamentalsAnalysisResult } from '@chartanalyzer/shared';
+import type { AnalysisResult, FundamentalsAnalysisResult } from '@tradesathi/shared';
 
 /**
  * Shape of the rows this feature reads back from Supabase.

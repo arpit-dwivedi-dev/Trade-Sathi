@@ -3,7 +3,7 @@ import type {
   Metric,
   ReportingBasis,
   ReportingProfile,
-} from "@chartanalyzer/shared";
+} from "@tradesathi/shared";
 import type { RawPeriod, RawStatements } from "../../lib/market-data/statements.js";
 import { formatFiscalYearLabel } from "./reporting-profile.js";
 

@@ -3,7 +3,7 @@ import type {
   DerivedMetrics,
   Metric,
   ReportThresholds,
-} from "@chartanalyzer/shared";
+} from "@tradesathi/shared";
 
 /**
  * The verdicts the model is GIVEN rather than asked to derive.

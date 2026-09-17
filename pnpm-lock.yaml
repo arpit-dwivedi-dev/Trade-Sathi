@@ -35,12 +35,12 @@ importers:
 
   apps/api:
     dependencies:
-      '@chartanalyzer/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@supabase/supabase-js':
         specifier: ^2.45.0
         version: 2.112.4
+      '@tradesathi/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       express:
         specifier: ^4.21.0
         version: 4.22.2
@@ -132,9 +132,6 @@ importers:
       '@angular/ssr':
         specifier: ^22.1.6
         version: 22.1.6(8fd4fb3f830565e1f033a3615871bad8)
-      '@chartanalyzer/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@primeng/themes':
         specifier: ^21.0.4
         version: 21.0.4
@@ -144,6 +141,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.112.4
         version: 2.112.4
+      '@tradesathi/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       chart.js:
         specifier: ^4.5.1
         version: 4.5.1

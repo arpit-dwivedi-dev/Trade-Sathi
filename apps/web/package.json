@@ -1,5 +1,5 @@
 {
-  "name": "@chartanalyzer/web",
+  "name": "@tradesathi/web",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
@@ -22,7 +22,7 @@
     "@angular/platform-server": "^22.1.0",
     "@angular/router": "^22.1.0",
     "@angular/ssr": "^22.1.6",
-    "@chartanalyzer/shared": "workspace:*",
+    "@tradesathi/shared": "workspace:*",
     "@primeng/themes": "^21.0.4",
     "@primeuix/themes": "^2.0.3",
     "@supabase/supabase-js": "^2.112.4",

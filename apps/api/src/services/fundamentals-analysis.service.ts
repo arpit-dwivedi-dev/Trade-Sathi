@@ -3,7 +3,7 @@ import type {
   FeatureCreditKey,
   InstrumentFundamentals,
   Metric,
-} from "@chartanalyzer/shared";
+} from "@tradesathi/shared";
 import {
   AnalysisFailure,
   FUNDAMENTALS_PROMPT_VERSION,

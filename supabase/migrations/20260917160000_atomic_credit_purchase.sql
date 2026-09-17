@@ -1,4 +1,4 @@
--- ChartAnalyzer — make a credit purchase's validation and its claim atomic.
+-- TradeSathi — make a credit purchase's validation and its claim atomic.
 --
 -- Before this, createCreditOrder (apps/api/src/services/credits.service.ts)
 -- validated a promo code with several separate reads, then created the

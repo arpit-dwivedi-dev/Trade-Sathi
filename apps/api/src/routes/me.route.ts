@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import type { ProfileUpdatePayload } from "@chartanalyzer/shared";
+import type { ProfileUpdatePayload } from "@tradesathi/shared";
 import { asyncRoute } from "../lib/async-route.js";
 import { logger } from "../lib/logger.js";
 import { requireAuth } from "../middleware/auth.js";

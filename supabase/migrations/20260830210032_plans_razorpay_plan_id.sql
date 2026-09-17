@@ -1,4 +1,4 @@
--- ChartAnalyzer — map internal plans to their Razorpay plan objects.
+-- TradeSathi — map internal plans to their Razorpay plan objects.
 --
 -- Schema + data only. No application code reads this column yet.
 

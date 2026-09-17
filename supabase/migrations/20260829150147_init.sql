@@ -1,4 +1,4 @@
--- ChartAnalyzer — initial schema
+-- TradeSathi — initial schema
 -- Plans, profiles (1:1 with auth.users), monthly usage counters,
 -- chart analyses and their structured pattern detections.
 
@@ -130,14 +130,14 @@ begin
   -- argument (true) scopes the setting to the current transaction only: it
   -- clears automatically at transaction end, commit or rollback, so it can
   -- never leak into an unrelated later transaction.
-  perform set_config('chartanalyzer.trusted_profile_sync', 'on', true);
+  perform set_config('tradesathi.trusted_profile_sync', 'on', true);
 
   update public.profiles
   set email = new.email,
       email_verified = (new.email_confirmed_at is not null)
   where id = new.id;
 
-  perform set_config('chartanalyzer.trusted_profile_sync', 'off', true);
+  perform set_config('tradesathi.trusted_profile_sync', 'off', true);
 
   return new;
 end;
@@ -180,7 +180,7 @@ set search_path = ''
 as $$
 begin
   if current_user <> 'service_role'
-     and coalesce(current_setting('chartanalyzer.trusted_profile_sync', true), 'off') <> 'on'
+     and coalesce(current_setting('tradesathi.trusted_profile_sync', true), 'off') <> 'on'
      and (
        new.plan_id        is distinct from old.plan_id or
        new.email          is distinct from old.email or

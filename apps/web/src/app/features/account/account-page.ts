@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import type { ProfileDetails, SessionGeo, SurveyAnswers, SurveyStatus } from '@chartanalyzer/shared';
+import type { ProfileDetails, SessionGeo, SurveyAnswers, SurveyStatus } from '@tradesathi/shared';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { CheckboxModule } from 'primeng/checkbox';

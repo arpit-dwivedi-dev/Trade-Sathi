@@ -1,4 +1,4 @@
--- ChartAnalyzer — hard paywall: retire the free tier's allowance.
+-- TradeSathi — hard paywall: retire the free tier's allowance.
 --
 -- The free plan ROW is not deleted. handle_new_user() assigns it to every
 -- signup and profiles.plan_id is NOT NULL, so the row must keep existing; new
@@ -34,7 +34,7 @@
 -- for is the trusted-sync flag (the same one handle_user_email_update sets
 -- for exactly one UPDATE); set for the length of this transaction, it lets
 -- this one trusted migration write the protected column and nothing else.
-select set_config('chartanalyzer.trusted_profile_sync', 'on', true);
+select set_config('tradesathi.trusted_profile_sync', 'on', true);
 
 -- A WITH clause only scopes the single statement it precedes in Postgres —
 -- it does not persist across the `;` boundary into the next statement — so

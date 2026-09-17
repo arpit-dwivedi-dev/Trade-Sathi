@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import type { InstrumentFundamentals } from '@chartanalyzer/shared';
+import type { InstrumentFundamentals } from '@tradesathi/shared';
 import { FundamentalsPage } from './fundamentals-page';
 import { FundamentalsService, type FundamentalsResult } from './fundamentals.service';
 

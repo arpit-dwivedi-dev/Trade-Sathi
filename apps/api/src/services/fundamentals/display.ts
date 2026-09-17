@@ -1,4 +1,4 @@
-import type { ReportingProfile } from "@chartanalyzer/shared";
+import type { ReportingProfile } from "@tradesathi/shared";
 
 /**
  * How figures are written for a reader in this market.

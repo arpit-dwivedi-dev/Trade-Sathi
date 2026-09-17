@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import type { PricingRegion } from "@chartanalyzer/shared";
+import type { PricingRegion } from "@tradesathi/shared";
 import { env } from "../lib/env.js";
 import { logger } from "../lib/logger.js";
 import { supabaseAdmin } from "../lib/supabase.js";

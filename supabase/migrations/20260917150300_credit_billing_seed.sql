@@ -1,4 +1,4 @@
--- ChartAnalyzer — unified credit billing, part 4: seed data.
+-- TradeSathi — unified credit billing, part 4: seed data.
 --
 -- Numbers derived in the approved credit-billing redesign plan, from real
 -- logged AI cost (public.analyses.cost_usd/input_tokens/output_tokens,

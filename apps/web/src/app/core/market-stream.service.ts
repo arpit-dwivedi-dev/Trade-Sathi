@@ -5,7 +5,7 @@ import type {
   MarketStreamClientMessage,
   MarketStreamServerMessage,
   MarketTick,
-} from '@chartanalyzer/shared';
+} from '@tradesathi/shared';
 
 import { AuthService } from './auth.service';
 

@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import type { DerivedMetricKey, DerivedMetrics } from "@chartanalyzer/shared";
+import type { DerivedMetricKey, DerivedMetrics } from "@tradesathi/shared";
 import type { RawPeriod, RawStatements } from "../../src/lib/market-data/statements.js";
 import { deriveMetrics } from "../../src/services/fundamentals/derive-metrics.js";
 import { runPlausibilityGate } from "../../src/services/fundamentals/plausibility.js";

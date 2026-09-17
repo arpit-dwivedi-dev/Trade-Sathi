@@ -1,4 +1,4 @@
-import type { SurveyAnswers, SurveyDefinition, SurveyQuestion, SurveyStatus } from "@chartanalyzer/shared";
+import type { SurveyAnswers, SurveyDefinition, SurveyQuestion, SurveyStatus } from "@tradesathi/shared";
 import { callRpc, supabaseAdmin } from "../lib/supabase.js";
 
 interface SurveyRow {

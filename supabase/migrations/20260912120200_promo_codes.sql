@@ -1,4 +1,4 @@
--- ChartAnalyzer — promo codes: tables + the atomic redemption function.
+-- TradeSathi — promo codes: tables + the atomic redemption function.
 --
 -- The ledger side already existed: credit_reason includes 'promo' (seeded in
 -- 20260830230000) and the logs page already renders it. This migration adds

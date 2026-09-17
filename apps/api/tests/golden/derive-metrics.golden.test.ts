@@ -1,4 +1,4 @@
-import type { DerivedMetricKey, DerivedMetrics, Metric } from "@chartanalyzer/shared";
+import type { DerivedMetricKey, DerivedMetrics, Metric } from "@tradesathi/shared";
 import { allFixtureSlugs, loadFixture, runPipeline, snapshotAll } from "./harness.js";
 
 /** Object.entries widens to `any` here; this keeps the sweeps typed. */

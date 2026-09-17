@@ -8,7 +8,7 @@ import type {
   SurveyAnswers,
   SurveyStatus,
   SurveySubmitOutcome,
-} from '@chartanalyzer/shared';
+} from '@tradesathi/shared';
 
 import { AuthService } from '../../core/auth.service';
 

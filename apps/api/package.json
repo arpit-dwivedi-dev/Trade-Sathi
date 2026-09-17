@@ -1,5 +1,5 @@
 {
-  "name": "@chartanalyzer/api",
+  "name": "@tradesathi/api",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@chartanalyzer/shared": "workspace:*",
+    "@tradesathi/shared": "workspace:*",
     "@supabase/supabase-js": "^2.45.0",
     "express": "^4.21.0",
     "fast-xml-parser": "^5.11.1",

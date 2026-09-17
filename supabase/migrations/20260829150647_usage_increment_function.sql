@@ -1,4 +1,4 @@
--- ChartAnalyzer — atomic monthly usage quota check-and-increment.
+-- TradeSathi — atomic monthly usage quota check-and-increment.
 --
 -- Replaces any read-then-write quota check in application code, which is
 -- inherently racy: two concurrent requests could both read analyses_used = 2

@@ -1,4 +1,4 @@
--- ChartAnalyzer — unified credit billing, part 1: drop everything the old
+-- TradeSathi — unified credit billing, part 1: drop everything the old
 -- plan/subscription/quota model owned.
 --
 -- There are no real paying subscribers yet (confirmed with the product

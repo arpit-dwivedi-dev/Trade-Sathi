@@ -11,7 +11,7 @@ import { YahooFinanceMarketDataProvider } from "../../src/lib/market-data/provid
 import { getRawStatements } from "../../src/lib/market-data/provider/yahoo-statements.js";
 import { deriveFundamentals } from "../../src/services/fundamentals/index.js";
 import { formatAmount, formatPercent } from "../../src/services/fundamentals/display.js";
-import type { DerivedMetricKey } from "@chartanalyzer/shared";
+import type { DerivedMetricKey } from "@tradesathi/shared";
 
 const provider = new YahooFinanceMarketDataProvider();
 

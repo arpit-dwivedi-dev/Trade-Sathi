@@ -1,4 +1,4 @@
-import type { AnalysisResult, FeatureCreditKey } from "@chartanalyzer/shared";
+import type { AnalysisResult, FeatureCreditKey } from "@tradesathi/shared";
 import { runInstrumentAnalysis, type ProvidedChart } from "./instrument-analysis.service.js";
 import { todayIsoDate, type InstrumentRef } from "./market-chart.service.js";
 import {

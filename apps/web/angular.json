@@ -82,7 +82,7 @@
           "options": {
             "proxyConfig": "proxy.conf.json",
             "prebundle": {
-              "exclude": ["@chartanalyzer/shared"]
+              "exclude": ["@tradesathi/shared"]
             }
           }
         },

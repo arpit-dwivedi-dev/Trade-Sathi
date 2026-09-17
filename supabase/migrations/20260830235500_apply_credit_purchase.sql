@@ -1,4 +1,4 @@
--- ChartAnalyzer — granting credits once a credit-pack payment is captured.
+-- TradeSathi — granting credits once a credit-pack payment is captured.
 --
 -- The one-time-purchase counterpart to apply_subscription_webhook: that
 -- function applies recurring subscription events, this one applies a captured

@@ -1,5 +1,5 @@
 # Build context must be the repo root (pnpm workspace):
-#   docker build -f apps/api/Dockerfile -t chartanalyzer-api .
+#   docker build -f apps/api/Dockerfile -t tradesathi-api .
 FROM node:22-slim AS base
 RUN corepack enable
 WORKDIR /app
@@ -13,8 +13,8 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY packages/shared packages/shared
 COPY apps/api apps/api
-RUN pnpm --filter @chartanalyzer/shared build
-RUN pnpm --filter @chartanalyzer/api build
+RUN pnpm --filter @tradesathi/shared build
+RUN pnpm --filter @tradesathi/api build
 
 FROM base AS runtime
 ENV NODE_ENV=production

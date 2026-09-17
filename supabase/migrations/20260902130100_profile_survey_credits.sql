@@ -1,4 +1,4 @@
--- ChartAnalyzer — profile survey completion credit.
+-- TradeSathi — profile survey completion credit.
 --
 -- Adds a small, versionable set of surveys the user fills in from the Account
 -- page. Completing a survey for the first time grants 1 analysis credit;

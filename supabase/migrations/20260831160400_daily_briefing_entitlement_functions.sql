@@ -1,4 +1,4 @@
--- ChartAnalyzer — atomic Daily Briefing entitlement consumption.
+-- TradeSathi — atomic Daily Briefing entitlement consumption.
 --
 -- The automation-quota mirror of check_and_increment_usage / decrement_usage,
 -- but entitlement here is NOT profiles.plan_id (that column drives the manual

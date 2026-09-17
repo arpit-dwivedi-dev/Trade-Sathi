@@ -1,4 +1,4 @@
-import type { ReportingBasis } from "@chartanalyzer/shared";
+import type { ReportingBasis } from "@tradesathi/shared";
 import {
   applyPeriodIdentities,
   quartersOfFiscalYear,

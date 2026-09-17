@@ -1,4 +1,4 @@
--- ChartAnalyzer — region-based pricing and the credit system.
+-- TradeSathi — region-based pricing and the credit system.
 --
 -- Schema + seed data only. No application code reads or writes any of this yet:
 -- the region-detection path, the credit-purchase backend and the atomic
@@ -171,7 +171,7 @@ set search_path = ''
 as $$
 begin
   if current_user <> 'service_role'
-     and coalesce(current_setting('chartanalyzer.trusted_profile_sync', true), 'off') <> 'on'
+     and coalesce(current_setting('tradesathi.trusted_profile_sync', true), 'off') <> 'on'
      and (
        new.plan_id                  is distinct from old.plan_id or
        new.email                    is distinct from old.email or

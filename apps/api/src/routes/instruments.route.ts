@@ -1,4 +1,4 @@
-import { isMarketCode } from "@chartanalyzer/shared";
+import { isMarketCode } from "@tradesathi/shared";
 import { Router } from "express";
 import { asyncRoute } from "../lib/async-route.js";
 import { requireAuth } from "../middleware/auth.js";

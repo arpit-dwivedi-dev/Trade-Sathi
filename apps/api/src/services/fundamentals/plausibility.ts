@@ -4,7 +4,7 @@ import type {
   DerivedMetrics,
   PlausibilityFinding,
   ReportingProfile,
-} from "@chartanalyzer/shared";
+} from "@tradesathi/shared";
 import type { RawStatements } from "../../lib/market-data/statements.js";
 
 /**

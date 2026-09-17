@@ -1,4 +1,4 @@
-import type { ReportingProfile } from "@chartanalyzer/shared";
+import type { ReportingProfile } from "@tradesathi/shared";
 
 /**
  * Resolves the ReportingProfile for one instrument, once, so deriveMetrics()

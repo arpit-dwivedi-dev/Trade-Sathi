@@ -22,7 +22,7 @@ import { Select } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 
-import { type Instrument } from '@chartanalyzer/shared';
+import { type Instrument } from '@tradesathi/shared';
 import { AppIcon } from '../../shared/icons/app-icon';
 import { AuthService } from '../../core/auth.service';
 import { startRowWatch, type RowWatch } from '../../core/row-watch';

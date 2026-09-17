@@ -1,4 +1,4 @@
-import type { ProfileDetails, ProfileUpdatePayload } from "@chartanalyzer/shared";
+import type { ProfileDetails, ProfileUpdatePayload } from "@tradesathi/shared";
 import { supabaseAdmin } from "../lib/supabase.js";
 
 interface ProfileRow {

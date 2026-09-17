@@ -16,7 +16,7 @@ const getEnv = (key: string) =>
 const DB_URL = getEnv('SUPABASE_DB_URL');
 const SUPABASE_URL = getEnv('SUPABASE_URL');
 const SERVICE_ROLE_KEY = getEnv('SUPABASE_SERVICE_ROLE_KEY');
-const TEST_EMAIL = getEnv('SMOKE_TEST_USER_EMAIL') ?? 'test@chartanalyzer.dev';
+const TEST_EMAIL = getEnv('SMOKE_TEST_USER_EMAIL') ?? 'test@tradesathi.dev';
 const TEST_PASSWORD = getEnv('SMOKE_TEST_USER_PASSWORD') ?? 'TestPassword123!';
 
 if (!DB_URL || !SUPABASE_URL || !SERVICE_ROLE_KEY) {

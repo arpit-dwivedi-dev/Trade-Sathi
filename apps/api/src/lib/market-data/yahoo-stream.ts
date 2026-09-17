@@ -93,7 +93,7 @@ class YahooTickerStream {
       socket = new WebSocket(YAHOO_STREAM_URL, {
         // Same rationale as the REST provider: Yahoo rejects a fraction of
         // requests with no User-Agent at all.
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; ChartAnalyzer/1.0)" },
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; TradeSathi/1.0)" },
       });
     } catch (cause) {
       logger.error("yahoo stream socket could not be created", { cause: String(cause) });

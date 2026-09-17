@@ -1,4 +1,4 @@
-# ChartAnalyzer
+# TradeSathi
 
 Analyzes trading chart screenshots using AI and returns pattern
 detection, support/resistance levels, and a directional call.

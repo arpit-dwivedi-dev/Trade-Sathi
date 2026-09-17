@@ -1,4 +1,4 @@
--- ChartAnalyzer — give the free plan its name back.
+-- TradeSathi — give the free plan its name back.
 --
 -- 20260912120100_paywall_free_tier.sql renamed this row to 'Inactive' so that no
 -- surface would read as a free tier after the allowance was retired. In

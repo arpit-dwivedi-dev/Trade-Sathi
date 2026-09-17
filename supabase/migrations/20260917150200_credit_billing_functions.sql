@@ -1,4 +1,4 @@
--- ChartAnalyzer — unified credit billing, part 3: the functions that move
+-- TradeSathi — unified credit billing, part 3: the functions that move
 -- profiles.credit_balance.
 --
 -- Replaces three independent check_and_consume_*/decrement_*/refund_*

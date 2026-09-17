@@ -1,5 +1,5 @@
 {
-  "name": "chartanalyzer",
+  "name": "tradesathi",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -7,8 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev:web": "pnpm --filter @chartanalyzer/web start",
-    "dev:api": "pnpm --filter @chartanalyzer/api dev",
+    "dev:web": "pnpm --filter @tradesathi/web start",
+    "dev:api": "pnpm --filter @tradesathi/api dev",
     "dev": "concurrently -n web,api \"pnpm:dev:web\" \"pnpm:dev:api\"",
     "build": "pnpm -r build",
     "test": "pnpm -r --if-present test",

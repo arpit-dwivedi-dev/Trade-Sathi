@@ -4,7 +4,7 @@ import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ChipModule } from 'primeng/chip';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import type { AnalysisResult as Analysis, AnalysisScenario } from '@chartanalyzer/shared';
+import type { AnalysisResult as Analysis, AnalysisScenario } from '@tradesathi/shared';
 
 import { ChartImage } from '../../shared/chart-image';
 import { TimeframeLabelPipe } from '../../shared/timeframe-label.pipe';

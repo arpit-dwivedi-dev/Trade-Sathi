@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, output, signal } from '@angular/core';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
-import type { FeatureCreditCost } from '@chartanalyzer/shared';
+import type { FeatureCreditCost } from '@tradesathi/shared';
 
 import { BillingService } from './billing.service';
 import { BuyCreditsButton } from './buy-credits-button';

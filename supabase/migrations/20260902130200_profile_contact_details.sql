@@ -1,4 +1,4 @@
--- ChartAnalyzer — the rest of the Account page's editable profile.
+-- TradeSathi — the rest of the Account page's editable profile.
 --
 -- full_name already existed; these three round it out into a proper profile
 -- (contact number, occupation, location) without touching anything the

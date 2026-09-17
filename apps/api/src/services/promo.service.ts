@@ -1,4 +1,4 @@
-import type { PricingRegion, PromoRedeemOutcome } from "@chartanalyzer/shared";
+import type { PricingRegion, PromoRedeemOutcome } from "@tradesathi/shared";
 import { callRpc } from "../lib/supabase.js";
 
 export type RedeemPromoResult =

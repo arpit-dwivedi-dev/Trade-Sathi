@@ -1,4 +1,4 @@
--- ChartAnalyzer — billing subscriptions and the webhook idempotency ledger.
+-- TradeSathi — billing subscriptions and the webhook idempotency ledger.
 --
 -- Schema only. No application code reads or writes these tables yet; the
 -- webhook handler that will is not written.

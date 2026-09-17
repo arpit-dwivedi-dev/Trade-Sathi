@@ -3,7 +3,7 @@
  * region model, the credit pricing/feature-cost overview returned by
  * GET /api/pricing, and promo-code redemption outcomes.
  *
- * ChartAnalyzer is credit-only: there are no plans, subscriptions or fixed
+ * TradeSathi is credit-only: there are no plans, subscriptions or fixed
  * top-up packs. One balance (profiles.credit_balance) is spent by every
  * paid feature at a centrally configured cost, and topped up by buying any
  * quantity of credits at the caller's region rate.

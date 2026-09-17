@@ -4,7 +4,7 @@ import { ButtonModule } from 'primeng/button';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
-import type { FeatureCreditCost, PricingOverview } from '@chartanalyzer/shared';
+import type { FeatureCreditCost, PricingOverview } from '@tradesathi/shared';
 
 import { SupabaseClientService } from '../../core/supabase-client';
 import { ThemeService } from '../../core/theme.service';

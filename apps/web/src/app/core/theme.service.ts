@@ -3,7 +3,7 @@ import { Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
 
 export type Theme = 'light' | 'dark';
 
-const STORAGE_KEY = 'chartanalyzer.theme';
+const STORAGE_KEY = 'tradesathi.theme';
 
 /**
  * Owns the active theme and mirrors it onto <html data-theme="...">.

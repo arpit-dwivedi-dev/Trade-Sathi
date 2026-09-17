@@ -17,10 +17,10 @@ unless noted.
 - `pnpm lint` — eslint across the whole repo (flat config, type-aware
   where a tsconfig covers the file).
 - `pnpm test` — run tests in every package that defines one.
-  - `apps/api`: `pnpm --filter @chartanalyzer/api test` runs vitest
+  - `apps/api`: `pnpm --filter @tradesathi/api test` runs vitest
     (`vitest run`). Run a single file with
-    `pnpm --filter @chartanalyzer/api exec vitest run <path>`.
-  - `apps/web`: `pnpm --filter @chartanalyzer/web test` runs `ng test`
+    `pnpm --filter @tradesathi/api exec vitest run <path>`.
+  - `apps/web`: `pnpm --filter @tradesathi/web test` runs `ng test`
     (vitest under the hood). Playwright e2e specs live in
     `apps/web/e2e`, config in `apps/web/playwright.config.ts`.
 - `npx supabase migration list` — check applied/pending migrations

@@ -1,4 +1,4 @@
-import type { Instrument, MarketCode } from "@chartanalyzer/shared";
+import type { Instrument, MarketCode } from "@tradesathi/shared";
 import { logger } from "../lib/logger.js";
 import { searchYahooSymbols } from "../lib/market-data/yahoo-search-provider.js";
 import { supabaseAdmin } from "../lib/supabase.js";

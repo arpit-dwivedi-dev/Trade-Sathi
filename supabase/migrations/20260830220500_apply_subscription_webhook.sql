@@ -1,4 +1,4 @@
--- ChartAnalyzer — atomic Razorpay subscription webhook application.
+-- TradeSathi — atomic Razorpay subscription webhook application.
 --
 -- One function that performs the entire webhook-processing write as a single
 -- transaction: idempotency ledger insert, out-of-order rejection, subscription

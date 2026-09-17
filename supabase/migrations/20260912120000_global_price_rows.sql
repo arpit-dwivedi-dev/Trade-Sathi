@@ -1,4 +1,4 @@
--- ChartAnalyzer — GLOBAL (USD) price rows for the two manual tiers.
+-- TradeSathi — GLOBAL (USD) price rows for the two manual tiers.
 --
 -- India prices are already live and are deliberately NOT touched here. This
 -- adds the USD counterpart rows for starter_monthly ($9) and pro_monthly

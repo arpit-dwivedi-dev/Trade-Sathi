@@ -193,7 +193,7 @@ export const env = {
 
   resendApiKey: requireEnv("RESEND_API_KEY"),
   // The verified "From" address/display name Resend sends the daily briefing
-  // from, e.g. "ChartAnalyzer <briefing@yourdomain.com>".
+  // from, e.g. "TradeSathi <briefing@yourdomain.com>".
   resendFromAddress: requireEnv("RESEND_FROM_ADDRESS"),
 
   // Shared-secret gate for the internal manual-trigger endpoint
