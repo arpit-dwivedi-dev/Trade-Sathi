@@ -40,6 +40,53 @@
   margin-bottom: var(--s6);
 }
 
+/* The card's lockup, stacked: mark over wordmark. The brand sheet ships only
+   horizontal lockups — no wordmark-only file and no vertical one — so the
+   stack is built here from the mark plus the wordmark's own treatment from
+   logo-lockup-horizontal.svg: ExtraBold at -0.02em, navy "Trade", teal
+   "Sathi". The sign-in view carries no heading, so on that view this is what
+   names the card. */
+.auth-card-brand {
+  /* Brand-sheet values, deliberately not app tokens: the wordmark never
+     follows --acc or the market colours. */
+  --wordmark-ink: #0b1220;
+  --wordmark-teal: #00d4a0;
+  align-items: center;
+  align-self: center;
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+:root[data-theme='dark'] .auth-card-brand {
+  --wordmark-ink: #f5f7fa;
+}
+
+.auth-card-wordmark {
+  color: var(--wordmark-ink);
+  font-family: var(--fh);
+  font-size: var(--t-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+/* <b> would otherwise resolve to 900 against the 800 above. */
+.auth-card-wordmark b {
+  font-weight: inherit;
+}
+
+.auth-card-wordmark span {
+  color: var(--wordmark-teal);
+}
+
+/* Larger than the 26px the wordmark rows use: with the name stacked under it
+   rather than beside it, the mark is the half of the lockup that carries. */
+.auth-card-brand .brand-mark {
+  height: 56px;
+  width: 45px;
+}
+
 .auth-card {
   background: color-mix(in srgb, var(--surf) 94%, transparent);
   border: 1px solid var(--line);

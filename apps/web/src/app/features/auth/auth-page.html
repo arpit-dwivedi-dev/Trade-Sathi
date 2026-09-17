@@ -1,25 +1,16 @@
 <main class="auth">
-  <a class="brand auth-brand" routerLink="/" aria-label="TradeSathi home">
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
-      <path d="M3 17.5 8.5 11l3.5 3.5L21 6" />
-      <path d="M16 6h5v5" />
-    </svg>
-    <b>Trade</b><span>Sathi</span>
-  </a>
-
   <div class="auth-card">
-    <div class="auth-head">
-      <span class="auth-eyebrow">{{ mode() === 'otp' ? 'Almost there' : 'Chart analysis, made clearer' }}</span>
-      <h1>{{ mode() === 'signup' ? 'Create an account' : mode() === 'otp' ? 'Verify your email' : 'Welcome back' }}</h1>
-      @if (mode() === 'signup') {
-        <p class="disc">No card needed to sign up. Buy credits whenever you're ready to analyse.</p>
-      } @else if (mode() === 'otp') {
+    <a class="auth-card-brand" routerLink="/" aria-label="TradeSathi home">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="auth-card-wordmark"><b>Trade</b><span>Sathi</span></span>
+    </a>
+
+    @if (mode() === 'otp') {
+      <div class="auth-head">
+        <h1>Verify your email</h1>
         <p class="disc">Enter the 6-digit code we just sent you.</p>
-      } @else {
-        <p class="disc">Sign in to analyze a chart.</p>
-      }
-    </div>
+      </div>
+    }
 
     <form (ngSubmit)="submit()" class="auth-form">
       @if (mode() === 'otp') {

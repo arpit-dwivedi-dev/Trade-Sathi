@@ -1,0 +1,44 @@
+/* ==========================================================================
+   Trade Sathi — brand colour tokens
+   Source of truth: apps/web/public/brand/ (logo reference sheet)
+
+   NOTE ON NAMING: this repo's src/styles/tokens.css was not present in the
+   workspace when these assets were generated, so the conventional
+   `--ts-<category>-<role>` pattern is used below. If your tokens.css uses a
+   different prefix (e.g. `--app-`, `--brand-`), rename the custom properties
+   here to match — the hex values are the part that must not change.
+
+   Usage:
+     @import url('/brand/color-tokens/brand-colors.css');   // served copy
+     @use  '../../public/brand/color-tokens/brand-colors.css';  // bundled copy
+   ========================================================================== */
+
+:root {
+  /* --- core palette ------------------------------------------------------ */
+  --ts-color-primary: #0B1220;          /* navy — trust, precision, focus   */
+  --ts-color-accent-bullish: #00D4A0;   /* teal — growth, opportunity       */
+  --ts-color-accent-bearish: #FF5C5C;   /* red  — warning, downside         */
+  --ts-color-background: #F5F7FA;       /* off-white — clean, modern        */
+
+  /* --- channel triplets, for alpha composition -------------------------- */
+  /* rgb(var(--ts-color-primary-rgb) / 8%) */
+  --ts-color-primary-rgb: 11 18 32;
+  --ts-color-accent-bullish-rgb: 0 212 160;
+  --ts-color-accent-bearish-rgb: 255 92 92;
+  --ts-color-background-rgb: 245 247 250;
+
+  /* --- semantic aliases -------------------------------------------------- */
+  --ts-color-surface: #FFFFFF;
+  --ts-color-on-primary: #F5F7FA;             /* text/icons on navy         */
+  --ts-color-on-background: #0B1220;          /* text on off-white          */
+  --ts-color-text-muted: #454C60;             /* tagline / secondary copy   */
+  --ts-color-text-muted-on-primary: #9AA7BD;  /* secondary copy on navy     */
+  --ts-color-border: #E2E7EF;
+
+  /* market direction — alias, never a new hue */
+  --ts-color-chart-up: var(--ts-color-accent-bullish);
+  --ts-color-chart-down: var(--ts-color-accent-bearish);
+
+  /* browser/PWA chrome */
+  --ts-color-theme: var(--ts-color-primary);
+}

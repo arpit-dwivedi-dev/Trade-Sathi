@@ -550,34 +550,28 @@ button.nav-toggle {
   font-weight: 400;
 }
 
-/* A bare glyph beside the wordmark takes the accent; the tile below paints its
-   own. Scoped to a direct child so it never repaints the tile's glyph. */
-.brand > svg {
-  color: var(--acc);
-  flex: none;
-}
-
-/* The mark as a filled tile, so the wordmark has an anchor at small sizes and
-   against the nav rail's own surface. */
+/* The brand mark, painted from the SVG in public/brand/svg rather than drawn
+   inline: the mark's navy body and bull/bear bars are fixed brand values, so
+   nothing here recomputes them from the palette and nothing recolours the
+   bars. The wordmark beside it stays live text. */
 .brand-mark {
-  align-items: center;
-  background: var(--acc);
-  border-radius: var(--r-sm);
-  /* Raw white, like every glyph sitting on an accent fill in this file: the
-     tile is indigo on both themes, and every white in the palette (--surf,
-     --ink-fg, --ink-hi) inverts with the theme. */
-  color: #fff;
-  display: inline-flex;
+  background-image: url('/brand/svg/logo-mark.svg');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  display: inline-block;
   flex: none;
+  /* The mark's own 240 × 300 aspect, at a height that clears the 20px floor
+     the brand sheet sets for the mark used alone. */
   height: 26px;
-  justify-content: center;
-  width: 26px;
+  width: 21px;
 }
 
-.brand-mark svg {
-  color: #fff;
-  height: 15px;
-  width: 15px;
+/* On the dark theme the navy body sinks into the surface, so the mark swaps
+   to its single-colour light variant — the same substitution the brand sheet
+   prescribes for dark backgrounds. */
+:root[data-theme='dark'] .brand-mark {
+  background-image: url('/brand/svg/logo-mark-mono-light.svg');
 }
 
 /* ════════════════════════════════════════════════════════
