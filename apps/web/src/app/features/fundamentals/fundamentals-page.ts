@@ -181,6 +181,19 @@ export class FundamentalsPage implements OnDestroy {
     return `Costs ${cost.credits} credit${cost.credits === 1 ? '' : 's'}`;
   });
 
+  /**
+   * "Costs N credits", read from the centrally configured feature cost list
+   * rather than hardcoded — this screen has no opinion of its own on what a
+   * fundamentals analysis costs. Null until pricing has loaded.
+   */
+  protected readonly aiCostLabel = computed(() => {
+    const cost = this.billing
+      .pricing()
+      ?.featureCosts.find((row) => row.featureKey === 'fundamental_analysis');
+    if (!cost) return null;
+    return `Costs ${cost.credits} credit${cost.credits === 1 ? '' : 's'}`;
+  });
+
   /** The instrument to read, chosen in the shell's top-bar search. */
   readonly selection = input<SymbolSelection | null>(null);
 

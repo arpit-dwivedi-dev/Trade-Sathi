@@ -1,5 +1,6 @@
 import type { Request } from "express";
 import type { PricingRegion } from "@chartanalyzer/shared";
+import { env } from "../lib/env.js";
 import { logger } from "../lib/logger.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 
@@ -19,26 +20,48 @@ import { supabaseAdmin } from "../lib/supabase.js";
  */
 
 /**
+ * Two-letter values Cloudflare sends that are not countries: `XX` when it
+ * cannot place the caller, `T1` for Tor. Both are well-formed, so the shape
+ * check below passes them through — and treating either as a real country
+ * would lock the account into a band on the strength of "we don't know",
+ * which is exactly what the null-country guard in ensurePricingRegion exists
+ * to prevent.
+ */
+const NON_COUNTRY_CODES: ReadonlySet<string> = new Set(["XX", "T1"]);
+
+/**
  * Resolves the caller's country for pricing, in priority order:
  *
  * 1. `CF-IPCountry` — set by Cloudflare when the request passed through it.
- *    Authoritative for that hop and free, so it wins when present.
+ *    Authoritative for that hop and free, so it wins when present — but only
+ *    when the deployment says Cloudflare is actually in front (env
+ *    TRUST_CF_IPCOUNTRY). A plain request header is client-controlled, and
+ *    this value picks a price band that is then locked forever, so believing
+ *    it on the strength of being present was the wrong test: an attacker who
+ *    sends `CF-IPCountry: IN` on their first authenticated request paid the
+ *    Indian rate for the life of the account.
  * 2. The geoip lookup resolveGeo already attached to req.geo (geoip-lite,
- *    offline, no request-path dependency).
- * 3. Failure → 'IN' with no country recorded. 'IN' is not an arbitrary
- *    default: it is the only region with active, chargeable prices today, so
- *    a failed detection must not strand the user on a price list that cannot
- *    be bought.
+ *    offline, no request-path dependency). That lookup is only as good as the
+ *    address it is given, which is why both places that hand it one — index.ts
+ *    via `trust proxy`, and geo.ts via req.ip — are load-bearing here.
+ * 3. Failure → 'GLOBAL', the *more expensive* band, and no country recorded.
+ *    The direction matters: an unplaceable request must never be the cheap
+ *    one, or making detection fail would be a way to buy at the Indian rate.
+ *    'IN' is only ever reached by actually being in India.
  */
 export function regionFromRequest(req: Request): {
   region: PricingRegion;
   countryCode: string | null;
 } {
-  const cfCountry = req.get("cf-ipcountry");
-  if (cfCountry && /^[A-Za-z]{2}$/.test(cfCountry)) {
+  const cfCountry = env.trustCfIpCountry ? req.get("cf-ipcountry")?.toUpperCase() : null;
+  if (
+    cfCountry &&
+    /^[A-Za-z]{2}$/.test(cfCountry) &&
+    !NON_COUNTRY_CODES.has(cfCountry)
+  ) {
     return {
-      region: cfCountry.toUpperCase() === "IN" ? "IN" : "GLOBAL",
-      countryCode: cfCountry.toUpperCase(),
+      region: cfCountry === "IN" ? "IN" : "GLOBAL",
+      countryCode: cfCountry,
     };
   }
 
@@ -50,7 +73,7 @@ export function regionFromRequest(req: Request): {
     };
   }
 
-  return { region: "IN", countryCode: null };
+  return { region: "GLOBAL", countryCode: null };
 }
 
 /**
@@ -70,7 +93,10 @@ const regionConfirmed = new Set<string>();
  * Reads profiles.pricing_region. When it is null — the first authenticated
  * request this profile has ever made (or the first since the column was
  * added) — derives the region from the request and writes it with
- * source='geoip' and the lock timestamp, exactly once.
+ * source='geoip' and the lock timestamp, exactly once, provided the request
+ * actually identified a country. A request that identified nothing gets the
+ * fallback region for its own response and leaves the column open; see the
+ * countryCode check below.
  *
  * The UPDATE is scoped `pricing_region is null`, so two concurrent first
  * requests cannot overwrite each other's region: the second one's update
@@ -78,8 +104,11 @@ const regionConfirmed = new Set<string>();
  * is never re-derived — a later visit from a different country does not
  * reprice an existing account (by design; see the columns' migration).
  *
- * Never throws: a region-lock failure must not fail the request it rides on,
- * and 'IN' — the fallback with active prices — is always a safe answer.
+ * Never throws: a region-lock failure must not fail the request it rides on.
+ * The 'GLOBAL' fallbacks below are display-only answers for a caller that
+ * could not be placed — they are deliberately never written to the profile,
+ * and GLOBAL is the more expensive of the two bands, so a failed lookup can
+ * neither buy at the cheap rate now nor lock into it for good.
  */
 export async function ensurePricingRegion(
   profileId: string,
@@ -90,8 +119,14 @@ export async function ensurePricingRegion(
       // Known locked — one cheap read to return the actual value, which the
       // caller needs (the Set only records that it exists). A null read here
       // would mean the row went missing after being confirmed non-null, which
-      // should not happen; fall back to 'IN' rather than propagate null.
-      return (await readRegion(profileId)) ?? "IN";
+      // should not happen; fall back to GLOBAL rather than propagate null, and
+      // drop the memo so the next request re-derives instead of trusting it.
+      const confirmed = await readRegion(profileId);
+      if (confirmed === null) {
+        regionConfirmed.delete(profileId);
+        return "GLOBAL";
+      }
+      return confirmed;
     }
 
     const locked = await readRegion(profileId);
@@ -101,6 +136,23 @@ export async function ensurePricingRegion(
     }
 
     const { region, countryCode } = regionFromRequest(req);
+
+    // Nothing identified this caller's country, so the region above is the
+    // fallback rather than a finding. Serving it for this request is fine —
+    // the app needs prices to render — but writing it would make a guess the
+    // account's permanent price band.
+    //
+    // Reachable without any misbehaviour (geoip-lite cannot resolve a private
+    // or loopback address, which is what a dev machine looks like), and
+    // reachable deliberately by a caller who omits or blanks whatever address
+    // the lookup would use. Either way: a request that identified nothing locks
+    // nothing, and the account stays open until one that did arrives.
+    if (countryCode === null) {
+      logger.info("pricing region not locked: no country could be determined", {
+        profileId,
+      });
+      return region;
+    }
 
     // Conditional write: only the request that still sees null may set it.
     const { error: updateError } = await supabaseAdmin
@@ -128,11 +180,11 @@ export async function ensurePricingRegion(
     // the request-derived region rather than erroring.
     return region;
   } catch (cause) {
-    logger.warn("pricing region lock failed; falling back to IN", {
+    logger.warn("pricing region lock failed; falling back to GLOBAL", {
       profileId,
       cause: String(cause),
     });
-    return "IN";
+    return "GLOBAL";
   }
 }
 
