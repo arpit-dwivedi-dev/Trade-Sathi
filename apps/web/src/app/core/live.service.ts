@@ -28,14 +28,14 @@ export type CandlesResult =
 
 export type StartAnalysisResult =
   | { ok: true; analysisId: string }
-  | { ok: false; reason: 'quota_exceeded' | 'error'; message: string };
+  | { ok: false; reason: 'insufficient_credits' | 'error'; message: string };
 
 /**
  * Backend calls for candle data and live AI analysis, shared by the manual
  * analysis workspace and the watchlist.
  *
  * Candles and the analyze trigger go through the API: the market-data provider
- * is server-side only, and starting an analysis spends quota. Watching the
+ * is server-side only, and starting an analysis spends credits. Watching the
  * resulting row is NOT here — it is AnalyzeService.pollAnalysis, which already
  * watches an analyses row by id and is shared by every flow that starts one
  * rather than reimplemented per feature.
@@ -116,8 +116,8 @@ export class LiveService {
       if (status === 402) {
         return {
           ok: false,
-          reason: 'quota_exceeded',
-          message: "You've used all your analyses this month.",
+          reason: 'insufficient_credits',
+          message: "You don't have enough credits for this analysis.",
         };
       }
       return { ok: false, reason: 'error', message: 'Could not start the analysis. Try again.' };

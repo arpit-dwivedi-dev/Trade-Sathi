@@ -1,8 +1,11 @@
+import type { FeatureCreditKey } from "@chartanalyzer/shared";
 import { createHash, randomUUID } from "node:crypto";
 import { logger } from "../lib/logger.js";
 import { callRpc, supabaseAdmin } from "../lib/supabase.js";
 
 const BUCKET = "chart-images";
+
+const FEATURE_KEY: FeatureCreditKey = "chart_analysis";
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -13,85 +16,44 @@ const EXTENSION_BY_MIME: Record<string, string> = {
 /**
  * `status: "complete"` means this request was answered from a previous
  * analysis of the byte-identical image (see findCachedAnalysis) — no upload,
- * no model call, no entitlement spent. The caller must NOT dispatch
+ * no model call, no credit spent. The caller must NOT dispatch
  * processAnalysis for it; the row it names is already finished.
  */
 export type CreateAnalysisResult =
   | { ok: true; id: string; status: "queued" | "complete" }
-  | { ok: false; reason: "quota_exceeded" };
-
-/** Which entitlement check_and_consume_entitlement actually spent, so the
- *  compensation path can give back the same one. */
-export type EntitlementSource = "quota" | "credit";
-
-/** The current UTC year-month, in the same 'YYYY-MM' shape that
- *  check_and_increment_usage computes internally via
- *  to_char(now() at time zone 'UTC', 'YYYY-MM'). */
-export function currentUtcPeriod(): string {
-  return new Date().toISOString().slice(0, 7);
-}
+  | { ok: false; reason: "insufficient_credits" };
 
 /**
- * Reverses one unit of a previously granted quota increment.
- *
- * A single guarded atomic UPDATE — the `analyses_used > 0` guard means it can
- * never drive the counter negative, and it targets exactly the period string
- * captured before the RPC ran, never a freshly recomputed "current" period.
+ * Spends one chart_analysis credit via the shared consume_credits RPC.
+ * Returns whether the balance had enough to cover it — the same feature key
+ * and cost that live-analysis.service.ts's "analyze this chart" path spends,
+ * since both are the same user-initiated, one-off analysis for billing
+ * purposes.
  */
-async function decrementUsage(profileId: string, period: string): Promise<void> {
-  await callRpc<null>("decrement_usage", {
+export async function consumeAnalysisCredit(profileId: string): Promise<boolean> {
+  const outcome = await callRpc<"consumed" | "insufficient_credits">("consume_credits", {
     p_profile_id: profileId,
-    p_period: period,
+    p_feature_key: FEATURE_KEY,
   });
+  return outcome === "consumed";
 }
 
 /**
- * Reverses one previously consumed credit.
- *
- * The credit-side mirror of decrementUsage: a single UPDATE plus its
- * credit_ledger row. Credits are not period-scoped, so unlike the quota path
- * there is no captured period to pass.
+ * Gives back a previously consumed chart_analysis credit — called when
+ * consume_credits succeeded but the work it paid for never produced a usable
+ * result (a failed upload, a failed pipeline run). `analysisId` is passed
+ * when the row it refunds against already exists at the time of the failure;
+ * omit it when nothing was ever durably stored.
  */
-async function refundCredit(profileId: string): Promise<void> {
-  await callRpc<null>("refund_credit", { p_profile_id: profileId });
-}
-
-/**
- * Gives back whichever entitlement was consumed for this request.
- *
- * The branch MUST match what check_and_consume_entitlement actually spent.
- * Getting it wrong silently converts a purchased credit into a quota refund
- * (the user loses money) or a quota unit into a minted credit (the user gains
- * one) — neither errors, both corrupt the entitlement balance.
- */
-export async function releaseEntitlement(
+export async function refundAnalysisCredit(
   profileId: string,
-  source: EntitlementSource,
-  period: string,
+  analysisId?: string | null,
 ): Promise<void> {
-  if (source === "quota") {
-    await decrementUsage(profileId, period);
-  } else {
-    await refundCredit(profileId);
-  }
-}
-
-/**
- * The atomic entitlement gate for a user-initiated analysis: monthly quota
- * first, then a one-off credit. Returns which one was spent, or null when the
- * user has neither left. Every caller that gets a non-null result owns a
- * compensating releaseEntitlement on any failure before the analysis is
- * durably stored.
- */
-export async function consumeAnalysisEntitlement(
-  profileId: string,
-): Promise<EntitlementSource | null> {
-  const outcome = await callRpc<"denied" | "credit" | "quota">(
-    "check_and_consume_entitlement",
-    { p_profile_id: profileId },
-  );
-  if (outcome === "denied") return null;
-  return outcome === "credit" ? "credit" : "quota";
+  await callRpc<null>("refund_credits", {
+    p_profile_id: profileId,
+    p_feature_key: FEATURE_KEY,
+    p_ref_analysis_id: analysisId ?? null,
+  });
 }
 
 /**
@@ -168,15 +130,11 @@ export async function createAnalysis(
     return { ok: true, id: cachedId, status: "complete" };
   }
 
-  // Captured ONCE, before the RPC, and reused verbatim by every compensating
-  // decrement below — see the trade-off notes at the upload failure branch.
-  const periodForCompensation = currentUtcPeriod();
-
-  // (b) Atomic entitlement gate: monthly quota first, then a one-off credit.
-  // Everything after this point has consumed exactly one of the two.
-  const entitlementSource = await consumeAnalysisEntitlement(profileId);
-  if (!entitlementSource) {
-    return { ok: false, reason: "quota_exceeded" };
+  // (b) Atomic credit gate. Everything after this point has consumed one
+  // chart_analysis credit.
+  const consumed = await consumeAnalysisCredit(profileId);
+  if (!consumed) {
+    return { ok: false, reason: "insufficient_credits" };
   }
 
   // (c) The bucket's RLS read policy requires the first path segment to be the
@@ -190,36 +148,13 @@ export async function createAnalysis(
     .upload(imageKey, file.buffer, { contentType: file.mimetype });
 
   if (uploadError) {
-    // The entitlement was already consumed by the RPC, but no analysis exists —
-    // give it back rather than charging the user for a failed upload. The
-    // branch inside releaseEntitlement must match whichever resource was
-    // actually spent; see its doc comment.
+    // The credit was already consumed by the RPC, but no analysis exists —
+    // give it back rather than charging the user for a failed upload.
     //
-    // Known, accepted MVP trade-offs of compensating rather than doing this in
-    // one transaction:
-    //
-    // (1) Between the RPC's increment and this decrement, a concurrent request
-    //     for the same user near their quota limit could see a temporary false
-    //     quota_exceeded that would have succeeded moments later. This cannot
-    //     corrupt the counter — the decrement is a single guarded atomic UPDATE
-    //     — it is purely an availability edge case, accepted for MVP.
-    //
-    // (2) If this compensating decrement itself fails (network/DB error), the
-    //     user permanently loses one unit of quota for a failed upload. Also
-    //     accepted for MVP.
-    //
-    // (3) periodForCompensation is captured once in Node before the RPC call
-    //     specifically to narrow — not eliminate — a UTC month-boundary race.
-    //     If a request straddles midnight UTC on the last day of the month (or
-    //     app/DB server clocks skew), the RPC's own internal now() could land in
-    //     a different month than this captured value, so the decrement targets
-    //     the wrong period and this unit never gets refunded. Same failure
-    //     category as (2), just a different trigger — it does not corrupt the
-    //     counter table. Fully closing this requires changing
-    //     check_and_increment_usage's return contract to report back the exact
-    //     period it operated on, which is a migration change out of scope here;
-    //     accepted as a known MVP limitation.
-    await releaseEntitlement(profileId, entitlementSource, periodForCompensation);
+    // Known, accepted MVP trade-off of compensating rather than doing this in
+    // one transaction: if this refund itself fails (network/DB error), the
+    // user permanently loses one credit for a failed upload.
+    await refundAnalysisCredit(profileId);
     throw uploadError;
   }
 
@@ -255,8 +190,8 @@ export async function createAnalysis(
         cause: String(removeError),
       });
     }
-    // Same compensating release, same captured period, same trade-offs as (d).
-    await releaseEntitlement(profileId, entitlementSource, periodForCompensation);
+    // Same compensating refund, same trade-off as (d).
+    await refundAnalysisCredit(profileId);
     throw insertError ?? new Error("Analysis insert returned no row");
   }
 

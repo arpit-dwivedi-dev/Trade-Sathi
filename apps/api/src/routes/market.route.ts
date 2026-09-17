@@ -238,9 +238,9 @@ marketRouter.post(
         case "not_found":
           res.status(404).json({ error: "Instrument not found" });
           return;
-        case "quota_exceeded":
+        case "insufficient_credits":
           // 402, matching the manual-upload convention in analyses.route.ts.
-          res.status(402).json({ error: "Monthly analysis quota exceeded" });
+          res.status(402).json({ error: "Insufficient credits", reason: "insufficient_credits" });
           return;
       }
     } catch (cause) {
@@ -291,8 +291,8 @@ marketRouter.post(
         case "not_found":
           res.status(404).json({ error: "Instrument not found" });
           return;
-        case "quota_exceeded":
-          res.status(402).json({ error: "Monthly fundamentals analysis quota exceeded" });
+        case "insufficient_credits":
+          res.status(402).json({ error: "Insufficient credits", reason: "insufficient_credits" });
           return;
       }
     } catch (cause) {

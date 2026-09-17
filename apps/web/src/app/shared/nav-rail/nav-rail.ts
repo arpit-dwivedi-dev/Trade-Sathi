@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, model, output, signal } from '@angular/core';
+import { Component, computed, inject, input, model, output } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { Router, RouterLink } from '@angular/router';
 
@@ -65,25 +65,16 @@ export class NavRail {
     () => this.profiles.cachedName()?.trim() || this.user()?.email || 'Account',
   );
 
-  private readonly planKey = signal<string | null>(null);
-
   constructor() {
     // One profile read for the whole session, shared with the Account page.
     void this.profiles.ensureName();
 
-    // The label below is the only thing this needs the plan for. ensurePlanSummary
-    // is cached on the root service, so this shares whatever the billing screen
-    // already fetched rather than adding a request.
-    void this.billing.ensurePlanSummary().then(() => this.planKey.set(this.billing.currentPlanKey()));
-  }
-
-  /**
-   * A free user is offered the upgrade; a paid user is offered credits, since
-   * moving between paid tiers is not built. An unknown plan (the read failed)
-   * gets the upgrade too — it is the safe default for a signed-in user.
-   */
-  protected billingLabel(): string {
-    return this.planKey() === 'free' || this.planKey() === null ? 'Upgrade' : 'Buy Credits';
+    // The rail no longer prints the balance, but it is still the first thing
+    // mounted inside the shell, so warming the cache here means the Billing tab
+    // has the figure already when the Buy Credits button lands on it.
+    // ensureCreditBalance is cached on the root service, so this shares
+    // whatever the shell already fetched rather than adding a request.
+    void this.billing.ensureCreditBalance();
   }
 
   protected toggleCollapsed(): void {

@@ -1,4 +1,4 @@
-import type { AnalysisResult } from "@chartanalyzer/shared";
+import type { AnalysisResult, FeatureCreditKey } from "@chartanalyzer/shared";
 import { runInstrumentAnalysis, type ProvidedChart } from "./instrument-analysis.service.js";
 import { todayIsoDate, type InstrumentRef } from "./market-chart.service.js";
 import {
@@ -20,9 +20,7 @@ import { callRpc, supabaseAdmin } from "../lib/supabase.js";
 
 const IST_OFFSET_MINUTES = 5.5 * 60;
 
-function currentUtcPeriod(): string {
-  return new Date().toISOString().slice(0, 7);
-}
+const FEATURE_KEY: FeatureCreditKey = "daily_briefing_run";
 
 /** Current hour (0-23) in IST, the timezone every schedule setting is in. */
 function currentIstHour(): number {
@@ -36,61 +34,40 @@ function currentIstMinute(): number {
   return new Date(istMs).getUTCMinutes();
 }
 
-type EntitlementOutcome = "quota" | "credit" | "no_subscription" | "quota_exhausted";
-
 /**
- * Which of the two Daily Briefing entitlements paid for a run: the
- * subscription's monthly allowance, or a one-off credit from a top-up pack.
- *
- * Every caller that consumes one owns a compensating release, and that release
- * MUST name the same source. Refunding the wrong one silently converts a
- * purchased credit into a quota refund (the user loses money) or a quota unit
- * into a minted credit (the user gains one) — neither errors, both corrupt the
- * balance. Exactly the hazard documented on analysis.service.ts's
- * releaseEntitlement.
+ * Spends one daily_briefing_run credit for one watchlist item, via the
+ * shared consume_credits RPC. Returns whether the balance had enough to
+ * cover it.
  */
-export type BriefingEntitlementSource = "quota" | "credit";
-
-async function consumeDailyBriefingEntitlement(profileId: string): Promise<EntitlementOutcome> {
-  return callRpc<EntitlementOutcome>("check_and_consume_daily_briefing_entitlement", {
+async function consumeDailyBriefingCredit(profileId: string): Promise<boolean> {
+  const outcome = await callRpc<"consumed" | "insufficient_credits">("consume_credits", {
     p_profile_id: profileId,
+    p_feature_key: FEATURE_KEY,
   });
+  return outcome === "consumed";
 }
 
 /**
- * Compensating release for a Daily Briefing entitlement consumed but never
+ * Compensating refund for a daily_briefing_run credit consumed but never
  * turned into a stored analysis (market-data fetch, chart render, or the AI
- * call failed). Same captured-period trade-offs as analysis.service.ts's
- * releaseEntitlement — see that function's doc comment for the full reasoning;
- * not re-derived here. The branch below carries the same hard requirement:
- * `source` must be what was actually spent.
+ * call failed).
  */
-async function releaseDailyBriefingEntitlement(
+async function refundDailyBriefingCredit(
   profileId: string,
-  source: BriefingEntitlementSource,
-  period: string,
+  analysisId?: string | null,
 ): Promise<void> {
   try {
-    if (source === "quota") {
-      await callRpc<null>("decrement_daily_briefing_usage", {
-        p_profile_id: profileId,
-        p_period: period,
-      });
-    } else {
-      // Credits are not period-scoped, so no period is passed — there is no
-      // month-boundary race to guard against.
-      await callRpc<null>("refund_daily_briefing_credit", {
-        p_profile_id: profileId,
-      });
-    }
+    await callRpc<null>("refund_credits", {
+      p_profile_id: profileId,
+      p_feature_key: FEATURE_KEY,
+      p_ref_analysis_id: analysisId ?? null,
+    });
   } catch (cause) {
     // Logged, never rethrown: this runs on the failure path of work that has
     // already gone wrong, and a failed refund must not replace the original
     // error with its own.
-    logger.error("failed to release daily briefing entitlement", {
+    logger.error("failed to refund daily briefing credit", {
       profileId,
-      source,
-      period,
       cause: String(cause),
     });
   }
@@ -148,9 +125,9 @@ interface ProcessedItem {
 /**
  * Runs one watchlist item through the shared instrument pipeline (candles ->
  * chart image -> the SAME visual AI call manual uploads use -> a stored
- * analysis row). Returns null — having already released the Daily Briefing
- * quota unit its caller consumed — if anything fails before a valid analysis
- * is durably stored: quota must never be spent on a failed attempt.
+ * analysis row). Returns null — having already refunded the daily_briefing_run
+ * credit its caller consumed — if anything fails before a valid analysis is
+ * durably stored: a credit must never be spent on a failed attempt.
  *
  * `providedChart` is the chart the requesting browser drew, present only on
  * the Analyze Now path. The scheduled run has no browser and always leaves
@@ -159,8 +136,6 @@ interface ProcessedItem {
 export async function processWatchlistItem(
   profileId: string,
   item: EnabledWatchlistItem,
-  source: BriefingEntitlementSource,
-  period: string,
   providedChart?: ProvidedChart | null,
 ): Promise<ProcessedItem | null> {
   const ref: InstrumentRef = {
@@ -180,7 +155,7 @@ export async function processWatchlistItem(
   );
 
   if (!result) {
-    await releaseDailyBriefingEntitlement(profileId, source, period);
+    await refundDailyBriefingCredit(profileId);
     return null;
   }
 
@@ -308,49 +283,36 @@ export async function runDailyBriefingForUser(
       return;
     }
 
-    const period = currentUtcPeriod();
     const succeeded: BriefingItem[] = [];
     const failed: FailedBriefingItem[] = [];
 
-    // Phase 1 — admission, strictly sequential. Entitlement is consumed one unit
+    // Phase 1 — admission, strictly sequential. A credit is consumed one unit
     // per item before any work starts, exactly as it was when the whole loop was
     // sequential: the concurrency added below must never be able to consume more
-    // units than the user has, or to race two items against the same last unit.
+    // credits than the user has, or to race two items against the same last one.
     // These are cheap RPC calls, so serialising them costs nothing worth saving.
-    //
-    // Each admission records WHICH entitlement paid for it, because a failure
-    // later has to give back that same one.
-    const admitted: { item: EnabledWatchlistItem; source: BriefingEntitlementSource }[] = [];
+    const admitted: EnabledWatchlistItem[] = [];
     for (const item of items) {
-      const outcome = await consumeDailyBriefingEntitlement(profileId);
-      if (outcome === "no_subscription") {
-        // No Daily Briefing entitlement at all — no live subscription and no
-        // top-up credits: stop immediately, no market-data/AI calls for any
-        // symbol, no email. Distinct terminal status from
-        // 'skipped_quota_exhausted' for observability.
-        await markLog("skipped_no_entitlement");
-        return;
-      }
-      if (outcome === "quota_exhausted") break;
-
-      admitted.push({ item, source: outcome });
+      const consumed = await consumeDailyBriefingCredit(profileId);
+      if (!consumed) break;
+      admitted.push(item);
     }
 
     // Phase 2 — the expensive part, a few at a time. Each item is a full pipeline
     // (market data, chart render, model call) at roughly a minute each, so a ten
     // symbol watchlist used to take the better part of ten minutes inside a single
     // hourly tick, pushing later users' briefings well past the hour they asked
-    // for. Each item still releases its own entitlement on failure, inside
+    // for. Each item still refunds its own credit on failure, inside
     // processWatchlistItem, so failure handling is unchanged by running them
     // alongside each other.
-    const outcomes = await mapWithConcurrency(admitted, BRIEFING_CONCURRENCY, ({ item, source }) =>
-      processWatchlistItem(profileId, item, source, period),
+    const outcomes = await mapWithConcurrency(admitted, BRIEFING_CONCURRENCY, (item) =>
+      processWatchlistItem(profileId, item),
     );
 
     // Results are folded back in watchlist order, not completion order, so the
     // email lists symbols in the order the user arranged them.
     const succeededAnalysisIds: string[] = [];
-    admitted.forEach(({ item }, index) => {
+    admitted.forEach((item, index) => {
       const processed = outcomes[index];
       if (processed) {
         succeededAnalysisIds.push(processed.analysisId);
@@ -367,8 +329,8 @@ export async function runDailyBriefingForUser(
     });
 
     if (succeeded.length === 0 && failed.length === 0) {
-      // Every item was skipped because quota ran out before any could even be
-      // attempted (e.g. a user with zero remaining quota this period).
+      // Every item was skipped because credits ran out before any could even
+      // be attempted (e.g. a user with a zero balance).
       await markLog("skipped_quota_exhausted");
       return;
     }
@@ -459,11 +421,11 @@ export async function runDailyBriefingForUser(
 
 export type AnalyzeNowResult =
   | { ok: true; runId: string; instrumentId: string; startedAt: string }
-  | { ok: false; reason: "not_found" | "no_subscription" | "quota_exhausted" }
+  | { ok: false; reason: "not_found" | "insufficient_credits" }
   // The one non-terminal outcome: the user has already analysed this exact
   // stock over this exact window recently. Re-running is allowed — it just
-  // needs an explicit confirmation (force), since it spends another unit of
-  // the same 30/month quota on a chart that has not changed.
+  // needs an explicit confirmation (force), since it spends another
+  // daily_briefing_run credit on a chart that has not changed.
   | { ok: false; reason: "duplicate"; lastAnalysisAt: string; lookbackDays: number };
 
 /** How long a completed analysis makes an identical re-run look like a mistake. */
@@ -538,10 +500,15 @@ const MAX_RECLAIM_DAILY_BRIEFING_BATCH = 20;
  * the background (see its doc comment) and relies on that promise's
  * .then/.catch to call settleRun. If the process dies or restarts mid-run,
  * that callback never fires and the row — and the client polling it — is
- * stuck at 'processing' forever. There is no way to safely resume from here
- * (the row does not record which entitlement source/period paid for it, so
- * it cannot be refunded the way a stranded fundamentals analysis is), so this
- * only unblocks the client by marking the run failed.
+ * stuck at 'processing' forever. There is no way to safely refund from here:
+ * the credit consumed for this run may already have been given back by
+ * processWatchlistItem's own failure path before the process died, and this
+ * sweeper has no way to tell those two situations apart — refunding
+ * unconditionally risks minting a credit the pipeline already returned. So
+ * this only unblocks the client by marking the run failed, the same accepted
+ * trade-off a stranded fundamentals analysis does not have to make (that
+ * refund happens directly against the analyses row, which does record
+ * whether a terminal outcome was ever reached).
  *
  * Sequential and bounded, and never throws — it is called from a timer.
  */
@@ -662,11 +629,10 @@ export async function reclaimStrandedDailyBriefingLogs(): Promise<number> {
 
 /**
  * User-triggered, single-item counterpart to the scheduled job — the
- * "Analyze Now" button on a watchlist row. Shares the exact same entitlement
- * (same 30/month quota, same subscription check) and the exact same
- * fetch/chart/AI/persist pipeline (processWatchlistItem) as the scheduled
- * run, so there is only one code path that can ever write a
- * source='watchlist_daily' analysis row.
+ * "Analyze Now" button on a watchlist row. Shares the exact same
+ * daily_briefing_run credit and the exact same fetch/chart/AI/persist
+ * pipeline (processWatchlistItem) as the scheduled run, so there is only one
+ * code path that can ever write a source='watchlist_daily' analysis row.
  *
  * Deliberately does NOT touch daily_briefing_log or send an email: those are
  * the once-a-day digest's concerns.
@@ -675,7 +641,7 @@ export async function reclaimStrandedDailyBriefingLogs(): Promise<number> {
  * render + AI call) routinely takes 20-30+ seconds, which exceeds the idle
  * timeout of proxies/tunnels a mobile client may be behind (e.g. zrok's
  * public frontend). This function only performs the fast, synchronous
- * checks (item lookup, entitlement) and returns as soon as those pass;
+ * checks (item lookup, credit) and returns as soon as those pass;
  * processWatchlistItem then runs uninitiated in the background and persists
  * its own analyses row on completion. The caller (the route) responds
  * immediately, and the client polls the analyses table (readable under RLS)
@@ -691,8 +657,8 @@ async function runWatchlistItemNow(
   const item = await getWatchlistItemForProfile(profileId, watchlistItemId);
   if (!item) return { ok: false, reason: "not_found" };
 
-  // Before the entitlement is touched: a duplicate must not cost a quota unit
-  // on the way to being refused.
+  // Before the credit is touched: a duplicate must not cost a credit on the
+  // way to being refused.
   if (!force) {
     const lastAnalysisAt = await findRecentIdenticalAnalysis(
       profileId,
@@ -709,12 +675,9 @@ async function runWatchlistItemNow(
     }
   }
 
-  const outcome = await consumeDailyBriefingEntitlement(profileId);
-  if (outcome === "no_subscription") return { ok: false, reason: "no_subscription" };
-  if (outcome === "quota_exhausted") return { ok: false, reason: "quota_exhausted" };
-  const source: BriefingEntitlementSource = outcome;
+  const consumed = await consumeDailyBriefingCredit(profileId);
+  if (!consumed) return { ok: false, reason: "insufficient_credits" };
 
-  const period = currentUtcPeriod();
   const startedAt = new Date().toISOString();
 
   // Written before the pipeline starts, so the run exists somewhere other than
@@ -733,27 +696,27 @@ async function runWatchlistItemNow(
     .single<{ id: string }>();
 
   if (runError || !runRow) {
-    // The quota unit was already consumed above, so release it rather than
+    // The credit was already consumed above, so refund it rather than
     // charge for a run that is not going to be started.
     logger.error("failed to record watchlist analysis run", {
       profileId,
       watchlistItemId,
       cause: String(runError),
     });
-    await releaseDailyBriefingEntitlement(profileId, source, period);
+    await refundDailyBriefingCredit(profileId);
     throw new Error("Could not start analysis");
   }
 
   // Deliberately not awaited: see the doc comment above. Failures are
-  // already logged and compensated (quota release) inside
+  // already logged and compensated (credit refund) inside
   // processWatchlistItem itself; settling the run row here is what turns
   // that into something the user can see after a reload.
-  void processWatchlistItem(profileId, item, source, period, providedChart)
+  void processWatchlistItem(profileId, item, providedChart)
     .then(async (processed) => {
       await settleRun(runRow.id, processed ? "complete" : "failed", processed?.analysisId ?? null);
       // Emailed only after the run is settled, and only on the Brief Now path.
       // A failed run has nothing to report and has already refunded its
-      // entitlement, so there is nothing to send.
+      // credit, so there is nothing to send.
       if (emailResult && processed) {
         await sendSingleItemBriefing(profileId, processed);
       } else if (!processed) {
@@ -797,9 +760,9 @@ export async function analyzeWatchlistItemNow(
  * its analysis attached as a PDF.
  *
  * Identical in every other respect to Analyze Now, deliberately: same
- * entitlement (Daily Briefing quota, then a top-up credit), same duplicate
- * warning, same pipeline, same run row. The email is the only difference, so
- * it is the only thing this wrapper adds.
+ * daily_briefing_run credit, same duplicate warning, same pipeline, same run
+ * row. The email is the only difference, so it is the only thing this
+ * wrapper adds.
  *
  * Like Analyze Now it does not touch daily_briefing_log: that table's unique
  * (profile, date, hour) key is the scheduled digest's idempotency guard, and

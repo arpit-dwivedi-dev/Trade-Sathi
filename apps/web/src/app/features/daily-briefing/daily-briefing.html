@@ -23,11 +23,10 @@
     <p class="err" role="alert">{{ err }}</p>
   }
 
-  @if (billing.hasDailyBriefingEntitlement() === false) {
-    <p class="note daily-briefing-entitlement-note" role="status">
-      Scheduling and Daily Briefing are part of the Daily Briefing add-on. You can still
-      browse your list, but the schedule and toggle below won't run until you
-      <a routerLink="/app" [queryParams]="{ tab: 'account' }">add Daily Briefing</a> to your account.
+  @if (runCostLabel(); as cost) {
+    <p class="note daily-briefing-cost-note" role="status">
+      {{ cost }} — scheduled runs and Analyze Now both spend from your credit balance.
+      <a routerLink="/app" [queryParams]="{ tab: 'billing' }">Buy credits</a> any time.
     </p>
   }
 
@@ -136,12 +135,6 @@
                     [defaultDate]="midnightDefaultDate"
                     [ngModel]="scheduledTimeValue(item)"
                     (onSelect)="setScheduledTime(item, $any($event))"
-                    [disabled]="billing.hasDailyBriefingEntitlement() === false"
-                    [attr.title]="
-                      billing.hasDailyBriefingEntitlement() === false
-                        ? 'Requires the Daily Briefing add-on'
-                        : null
-                    "
                     [attr.aria-label]="'Scheduled run time for ' + displaySymbol(item)"
                   />
                   @if (scheduledHourValue(item) === 'default') {
@@ -152,7 +145,6 @@
                       pButton
                       [text]="true"
                       class="daily-briefing-time-reset"
-                      [disabled]="billing.hasDailyBriefingEntitlement() === false"
                       (click)="clearScheduledTime(item)"
                       [attr.aria-label]="'Reset scheduled run time for ' + displaySymbol(item) + ' to default'"
                     >
@@ -170,12 +162,6 @@
                   <p-toggleswitch
                     [ngModel]="item.enabled_for_daily_analysis"
                     (onChange)="toggleDailyAnalysis(item)"
-                    [disabled]="billing.hasDailyBriefingEntitlement() === false"
-                    [attr.title]="
-                      billing.hasDailyBriefingEntitlement() === false
-                        ? 'Requires the Daily Briefing add-on'
-                        : null
-                    "
                     [attr.aria-label]="'Daily briefing for ' + displaySymbol(item)"
                   />
                   <span class="daily-briefing-toggle-label">{{ item.enabled_for_daily_analysis ? 'On' : 'Off' }}</span>
@@ -201,9 +187,9 @@
                       Analyze now
                     }
                   </button>
-                  <!-- Same run, same Daily Briefing entitlement as the button
-                       beside it — the difference is that this one emails the
-                       result with its analysis attached as a PDF. -->
+                  <!-- Same run, same credit cost as the button beside it — the
+                       difference is that this one emails the result with its
+                       analysis attached as a PDF. -->
                   <button
                     pButton
                     [disabled]="isBusy(item.id)"

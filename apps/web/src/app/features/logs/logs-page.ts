@@ -14,7 +14,7 @@ import type { IconName } from '../../shared/icons/icon-paths';
 /** One row of the merged activity table, whichever table it came from. */
 interface ActivityRow {
   id: string;
-  kind: 'payment' | 'subscription' | 'credits' | 'error';
+  kind: 'payment' | 'credits' | 'error';
   title: string;
   /** Integer minor units (paise), or null for rows that carry no money. */
   amountMinor: number | null;
@@ -27,27 +27,18 @@ interface ActivityRow {
 
 interface PaymentRow {
   id: string;
-  purpose: string;
-  credits_granted: number;
+  credits_purchased: number;
   amount_minor: number;
   currency: string;
   status: string;
   created_at: string;
-}
-
-interface SubscriptionRow {
-  id: string;
-  status: string;
-  amount_minor: number;
-  currency: string;
-  created_at: string;
-  plans: { key: string; name: string } | null;
 }
 
 interface LedgerRow {
   id: string;
   delta: number;
   reason: string;
+  feature_key: string | null;
   balance_after: number;
   created_at: string;
 }
@@ -59,24 +50,27 @@ interface ErrorLogRow {
   created_at: string;
 }
 
-type ActivityFilter = 'all' | 'payment' | 'subscription' | 'credits' | 'error';
+type ActivityFilter = 'all' | 'payment' | 'credits' | 'error';
 
 const ROW_LIMIT = 20;
 
-/** Cap on the merged list — 4 sources × ROW_LIMIT would otherwise be 80 rows. */
+/** Cap on the merged list — 3 sources × ROW_LIMIT would otherwise be 60 rows. */
 const MERGED_LIMIT = 50;
 
 /**
  * The signed-in user's account activity, one table: what they paid (credit
- * packs, subscriptions), what moved their credit balance, and any background
- * failure the API logged against them. All plain client-side reads under RLS
- * (payments/subscriptions/credit_ledger carry select-own policies; app_error_logs
- * was added for exactly this purpose).
+ * purchases), what moved their credit balance, and any background failure the
+ * API logged against them. All plain client-side reads under RLS
+ * (payments/credit_ledger carry select-own policies; app_error_logs was added
+ * for exactly this purpose).
  *
- * The manual-run and briefing-log cards this page used to render are gone:
- * watchlist_analysis_runs rows exist only while a run settles, and the settled
- * result is already the History row a user actually looks for — the logs page
- * was showing a transient duplicate of it.
+ * There is no more subscriptions table (there are no plans any more, just one
+ * credit balance spent by every paid feature), so this page has one purchase
+ * source, not two. The manual-run and briefing-log cards this page used to
+ * render are gone for a separate reason: watchlist_analysis_runs rows exist
+ * only while a run settles, and the settled result is already the History row
+ * a user actually looks for — the logs page was showing a transient duplicate
+ * of it.
  */
 @Component({
   selector: 'app-logs-page',
@@ -104,35 +98,32 @@ export class LogsPage implements OnInit, OnDestroy {
   protected readonly typeFilters: { value: ActivityFilter; label: string }[] = [
     { value: 'all', label: 'All' },
     { value: 'payment', label: 'Payments' },
-    { value: 'subscription', label: 'Subscriptions' },
     { value: 'credits', label: 'Credits' },
     { value: 'error', label: 'Errors' },
   ];
 
   protected readonly kindIcons: Readonly<Record<ActivityRow['kind'], IconName>> = {
     payment: 'credit_card',
-    subscription: 'refresh',
     credits: 'bolt',
     error: 'close',
   };
 
   protected readonly kindLabels: Readonly<Record<ActivityRow['kind'], string>> = {
     payment: 'Payment',
-    subscription: 'Subscription',
     credits: 'Credits',
     error: 'Error',
   };
 
-  /** Open subscriptions; closed in ngOnDestroy. */
+  /** Open Realtime channel subscriptions; closed in ngOnDestroy. */
   private channels: RealtimeChannel[] = [];
   private reloadTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
 
   /**
    * Coalescing window for Realtime events. Only app_error_logs is published
-   * on the Realtime publication today (payments/subscriptions/credit_ledger
-   * are not), so this exists for the error feed alone; a background failure
-   * arriving while the page is open still shows up without a reload.
+   * on the Realtime publication today (payments/credit_ledger are not), so
+   * this exists for the error feed alone; a background failure arriving
+   * while the page is open still shows up without a reload.
    */
   private static readonly RELOAD_DEBOUNCE_MS = 500;
 
@@ -201,22 +192,16 @@ export class LogsPage implements OnInit, OnDestroy {
       this.error.set(null);
     }
 
-    const [payments, subscriptions, ledger, errors] = await Promise.all([
+    const [payments, ledger, errors] = await Promise.all([
       client
         .from('payments')
-        .select('id, purpose, credits_granted, amount_minor, currency, status, created_at')
+        .select('id, credits_purchased, amount_minor, currency, status, created_at')
         .order('created_at', { ascending: false })
         .limit(ROW_LIMIT)
         .returns<PaymentRow[]>(),
       client
-        .from('subscriptions')
-        .select('id, status, amount_minor, currency, created_at, plans(key, name)')
-        .order('created_at', { ascending: false })
-        .limit(ROW_LIMIT)
-        .returns<SubscriptionRow[]>(),
-      client
         .from('credit_ledger')
-        .select('id, delta, reason, balance_after, created_at')
+        .select('id, delta, reason, feature_key, balance_after, created_at')
         .order('created_at', { ascending: false })
         .limit(ROW_LIMIT)
         .returns<LedgerRow[]>(),
@@ -230,20 +215,13 @@ export class LogsPage implements OnInit, OnDestroy {
 
     if (this.destroyed) return;
 
-    if (payments.error || subscriptions.error || ledger.error || errors.error) {
+    if (payments.error || ledger.error || errors.error) {
       // A failed background refresh keeps whatever is on screen: it is still
       // valid, and the next event retries.
       if (!background) this.error.set('Could not load your activity.');
     } else {
       this.error.set(null);
-      this.rows.set(
-        mergeActivity(
-          payments.data ?? [],
-          subscriptions.data ?? [],
-          ledger.data ?? [],
-          errors.data ?? [],
-        ),
-      );
+      this.rows.set(mergeActivity(payments.data ?? [], ledger.data ?? [], errors.data ?? []));
     }
     if (!background) this.loading.set(false);
   }
@@ -310,10 +288,16 @@ function categoryLabel(category: string): string {
   }
 }
 
-/** Merges the four sources into one newest-first list. */
+/** Human labels for a ledger row's feature_key — the closed set in FEATURE_CREDIT_KEYS. */
+const FEATURE_LABELS: Readonly<Record<string, string>> = {
+  chart_analysis: 'chart analysis',
+  daily_briefing_run: 'daily briefing',
+  fundamental_analysis: 'fundamental analysis',
+};
+
+/** Merges the three sources into one newest-first list. */
 function mergeActivity(
   payments: PaymentRow[],
-  subscriptions: SubscriptionRow[],
   ledger: LedgerRow[],
   errors: ErrorLogRow[],
 ): ActivityRow[] {
@@ -321,21 +305,11 @@ function mergeActivity(
     ...payments.map((row) => ({
       id: row.id,
       kind: 'payment' as const,
-      title: paymentTitle(row),
+      title: `${row.credits_purchased} credit${row.credits_purchased === 1 ? '' : 's'}`,
       amountMinor: row.amount_minor,
       currency: row.currency,
       status: row.status,
       statusClass: paymentStatusClass(row.status),
-      createdAt: row.created_at,
-    })),
-    ...subscriptions.map((row) => ({
-      id: row.id,
-      kind: 'subscription' as const,
-      title: row.plans?.name ?? 'Subscription',
-      amountMinor: row.amount_minor,
-      currency: row.currency,
-      status: row.status,
-      statusClass: subscriptionStatusClass(row.status),
       createdAt: row.created_at,
     })),
     ...ledger.map((row) => ({
@@ -367,20 +341,6 @@ function mergeActivity(
   return merged.slice(0, MERGED_LIMIT);
 }
 
-/** What a one-time purchase bought, in the user's terms. */
-function paymentTitle(row: PaymentRow): string {
-  switch (row.purpose) {
-    case 'credit_pack_10':
-      return '10 analysis credits';
-    case 'daily_briefing_credit_pack_10':
-      return '10 daily briefing credits';
-    default:
-      // A retired pack's purpose must stay readable — the historical row keeps
-      // whatever string it was written with.
-      return row.purpose.replace(/_/g, ' ');
-  }
-}
-
 function paymentStatusClass(status: string): string {
   switch (status) {
     case 'captured':
@@ -393,38 +353,21 @@ function paymentStatusClass(status: string): string {
   }
 }
 
-/**
- * Razorpay's own subscription status vocabulary (see the
- * billing_subscriptions migration) mapped onto the shared pill tones.
- * 'created' only means a checkout was opened, so it reads as neutral.
- */
-function subscriptionStatusClass(status: string): string {
-  switch (status) {
-    case 'active':
-    case 'authenticated':
-      return 'st-complete';
-    case 'pending':
-      return 'st-processing';
-    case 'halted':
-      return 'st-failed';
-    default:
-      // cancelled / completed / expired / paused / created
-      return 'st-queued';
-  }
-}
-
 /** The ledger row in words — what changed and why. */
 function ledgerTitle(row: LedgerRow): string {
   const delta = `${row.delta >= 0 ? '+' : ''}${row.delta}`;
+  const feature = row.feature_key ? (FEATURE_LABELS[row.feature_key] ?? row.feature_key) : null;
   switch (row.reason) {
-    case 'pack_purchase':
-      return `${delta} credits — pack purchase (balance ${row.balance_after})`;
-    case 'analysis':
-      return `${delta} credit — analysis (balance ${row.balance_after})`;
+    case 'purchase':
+      return `${delta} credits — purchase (balance ${row.balance_after})`;
+    case 'feature_consumption':
+      return `${delta} credit${row.delta === -1 ? '' : 's'} — ${feature ?? 'usage'} (balance ${row.balance_after})`;
     case 'refund':
-      return `${delta} credits — refund (balance ${row.balance_after})`;
-    case 'promo':
-      return `${delta} credits — promo (balance ${row.balance_after})`;
+      return `${delta} credits — refund${feature ? ` (${feature})` : ''} (balance ${row.balance_after})`;
+    case 'promo_credit':
+      return `${delta} credits — promo code (balance ${row.balance_after})`;
+    case 'admin_adjustment':
+      return `${delta} credits — adjustment (balance ${row.balance_after})`;
     default:
       return `${delta} credits (balance ${row.balance_after})`;
   }

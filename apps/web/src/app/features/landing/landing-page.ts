@@ -4,7 +4,7 @@ import { ButtonModule } from 'primeng/button';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
-import type { PricingOverview } from '@chartanalyzer/shared';
+import type { FeatureCreditCost, PricingOverview } from '@chartanalyzer/shared';
 
 import { SupabaseClientService } from '../../core/supabase-client';
 import { ThemeService } from '../../core/theme.service';
@@ -53,4 +53,23 @@ export class LandingPage implements OnInit {
   protected priceLabel(amountMinor: number, currency: string): string {
     return formatPriceMinor(amountMinor, currency);
   }
+
+  /** A quick-select amount as a credit count — the same math the backend uses
+   * to price a purchase: amount ÷ price-per-credit, rounded down. */
+  protected creditsFor(amountMinor: number, pricePerCreditMinor: number): number {
+    return Math.floor(amountMinor / pricePerCreditMinor);
+  }
+
+  /** Plain-English line for one feature's credit cost, e.g. "1 credit = 1 chart analysis". */
+  protected featureCostLabel(cost: FeatureCreditCost): string {
+    const noun = FEATURE_NOUNS[cost.featureKey] ?? cost.featureKey.replace(/_/g, ' ');
+    return `${cost.credits} credit${cost.credits === 1 ? '' : 's'} = ${noun}`;
+  }
 }
+
+/** Plain-English descriptions for the closed set of feature keys in FEATURE_CREDIT_KEYS. */
+const FEATURE_NOUNS: Readonly<Record<string, string>> = {
+  chart_analysis: '1 chart analysis',
+  daily_briefing_run: '1 day of Daily Briefing monitoring per symbol',
+  fundamental_analysis: '1 fundamental analysis',
+};

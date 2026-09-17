@@ -227,7 +227,7 @@ export interface VisualAnalysisOutcome<T = AnalysisResult> {
  * after one retry, or schema validation failure) — never returns a partial or
  * coerced result. Callers decide what "failure" means for their own flow
  * (processAnalysis marks the analyses row failed; the watchlist path also
- * releases the automation-quota unit it consumed).
+ * refunds the daily_briefing_run credit it consumed).
  */
 export async function runVisualAnalysis(
   imageBuffer: Buffer,
@@ -675,10 +675,10 @@ function mostDiagnosticFailure(failures: AnalysisFailure[]): AnalysisFailure {
  * process down. Every code path — including the one where the failure handler's
  * own DB write fails — resolves normally.
  *
- * Quota is deliberately untouched here, on both the success and failure paths.
- * The quota unit was consumed when the analysis was created, before this
- * function ever ran, and it stays consumed even when the AI call fails. This is
- * NOT the same situation as the upload-failure compensation in
+ * The chart_analysis credit is deliberately untouched here, on both the
+ * success and failure paths. It was consumed when the analysis was created,
+ * before this function ever ran, and it stays consumed even when the AI call
+ * fails. This is NOT the same situation as the upload-failure compensation in
  * analysis.service.ts: there the image was never durably stored and nothing
  * happened; here the image IS stored and the attempt genuinely happened.
  * Refunding on AI failure would need its own deliberate policy (e.g. refund on
@@ -825,16 +825,14 @@ const MAX_RECLAIM_BATCH = 20;
  *
  * The route dispatches processAnalysis fire-and-forget, so a restart between
  * the 201 and the model returning used to strand that row at 'queued'
- * permanently: the user's entitlement was spent, the UI polled until it timed
+ * permanently: the user's credit was spent, the UI polled until it timed
  * out, and nothing would ever pick the row up again.
  *
  * Re-running is the right recovery rather than marking the row failed. The
- * image is already durably stored and the entitlement is already spent, so
+ * image is already durably stored and the credit is already spent, so
  * processing it is what the user actually paid for — and it needs no refund
- * policy, which matters because the row does not record whether a quota unit
- * or a credit was consumed. A re-run that fails for a real reason still ends
- * up 'failed' through processAnalysis's own handler, exactly as a first
- * attempt would.
+ * policy. A re-run that fails for a real reason still ends up 'failed'
+ * through processAnalysis's own handler, exactly as a first attempt would.
  *
  * Sequential and bounded, and never throws — it is called from a timer.
  */
@@ -905,23 +903,21 @@ export async function reclaimStrandedAnalyses(): Promise<number> {
 
     // Every other failure path for a fundamentals row (a fetch error, an AI
     // error, a save error — see runFundamentalsAnalysisPipeline in
-    // fundamentals-analysis.service.ts) refunds the entitlement it consumed.
-    // A row stranded by a process restart never reaches any of those paths —
-    // the in-flight promise chain holding that refund died with the process —
-    // so without this, an abandoned fundamentals row permanently burns the
-    // user's quota unit for a run that never produced a result. The period is
-    // derived from when the row was created (when the unit was consumed),
-    // not from now: the sweep can run well after a month boundary, and
-    // decrementing "now"'s period would credit the wrong month's counter.
+    // fundamentals-analysis.service.ts) refunds the fundamental_analysis
+    // credit it consumed. A row stranded by a process restart never reaches
+    // any of those paths — the in-flight promise chain holding that refund
+    // died with the process — so without this, an abandoned fundamentals row
+    // permanently burns the user's credit for a run that never produced a
+    // result.
     if (row.source === "fundamentals") {
-      const period = row.created_at.slice(0, 7); // YYYY-MM, UTC — created_at is stored in UTC
       try {
-        await callRpc<null>("decrement_fundamentals_usage", {
+        await callRpc<null>("refund_credits", {
           p_profile_id: row.profile_id,
-          p_period: period,
+          p_feature_key: "fundamental_analysis",
+          p_ref_analysis_id: row.id,
         });
       } catch (cause) {
-        logger.error("failed to refund stranded fundamentals entitlement", {
+        logger.error("failed to refund stranded fundamentals credit", {
           analysisId: row.id,
           cause: String(cause),
         });

@@ -38,7 +38,7 @@ export async function getProfileDetails(profileId: string): Promise<ProfileDetai
  * None of fullName/phoneNumber/profession/location are in
  * protect_profile_columns()'s guarded list (see the init migration and
  * 20260902130200_profile_contact_details.sql), so a plain update through the
- * service-role client is enough — no RPC needed, unlike plan_id/email/credit_balance.
+ * service-role client is enough — no RPC needed, unlike email/credit_balance.
  *
  * Only the keys present in `updates` are written — a field the caller didn't
  * touch is left as-is rather than overwritten with an implicit null.

@@ -366,6 +366,17 @@
   flex: 1;
 }
 
+/* The quick-amounts and feature-cost lists inside a grid card — plain lines,
+   not bulleted, since each is already a short self-contained statement. */
+.landing-quick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 .landing-pricing-pending {
   color: var(--tx-3);
 }

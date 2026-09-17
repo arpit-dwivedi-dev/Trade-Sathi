@@ -1,238 +1,335 @@
-import type { PricingRegion, PublicTopUpPackPrice } from "@chartanalyzer/shared";
+import type { CreditPricing, FeatureCreditCost, PricingRegion } from "@chartanalyzer/shared";
 import { env } from "../lib/env.js";
 import { razorpay } from "../lib/razorpay-client.js";
 import { callRpc, supabaseAdmin } from "../lib/supabase.js";
 
 /**
- * What one pack costs in one region. A pack sold in a single currency lists
- * only that region; a pack with no row for the caller's region is not for
- * sale there, which `createCreditOrder` reports as 'pack_unavailable' rather
- * than silently charging the wrong currency.
+ * Credit purchasing and pricing. Replaces the old fixed-pack catalogue
+ * (CREDIT_PACKS) entirely: a purchase is any quantity of credits at or above
+ * the caller's region minimum, priced from credit_pricing_regions — pure
+ * config, never a code change to reprice or add a region.
  *
  * Money is integer minor units (paise / cents), never a float.
  */
-interface RegionPrice {
-  amountMinor: number;
+
+interface CreditPricingRegionRow {
+  region: PricingRegion;
   currency: string;
+  price_per_credit_minor: number;
+  min_purchase_credits: number;
+  max_purchase_credits: number;
+  purchase_increment_credits: number;
+  quick_amounts_minor: number[];
+}
+
+async function readActivePricingRegion(
+  region: PricingRegion,
+): Promise<CreditPricingRegionRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from("credit_pricing_regions")
+    .select(
+      "region, currency, price_per_credit_minor, min_purchase_credits, max_purchase_credits, purchase_increment_credits, quick_amounts_minor",
+    )
+    .eq("region", region)
+    .eq("is_active", true)
+    .maybeSingle<CreditPricingRegionRow>();
+  if (error) {
+    throw error;
+  }
+  return data;
+}
+
+function toCreditPricing(row: CreditPricingRegionRow): CreditPricing {
+  return {
+    region: row.region,
+    currency: row.currency,
+    pricePerCreditMinor: row.price_per_credit_minor,
+    minPurchaseCredits: row.min_purchase_credits,
+    maxPurchaseCredits: row.max_purchase_credits,
+    purchaseIncrementCredits: row.purchase_increment_credits,
+    quickAmountsMinor: row.quick_amounts_minor,
+  };
 }
 
 /**
- * The credit packs on sale, keyed by what they top up.
+ * The caller's region and its current credit rate/purchase rules, for
+ * GET /api/pricing.
  *
- * Three SKUs. `analysis` credits are spent on user-initiated analyses
- * (profiles.credit_balance); `daily_briefing` credits are spent on automated
- * watchlist runs (profiles.daily_briefing_credit_balance). They are
- * deliberately not interchangeable — a briefing run costs us a full model call
- * with no user waiting on it, and letting one balance pay for the other would
- * make either price wrong.
- *
- * `entry_pass` is the paid way into a paywalled account: a one-time,
- * once-per-account purchase of 5 analysis credits at a lower price than the
- * recurring tiers. It is an Order, not a Subscription, so it reuses this
- * machinery and needs no Razorpay dashboard Plan object — but it IS priced
- * per region (₹49 / $5), unlike the two top-up packs which are INR-only
- * until international pricing for them is a deliberate decision.
- *
- * A briefing top-up exists because the Daily Briefing add-on is a
- * subscription, and buying that subscription a second time would charge every
- * month while granting nothing: its allowance comes from the plan's
- * daily_briefing_entitlements row, not from a count of subscriptions. Packs
- * stack within a month (10 + 10 + 10); a second subscription cannot.
- *
- * `purpose` is what the webhook routes on, and is stored on the payments row —
- * so these strings are persisted history and must not be reused for a
- * different pack if one is ever repriced.
+ * Throws if the region has no active row — both regions this app sells in
+ * are seeded and active, so reaching that is a configuration problem, not an
+ * expected outcome a caller branches on.
  */
-/** One pack's catalogue row: what it's called on the payments row, what it
- * grants, and what it costs per region. */
-interface CreditPackDef {
-  purpose: string;
+export async function getCreditPricing(region: PricingRegion): Promise<CreditPricing> {
+  const row = await readActivePricingRegion(region);
+  if (!row) {
+    throw new Error(`No active credit_pricing_regions row for region ${region}`);
+  }
+  return toCreditPricing(row);
+}
+
+interface FeatureCreditCostRow {
+  feature_key: string;
   credits: number;
-  prices: Partial<Record<PricingRegion, RegionPrice>>;
+}
+
+/** Every active feature's cost in credits, for GET /api/pricing. */
+export async function getFeatureCreditCosts(): Promise<FeatureCreditCost[]> {
+  const { data, error } = await supabaseAdmin
+    .from("feature_credit_costs")
+    .select("feature_key, credits")
+    .eq("is_active", true);
+  if (error) {
+    throw error;
+  }
+  return (data ?? []).map((row: FeatureCreditCostRow) => ({
+    featureKey: row.feature_key,
+    credits: row.credits,
+  }));
 }
 
 /**
- * Typed explicitly (not `as const satisfies`) so each pack's `prices` widens
- * to the same `Partial<Record<PricingRegion, RegionPrice>>` shape. Under
- * `satisfies` alone, each literal keeps only the region keys it was written
- * with (e.g. analysis's `{ IN: ... }`), and indexing it with a `PricingRegion`
- * variable — as createCreditOrder and entryPassPriceFor both do — fails to
- * type-check because 'GLOBAL' isn't a key of that narrower literal type.
+ * A promo_codes row's discount-relevant columns. free_credits and the
+ * redeem-only columns are irrelevant here — that path is
+ * redeem_promo_code_credits, called from promo.service.ts — so they are not
+ * selected.
+ *
+ * discount_percent is numeric(5,2) in Postgres, which the client returns as
+ * a string; every read of it below goes through Number(...).
  */
-const CREDIT_PACKS: Record<"analysis" | "daily_briefing" | "entry_pass", CreditPackDef> = {
-  analysis: {
-    purpose: "credit_pack_10",
-    credits: 10,
-    prices: { IN: { amountMinor: 7900, currency: "INR" } },
-  },
-  daily_briefing: {
-    purpose: "daily_briefing_credit_pack_10",
-    credits: 10,
-    // Priced above the analysis pack: a briefing run renders its own chart and
-    // makes the same model call, with no user waiting on the result.
-    prices: { IN: { amountMinor: 9900, currency: "INR" } },
-  },
-  entry_pass: {
-    purpose: "entry_pass_5",
-    credits: 5,
-    prices: {
-      IN: { amountMinor: 4900, currency: "INR" },
-      GLOBAL: { amountMinor: 500, currency: "USD" },
-    },
-  },
-};
-
-/** Which balance a pack tops up. */
-export type CreditPackKind = keyof typeof CREDIT_PACKS;
-
-/** The entry pass's price in one region, for GET /api/pricing. Null when a
- * region has no entry-pass price — none today, but the catalogue decides. */
-export function entryPassPriceFor(region: PricingRegion): {
-  amountMinor: number;
-  currency: string;
-  credits: number;
-} | null {
-  const price = CREDIT_PACKS.entry_pass.prices[region];
-  if (!price) return null;
-  return { amountMinor: price.amountMinor, currency: price.currency, credits: CREDIT_PACKS.entry_pass.credits };
+interface PromoCodeDiscountRow {
+  id: string;
+  discount_percent: string | null;
+  discount_fixed_minor: number | null;
+  max_discount_amount_minor: number | null;
+  min_purchase_amount_minor: number | null;
+  max_redemptions: number | null;
+  redemption_count: number;
+  per_user_limit: number;
+  region_eligibility: PricingRegion[] | null;
+  starts_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
 }
 
-/** The packs that top up a balance. entry_pass is a one-time purchase rather
- * than a top-up, and is published by entryPassPriceFor instead. */
-const TOP_UP_PACK_KINDS = ["analysis", "daily_briefing"] as const;
+/** Escapes ILIKE's own wildcard characters so a code lookup is an exact,
+ *  case-insensitive match rather than a pattern search. */
+function escapeLikePattern(value: string): string {
+  return value.replace(/[%_\\]/g, (match) => `\\${match}`);
+}
+
+type DiscountOutcome =
+  | { ok: true; discountMinor: number; promoCodeId: string }
+  | { ok: false };
 
 /**
- * The top-up packs on sale in one region, for GET /api/pricing.
+ * Validates a discount code against one order's region and pre-discount
+ * amount, and computes the discount it earns.
  *
- * Priced from this catalogue rather than from constants in the web app: the
- * amount a button advertises has to be the amount createCreditOrder charges,
- * and one source is the only way to guarantee that. A pack with no price here
- * is omitted, which is the same fact createCreditOrder reports as
- * 'pack_unavailable' — so a client rendering only what it is given cannot
- * offer a purchase this file would refuse.
+ * Every rejection reason collapses to the same `{ ok: false }` — mirroring
+ * redeem_promo_code_credits's 'invalid_code', which deliberately does not
+ * distinguish "no such code" from "exists but expired" from "exists but is a
+ * free-credits-only code": telling a caller which guessed codes used to be
+ * real, or do something else, is a free enumeration oracle. A code with no
+ * discount component (free_credits only) is treated exactly like an unknown
+ * code for this purpose.
  */
-export function topUpPackPricesFor(region: PricingRegion): PublicTopUpPackPrice[] {
-  return TOP_UP_PACK_KINDS.flatMap((kind) => {
-    const price = CREDIT_PACKS[kind].prices[region];
-    return price
-      ? [
-          {
-            kind,
-            amountMinor: price.amountMinor,
-            currency: price.currency,
-            credits: CREDIT_PACKS[kind].credits,
-          },
-        ]
-      : [];
-  });
+async function resolveDiscount(
+  profileId: string,
+  code: string,
+  region: PricingRegion,
+  baseAmountMinor: number,
+): Promise<DiscountOutcome> {
+  const { data: promo, error } = await supabaseAdmin
+    .from("promo_codes")
+    .select(
+      "id, discount_percent, discount_fixed_minor, max_discount_amount_minor, min_purchase_amount_minor, max_redemptions, redemption_count, per_user_limit, region_eligibility, starts_at, expires_at, is_active",
+    )
+    .ilike("code", escapeLikePattern(code))
+    .maybeSingle<PromoCodeDiscountRow>();
+  if (error) {
+    throw error;
+  }
+
+  const invalid: DiscountOutcome = { ok: false };
+
+  if (!promo || !promo.is_active) return invalid;
+  if (promo.discount_percent === null && promo.discount_fixed_minor === null) return invalid;
+  if (promo.starts_at && new Date(promo.starts_at).getTime() > Date.now()) return invalid;
+  if (promo.expires_at && new Date(promo.expires_at).getTime() < Date.now()) return invalid;
+  if (
+    promo.region_eligibility &&
+    promo.region_eligibility.length > 0 &&
+    !promo.region_eligibility.includes(region)
+  ) {
+    return invalid;
+  }
+  if (promo.min_purchase_amount_minor !== null && baseAmountMinor < promo.min_purchase_amount_minor) {
+    return invalid;
+  }
+  if (promo.max_redemptions !== null && promo.redemption_count >= promo.max_redemptions) {
+    return invalid;
+  }
+
+  const { count, error: countError } = await supabaseAdmin
+    .from("promo_redemptions")
+    .select("id", { count: "exact", head: true })
+    .eq("code_id", promo.id)
+    .eq("profile_id", profileId)
+    .eq("redemption_type", "discount");
+  if (countError) {
+    throw countError;
+  }
+  if ((count ?? 0) >= promo.per_user_limit) return invalid;
+
+  let discountMinor: number;
+  if (promo.discount_percent !== null) {
+    discountMinor = Math.round((baseAmountMinor * Number(promo.discount_percent)) / 100);
+    if (promo.max_discount_amount_minor !== null) {
+      discountMinor = Math.min(discountMinor, promo.max_discount_amount_minor);
+    }
+  } else {
+    discountMinor = Math.min(promo.discount_fixed_minor ?? 0, baseAmountMinor);
+  }
+
+  return { ok: true, discountMinor, promoCodeId: promo.id };
 }
 
 /**
- * Which SQL function grants a captured payment's credits, by the purpose
- * stored on the payments row.
- *
- * The webhook routes on this rather than deciding for itself: the purpose was
- * written when the order was created, so a payment can only ever grant the
- * currency it was sold as, no matter what the webhook payload claims.
- *
- * The entry pass shares apply_credit_purchase with the top-up packs: it is
- * the same grant (N credits to profiles.credit_balance off a captured Order,
- * with the payments row carrying how many), so a second function would be a
- * copy with one different constant.
+ * Razorpay's documented minimum order amount, per currency. A discount is
+ * clamped rather than allowed to push an order below this floor — see the
+ * clamping comment in createCreditOrder.
  */
-export const CREDIT_GRANT_FUNCTION_BY_PURPOSE: Readonly<Record<string, string>> = {
-  [CREDIT_PACKS.analysis.purpose]: "apply_credit_purchase",
-  [CREDIT_PACKS.daily_briefing.purpose]: "apply_daily_briefing_credit_purchase",
-  [CREDIT_PACKS.entry_pass.purpose]: "apply_credit_purchase",
+const MIN_ORDER_AMOUNT_MINOR: Record<PricingRegion, number> = {
+  IN: 100, // ₹1.00
+  GLOBAL: 50, // $0.50
 };
 
 export type CreateCreditOrderResult =
-  | { ok: true; orderId: string; keyId: string; amountMinor: number; currency: string }
+  | {
+      ok: true;
+      orderId: string;
+      keyId: string;
+      amountMinor: number;
+      currency: string;
+      creditsRequested: number;
+    }
   | {
       ok: false;
-      reason: "provider_error" | "pack_unavailable" | "already_purchased";
+      reason:
+        | "below_minimum_purchase"
+        | "above_maximum_purchase"
+        | "invalid_quantity_step"
+        | "invalid_promo_code"
+        | "region_unavailable"
+        | "provider_error";
       message: string;
     };
 
 /**
- * Creates a Razorpay Order for one credit pack and records it locally,
- * returning the identifiers Razorpay Checkout needs on the client.
+ * Creates a Razorpay Order for a chosen quantity of credits and records it
+ * locally, returning the identifiers Razorpay Checkout needs on the client.
  *
- * Orders are Razorpay's one-time-payment primitive, entirely distinct from
- * the Subscriptions API used for pro_monthly/starter_monthly: no dashboard
- * "Plan" object exists or is needed for a credit pack, and nothing here touches
- * public.subscriptions.
- *
- * The price comes from the pack's row for the caller's region — the same
- * region resolution the subscription path uses, so the two purchase paths can
- * never disagree about what a user is charged.
- *
- * The entry pass is once per account: a prior captured payment with its
- * purpose means the account has already used it, and the answer is
- * 'already_purchased' rather than a second charge. Abandoned ('created')
- * checkouts do not count — nothing was paid.
+ * An optional promo code, if it validates as a discount code for this region
+ * and order size, reduces the charged amount; apply_credit_purchase finalizes
+ * that code's bookkeeping (redemption_count, the promo_redemptions row) at
+ * capture time, off the promo_code_id recorded on the payments row below —
+ * this function does not re-validate the code at that point.
  *
  * Expected outcomes are returned as a discriminated result; only genuinely
  * unexpected failures (DB errors) throw, and the route maps those to 500.
  */
 export async function createCreditOrder(
   profileId: string,
-  kind: CreditPackKind,
   region: PricingRegion,
+  quantity: number,
+  promoCode?: string | null,
 ): Promise<CreateCreditOrderResult> {
-  const pack = CREDIT_PACKS[kind];
-  const price = pack.prices[region];
-  if (!price) {
+  const pricingRow = await readActivePricingRegion(region);
+  if (!pricingRow) {
     return {
       ok: false,
-      reason: "pack_unavailable",
-      message: "That pack is not available in your region",
+      reason: "region_unavailable",
+      message: "Credit purchases are not available in your region",
     };
   }
 
-  // Once-per-account gate for the entry pass. Checked before the Order is
-  // created so a second attempt never gets as far as Razorpay. The count is
-  // not a lock — two concurrent attempts could both pass — but the worst case
-  // is a second order created and abandoned; credits are only ever granted by
-  // apply_credit_purchase off a CAPTURED payment, and a captured entry-pass
-  // payment past the first is a support refund, not a balance corruption.
-  if (kind === "entry_pass") {
-    const { count, error: countError } = await supabaseAdmin
-      .from("payments")
-      .select("id", { count: "exact", head: true })
-      .eq("profile_id", profileId)
-      .eq("purpose", pack.purpose)
-      .eq("status", "captured");
-    if (countError) {
-      throw countError;
-    }
-    if ((count ?? 0) > 0) {
-      return {
-        ok: false,
-        reason: "already_purchased",
-        message: "This account has already used its entry pass",
-      };
-    }
+  // The purchase bounds are enforced here and only here. The buy form clamps
+  // and snaps too, but that is a convenience for the honest user: nothing
+  // stops a caller posting to this endpoint directly, so a quantity outside
+  // [min, max] or off the increment has to be refused server-side or it is
+  // not refused at all.
+  if (!Number.isInteger(quantity) || quantity < pricingRow.min_purchase_credits) {
+    return {
+      ok: false,
+      reason: "below_minimum_purchase",
+      message: `A purchase must be at least ${pricingRow.min_purchase_credits} credits`,
+    };
   }
 
-  // (a) Create the Razorpay Order.
-  //
+  if (quantity > pricingRow.max_purchase_credits) {
+    return {
+      ok: false,
+      reason: "above_maximum_purchase",
+      message: `A purchase can be at most ${pricingRow.max_purchase_credits} credits`,
+    };
+  }
+
+  // Counted from the minimum, not from zero, so a region whose minimum is
+  // itself off the increment's grid still accepts its own minimum.
+  if ((quantity - pricingRow.min_purchase_credits) % pricingRow.purchase_increment_credits !== 0) {
+    return {
+      ok: false,
+      reason: "invalid_quantity_step",
+      message: `Credits are sold in steps of ${pricingRow.purchase_increment_credits}`,
+    };
+  }
+
+  const baseAmountMinor = quantity * pricingRow.price_per_credit_minor;
+
+  let discountMinor = 0;
+  let promoCodeId: string | null = null;
+
+  const trimmedPromoCode = promoCode?.trim();
+  if (trimmedPromoCode) {
+    const discount = await resolveDiscount(profileId, trimmedPromoCode, region, baseAmountMinor);
+    if (!discount.ok) {
+      return {
+        ok: false,
+        reason: "invalid_promo_code",
+        message: "That promo code is not valid",
+      };
+    }
+    discountMinor = discount.discountMinor;
+    promoCodeId = discount.promoCodeId;
+  }
+
+  // The buyer already cleared the minimum-purchase gate above, so a discount
+  // that would otherwise take the order below Razorpay's minimum order
+  // amount is clamped rather than rejected outright — the order still goes
+  // through, just without discounting past what the provider allows.
+  const floorMinor = MIN_ORDER_AMOUNT_MINOR[region];
+  if (baseAmountMinor - discountMinor < floorMinor) {
+    discountMinor = Math.max(0, baseAmountMinor - floorMinor);
+  }
+
+  const amountMinor = baseAmountMinor - discountMinor;
+
   // notes carry the profile id so a purchase can be traced back from the
   // Razorpay dashboard, but they are NOT the mechanism the webhook uses to
-  // attribute the payment — that goes through the payments row written below,
-  // which is our own record and cannot be influenced by the client.
+  // attribute the payment — that goes through the payments row written
+  // below, which is our own record and cannot be influenced by the client.
   let order;
   try {
     order = await razorpay.orders.create({
-      amount: price.amountMinor,
-      currency: price.currency,
-      notes: { profile_id: profileId, purpose: pack.purpose },
+      amount: amountMinor,
+      currency: pricingRow.currency,
+      notes: { profile_id: profileId, credits: String(quantity) },
     });
   } catch {
     // The caught error is deliberately not inspected, forwarded, or logged
-    // here: Razorpay error payloads can echo request details and key material,
-    // and nothing from them may reach a response body. The route logs a
-    // generic failure instead.
+    // here: Razorpay error payloads can echo request details and key
+    // material, and nothing from them may reach a response body. The route
+    // logs a generic failure instead.
     return {
       ok: false,
       reason: "provider_error",
@@ -240,21 +337,21 @@ export async function createCreditOrder(
     };
   }
 
-  // (b) Record the pending purchase.
-  //
   // status='created' and signature_verified=false are the honest state right
   // now: an order exists, nothing has been paid, and no signature has been
-  // checked. The apply_* function this pack's purpose routes to is the only
-  // thing that moves either — it runs after the webhook route verifies the
-  // signature over the raw body. Credits are granted there and nowhere else.
+  // checked. apply_credit_purchase is the only thing that moves either — it
+  // runs after the webhook route verifies the signature over the raw body,
+  // or after reconcileCreditOrder confirms capture directly with Razorpay.
   const { error: insertError } = await supabaseAdmin.from("payments").insert({
     profile_id: profileId,
     provider: "razorpay",
     provider_order_id: order.id,
-    purpose: pack.purpose,
-    credits_granted: pack.credits,
-    amount_minor: price.amountMinor,
-    currency: price.currency,
+    credits_purchased: quantity,
+    base_amount_minor: baseAmountMinor,
+    discount_minor: discountMinor,
+    amount_minor: amountMinor,
+    currency: pricingRow.currency,
+    promo_code_id: promoCodeId,
     status: "created",
     signature_verified: false,
   });
@@ -262,15 +359,16 @@ export async function createCreditOrder(
     throw insertError;
   }
 
-  // (c) RAZORPAY_KEY_ID is the publishable key and is safe to return — it is
+  // RAZORPAY_KEY_ID is the publishable key and is safe to return — it is
   // what Razorpay Checkout's JS widget needs on the frontend. The secret key
   // must never appear in any response body, log line, or error message.
   return {
     ok: true,
     orderId: order.id,
     keyId: env.razorpayKeyId,
-    amountMinor: price.amountMinor,
-    currency: price.currency,
+    amountMinor,
+    currency: pricingRow.currency,
+    creditsRequested: quantity,
   };
 }
 
@@ -288,10 +386,12 @@ export type ReconcileCreditOrderResult =
  * Without this, a missed delivery means a customer has paid and the only
  * automated recovery is none: the client polls a row that will never change.
  *
- * The two paths converge on the same grant functions, so the balance movement
- * and the idempotency guard live in one place. If the webhook lands while this
- * is in flight, the FOR UPDATE in the function serializes them and the loser
- * returns 'duplicate'.
+ * Both paths converge on apply_credit_purchase, so the balance movement and
+ * the idempotency guard live in one place — including the promo-code
+ * finalization, which that function reads off the payments row itself and
+ * this function does not need to know about. If the webhook lands while this
+ * is in flight, the FOR UPDATE inside apply_credit_purchase serializes them
+ * and the loser returns 'duplicate'.
  *
  * 'captured' is the only provider status acted on, matching exactly what the
  * webhook path acts on (payment.captured). An 'authorized' payment is money
@@ -309,10 +409,10 @@ export async function reconcileCreditOrder(
   // endpoint moves credits, and the order id travels through the browser.
   const { data: payment, error: lookupError } = await supabaseAdmin
     .from("payments")
-    .select("id, purpose, status")
+    .select("id, status")
     .eq("provider_order_id", providerOrderId)
     .eq("profile_id", profileId)
-    .maybeSingle<{ id: string; purpose: string; status: string }>();
+    .maybeSingle<{ id: string; status: string }>();
 
   if (lookupError) {
     throw new Error(lookupError.message);
@@ -326,14 +426,6 @@ export async function reconcileCreditOrder(
   // Answered without a provider round-trip, so the client's retries are cheap.
   if (payment.status === "captured") {
     return { ok: true, outcome: "duplicate" };
-  }
-
-  const grantFunction = CREDIT_GRANT_FUNCTION_BY_PURPOSE[payment.purpose];
-  if (!grantFunction) {
-    // The retired-SKU case the webhook also handles: a payments row whose
-    // purpose has no grant function. Nothing to grant and nothing that a retry
-    // would change, so it reads to the client as "no such purchase".
-    return { ok: false, reason: "not_found" };
   }
 
   // Not inspected or forwarded, for the same reason as in createCreditOrder:
@@ -353,12 +445,12 @@ export async function reconcileCreditOrder(
     return { ok: false, reason: "not_paid" };
   }
 
-  const outcome = await callRpc<string>(grantFunction, {
+  const outcome = await callRpc<string>("apply_credit_purchase", {
     p_provider_order_id: providerOrderId,
     p_provider_payment_id: captured.id,
     // False, and it is not a shortcoming: this capture was established by
-    // querying Razorpay's API, not by checking a signature over a webhook body.
-    // The column records which of the two happened.
+    // querying Razorpay's API, not by checking a signature over a webhook
+    // body. The column records which of the two happened.
     p_signature_verified: false,
   });
 

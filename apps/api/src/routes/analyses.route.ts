@@ -48,9 +48,10 @@ analysesRouter.post(
 
       if (!result.ok) {
         // 402 Payment Required, deliberately chosen over 429: this signals
-        // "upgrade needed", not "retry shortly". The frontend should route the
-        // user to the upgrade flow rather than backing off and retrying.
-        res.status(402).json({ error: "Monthly analysis quota exceeded" });
+        // "buy more credits", not "retry shortly". The frontend should route
+        // the user to the buy-credits flow rather than backing off and
+        // retrying.
+        res.status(402).json({ error: "Insufficient credits", reason: "insufficient_credits" });
         return;
       }
 

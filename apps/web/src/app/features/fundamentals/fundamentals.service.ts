@@ -16,7 +16,7 @@ export type AnalyzeWithAiResult =
   | { ok: true; id: string }
   | {
       ok: false;
-      reason: 'quota_exceeded' | 'not_found' | 'unauthenticated' | 'error';
+      reason: 'insufficient_credits' | 'not_found' | 'unauthenticated' | 'error';
       message: string;
     };
 
@@ -100,8 +100,8 @@ export class FundamentalsService {
       if (status === 402) {
         return {
           ok: false,
-          reason: 'quota_exceeded',
-          message: "You've used all your fundamentals analyses this month.",
+          reason: 'insufficient_credits',
+          message: "You don't have enough credits for a fundamentals analysis.",
         };
       }
       if (status === 404) {

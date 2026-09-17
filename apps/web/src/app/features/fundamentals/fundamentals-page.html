@@ -14,6 +14,9 @@
       }
       {{ aiState() === 'queued' ? 'Analyzing…' : 'Analyze with AI' }}
     </button>
+    @if (aiCostLabel(); as cost) {
+      <span class="fund-ai-cost dim">{{ cost }}</span>
+    }
   </ng-template>
 
   @if (loading()) {
@@ -114,7 +117,7 @@
           </p-card>
         }
       }
-      @case ('quota_exceeded') {
+      @case ('insufficient_credits') {
         <p-card class="fund-card fund-ai-status">
           <p class="err">{{ aiError() }}</p>
         </p-card>

@@ -1,8 +1,4 @@
-import {
-  consumeAnalysisEntitlement,
-  currentUtcPeriod,
-  releaseEntitlement,
-} from "./analysis.service.js";
+import { consumeAnalysisCredit, refundAnalysisCredit } from "./analysis.service.js";
 import { runInstrumentAnalysis, type ProvidedChart } from "./instrument-analysis.service.js";
 import { fetchInstrumentById } from "./market-chart.service.js";
 import { logger } from "../lib/logger.js";
@@ -13,15 +9,15 @@ import { supabaseAdmin } from "../lib/supabase.js";
  * search for, over whatever window they are currently looking at, with no
  * watchlist entry required.
  *
- * Spends the ordinary manual-analysis entitlement (the same monthly quota /
- * credit an uploaded screenshot costs), NOT the Daily Briefing subscription:
- * this is a one-off the user asked for, not scheduled work. Everything after
- * the entitlement is the shared pipeline in instrument-analysis.service.
+ * Spends the ordinary chart_analysis credit (the same one an uploaded
+ * screenshot costs), NOT the daily_briefing_run credit: this is a one-off
+ * the user asked for, not scheduled work. Everything after the credit is the
+ * shared pipeline in instrument-analysis.service.
  */
 
 export type LiveAnalysisResult =
   | { ok: true; analysisId: string; instrumentId: string; startedAt: string }
-  | { ok: false; reason: "not_found" | "invalid_lookback" | "quota_exceeded" };
+  | { ok: false; reason: "not_found" | "invalid_lookback" | "insufficient_credits" };
 
 const MIN_LOOKBACK_DAYS = 1;
 const MAX_LOOKBACK_DAYS = 365;
@@ -60,11 +56,8 @@ export async function analyzeInstrumentLive(
   const ref = await fetchInstrumentById(instrumentId);
   if (!ref) return { ok: false, reason: "not_found" };
 
-  // Captured before the RPC and reused by the compensating release below —
-  // see releaseEntitlement's doc comment for the month-boundary trade-off.
-  const period = currentUtcPeriod();
-  const entitlementSource = await consumeAnalysisEntitlement(profileId);
-  if (!entitlementSource) return { ok: false, reason: "quota_exceeded" };
+  const consumed = await consumeAnalysisCredit(profileId);
+  if (!consumed) return { ok: false, reason: "insufficient_credits" };
 
   const startedAt = new Date().toISOString();
 
@@ -91,20 +84,20 @@ export async function analyzeInstrumentLive(
     .single<{ id: string }>();
 
   if (queueError || !queuedRow) {
-    // Nothing was started, so the entitlement consumed above buys nothing.
+    // Nothing was started, so the credit consumed above buys nothing.
     logger.error("failed to record live analysis run", {
       profileId,
       instrumentId,
       cause: String(queueError),
     });
-    await releaseEntitlement(profileId, entitlementSource, period);
+    await refundAnalysisCredit(profileId);
     throw queueError ?? new Error("Live analysis insert returned no row");
   }
 
   // Not awaited: see the doc comment above. A null result means the pipeline
   // failed before storing a result — it has already marked the row 'failed',
-  // and the entitlement is given back here, since the pipeline itself
-  // deliberately owns no quota policy.
+  // and the credit is given back here, since the pipeline itself
+  // deliberately owns no billing policy.
   void runInstrumentAnalysis(
     profileId,
     ref,
@@ -114,7 +107,7 @@ export async function analyzeInstrumentLive(
     queuedRow.id,
   )
     .then(async (result) => {
-      if (!result) await releaseEntitlement(profileId, entitlementSource, period);
+      if (!result) await refundAnalysisCredit(profileId, queuedRow.id);
     })
     .catch(async (cause: unknown) => {
       logger.error("live analysis background processing failed", {
@@ -133,7 +126,7 @@ export async function analyzeInstrumentLive(
           error_message: "The analysis could not be completed",
         })
         .eq("id", queuedRow.id);
-      await releaseEntitlement(profileId, entitlementSource, period);
+      await refundAnalysisCredit(profileId, queuedRow.id);
     });
 
   return { ok: true, analysisId: queuedRow.id, instrumentId: ref.instrumentId, startedAt };

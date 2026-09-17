@@ -5,7 +5,7 @@ import { CardModule } from 'primeng/card';
 
 import { LottiePlayer } from '../../shared/lottie-player';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
-import { AnalyzeService, type PollHandle, type QuotaStatus } from './analyze.service';
+import { AnalyzeService, type PollHandle } from './analyze.service';
 import { ChartDrop, type ChartFileSelection } from './chart-drop';
 
 type AnalyzeState =
@@ -14,7 +14,7 @@ type AnalyzeState =
   | 'processing'
   | 'complete'
   | 'failed'
-  | 'quota_exceeded'
+  | 'insufficient_credits'
   | 'timed_out'
   | 'poll_error';
 
@@ -37,9 +37,9 @@ export class AnalyzePage implements OnInit, OnDestroy {
   private readonly analyze = inject(AnalyzeService);
 
   /**
-   * Asks the shell to open the plans overlay. The overlay is mounted once at
-   * the shell rather than here so both entry points — the nav control and this
-   * page's quota block — drive the same instance.
+   * Asks the shell to switch to the billing tab. Routed through the shell
+   * rather than navigated here directly so both entry points — the nav
+   * control and this page's out-of-credits block — behave identically.
    */
   readonly plansRequested = output<void>();
 
@@ -55,37 +55,26 @@ export class AnalyzePage implements OnInit, OnDestroy {
   /** Set only for a failed submission; otherwise the state carries the copy. */
   protected readonly error = signal<string | null>(null);
   /**
-   * This month's quota, read on load. null means "not known" (SSR, no session,
-   * read error) — the upload path stays open in that case and the backend's 402
-   * remains the authority.
+   * The credit balance, read on load. null means "not known" (SSR, no
+   * session, read error) — the upload path stays open in that case and the
+   * backend's 402 remains the authority.
    */
-  protected readonly quota = signal<QuotaStatus | null>(null);
+  protected readonly balance = signal<number | null>(null);
 
   private poll: PollHandle | null = null;
 
   ngOnInit(): void {
-    void this.refreshQuota();
+    void this.refreshBalance();
   }
 
-  /** True only when the quota is known *and* used up. */
-  protected quotaExhausted(): boolean {
-    const quota = this.quota();
-    return quota !== null && quota.remaining <= 0;
+  /** True only when the balance is known *and* zero. */
+  protected balanceExhausted(): boolean {
+    const balance = this.balance();
+    return balance !== null && balance <= 0;
   }
 
-  /**
-   * A brand-new account has no plan at all (limit 0), so its remaining is
-   * also 0 — same as an account that burned through a real allowance. Those
-   * two must not share the "you've used all your analyses" copy: this one
-   * never had any to use.
-   */
-  protected hasNoPlan(): boolean {
-    const quota = this.quota();
-    return quota !== null && quota.limit <= 0;
-  }
-
-  private async refreshQuota(): Promise<void> {
-    this.quota.set(await this.analyze.fetchQuota());
+  private async refreshBalance(): Promise<void> {
+    this.balance.set(await this.analyze.fetchCreditBalance());
   }
 
   protected async onFileSelected(selection: ChartFileSelection): Promise<void> {
@@ -109,21 +98,22 @@ export class AnalyzePage implements OnInit, OnDestroy {
 
     const submitted = await this.analyze.submitAnalysis(blob, selection.sourceType);
     if (!submitted.ok) {
-      // quota_exceeded is an expected, common outcome rather than a bug state,
-      // so it keeps its own friendly copy from the service and its own state —
-      // that state is what offers the upgrade path instead of just an error.
+      // insufficient_credits is an expected, common outcome rather than a bug
+      // state, so it keeps its own friendly copy from the service and its own
+      // state — that state is what offers the buy-credits path instead of just
+      // an error.
       this.error.set(submitted.message);
-      if (submitted.reason === 'quota_exceeded') {
-        // The cached quota disagreed with the backend, which is authoritative.
-        void this.refreshQuota();
-        this.state.set('quota_exceeded');
+      if (submitted.reason === 'insufficient_credits') {
+        // The cached balance disagreed with the backend, which is authoritative.
+        void this.refreshBalance();
+        this.state.set('insufficient_credits');
       } else {
         this.state.set('failed');
       }
       return;
     }
 
-    void this.refreshQuota();
+    void this.refreshBalance();
     this.analysisId.set(submitted.id);
     this.state.set('processing');
     this.startPolling(submitted.id);
@@ -157,27 +147,15 @@ export class AnalyzePage implements OnInit, OnDestroy {
   }
 
   /**
-   * The user upgraded: drop straight back to idle so the analysis their quota
-   * refused can be retried immediately. Called by the shell when the overlay
-   * reports a successful upgrade, from either entry point.
-   */
-  /**
-   * The user bought a credit pack: same reset as onUpgraded. Called by the
-   * shell when the overlay reports a purchase, from either entry point. The monthly quota is still exhausted — the next analysis draws
-   * on a credit instead, which check_and_consume_entitlement decides
-   * server-side — so this only clears the blocked UI state.
+   * The user bought credits: drop straight back to idle so the analysis the
+   * balance check refused can be retried immediately. Called by the shell
+   * when the billing tab reports a successful purchase, from either entry
+   * point.
    */
   onCreditsAdded(): void {
-    // Re-read the quota for the same reason as onUpgraded: the quota block's
-    // copy is stale once the user has paid, and must not survive into idle.
-    void this.refreshQuota();
-    this.reset();
-  }
-
-  onUpgraded(): void {
-    // Re-read the quota before resetting: the plan changed, so the pre-upgrade
-    // "no analyses left" state must not survive into idle.
-    void this.refreshQuota();
+    // Re-read the balance so the stale "not enough credits" copy doesn't
+    // survive into idle.
+    void this.refreshBalance();
     this.reset();
   }
 

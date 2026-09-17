@@ -13,8 +13,8 @@ const serverClientOptions = {
 
 /**
  * Privileged client — uses the service role key and bypasses RLS.
- * Use for all backend-owned work: quota RPCs, storage uploads, writes to
- * analyses/usage_counters.
+ * Use for all backend-owned work: credit RPCs, storage uploads, writes to
+ * analyses/credit_ledger.
  */
 export const supabaseAdmin = createClient(
   env.supabaseUrl,

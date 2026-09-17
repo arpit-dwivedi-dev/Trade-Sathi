@@ -1,0 +1,336 @@
+/* A status callout, built on the shared .note (background/border tinted from
+   --tone — see components.css) rather than reimplementing that from scratch.
+   Only the left accent rule, tighter padding and entrance animation are added
+   here. Was shared with the (now-removed) subscribe button via one styleUrl;
+   kept here since this is the only component left rendering these states. */
+.billing-msg {
+  align-items: center;
+  animation: billing-msg-in 160ms var(--ease-enter);
+  border-left-width: 2px;
+  border-left-color: var(--tone, var(--tx-3));
+  border-radius: var(--r-sm);
+  padding-block: var(--s3);
+}
+
+.billing-msg .ico {
+  flex-shrink: 0;
+}
+
+.billing-msg .ico {
+  height: 17px;
+  width: 17px;
+}
+
+/* The neutral .note tone (background/border tint only) doesn't color its own
+   text — these three states want the stronger, fully-colored treatment the
+   old bespoke classes had, so that part stays as a small modifier. */
+.billing-msg-ok {
+  color: var(--up);
+}
+
+.billing-msg-warn {
+  color: var(--warn);
+}
+
+.billing-msg-error {
+  color: var(--down);
+}
+
+.billing-retry {
+  margin-top: var(--s3);
+}
+
+/* ── the order form ────────────────────────────────────────── */
+/* One column at the card's own width. Every control here is a step of the same
+   sentence — how many, any shortcut, the code if you have one, what it costs,
+   buy it — so they read top to bottom rather than being split across a card
+   that is rarely wide enough to carry two. */
+.buy-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  width: 100%;
+}
+
+.buy-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.buy-field-head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--s2);
+  justify-content: space-between;
+}
+
+.buy-label {
+  color: var(--tx-2);
+  font-family: var(--fh);
+  font-size: var(--t-2xs);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.buy-hint {
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
+}
+
+/* The whole group takes the focus ring, not the bare input: the field reads as
+   one control, so it has to light up as one. */
+.buy-stepper {
+  align-items: stretch;
+  background: var(--surf);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  min-height: 44px;
+  overflow: hidden;
+  transition:
+    border-color var(--dur-subtle) var(--ease-move),
+    box-shadow var(--dur-subtle) var(--ease-move);
+}
+
+:root[data-theme='dark'] .buy-stepper {
+  background: var(--surf-2);
+}
+
+.buy-stepper:hover {
+  border-color: var(--tx-3);
+}
+
+.buy-stepper:focus-within {
+  border-color: var(--acc);
+  box-shadow: 0 0 0 3px var(--acc-soft);
+}
+
+.buy-step {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--tx-2);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  transition:
+    background var(--dur-subtle) var(--ease-move),
+    color var(--dur-subtle) var(--ease-move);
+}
+
+.buy-step svg {
+  height: 15px;
+  width: 15px;
+}
+
+.buy-step:hover:not([disabled]) {
+  background: var(--surf-3);
+  color: var(--tx);
+}
+
+.buy-step[disabled] {
+  color: var(--line-strong);
+  cursor: not-allowed;
+}
+
+.buy-step:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.buy-qty-wrap {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  min-width: 0;
+}
+
+.buy-qty {
+  appearance: textfield;
+  background: transparent;
+  border: 0;
+  color: var(--tx);
+  font-family: var(--fb);
+  font-size: var(--t-md);
+  font-weight: 600;
+  padding: 0;
+  text-align: right;
+  width: 5ch;
+}
+
+.buy-qty:focus {
+  outline: none;
+}
+
+/* The browser's own spinners would sit next to steppers that already do the
+   same job, at a worse size and on the wrong side of the field. */
+.buy-qty::-webkit-outer-spin-button,
+.buy-qty::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.buy-unit {
+  color: var(--tx-3);
+  font-size: var(--t-sm);
+}
+
+/* ── quick amounts ─────────────────────────────────────────── */
+/* Centred rather than ranged left: four short pills on a card this wide left a
+   metre of empty space beside the field they belong to, which read as chips
+   that had fallen off the left edge. Centred they read as one group under the
+   quantity they set. */
+.buy-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  justify-content: center;
+}
+
+.buy-chip {
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--tx-2);
+  cursor: pointer;
+  font-family: var(--fh);
+  font-size: var(--t-2xs);
+  font-weight: 500;
+  line-height: 1;
+  min-width: 44px;
+  padding: 8px 10px;
+  transition:
+    background var(--dur-subtle) var(--ease-move),
+    border-color var(--dur-subtle) var(--ease-move),
+    color var(--dur-subtle) var(--ease-move);
+}
+
+.buy-chip:hover {
+  border-color: var(--line-strong);
+  color: var(--tx);
+}
+
+.buy-chip-on,
+.buy-chip-on:hover {
+  background: var(--acc-soft);
+  border-color: var(--acc-line);
+  color: var(--acc-tx);
+}
+
+.buy-chip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* ── promo code, revealed on request ───────────────────────── */
+.buy-promo {
+  align-items: center;
+  animation: buy-promo-in 160ms var(--ease-enter);
+  display: flex;
+  gap: var(--s2);
+}
+
+.buy-promo-input {
+  min-width: 0;
+}
+
+/* Quiet on purpose: dropping a code is a correction, not a destructive act. */
+.buy-promo-drop {
+  background: none;
+  border: 0;
+  color: var(--tx-3);
+  cursor: pointer;
+  flex: none;
+  font-family: var(--fb);
+  font-size: var(--t-xs);
+  padding: 0 2px;
+}
+
+.buy-promo-drop:hover {
+  color: var(--tx);
+  text-decoration: underline;
+}
+
+.buy-promo-toggle {
+  align-items: center;
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  color: var(--acc-tx);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--fb);
+  font-size: var(--t-xs);
+  gap: 6px;
+  padding: 0;
+  text-align: left;
+}
+
+.buy-promo-toggle svg {
+  flex: none;
+  height: 14px;
+  width: 14px;
+}
+
+.buy-promo-toggle:hover {
+  text-decoration: underline;
+}
+
+/* ── total and the action ──────────────────────────────────── */
+.buy-total {
+  align-items: baseline;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: var(--s3);
+  justify-content: space-between;
+  padding-top: var(--s3);
+}
+
+.buy-total-lbl {
+  color: var(--tx-2);
+  font-size: var(--t-sm);
+}
+
+.buy-total-val {
+  color: var(--tx);
+  font-size: var(--t-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.buy-cta {
+  width: 100%;
+}
+
+@keyframes buy-promo-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes billing-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .billing-msg,
+  .buy-promo {
+    animation: none;
+  }
+}

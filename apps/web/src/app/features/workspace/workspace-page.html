@@ -275,17 +275,17 @@
     </div>
   }
 
-  @if (analyzeState() === 'quota_exceeded') {
+  @if (analyzeState() === 'insufficient_credits') {
     <div class="note ws-note" style="--tone: var(--warn)">
       <span>{{ analyzeError() }}</span>
-      <button pButton [outlined]="true" (click)="openPlans()">See plans</button>
+      <button pButton [outlined]="true" (click)="openPlans()">Buy credits</button>
     </div>
   } @else if (analyzeState() === 'failed' && analyzeError()) {
     <p class="err ws-error">{{ analyzeError() }}</p>
   }
 
   <!-- Finished while the user was looking at a different symbol. Not
-       dropped silently: it cost a quota unit and it is a real result. -->
+       dropped silently: it cost a credit and it is a real result. -->
   @if (finishedElsewhere(); as done) {
     <div class="note ws-note" style="--tone: var(--up)">
       <span>

@@ -63,8 +63,9 @@ interface DailyBriefingItem {
 /**
  * Which of the two row actions a run came from.
  *
- * They spend the same Daily Briefing entitlement and run the same pipeline —
- * the only difference is that 'brief' emails the result with its PDF attached.
+ * They spend the same daily_briefing_run credit cost and run the same
+ * pipeline — the only difference is that 'brief' emails the result with its
+ * PDF attached.
  */
 type RunMode = 'analyze' | 'brief';
 
@@ -132,6 +133,21 @@ export class DailyBriefing implements OnInit, OnDestroy {
   protected readonly billing = inject(BillingService);
 
   protected readonly columns = ['symbol', 'window', 'runAt', 'dailyBriefing', 'actions'];
+
+  /**
+   * "Costs N credits per run", read from the centrally configured feature
+   * cost list rather than hardcoded. There is no more subscription
+   * entitlement gating scheduling or Analyze Now — every run just spends
+   * credits from the one balance, and this is the one place that says how
+   * many. Null until pricing has loaded.
+   */
+  protected readonly runCostLabel = computed(() => {
+    const cost = this.billing
+      .pricing()
+      ?.featureCosts.find((row) => row.featureKey === 'daily_briefing_run');
+    if (!cost) return null;
+    return `Costs ${cost.credits} credit${cost.credits === 1 ? '' : 's'} per run`;
+  });
 
   protected readonly items = signal<DailyBriefingItem[]>([]);
   protected readonly loading = signal(true);
@@ -340,7 +356,7 @@ export class DailyBriefing implements OnInit, OnDestroy {
   ngOnInit(): void {
     void this.load();
     void this.resumeRuns();
-    void this.billing.ensurePlanSummary();
+    void this.billing.ensurePricing();
     void this.loadProcessingSlots();
     this.watchBriefingLog();
   }
@@ -557,14 +573,13 @@ export class DailyBriefing implements OnInit, OnDestroy {
 
   /**
    * Runs the same fetch/chart/AI pipeline as the scheduled daily briefing,
-   * for this one symbol, right now — consumes one unit of the same
-   * 30/month Daily Briefing quota (then a top-up credit, once that is spent).
-   * Independent of the toggle above and of the once-a-day scheduled email:
-   * neither mode touches daily_briefing_log.
+   * for this one symbol, right now — spends the daily_briefing_run credit
+   * cost from the one balance. Independent of the toggle above and of the
+   * once-a-day scheduled email: neither mode touches daily_briefing_log.
    *
    * `mode` picks which of the two row actions this is. 'analyze' just produces
    * the analysis; 'brief' also emails it, with the PDF attached. They are one
-   * method rather than two because everything else — the entitlement, the
+   * method rather than two because everything else — the credit cost, the
    * chart capture, the duplicate warning, the 202-then-watch contract, the
    * error mapping — is identical, and the endpoint is the only fork.
    *
@@ -632,7 +647,7 @@ export class DailyBriefing implements OnInit, OnDestroy {
     } catch (cause) {
       if (cause instanceof HttpErrorResponse && cause.status === 409) {
         // Not a failure: the same symbol over the same window was analysed in
-        // the last 24h. Ask rather than silently spend another quota unit.
+        // the last 24h. Ask rather than silently spend another credit.
         const body = cause.error as { lastAnalysisAt?: string; lookbackDays?: number };
         this.duplicateWarning.update((warnings) => ({
           ...warnings,
@@ -641,6 +656,18 @@ export class DailyBriefing implements OnInit, OnDestroy {
             lookbackDays: body?.lookbackDays ?? item.analysis_lookback_days,
             mode,
           },
+        }));
+        return;
+      }
+
+      if (cause instanceof HttpErrorResponse && cause.status === 402) {
+        // Same reason every other paid feature uses this status: the balance
+        // is too low, not that anything failed. Re-read it so the rest of the
+        // screen (and the nav) isn't left showing a stale, higher figure.
+        void this.billing.refreshCreditBalance();
+        this.analyzeResult.update((results) => ({
+          ...results,
+          [item.id]: "You don't have enough credits for this run.",
         }));
         return;
       }
@@ -775,8 +802,8 @@ export class DailyBriefing implements OnInit, OnDestroy {
    * this tab started (and is still watching) every run: a reload, a second
    * device, or a tab closed mid-run all leave a row here. In-flight runs
    * resume watching; runs that settled while the user was away still show
-   * their outcome, so a refresh never loses a result the user paid a quota
-   * unit for.
+   * their outcome, so a refresh never loses a result the user paid a credit
+   * for.
    */
   private async resumeRuns(): Promise<void> {
     const client = this.supabase.client;
