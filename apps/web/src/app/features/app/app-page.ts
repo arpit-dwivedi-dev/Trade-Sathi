@@ -27,6 +27,7 @@ import { SymbolSearch, type SymbolSelection } from '../../shared/symbol-search/s
 import type { OpenInstrumentRequest } from './open-instrument';
 import { AuthService } from '../../core/auth.service';
 import { MarketStatusService } from '../../core/market-status.service';
+import { SupabaseClientService } from '../../core/supabase-client';
 import { ThemeService } from '../../core/theme.service';
 
 /**
@@ -122,6 +123,7 @@ export class AppPage implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly billing = inject(BillingService);
   private readonly marketStatusService = inject(MarketStatusService);
+  private readonly supabase = inject(SupabaseClientService);
   private readonly router = inject(Router);
   private readonly themeService = inject(ThemeService);
   private readonly route = inject(ActivatedRoute);
@@ -202,6 +204,26 @@ export class AppPage implements OnInit {
       if (tab !== 'dailyBriefing') this.dailyBriefingSelection.set(null);
     });
 
+    // Registered before the browser guard below rather than after it, so an
+    // early return can never skip it — cleanup registration is never
+    // conditional on where this is running.
+    this.destroyRef.onDestroy(() => this.clearMarketStatusTimer());
+
+    // Both reads below are per-account, and this shell is behind the auth
+    // guard. On the server there is no session to read: the Supabase session
+    // lives in browser storage, so the Supabase client is null and there is no
+    // bearer token for the API call. That makes the two reads not merely
+    // pointless during prerender but actively harmful — ensurePricing() would
+    // fetch the relative /api/pricing, which the SSR express server has no
+    // route for (src/server.ts serves static files and the Angular handler,
+    // nothing else), so the request hangs until Angular's prerender of /app
+    // times out and fails the build. Same guard the landing page uses.
+    //
+    // Skipping here costs nothing: the client runs this again on hydration and
+    // fills the caches then, which is the only place they can be filled
+    // correctly anyway.
+    if (!this.supabase.isBrowser) return;
+
     // The one credit balance read for the whole shell. Everything downstream —
     // the rail's balance label, the analyze/fundamentals/daily-briefing
     // screens, the billing tab — reads the cache it fills rather than
@@ -213,8 +235,6 @@ export class AppPage implements OnInit {
     // priced by the time either surface is opened. The endpoint resolves the
     // region from this account's locked profile column.
     void this.billing.ensurePricing();
-
-    this.destroyRef.onDestroy(() => this.clearMarketStatusTimer());
   }
 
   /**
@@ -253,6 +273,19 @@ export class AppPage implements OnInit {
    * plain interval.
    */
   private scheduleNextMarketStatusRead(status: MarketStatus | null): void {
+    // Never on the server. This timer re-arms itself: each firing reads the
+    // status again and schedules the next one, so on a server render it is an
+    // endless chain of pending macrotasks in Angular's zone. Prerendering
+    // waits for the zone to go quiet before it considers the page rendered,
+    // and a chain like this never lets that happen — the render sits there
+    // until it times out.
+    //
+    // There is also nothing for it to do here. On the server there is no
+    // session, so fetchStatus already returned null (it bails without a
+    // token), and the browser re-runs all of this the moment it hydrates.
+    // The timer belongs to the client for the same reason the badge does.
+    if (!this.supabase.isBrowser) return;
+
     this.clearMarketStatusTimer();
     const delayMs = status?.nextChangeAt
       ? new Date(status.nextChangeAt).getTime() - Date.now() + 1_000

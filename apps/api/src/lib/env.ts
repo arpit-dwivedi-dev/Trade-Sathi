@@ -153,10 +153,39 @@ export const env = {
   openaiApiKey: requireEnv("OPENAI_API_KEY"),
   razorpayKeyId: requireEnv("RAZORPAY_KEY_ID"),
   razorpayKeySecret: requireEnv("RAZORPAY_KEY_SECRET"),
+  // How many reverse proxies sit in front of this API, for Express's
+  // `trust proxy` setting. This is what makes req.ip trustworthy, and req.ip
+  // is what the pricing-region lock is derived from.
+  //
+  // Express walks that many hops in from the socket and stops, so the address
+  // it reports is one a trusted proxy actually observed rather than one the
+  // caller typed into a header. 0 means "not behind a proxy" — correct for
+  // local dev and for any direct deployment, where the socket address is the
+  // client. Set it to the real hop count when a proxy is introduced (a single
+  // platform load balancer is 1).
+  //
+  // Too high is the dangerous direction, not too low: every extra hop is a
+  // header value the caller was allowed to have written, and the value picked
+  // is what decides which price band the account locks into.
+  trustProxyHops: optionalIntEnvInRange("TRUST_PROXY_HOPS", 0, 0, 10),
+
   // A DIFFERENT secret from RAZORPAY_KEY_SECRET: this one is generated when
   // the webhook is configured in the Razorpay dashboard, and is used only to
   // verify inbound webhook signatures.
   razorpayWebhookSecret: requireEnv("RAZORPAY_WEBHOOK_SECRET"),
+
+  // Whether CF-IPCountry may be believed when picking an account's pricing
+  // region (see services/pricing-region.service.ts).
+  //
+  // Defaults OFF, and that is the safe default: CF-IPCountry is an ordinary
+  // request header, so unless Cloudflare is genuinely in front of this API
+  // and stripping whatever the client sent, anything can set it — and this
+  // value is written to profiles.pricing_region once and never re-derived, so
+  // a spoofed header permanently picks the account's price band. Set this to
+  // "true" only when the deployment actually terminates at Cloudflare.
+  // With it off, resolution falls through to the geoip lookup, which still
+  // works — the header is an accuracy improvement, not the only source.
+  trustCfIpCountry: optionalBoolEnv("TRUST_CF_IPCOUNTRY", false),
 
   // Ordered AI provider chain — first entry is primary, the rest are
   // fallbacks tried in order when one fails. See parseAiProviders above.

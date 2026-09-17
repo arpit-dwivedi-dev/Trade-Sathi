@@ -14,13 +14,18 @@ declare global {
 }
 
 /**
- * express behind a proxy/load balancer reports the client's real IP in
- * X-Forwarded-For (first entry) once `app.set("trust proxy", ...)` is
- * configured; req.ip falls back to the socket address otherwise.
+ * The client's IP, as Express resolved it.
+ *
+ * Deliberately req.ip rather than reading the header by hand. req.ip is
+ * computed according to `trust proxy` (see index.ts and env.trustProxyHops),
+ * so it is the address the outermost trusted proxy actually observed. Parsing
+ * X-Forwarded-For here and taking its first entry — what this used to do —
+ * takes the leftmost value instead, which is whatever the caller wrote, and
+ * that address decides the pricing region this account locks into for good.
+ * A caller could send `X-Forwarded-For: 127.0.0.1` and be treated as
+ * unplaceable, or send a real Indian address and be priced as Indian.
  */
 function clientIp(req: Request): string {
-  const forwarded = req.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
   return req.ip ?? req.socket.remoteAddress ?? "";
 }
 

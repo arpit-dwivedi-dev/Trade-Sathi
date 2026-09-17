@@ -11,14 +11,48 @@ export const webhooksRouter = Router();
  * The subset of payload.payment.entity this route reads. Razorpay sends many
  * more fields; only these are consumed, and every one of them is treated as
  * provider-controlled data that may be absent.
+ *
+ * amount and currency are here to be cross-checked against our own payments
+ * row — see the check in handlePaymentCaptured. They are not used to decide
+ * anything on their own.
  */
 interface RazorpayPaymentEntity {
   id?: unknown;
   order_id?: unknown;
+  amount?: unknown;
+  currency?: unknown;
 }
 
 function asStringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/**
+ * A minor-unit amount from the provider payload, as a number.
+ *
+ * Accepts a numeric string as well as a number, because the SDK's own type for
+ * a payment amount is `amount: number | string` (razorpay/types/payments.d.ts)
+ * — the webhook carries the same payment entity the API returns, so this field
+ * genuinely arrives in either encoding. A strict typeof check would fail
+ * closed on about half of them and silently refuse a purchase that really did
+ * happen.
+ *
+ * Leniency about the spelling costs nothing: either way the value still has to
+ * equal the amount on our own payments row exactly, so there is no value a
+ * caller could send that passes one way and not the other. A missing or
+ * unparseable field returns null, which matches no amount and refuses the
+ * grant.
+ */
+function asMinorUnitsOrNull(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  // Number("") is 0, hence the emptiness check rather than a bare Number().
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 webhooksRouter.post(
@@ -141,12 +175,14 @@ async function handlePaymentCaptured(
   }
 
   try {
-    // The lookup that decides whether this is ours at all.
+    // The lookup that decides whether this is ours at all. amount_minor and
+    // currency come along so what the provider says it captured can be
+    // checked against what this order was actually sold as.
     const { data: payment, error: lookupError } = await supabaseAdmin
       .from("payments")
-      .select("id")
+      .select("id, amount_minor, currency")
       .eq("provider_order_id", providerOrderId)
-      .maybeSingle<{ id: string }>();
+      .maybeSingle<{ id: string; amount_minor: number; currency: string }>();
 
     if (lookupError) {
       throw new Error(lookupError.message);
@@ -157,6 +193,38 @@ async function handlePaymentCaptured(
         eventType,
         eventId,
         providerOrderId,
+      });
+      res.status(200).json({ received: true });
+      return;
+    }
+
+    // A valid signature proves Razorpay sent this event. It does not prove the
+    // amount in it is the amount this order was for, and those are different
+    // questions: the signature covers the body, so a genuine event for a
+    // genuine order can still be a short capture — Razorpay supports capturing
+    // less than the order's full value. The payments row is the only thing
+    // here that remembers what the buyer was asked to pay, so it is what the
+    // captured figure is held against.
+    //
+    // Refused, and acknowledged with a 200 rather than a 500: nothing about a
+    // retry would make the numbers agree, and a 500 here would have Razorpay
+    // redeliver an event that will be refused identically every time. Credits
+    // are not granted, and the error log is what gets a human to look.
+    const capturedAmountMinor = asMinorUnitsOrNull(entity.amount);
+    const capturedCurrency = asStringOrNull(entity.currency);
+    if (
+      capturedAmountMinor !== payment.amount_minor ||
+      capturedCurrency !== payment.currency
+    ) {
+      logger.error("razorpay webhook amount does not match the order; refusing to grant credits", {
+        eventType,
+        eventId,
+        providerOrderId,
+        providerPaymentId,
+        expectedAmountMinor: payment.amount_minor,
+        capturedAmountMinor,
+        expectedCurrency: payment.currency,
+        capturedCurrency,
       });
       res.status(200).json({ received: true });
       return;

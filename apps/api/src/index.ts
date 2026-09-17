@@ -23,9 +23,13 @@ import { resolveGeo } from "./middleware/geo.js";
 
 const app = express();
 
-// Needed for resolveGeo to read the real client IP from X-Forwarded-For
-// rather than the load balancer's address, when the API sits behind one.
-app.set("trust proxy", true);
+// `trust proxy` is what makes req.ip, and therefore resolveGeo, trustworthy:
+// Express walks TRUST_PROXY_HOPS in from the socket and stops there, so the
+// address it reports is one a trusted proxy observed. `true` — trust every
+// hop — used to be set here, which means the leftmost X-Forwarded-For entry
+// won, and that entry is written by the caller. Anyone could pick their own
+// country and with it their pricing region.
+app.set("trust proxy", env.trustProxyHops);
 
 // Mounted BEFORE the global JSON parser. The Razorpay webhook route verifies
 // its signature over the exact received bytes, so it brings its own
