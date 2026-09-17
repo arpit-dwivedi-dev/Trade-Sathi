@@ -2,10 +2,10 @@ import type { Instrument } from '@tradesathi/shared';
 
 /**
  * The shell tab an instrument can be opened onto from inside another tab.
- * 'workspace' is the "Analyze by Symbol" chart workspace; 'fundamentals' is
- * the Fundamentals tab.
+ * 'analyze-by-symbol' is the chart workspace; 'fundamentals' is the
+ * Fundamentals tab. Both are NavTabs, named as nav-tabs.ts names them.
  */
-export type ChartDestinationTab = 'workspace' | 'fundamentals';
+export type ChartDestinationTab = 'analyze-by-symbol' | 'fundamentals';
 
 /**
  * Request a child tab (History, Daily Briefing) raises when the user clicks a

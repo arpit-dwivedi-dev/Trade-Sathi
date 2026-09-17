@@ -6,22 +6,12 @@ import { AuthService } from '../../core/auth.service';
 import { BillingService } from '../../features/billing/billing.service';
 import { ProfileService } from '../../features/account/profile.service';
 import { AppIcon } from '../icons/app-icon';
-
-/** The dashboard tabs the rail links to. The app shell reads its own tab from the URL. */
-export type NavTab =
-  | 'analyze'
-  | 'workspace'
-  | 'history'
-  | 'dailyBriefing'
-  | 'fundamentals'
-  | 'logs'
-  | 'billing'
-  | 'account';
+import { TAB_LABELS, type NavTab } from './nav-tabs';
 
 /**
- * The signed-in nav rail. Every destination is a tab of the app shell,
- * reached by writing `/app?tab=…`; the shell picks its tab up from the URL,
- * so navigating is all this has to do.
+ * The signed-in nav rail. Every destination is a tab of the app shell, reached
+ * by writing `/app/<tab>`; the shell picks its tab up from the URL, so
+ * navigating is all this has to do.
  */
 @Component({
   selector: 'app-nav-rail',
@@ -41,6 +31,13 @@ export class NavRail {
 
   /** The row to mark as the current screen. */
   readonly active = input.required<NavTab>();
+
+  /**
+   * What each row is called, from nav-tabs.ts rather than written into the
+   * template — the same string is the row's label, its tooltip, and the title
+   * the shell prints in the top bar. Written out in both places it drifted.
+   */
+  protected readonly labels = TAB_LABELS;
 
   /**
    * Desktop-only icons-only state. A model rather than internal state because
@@ -88,8 +85,7 @@ export class NavRail {
    */
   protected select(tab: NavTab): void {
     this.activated.emit();
-    void this.router.navigate(['/app'], {
-      queryParams: { tab },
+    void this.router.navigate(['/app', tab], {
       replaceUrl: this.router.url.startsWith('/app'),
     });
   }

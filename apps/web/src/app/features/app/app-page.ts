@@ -22,7 +22,8 @@ import { HistoryList } from '../history/history-list';
 import { LogsPage } from '../logs/logs-page';
 import { DailyBriefing } from '../daily-briefing/daily-briefing';
 import { WorkspacePage } from '../workspace/workspace-page';
-import { NavRail, type NavTab } from '../../shared/nav-rail/nav-rail';
+import { NavRail } from '../../shared/nav-rail/nav-rail';
+import { parseTab, TAB_LABELS, type NavTab } from '../../shared/nav-rail/nav-tabs';
 import { SymbolSearch, type SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import type { OpenInstrumentRequest } from './open-instrument';
 import { AuthService } from '../../core/auth.service';
@@ -48,56 +49,16 @@ const STATUS_MARKET_BY_CODE: Readonly<Record<MarketCode, 'NSE' | 'NASDAQ'>> = {
   NYSE: 'NASDAQ',
 };
 
-/** The rail owns this list — it is the set of destinations it links to. */
+/** This shell's name for a nav destination. The list itself is in nav-tabs.ts. */
 type Tab = NavTab;
 
 /**
- * The tabs whose content is a chart of one instrument, and so the tabs the
- * top bar's symbol search applies to. Everywhere else it is hidden (rather
- * than torn down — see the template) so a chart tab returns to the symbol
- * still written in the box.
+ * This shell's tabs whose content is a chart of one instrument, and so the tabs
+ * the top bar's symbol search applies to. Everywhere else it is hidden (rather
+ * than torn down — see the template) so a chart tab returns to the symbol still
+ * written in the box.
  */
-const SEARCHABLE_TABS: readonly Tab[] = ['workspace', 'dailyBriefing', 'fundamentals'];
-
-const TABS: readonly Tab[] = [
-  'analyze',
-  'workspace',
-  'dailyBriefing',
-  'fundamentals',
-  'history',
-  'logs',
-  'billing',
-  'account',
-];
-
-/**
- * Plans and credits used to be two tabs. They are one screen now — a plan and a
- * credit pack answer the same question — but the old URLs are kept pointing at
- * it so a bookmark or an in-app link written against them still lands somewhere
- * real rather than silently falling back to Analyze. Same reason `watchlist`
- * is kept here: it was this tab's id before the Daily Briefing rename.
- */
-const TAB_ALIASES: Readonly<Record<string, Tab>> = {
-  pricing: 'billing',
-  credits: 'billing',
-  watchlist: 'dailyBriefing',
-};
-
-const TAB_TITLES: Readonly<Record<Tab, string>> = {
-  analyze: 'Chart Image Analysis',
-  workspace: 'Chart Analysis',
-  history: 'Analysis History',
-  dailyBriefing: 'Daily Briefing',
-  fundamentals: 'Fundamentals',
-  logs: 'Logs',
-  billing: 'Billing',
-  account: 'Account',
-};
-
-function parseTab(value: string | null): Tab {
-  if (TABS.includes(value as Tab)) return value as Tab;
-  return (value !== null ? TAB_ALIASES[value] : undefined) ?? 'analyze';
-}
+const SEARCHABLE_TABS: readonly Tab[] = ['analyze-by-symbol', 'daily-briefing', 'fundamentals'];
 
 @Component({
   selector: 'app-app-page',
@@ -130,7 +91,7 @@ export class AppPage implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly user = this.auth.user;
-  protected readonly tab = signal<Tab>('analyze');
+  protected readonly tab = signal<Tab>('analyze-by-image');
   protected readonly theme = this.themeService.theme;
   /**
    * The badge shows only the market currently selected in the top bar's
@@ -195,13 +156,15 @@ export class AppPage implements OnInit {
   ngOnInit(): void {
     // The tab lives in the URL so links from outside the shell — the Account
     // page's nav, a bookmark — can land on a specific tab. Subscribed rather
-    // than read once: navigating to /app?tab=… while already here reuses this
-    // component instance, so only the param stream reports the change.
-    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+    // than read once: moving between tabs reuses this component, because they
+    // are one route with a changing :tab parameter, so the param stream is the
+    // only thing that reports the change. That reuse is also what the template
+    // depends on to keep the chart panes mounted across a switch.
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const tab = parseTab(params.get('tab'));
       this.tab.set(tab);
       // See dailyBriefingSelection: a staged add does not survive leaving.
-      if (tab !== 'dailyBriefing') this.dailyBriefingSelection.set(null);
+      if (tab !== 'daily-briefing') this.dailyBriefingSelection.set(null);
     });
 
     // Registered before the browser guard below rather than after it, so an
@@ -216,8 +179,8 @@ export class AppPage implements OnInit {
     // pointless during prerender but actively harmful — ensurePricing() would
     // fetch the relative /api/pricing, which the SSR express server has no
     // route for (src/server.ts serves static files and the Angular handler,
-    // nothing else), so the request hangs until Angular's prerender of /app
-    // times out and fails the build. Same guard the landing page uses.
+    // nothing else), so the request hangs until Angular's prerender of the
+    // shell times out and fails the build. Same guard the landing page uses.
     //
     // Skipping here costs nothing: the client runs this again on hydration and
     // fills the caches then, which is the only place they can be filled
@@ -303,9 +266,12 @@ export class AppPage implements OnInit {
     }
   }
 
-  /** Names the current screen in the top bar, beside the drawer toggle. */
+  /**
+   * Names the current screen in the top bar, beside the drawer toggle. The same
+   * words the rail's row for it uses — one name per destination, from one place.
+   */
   protected pageTitle(): string {
-    return TAB_TITLES[this.tab()];
+    return TAB_LABELS[this.tab()];
   }
 
   /** Whether the top bar's symbol search applies to the current tab. */
@@ -316,8 +282,8 @@ export class AppPage implements OnInit {
   /** Routes a symbol picked in the top bar to whichever chart tab is open. */
   protected onInstrumentSelected(instrument: Instrument): void {
     const selection: SymbolSelection = { instrument, requestId: ++this.selectionSeq };
-    if (this.tab() === 'workspace') this.workspaceSelection.set(selection);
-    else if (this.tab() === 'dailyBriefing') this.dailyBriefingSelection.set(selection);
+    if (this.tab() === 'analyze-by-symbol') this.workspaceSelection.set(selection);
+    else if (this.tab() === 'daily-briefing') this.dailyBriefingSelection.set(selection);
     else if (this.tab() === 'fundamentals') this.fundamentalsSelection.set(selection);
   }
 
@@ -353,15 +319,13 @@ export class AppPage implements OnInit {
   }
 
   /**
-   * Writes the tab to the URL; the queryParamMap subscription above is what
+   * Writes the tab to the URL; the paramMap subscription above is what
    * actually flips the signal, so in-shell clicks and external links take the
    * identical path. replaceUrl keeps tab switching out of the back stack.
    */
   protected select(tab: Tab): void {
     this.navOpen.set(false);
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { tab },
+    void this.router.navigate(['/app', tab], {
       replaceUrl: true,
     });
   }

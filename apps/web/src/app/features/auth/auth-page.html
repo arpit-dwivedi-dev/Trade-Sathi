@@ -5,7 +5,7 @@
       <span class="auth-card-wordmark"><b>Trade</b><span>Sathi</span></span>
     </a>
 
-    @if (mode() === 'otp') {
+    @if (mode === 'otp') {
       <div class="auth-head">
         <h1>Verify your email</h1>
         <p class="disc">Enter the 6-digit code we just sent you.</p>
@@ -13,7 +13,7 @@
     }
 
     <form (ngSubmit)="submit()" class="auth-form">
-      @if (mode() === 'otp') {
+      @if (mode === 'otp') {
         <div class="auth-field">
           <label for="auth-otp">Verification code</label>
           <input class="auth-otp" id="auth-otp" type="text" name="otp" required
@@ -39,7 +39,7 @@
           <label for="auth-password">Password</label>
           <div class="auth-input-wrap">
             <input id="auth-password" [type]="passwordVisible() ? 'text' : 'password'" name="password" required
-                   [autocomplete]="mode() === 'signup' ? 'new-password' : 'current-password'"
+                   [autocomplete]="mode === 'signup' ? 'new-password' : 'current-password'"
                    [attr.aria-invalid]="error() ? 'true' : null"
                    [attr.aria-describedby]="error() ? 'auth-error' : null"
                    [ngModel]="password()" (ngModelChange)="password.set($event)" />
@@ -80,12 +80,12 @@
         @if (busy()) {
           <p-progress-spinner [style]="{ width: '16px', height: '16px' }" strokeWidth="4" aria-hidden="true" />
         }
-        {{ busy() ? 'Working…' : mode() === 'signup' ? 'Create account' : mode() === 'otp' ? 'Verify email' : 'Sign in' }}
+        {{ busy() ? 'Working…' : mode === 'signup' ? 'Create account' : mode === 'otp' ? 'Verify email' : 'Sign in' }}
       </button>
     </form>
 
     <div class="auth-foot">
-      @if (mode() === 'otp') {
+      @if (mode === 'otp') {
         <button pButton [text]="true" [disabled]="busy() || resendIn() > 0" (click)="resendOtp()">
           {{ resendIn() > 0 ? 'Resend in ' + resendIn() + 's' : 'Resend code' }}
         </button>
@@ -93,14 +93,18 @@
           Use a different email
         </button>
       } @else {
-        @if (mode() === 'signin') {
+        @if (mode === 'signin') {
           <a routerLink="/forgot-password">Forgot password?</a>
         } @else {
           <span></span>
         }
-        <button pButton [text]="true" (click)="toggleMode()">
-          {{ mode() === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
-        </button>
+        <!-- A link, not a button: the other screen has its own address, so this
+             is a navigation and behaves like one (middle-click, open in a new
+             tab, a URL to copy) rather than a state toggle. -->
+        <a pButton [text]="true" [routerLink]="mode === 'signup' ? '/login' : '/signup'"
+           [queryParams]="returnUrlQuery">
+          {{ mode === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
+        </a>
       }
     </div>
   </div>

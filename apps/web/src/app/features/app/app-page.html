@@ -62,7 +62,7 @@
          be torn down just because the user glanced at their history. History,
          by contrast, is created on each activation, which is exactly the
          refetch that picks up analyses finished on the other tab. -->
-    <div class="tab-pane" [hidden]="tab() !== 'analyze'">
+    <div class="tab-pane" [hidden]="tab() !== 'analyze-by-image'">
       <app-analyze-page class="tab-pane" (plansRequested)="openPlans()" />
     </div>
 
@@ -73,8 +73,8 @@
          wrapper takes over: a live analysis takes 20-30s and its poll must
          survive a glance at another tab, and the chart's own refresh timer
          idles on its own while the browser tab is in the background. -->
-    @defer (when tab() === 'workspace') {
-      <div class="tab-pane" [hidden]="tab() !== 'workspace'">
+    @defer (when tab() === 'analyze-by-symbol') {
+      <div class="tab-pane" [hidden]="tab() !== 'analyze-by-symbol'">
         <app-workspace-page
           class="tab-pane"
           [selection]="workspaceSelection()"
@@ -116,8 +116,8 @@
          picks up items added or toggled elsewhere. The inner @if is what keeps
          that true — @defer alone would render the block permanently after the
          first visit. -->
-    @defer (when tab() === 'dailyBriefing') {
-      @if (tab() === 'dailyBriefing') {
+    @defer (when tab() === 'daily-briefing') {
+      @if (tab() === 'daily-briefing') {
         <app-daily-briefing
           class="tab-pane"
           [selection]="dailyBriefingSelection()"
@@ -131,8 +131,8 @@
 
     <!-- Created on activation, like History and Daily Briefing: a fresh mount is
          the refetch that picks up whatever ran since the last visit. -->
-    @defer (when tab() === 'logs') {
-      @if (tab() === 'logs') {
+    @defer (when tab() === 'activity-logs') {
+      @if (tab() === 'activity-logs') {
         <app-logs-page class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {
@@ -155,8 +155,8 @@
     <!-- Created on activation: the profile and survey shown here change from
          elsewhere (a survey answered, a name saved), so a fresh mount per
          visit is the re-read. -->
-    @defer (when tab() === 'account') {
-      @if (tab() === 'account') {
+    @defer (when tab() === 'account-settings') {
+      @if (tab() === 'account-settings') {
         <app-account-page class="tab-pane" />
       }
     } @loading (after 150ms; minimum 300ms) {

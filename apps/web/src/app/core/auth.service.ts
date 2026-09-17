@@ -28,6 +28,32 @@ export class AuthService {
    */
   readonly restored = this._restored.asReadonly();
 
+  /**
+   * The address `/signup` sent a code to, for `/verify-email` to confirm.
+   *
+   * Signup and the code step are separate routes now, so the two screens cannot
+   * share a component field the way they did when both were modes of one
+   * /login. Deliberately not carried in the URL either: the address would then
+   * sit in the browser's history, in the referrer header, and in front of
+   * anyone looking over the user's shoulder.
+   */
+  private readonly _pendingSignupEmail = signal<string | null>(null);
+  readonly pendingSignupEmail = this._pendingSignupEmail.asReadonly();
+
+  /** Called by `/signup` once the verification code has been sent. */
+  setPendingSignupEmail(email: string): void {
+    this._pendingSignupEmail.set(email);
+  }
+
+  /**
+   * Called by `/verify-email` once the code is confirmed, and when the user
+   * asks to start over with a different address — at which point the code
+   * already sent is worthless.
+   */
+  clearPendingSignupEmail(): void {
+    this._pendingSignupEmail.set(null);
+  }
+
   private readonly restoredPromise: Promise<void>;
 
   constructor() {

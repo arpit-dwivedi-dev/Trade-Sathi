@@ -13,7 +13,9 @@ setup('authenticate', async ({ page }) => {
   await page.getByLabel('Email').fill('screenshots@tradesathi.dev');
   await page.locator('input#auth-password').fill('TestPassword123!');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.waitForURL('**/app', { timeout: 30_000 });
+  // Signing in lands on bare /app, which the router redirects to the shell's
+  // default tab — so the URL to wait for is the tab it resolves to.
+  await page.waitForURL('**/app/analyze-by-image', { timeout: 30_000 });
   await expect(page.locator('app-analyze-page')).toBeVisible();
   await page.context().storageState({ path: AUTH_STATE });
 });

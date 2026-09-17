@@ -58,3 +58,35 @@ export const guestGuard: CanActivateFn = async () => {
 
   return auth.session() ? router.createUrlTree(['/app']) : true;
 };
+
+/**
+ * Gates the signup code step, which needs the address the code was sent to.
+ *
+ * That address lives in AuthService rather than in the URL — deliberately, so
+ * it is not in the browser's history or the referrer — which is why a visit
+ * with nothing pending has to go back to signup: there is no address to check a
+ * code against. That is a reload of /verify-email, a link pasted into a fresh
+ * tab, or a second tab where the first one is mid-signup.
+ *
+ * Server-side this always allows the route through, for the same reason the two
+ * guards above do. The server holds no pending address either way, so "nothing
+ * pending here" says nothing about the browser; it renders the step and the
+ * browser makes the call. Deciding it on the server would also make the
+ * prerenderer follow the redirect and emit no page for the route at all.
+ *
+ * The returnUrl is not carried through the bounce: this is the path where the
+ * flow was interrupted and the user is starting over, so there is nothing yet
+ * to carry it to. Signing up again from here lands on the default destination.
+ */
+export const pendingSignupGuard: CanActivateFn = async () => {
+  if (isPlatformServer(inject(PLATFORM_ID))) {
+    return true;
+  }
+
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  await auth.whenRestored();
+
+  return auth.pendingSignupEmail() ? true : router.createUrlTree(['/signup']);
+};

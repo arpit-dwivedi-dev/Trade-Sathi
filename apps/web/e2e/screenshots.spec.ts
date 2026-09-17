@@ -40,8 +40,7 @@ for (const theme of THEMES) {
   });
 
   test(`03 auth sign-up — ${theme}`, async ({ page }) => {
-    await gotoWithTheme(page, '/login', theme);
-    await page.getByRole('button', { name: /need an account/i }).click();
+    await gotoWithTheme(page, '/signup', theme);
     await shoot(page, '03-auth-signup', theme);
   });
 }
@@ -111,8 +110,8 @@ for (const theme of THEMES) {
 
   test(`09 account & plan — ${theme}`, async ({ page }) => {
     await signIn(page, theme);
-    await page.getByRole('button', { name: 'Account' }).click();
-    await page.waitForURL('**/app?tab=account');
+    await page.getByRole('button', { name: 'Account Settings' }).click();
+    await page.waitForURL('**/app/account-settings');
     // The tab is mounted before its profile read resolves — wait for the
     // rendered cards so the screenshot is not of an empty grid.
     await expect(page.locator('.acct-card').first()).toBeVisible({ timeout: 15_000 });
@@ -153,7 +152,7 @@ for (const theme of THEMES) {
 for (const theme of THEMES) {
   test(`11 billing — ${theme}`, async ({ page }) => {
     await signIn(page, theme);
-    await page.goto('/app?tab=billing', { waitUntil: 'networkidle' });
+    await page.goto('/app/billing', { waitUntil: 'networkidle' });
     await expect(page.locator('app-billing-page')).toBeVisible();
     await expect(page.locator('.bill-cells')).toBeVisible({ timeout: 15_000 });
     await page.evaluate(() => document.fonts.ready);

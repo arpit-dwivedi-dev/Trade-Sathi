@@ -50,10 +50,12 @@ describe('routes', () => {
       .filter((route) => route.canActivate?.length)
       .map((route) => route.path);
 
-    expect(guarded).toContain('app');
+    expect(guarded).toContain('app/:tab');
     // Signed-in users are bounced away from these rather than shown a second
     // sign-in form.
     expect(guarded).toContain('login');
+    expect(guarded).toContain('signup');
+    expect(guarded).toContain('verify-email');
     expect(guarded).toContain('forgot-password');
   });
 });

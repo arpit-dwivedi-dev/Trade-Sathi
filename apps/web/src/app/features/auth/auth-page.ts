@@ -19,6 +19,25 @@ const OTP_LENGTH = 6;
 /** How long the resend control stays disabled after a code is sent. */
 const RESEND_COOLDOWN_SECONDS = 30;
 
+/** Where a signed-in user goes when nothing else asked for a destination. */
+const DEFAULT_RETURN_URL = '/app';
+
+/**
+ * Which of the flow's three screens a route renders. The routes themselves are
+ * in app.routes.ts — /login, /signup and /verify-email — and each one names its
+ * mode in the route's data.
+ */
+export type AuthMode = 'signin' | 'signup' | 'otp';
+
+/**
+ * Signing in, signing up, and confirming a signup code.
+ *
+ * All three are this one component, because they are one card with a field or
+ * two swapped between them — but each is its own route, so each has its own
+ * address. Which one is on screen comes from the route's data rather than from
+ * a field here: as separate route configurations, a move between them builds a
+ * new instance anyway, so there is nothing for an internal mode to track.
+ */
 @Component({
   selector: 'app-auth-page',
   imports: [FormsModule, RouterLink, ButtonModule, ProgressSpinnerModule],
@@ -30,7 +49,7 @@ export class AuthPage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  protected readonly mode = signal<'signin' | 'signup' | 'otp'>('signin');
+  protected readonly mode = this.route.snapshot.data['mode'] as AuthMode;
   protected readonly email = signal('');
   protected readonly password = signal('');
   protected readonly passwordVisible = signal(false);
@@ -39,9 +58,6 @@ export class AuthPage implements OnInit, OnDestroy {
   protected readonly notice = signal<string | null>(null);
   protected readonly busy = signal(false);
 
-  /** Email the OTP step is verifying; distinct from `email()` so it survives the field being cleared. */
-  private pendingEmail = '';
-
   /** Seconds until "Resend code" is available again; 0 when it is. */
   protected readonly resendIn = signal(0);
   private resendTimer: ReturnType<typeof setInterval> | null = null;
@@ -49,9 +65,10 @@ export class AuthPage implements OnInit, OnDestroy {
   /**
    * Where to go after signing in. Set by authGuard when it turned a visit to a
    * protected page into a redirect here, so the user lands on the page they
-   * actually asked for rather than always on /app.
+   * actually asked for rather than always on /app. Carried across the signup →
+   * verify-email hop so it survives the email being confirmed on another route.
    */
-  private returnUrl = '/app';
+  private returnUrl = DEFAULT_RETURN_URL;
 
   ngOnInit(): void {
     const requested = this.route.snapshot.queryParamMap.get('returnUrl');
@@ -61,10 +78,36 @@ export class AuthPage implements OnInit, OnDestroy {
     if (requested?.startsWith('/') && !requested.startsWith('//')) {
       this.returnUrl = requested;
     }
+
+    if (this.mode === 'otp') this.startOtpStep();
+  }
+
+  /**
+   * The returnUrl as query params, or nothing when it is only the default —
+   * so the common case does not put a redundant `?returnUrl=%2Fapp` on the URL.
+   */
+  protected get returnUrlQuery(): { returnUrl?: string } {
+    return this.returnUrl === DEFAULT_RETURN_URL ? {} : { returnUrl: this.returnUrl };
   }
 
   ngOnDestroy(): void {
     this.stopResendCountdown();
+  }
+
+  /**
+   * Sets up the code step: whose code is being confirmed, and how long until it
+   * may be resent.
+   *
+   * Nothing here decides whether this screen may be shown at all — that is
+   * pendingSignupGuard's job, which is why it can read the address without
+   * checking for one first.
+   */
+  private startOtpStep(): void {
+    const email = this.auth.pendingSignupEmail();
+    if (!email) return;
+
+    this.notice.set(`Enter the ${OTP_LENGTH}-digit code we sent to ${email}.`);
+    this.startResendCountdown();
   }
 
   private startResendCountdown(): void {
@@ -99,7 +142,7 @@ export class AuthPage implements OnInit, OnDestroy {
       return 'That email address does not look right.';
     }
     if (!password) return 'Enter your password.';
-    if (this.mode() === 'signup' && password.length < MIN_PASSWORD_LENGTH) {
+    if (this.mode === 'signup' && password.length < MIN_PASSWORD_LENGTH) {
       return `Use at least ${MIN_PASSWORD_LENGTH} characters for your password.`;
     }
     return null;
@@ -109,16 +152,8 @@ export class AuthPage implements OnInit, OnDestroy {
     this.passwordVisible.update((visible) => !visible);
   }
 
-  protected toggleMode(): void {
-    if (this.busy()) return;
-    this.mode.update((m) => (m === 'signin' ? 'signup' : 'signin'));
-    this.passwordVisible.set(false);
-    this.error.set(null);
-    this.notice.set(null);
-  }
-
   protected async submit(): Promise<void> {
-    if (this.mode() === 'otp') {
+    if (this.mode === 'otp') {
       await this.submitOtp();
       return;
     }
@@ -140,7 +175,7 @@ export class AuthPage implements OnInit, OnDestroy {
     this.notice.set(null);
 
     const result =
-      this.mode() === 'signup'
+      this.mode === 'signup'
         ? await this.auth.signUp(email, password)
         : await this.auth.signIn(email, password);
 
@@ -151,14 +186,13 @@ export class AuthPage implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.mode() === 'signup') {
+    if (this.mode === 'signup') {
       // Signup never signs the user in directly — a code must be confirmed
-      // first, so the account can't be used with just an email/password.
-      this.pendingEmail = email;
-      this.otp.set('');
-      this.notice.set(`Enter the ${OTP_LENGTH}-digit code we sent to ${email}.`);
-      this.mode.set('otp');
-      this.startResendCountdown();
+      // first, so the account can't be used with just an email/password. The
+      // address is handed over rather than put in the URL, and the confirmation
+      // is a navigation to its own route.
+      this.auth.setPendingSignupEmail(email);
+      await this.router.navigate(['/verify-email'], { queryParams: this.returnUrlQuery });
       return;
     }
 
@@ -168,7 +202,10 @@ export class AuthPage implements OnInit, OnDestroy {
   private async submitOtp(): Promise<void> {
     if (this.busy()) return;
 
-    if (!this.pendingEmail) {
+    const email = this.auth.pendingSignupEmail();
+    if (!email) {
+      // Nothing to verify against. The redirect in startOtpStep normally gets
+      // here first; this covers the code step being reached some other way.
       this.useDifferentEmail();
       return;
     }
@@ -184,7 +221,7 @@ export class AuthPage implements OnInit, OnDestroy {
     this.error.set(null);
     this.notice.set(null);
 
-    const result = await this.auth.verifySignupOtp(this.pendingEmail, code);
+    const result = await this.auth.verifySignupOtp(email, code);
     this.busy.set(false);
 
     if (!result.ok) {
@@ -192,30 +229,28 @@ export class AuthPage implements OnInit, OnDestroy {
       return;
     }
 
+    // Confirmed, so there is nothing left to come back to this screen for.
+    this.auth.clearPendingSignupEmail();
     await this.router.navigateByUrl(this.returnUrl);
   }
 
   /** Lets the user correct a mistyped email instead of resending to it forever. */
   protected useDifferentEmail(): void {
-    this.mode.set('signup');
-    this.passwordVisible.set(false);
-    this.otp.set('');
-    this.error.set(null);
-    this.notice.set(null);
-    this.stopResendCountdown();
-    this.resendIn.set(0);
+    this.auth.clearPendingSignupEmail();
+    void this.router.navigate(['/signup'], { queryParams: this.returnUrlQuery });
   }
 
   protected async resendOtp(): Promise<void> {
     // The cooldown is the point: without it the button could be held down,
     // and every press is another email to a real inbox.
-    if (this.busy() || this.resendIn() > 0 || !this.pendingEmail) return;
+    const email = this.auth.pendingSignupEmail();
+    if (this.busy() || this.resendIn() > 0 || !email) return;
 
     this.busy.set(true);
     this.error.set(null);
     this.notice.set(null);
 
-    const result = await this.auth.resendSignupOtp(this.pendingEmail);
+    const result = await this.auth.resendSignupOtp(email);
 
     this.busy.set(false);
     if (!result.ok) {

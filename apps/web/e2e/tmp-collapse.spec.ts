@@ -5,7 +5,7 @@ const OUT = process.env.TMP_OUT ?? 'e2e/__tmp__';
 test.use({ storageState: AUTH_STATE });
 
 test('collapsed rail geometry', async ({ page }) => {
-  await page.goto('/app?tab=workspace', { waitUntil: 'networkidle' });
+  await page.goto('/app/analyze-by-symbol', { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();
   await page.waitForTimeout(700);

@@ -26,7 +26,7 @@
   @if (runCostLabel(); as cost) {
     <p class="note daily-briefing-cost-note" role="status">
       {{ cost }} — scheduled runs and Analyze Now both spend from your credit balance.
-      <a routerLink="/app" [queryParams]="{ tab: 'billing' }">Buy credits</a> any time.
+      <a routerLink="/app/billing">Buy credits</a> any time.
     </p>
   }
 

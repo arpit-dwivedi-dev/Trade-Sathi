@@ -16,6 +16,10 @@
   </button>
 </div>
 
+<!-- Every row reads its wording from `labels` rather than spelling it out, and
+     the string it reads is the id it navigates to, kebab-cased. One name per
+     destination, so the row, the URL and the top bar's title cannot drift.
+     Collapsed to icons the label is hidden, which is what the tooltip is for. -->
 <div class="nav-body">
   <span class="nav-lbl">Analyze</span>
 
@@ -26,36 +30,41 @@
     <span class="nav-soon">Coming soon</span>
   </button>
 
-  <button type="button" class="nav-item" title="Analyze by Image" (click)="select('analyze')"
-          [attr.aria-current]="active() === 'analyze' ? 'page' : null">
+  <button type="button" class="nav-item" [title]="labels['analyze-by-image']"
+          (click)="select('analyze-by-image')"
+          [attr.aria-current]="active() === 'analyze-by-image' ? 'page' : null">
     <app-icon aria-hidden="true" name="image_search" />
-    <span class="nav-item-lbl">Analyze by Image</span>
+    <span class="nav-item-lbl">{{ labels['analyze-by-image'] }}</span>
   </button>
 
-  <button type="button" class="nav-item" title="Analyze by Symbol" (click)="select('workspace')"
-          [attr.aria-current]="active() === 'workspace' ? 'page' : null">
+  <button type="button" class="nav-item" [title]="labels['analyze-by-symbol']"
+          (click)="select('analyze-by-symbol')"
+          [attr.aria-current]="active() === 'analyze-by-symbol' ? 'page' : null">
     <app-icon aria-hidden="true" name="candlestick_chart" />
-    <span class="nav-item-lbl">Analyze by Symbol</span>
+    <span class="nav-item-lbl">{{ labels['analyze-by-symbol'] }}</span>
   </button>
 
-  <button type="button" class="nav-item" title="Daily Briefing" (click)="select('dailyBriefing')"
-          [attr.aria-current]="active() === 'dailyBriefing' ? 'page' : null">
+  <button type="button" class="nav-item" [title]="labels['daily-briefing']"
+          (click)="select('daily-briefing')"
+          [attr.aria-current]="active() === 'daily-briefing' ? 'page' : null">
     <app-icon aria-hidden="true" name="routine" />
-    <span class="nav-item-lbl">Daily Briefing</span>
+    <span class="nav-item-lbl">{{ labels['daily-briefing'] }}</span>
   </button>
 
-  <button type="button" class="nav-item" title="History" (click)="select('history')"
+  <button type="button" class="nav-item" [title]="labels['history']"
+          (click)="select('history')"
           [attr.aria-current]="active() === 'history' ? 'page' : null">
     <app-icon aria-hidden="true" name="history" />
-    <span class="nav-item-lbl">History</span>
+    <span class="nav-item-lbl">{{ labels['history'] }}</span>
   </button>
 
   <span class="nav-lbl">Research</span>
 
-  <button type="button" class="nav-item" title="Fundamentals" (click)="select('fundamentals')"
+  <button type="button" class="nav-item" [title]="labels['fundamentals']"
+          (click)="select('fundamentals')"
           [attr.aria-current]="active() === 'fundamentals' ? 'page' : null">
     <app-icon aria-hidden="true" name="balance" />
-    <span class="nav-item-lbl">Fundamentals</span>
+    <span class="nav-item-lbl">{{ labels['fundamentals'] }}</span>
   </button>
 
   <button type="button" class="nav-item nav-item-disabled" title="News & Events — coming soon" disabled
@@ -67,22 +76,25 @@
 
   <span class="nav-lbl">Account</span>
 
-  <button type="button" class="nav-item" title="Activity Logs" (click)="select('logs')"
-          [attr.aria-current]="active() === 'logs' ? 'page' : null">
+  <button type="button" class="nav-item" [title]="labels['activity-logs']"
+          (click)="select('activity-logs')"
+          [attr.aria-current]="active() === 'activity-logs' ? 'page' : null">
     <app-icon aria-hidden="true" name="list_alt" />
-    <span class="nav-item-lbl">Activity Logs</span>
+    <span class="nav-item-lbl">{{ labels['activity-logs'] }}</span>
   </button>
 
-  <button type="button" class="nav-item" title="Billing" (click)="select('billing')"
+  <button type="button" class="nav-item" [title]="labels['billing']"
+          (click)="select('billing')"
           [attr.aria-current]="active() === 'billing' ? 'page' : null">
     <app-icon aria-hidden="true" name="credit_card" />
-    <span class="nav-item-lbl">Billing</span>
+    <span class="nav-item-lbl">{{ labels['billing'] }}</span>
   </button>
 
-  <button type="button" class="nav-item" title="Account Settings" (click)="select('account')"
-          [attr.aria-current]="active() === 'account' ? 'page' : null">
+  <button type="button" class="nav-item" [title]="labels['account-settings']"
+          (click)="select('account-settings')"
+          [attr.aria-current]="active() === 'account-settings' ? 'page' : null">
     <app-icon aria-hidden="true" name="person" />
-    <span class="nav-item-lbl">Account Settings</span>
+    <span class="nav-item-lbl">{{ labels['account-settings'] }}</span>
   </button>
 </div>
 

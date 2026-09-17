@@ -1018,7 +1018,7 @@ export class DailyBriefing implements OnInit, OnDestroy {
         instrumentType: instrument.instrument_type,
         logoUrl: instrument.logo_url ?? undefined,
       },
-      tab: 'workspace',
+      tab: 'analyze-by-symbol',
     });
   }
 }
