@@ -25,6 +25,7 @@ import { AppIcon } from '../../shared/icons/app-icon';
 import { LottiePlayer } from '../../shared/lottie-player';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import type { AnalysisRow } from '../analyze/analysis.types';
+import { BillingService } from '../billing/billing.service';
 import { FundamentalsAnalysisResultComponent } from './fundamentals-analysis-result';
 import { FundamentalsService, type FundamentalsPollHandle } from './fundamentals.service';
 
@@ -34,7 +35,7 @@ type AiState =
   | 'queued'
   | 'complete'
   | 'failed'
-  | 'quota_exceeded'
+  | 'insufficient_credits'
   | 'timed_out'
   | 'poll_error';
 
@@ -162,9 +163,23 @@ const FALLBACK_PALETTE: ChartPalette = {
 })
 export class FundamentalsPage implements OnDestroy {
   private readonly fundamentals = inject(FundamentalsService);
+  private readonly billing = inject(BillingService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly document = inject(DOCUMENT);
   private readonly themeService = inject(ThemeService);
+
+  /**
+   * "Costs N credits", read from the centrally configured feature cost list
+   * rather than hardcoded — this screen has no opinion of its own on what a
+   * fundamentals analysis costs. Null until pricing has loaded.
+   */
+  protected readonly aiCostLabel = computed(() => {
+    const cost = this.billing
+      .pricing()
+      ?.featureCosts.find((row) => row.featureKey === 'fundamental_analysis');
+    if (!cost) return null;
+    return `Costs ${cost.credits} credit${cost.credits === 1 ? '' : 's'}`;
+  });
 
   /** The instrument to read, chosen in the shell's top-bar search. */
   readonly selection = input<SymbolSelection | null>(null);
@@ -209,6 +224,10 @@ export class FundamentalsPage implements OnDestroy {
       if (!this.isBrowser || !selection) return;
       void this.load(selection.instrument.id);
     });
+
+    // For the "Costs N credits" label — the shell already loads this on
+    // mount, so this shares that cache rather than adding a request.
+    void this.billing.ensurePricing();
   }
 
   protected async reload(): Promise<void> {
@@ -260,7 +279,9 @@ export class FundamentalsPage implements OnDestroy {
     const submitted = await this.fundamentals.analyzeWithAi(instrumentId);
     if (!submitted.ok) {
       this.aiError.set(submitted.message);
-      this.aiState.set(submitted.reason === 'quota_exceeded' ? 'quota_exceeded' : 'failed');
+      this.aiState.set(
+        submitted.reason === 'insufficient_credits' ? 'insufficient_credits' : 'failed',
+      );
       return;
     }
 

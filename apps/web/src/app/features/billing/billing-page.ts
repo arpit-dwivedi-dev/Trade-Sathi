@@ -1,79 +1,61 @@
-import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, output, signal } from '@angular/core';
-import { CardModule } from 'primeng/card';
-import { ProgressBarModule } from 'primeng/progressbar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
-import { AnalyzeService, type QuotaStatus } from '../analyze/analyze.service';
-import { BillingService, formatPriceMinor } from './billing.service';
+import type { FeatureCreditCost } from '@chartanalyzer/shared';
+
+import { BillingService } from './billing.service';
 import { BuyCreditsButton } from './buy-credits-button';
 import { PromoRedeemBox } from './promo-redeem-box';
-import { UpgradeButton } from './upgrade-button';
+
+/** Human labels for a feature_key — the closed set in FEATURE_CREDIT_KEYS. */
+const FEATURE_LABELS: Readonly<Record<string, string>> = {
+  chart_analysis: 'Chart analysis',
+  daily_briefing_run: 'Daily briefing',
+  fundamental_analysis: 'Fundamental analysis',
+};
 
 /**
- * Billing, as one screen: what's held, what's left, and both ways to get more.
+ * Billing, as one screen: the balance, and both ways to add to it.
  *
- * Deliberately not split into a "Pricing" tab and a "Credits" tab. A plan and a
- * credit pack are two answers to the same question — "I need more analyses" —
- * and putting them behind separate nav entries made the user pick the route
- * before they could compare the options. The account page keeps no billing
- * surface at all now; it is identity only.
+ * Deliberately not split into tabs. There is one credit balance now, spent by
+ * every paid feature at a centrally configured cost — a plan and a top-up used
+ * to be two different answers to "I need more analyses", but there is only one
+ * kind of purchase left, so there is nothing left to compare across tabs. The
+ * account page keeps no billing surface at all; it is identity only.
  */
 @Component({
   selector: 'app-billing-page',
-  imports: [
-    BuyCreditsButton,
-    UpgradeButton,
-    PromoRedeemBox,
-    DatePipe,
-    CardModule,
-    ProgressBarModule,
-    ProgressSpinnerModule,
-  ],
+  imports: [BuyCreditsButton, PromoRedeemBox, ProgressSpinnerModule],
   styleUrl: './billing-page.css',
   templateUrl: './billing-page.html',
 })
 export class BillingPage implements OnInit {
-  private readonly analyze = inject(AnalyzeService);
   private readonly billing = inject(BillingService);
 
-  protected readonly quota = signal<QuotaStatus | null>(null);
   protected readonly loading = signal(true);
 
   /**
-   * Lets the shell reset any other screen's stale "out of analyses" state
-   * once a plan or credit purchase actually lands — the same signal the
-   * plans overlay used to emit before Billing became a plain tab instead of
-   * a popup.
+   * Lets the shell reset any other screen's stale "not enough credits" state
+   * once a purchase actually lands.
    */
-  readonly upgraded = output<void>();
   readonly creditsAdded = output<void>();
 
-  /**
-   * The shared BillingService cache, not a private copy. The picker below marks
-   * the held tier and add-ons from this same cache — filling a local signal
-   * instead left it empty, and the picker offered plans the user already had.
-   */
-  protected readonly plan = this.billing.currentPlan;
-  protected readonly addOns = computed(() => this.plan()?.addOns ?? []);
-  protected readonly analysisCredits = computed(() => this.plan()?.creditBalance ?? 0);
-  protected readonly briefingCredits = computed(() => this.plan()?.briefingCreditBalance ?? 0);
-  protected readonly briefingUsage = computed(() => this.plan()?.briefingUsage ?? null);
+  /** The shared BillingService cache, not a private copy — every consumer of
+   * the balance reads the same signal. */
+  protected readonly balance = this.billing.creditBalance;
+
+  protected readonly featureCosts = computed<FeatureCreditCost[]>(
+    () => this.billing.pricing()?.featureCosts ?? [],
+  );
 
   /**
-   * The account's locked price band, as a display label — or null until the
-   * summary has loaded, so the badge is never briefly wrong. Read from the plan
-   * summary rather than from pricingRegion() alone for exactly that reason:
-   * both are null before the load, but only one of them also carries the "this
-   * has actually been read" fact. A null region inside a loaded summary is the
-   * documented fallback to 'IN' — the band the backend itself falls back to.
+   * The account's price band, as a display label — or null until pricing has
+   * loaded, so the badge is never briefly wrong.
    */
   protected readonly regionLabel = computed(() => {
-    const summary = this.plan();
-    if (summary === null) return null;
-    return summary.pricingRegion === 'GLOBAL'
-      ? 'Billing region: Global · $ USD'
-      : 'Billing region: India · ₹ INR';
+    const region = this.billing.pricingRegion();
+    if (region === null) return null;
+    return region === 'GLOBAL' ? 'Billing region: Global · $ USD' : 'Billing region: India · ₹ INR';
   });
 
   /** Explains the badge, which is a statement rather than a control. */
@@ -81,99 +63,36 @@ export class BillingPage implements OnInit {
     'Prices and payment are set for the region this account was first used in, ' +
     'and cannot be changed.';
 
-  /**
-   * Whether the one-off top-up packs can be sold to this account, from the
-   * price catalogue the order endpoints charge from — the same signal the
-   * overlay gates its section on, so the two surfaces cannot disagree about
-   * what is for sale. See BillingService.hasTopUpPacks for why this is not a
-   * comparison against 'GLOBAL'.
-   */
-  protected readonly hasTopUpPacks = this.billing.hasTopUpPacks;
-
-  /**
-   * Whether the briefing block is worth rendering at all. Credits alone are
-   * enough: they are spent with no subscription held, so a user who bought a
-   * pack and let the add-on lapse must still see what they own.
-   */
-  protected readonly showBriefing = computed(
-    () => this.briefingUsage() !== null || this.briefingCredits() > 0,
-  );
-
-  /**
-   * True once the monthly allowance is spent AND no credits remain — the only
-   * state in which the next manual analysis is actually refused. Kept as one
-   * predicate because the copy and the CTA both hinge on it, and splitting it
-   * let the screen say "you're out" while credits were still being spent.
-   */
-  protected readonly analysesExhausted = computed(() => {
-    const quota = this.quota();
-    return quota !== null && quota.remaining === 0 && this.analysisCredits() === 0;
-  });
-
   ngOnInit(): void {
     void this.load();
   }
 
   /**
-   * A top-up only shows up in the balance once the webhook has captured it, so
-   * re-read rather than optimistically incrementing — the same reason the
-   * purchase flow polls instead of trusting Razorpay's client-side callback.
+   * A purchase or a redeemed code only shows up in the balance once the
+   * webhook (or the redeem call) has actually landed, so re-read rather than
+   * optimistically incrementing — the same reason the purchase flow polls
+   * instead of trusting Razorpay's client-side callback.
    */
   protected onCreditsAdded(): void {
-    void this.billing.refreshPlanSummary();
-    void this.refreshQuota();
+    void this.billing.refreshCreditBalance();
     this.creditsAdded.emit();
   }
 
-  /** A redeemed promo code lands as credits — same re-read as a top-up. */
-  protected onPromoRedeemed(): void {
-    this.onCreditsAdded();
-  }
-
-  /** An upgrade changes the allowance, so the meter has to be re-read too. */
-  protected onUpgraded(): void {
-    void this.billing.refreshPlanSummary();
-    void this.refreshQuota();
-    this.upgraded.emit();
-  }
-
-  /**
-   * Minor units + currency → "₹499" / "$9" / "—" for a zero amount. The shared
-   * formatter, because the picker, the pack buttons and the public pricing
-   * section print the same numbers and must agree with this screen. Money is
-   * integer minor units end to end.
-   */
-  protected priceLabel(amountMinor: number, currency: string): string {
-    return formatPriceMinor(amountMinor, currency);
-  }
-
-  protected usedPercent(): number {
-    const quota = this.quota();
-    if (!quota || quota.limit <= 0) return 0;
-    return Math.min(100, Math.round((quota.used / quota.limit) * 100));
-  }
-
-  protected briefingUsedPercent(): number {
-    const usage = this.briefingUsage();
-    if (!usage || usage.limit <= 0) return 0;
-    return Math.min(100, Math.round((usage.used / usage.limit) * 100));
+  /** "1 credit · Chart analysis" — one line per configured feature, so the
+   * balance card states every feature's real cost rather than just the
+   * first one in the array. */
+  protected featureCostLabel(cost: FeatureCreditCost): string {
+    const feature = FEATURE_LABELS[cost.featureKey] ?? cost.featureKey;
+    return `${cost.credits} credit${cost.credits === 1 ? '' : 's'} · ${feature}`;
   }
 
   private async load(): Promise<void> {
     this.loading.set(true);
     await Promise.all([
-      this.refreshQuota(),
-      // ensure, not fetch: the shell already loaded this on mount, and both the
-      // summary above and the picker below read the cache it fills.
-      this.billing.ensurePlanSummary(),
-      // Awaited with the summary so the top-up section is decided before the
-      // page draws, rather than appearing after the slab has settled.
+      // ensure, not fetch: the shell already loaded this on mount.
+      this.billing.ensureCreditBalance(),
       this.billing.ensurePricing(),
     ]);
     this.loading.set(false);
-  }
-
-  private async refreshQuota(): Promise<void> {
-    this.quota.set(await this.analyze.fetchQuota());
   }
 }

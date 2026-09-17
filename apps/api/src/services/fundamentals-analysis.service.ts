@@ -1,10 +1,14 @@
-import type { DataNote, InstrumentFundamentals, Metric } from "@chartanalyzer/shared";
+import type {
+  DataNote,
+  FeatureCreditKey,
+  InstrumentFundamentals,
+  Metric,
+} from "@chartanalyzer/shared";
 import {
   AnalysisFailure,
   FUNDAMENTALS_PROMPT_VERSION,
   runFundamentalsAnalysis,
 } from "./ai-analysis.service.js";
-import { currentUtcPeriod } from "./analysis.service.js";
 import { verifyFundamentalsPayload } from "./fundamentals-verification.service.js";
 import { deriveFundamentals } from "./fundamentals/index.js";
 import {
@@ -28,10 +32,10 @@ import { callRpc, supabaseAdmin } from "../lib/supabase.js";
  * the analyses table (Realtime, History, the stranded sweeper) and the
  * provider-chain machinery in ai-analysis.service.ts.
  *
- * Deliberately its own entitlement pool (fundamentals_usage_counters, see
- * the migration), not the manual chart-analysis quota/credit: pricing for
- * this feature is not decided yet, so it is kept separate rather than
- * borrowed from a pool it may not end up billed the same as.
+ * Spends its own feature key (fundamental_analysis) in the unified credit
+ * ledger, at the cost configured in feature_credit_costs — not the
+ * chart_analysis credit a manual upload or live analysis spends, since the
+ * two are billed independently even though they share one balance.
  */
 
 /** Control-flow marker for "the audit layer is switched off", so the skip is
@@ -40,25 +44,29 @@ class SkipVerification extends Error {}
 
 export type TriggerFundamentalsResult =
   | { ok: true; analysisId: string; instrumentId: string; startedAt: string }
-  | { ok: false; reason: "not_found" | "quota_exceeded" };
+  | { ok: false; reason: "not_found" | "insufficient_credits" };
 
-/** Consumes one unit of the fundamentals-analysis quota. See the migration's
- *  check_and_consume_fundamentals_entitlement for the row-locked increment. */
-async function consumeFundamentalsEntitlement(profileId: string): Promise<boolean> {
-  return callRpc<boolean>("check_and_consume_fundamentals_entitlement", {
+const FEATURE_KEY: FeatureCreditKey = "fundamental_analysis";
+
+/** Spends one fundamental_analysis credit via the shared consume_credits RPC. */
+async function consumeFundamentalsCredit(profileId: string): Promise<boolean> {
+  const outcome = await callRpc<"consumed" | "insufficient_credits">("consume_credits", {
     p_profile_id: profileId,
+    p_feature_key: FEATURE_KEY,
   });
+  return outcome === "consumed";
 }
 
-/** The compensating release for a consumed-but-unusable unit — mirrors
- *  releaseEntitlement in analysis.service.ts for the manual quota. */
-async function releaseFundamentalsEntitlement(
+/** The compensating refund for a consumed-but-unusable credit — mirrors
+ *  refundAnalysisCredit in analysis.service.ts for the chart_analysis credit. */
+async function refundFundamentalsCredit(
   profileId: string,
-  period: string,
+  analysisId?: string | null,
 ): Promise<void> {
-  await callRpc<null>("decrement_fundamentals_usage", {
+  await callRpc<null>("refund_credits", {
     p_profile_id: profileId,
-    p_period: period,
+    p_feature_key: FEATURE_KEY,
+    p_ref_analysis_id: analysisId ?? null,
   });
 }
 
@@ -125,12 +133,8 @@ export async function triggerFundamentalsAnalysis(
     };
   }
 
-  // Captured before the RPC and reused by the compensating release below —
-  // see releaseEntitlement's doc comment in analysis.service.ts for the
-  // month-boundary trade-off this shares.
-  const period = currentUtcPeriod();
-  const allowed = await consumeFundamentalsEntitlement(profileId);
-  if (!allowed) return { ok: false, reason: "quota_exceeded" };
+  const allowed = await consumeFundamentalsCredit(profileId);
+  if (!allowed) return { ok: false, reason: "insufficient_credits" };
 
   const startedAt = new Date().toISOString();
 
@@ -161,17 +165,17 @@ export async function triggerFundamentalsAnalysis(
       instrumentId,
       cause: String(queueError),
     });
-    await releaseFundamentalsEntitlement(profileId, period);
+    await refundFundamentalsCredit(profileId);
     throw queueError ?? new Error("Fundamentals analysis insert returned no row");
   }
 
   // Not awaited: see the doc comment above. A false result means the pipeline
   // failed before storing a result — it has already marked the row 'failed',
-  // and the entitlement is given back here, since the pipeline itself
-  // deliberately owns no quota policy.
+  // and the credit is given back here, since the pipeline itself
+  // deliberately owns no billing policy.
   void runFundamentalsAnalysisPipeline(profileId, ref, queuedRow.id)
     .then(async (succeeded) => {
-      if (!succeeded) await releaseFundamentalsEntitlement(profileId, period);
+      if (!succeeded) await refundFundamentalsCredit(profileId, queuedRow.id);
     })
     .catch(async (cause: unknown) => {
       logger.error("fundamentals analysis background processing failed", {
@@ -190,7 +194,7 @@ export async function triggerFundamentalsAnalysis(
           error_message: "The analysis could not be completed",
         })
         .eq("id", queuedRow.id);
-      await releaseFundamentalsEntitlement(profileId, period);
+      await refundFundamentalsCredit(profileId, queuedRow.id);
     });
 
   return { ok: true, analysisId: queuedRow.id, instrumentId: ref.instrumentId, startedAt };

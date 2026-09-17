@@ -14,10 +14,10 @@ export const dailyBriefingRouter = Router();
 /**
  * "Analyze Now" — a user-triggered, single-symbol run of the same
  * fetch/chart/AI pipeline the daily briefing job uses, gated by the same
- * Daily Briefing entitlement (see analyzeWatchlistItemNow). Everything else
+ * daily_briefing_run credit (see analyzeWatchlistItemNow). Everything else
  * about a watchlist item (add/remove/toggle) stays plain client-side CRUD
  * under RLS; this is the one watchlist action that needs server-side work
- * (market data, AI call, quota) and therefore the one watchlist route.
+ * (market data, AI call, credits) and therefore the one watchlist route.
  *
  * The request is multipart because the browser sends the chart it drew as the
  * image the model reads — see ChartCaptureService on the web side. The image
@@ -35,11 +35,11 @@ type ItemRunner = (
 /**
  * Both watchlist run endpoints, which differ only in the runner they call.
  *
- * Analyze Now and Brief Now take the same input, spend the same Daily Briefing
- * entitlement and fail in exactly the same four ways; only whether an email
- * goes out at the end differs, and that decision lives in the service. Two
- * copies of this handler would be two places for the status-code mapping to
- * drift.
+ * Analyze Now and Brief Now take the same input, spend the same
+ * daily_briefing_run credit and fail in exactly the same three ways; only
+ * whether an email goes out at the end differs, and that decision lives in
+ * the service. Two copies of this handler would be two places for the
+ * status-code mapping to drift.
  */
 function dailyBriefingRunRoute(run: ItemRunner, label: string) {
   return asyncRoute(async (req: Request, res: Response) => {
@@ -47,7 +47,7 @@ function dailyBriefingRunRoute(run: ItemRunner, label: string) {
       // Non-null: requireAuth ran before this handler and only calls next()
       // after setting profileId.
       // force: the user was warned this is a repeat of an analysis they
-      // already have and chose to spend another quota unit on it anyway.
+      // already have and chose to spend another credit on it anyway.
       // Multipart carries every field as text, so `force` arrives as the
       // string "true" where the previous JSON body delivered a boolean.
       const body: unknown = req.body;
@@ -77,21 +77,13 @@ function dailyBriefingRunRoute(run: ItemRunner, label: string) {
         case "not_found":
           res.status(404).json({ error: "Watchlist item not found" });
           return;
-        case "no_subscription":
-          // 402, matching the manual-quota-exceeded convention in
-          // analyses.route.ts: this signals "you need the Daily Briefing
-          // add-on", not "retry shortly". Reaching here means neither a live
-          // subscription nor any top-up credits.
+        case "insufficient_credits":
+          // 402, matching the insufficient-credits convention in
+          // analyses.route.ts: this signals "buy more credits", not "retry
+          // shortly".
           res.status(402).json({
-            error: "No active Daily Briefing subscription or credits",
-          });
-          return;
-        case "quota_exhausted":
-          // The subscription is live but this period's allowance is spent AND
-          // the credit balance is zero — a top-up pack is what unblocks it,
-          // which is why the message names one.
-          res.status(429).json({
-            error: "Daily Briefing quota exhausted — buy a top-up to run more this month",
+            error: "Insufficient credits",
+            reason: "insufficient_credits",
           });
           return;
         case "duplicate":

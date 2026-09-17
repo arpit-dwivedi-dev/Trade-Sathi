@@ -24,7 +24,7 @@
 
 /* The quota block is one row: icon, copy, and the way out of it — the action
    was previously stranded in a second element below the callout. */
-.analyze-quota {
+.analyze-credits {
   align-items: center;
 }
 
@@ -32,12 +32,12 @@
   flex: none;
 }
 
-.analyze-quota-copy {
+.analyze-credits-copy {
   flex: 1;
   min-width: 14rem;
 }
 
-.analyze-quota-cta {
+.analyze-credits-cta {
   flex: none;
 }
 
@@ -120,7 +120,7 @@
     flex: none;
   }
 
-  .analyze-quota {
+  .analyze-credits {
     align-items: flex-start;
     flex-wrap: wrap;
   }

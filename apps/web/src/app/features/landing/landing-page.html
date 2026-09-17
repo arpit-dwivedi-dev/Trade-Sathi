@@ -24,17 +24,20 @@
   </header>
 
   <!-- The public price list. Prices come from GET /api/pricing, so what a
-       visitor sees here is the same catalogue — and the same region's prices —
-       the billing screen charges from. -->
+       visitor sees here is the same catalogue — and the same region's rate —
+       the billing screen charges from. There are no plans or subscriptions:
+       one credit balance, spent by every paid feature at a fixed cost, topped
+       up by buying any quantity of credits. -->
   <section class="landing-section-wrap">
     <div class="landing-inner">
       <div class="landing-section" id="pricing">
         <div class="landing-section-head">
           <h2 class="landing-h2">Pricing</h2>
           <p class="landing-section-sub">
-            Start with a one-time entry pass, or subscribe for a monthly allowance.
+            One credit balance, spent by every paid feature. Buy any quantity, any time — no
+            subscription.
             @if (pricing(); as p) {
-              {{ p.region === 'GLOBAL' ? 'Prices in US dollars.' : 'Prices in Indian rupees.' }}
+              {{ p.pricing.region === 'GLOBAL' ? 'Prices in US dollars.' : 'Prices in Indian rupees.' }}
             }
           </p>
         </div>
@@ -43,36 +46,43 @@
           <!-- panel for the slab surface (bg/border/radius, no padding) — the
                grid items carry their own padding and hairline dividers. -->
           <div class="landing-grid panel">
-            <!-- First among the cards on purpose: it is the cheapest way in and
-                 the one a paywalled product wants a new visitor to see first. -->
             <div class="landing-grid-item">
               <span class="landing-grid-num">01</span>
-              <h3 class="landing-h3">Entry pass</h3>
+              <h3 class="landing-h3">Buy credits</h3>
               <p class="landing-price">
-                {{ priceLabel(p.entryPass.amountMinor, p.entryPass.currency) }}
-                <span class="landing-price-note">once</span>
+                {{ priceLabel(p.pricing.pricePerCreditMinor, p.pricing.currency) }}
+                <span class="landing-price-note">/ credit</span>
               </p>
               <p class="landing-grid-copy">
-                {{ p.entryPass.credits }} chart analyses, one-time. Once per account — the cheapest
-                way to start.
+                Minimum purchase: {{ p.pricing.minPurchaseCredits }} credits. Buy any quantity from
+                there, any time, with no subscription.
               </p>
               <a pButton size="small" [outlined]="true" routerLink="/login">Get started</a>
             </div>
 
-            @for (plan of p.plans; track plan.key) {
-              <div class="landing-grid-item">
-                <span class="landing-grid-num">0{{ $index + 2 }}</span>
-                <h3 class="landing-h3">{{ plan.name }}</h3>
-                <p class="landing-price">
-                  {{ priceLabel(plan.amountMinor, plan.currency) }}
-                  <span class="landing-price-note">/ month</span>
-                </p>
-                <p class="landing-grid-copy">
-                  {{ plan.analysesPerMonth }} analyses every month, billed by Razorpay.
-                </p>
-                <a pButton size="small" [outlined]="true" routerLink="/login">Get started</a>
-              </div>
-            }
+            <div class="landing-grid-item">
+              <span class="landing-grid-num">02</span>
+              <h3 class="landing-h3">Quick amounts</h3>
+              <ul class="landing-grid-copy landing-quick-list">
+                @for (amount of p.pricing.quickAmountsMinor; track amount) {
+                  <li>
+                    {{ priceLabel(amount, p.pricing.currency) }} —
+                    {{ creditsFor(amount, p.pricing.pricePerCreditMinor) }} credits
+                  </li>
+                }
+              </ul>
+              <p class="landing-grid-copy">Pre-filled shortcuts on the buy-credits screen.</p>
+            </div>
+
+            <div class="landing-grid-item">
+              <span class="landing-grid-num">03</span>
+              <h3 class="landing-h3">What a credit buys</h3>
+              <ul class="landing-grid-copy landing-quick-list">
+                @for (cost of p.featureCosts; track cost.featureKey) {
+                  <li>{{ featureCostLabel(cost) }}</li>
+                }
+              </ul>
+            </div>
           </div>
         } @else {
           <p class="landing-grid-copy landing-pricing-pending">Loading prices…</p>

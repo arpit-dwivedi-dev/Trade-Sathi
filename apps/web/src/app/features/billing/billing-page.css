@@ -1,10 +1,16 @@
-/* The shell's .body. Tighter padding than the default page body so the plan
-   grid and the summary slab get the full width. */
+/* The shell's .body, held to a centred column. The ceiling is the point: every
+   card here is one sentence plus one control, so the wider the page the more
+   empty card each one becomes. 1040 is where the buy card lands at roughly the
+   width of the form inside it — past that the stepper's ± drift to the far ends
+   of the card and stop reading as one control. */
 .bill {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
-  padding: var(--s4) var(--s4) var(--s8);
+  margin-inline: auto;
+  max-width: 1040px;
+  padding: var(--s5) var(--s5) var(--s10);
+  width: 100%;
 }
 
 /* ── page head ──────────────────────────────────────────── */
@@ -14,13 +20,12 @@
   flex-wrap: wrap;
   gap: var(--s3) var(--s4);
   justify-content: space-between;
-  padding-top: var(--s1);
 }
 
 .bill-head-copy {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -55,228 +60,136 @@
   white-space: nowrap;
 }
 
-/* ── summary slab ───────────────────────────────────────── */
-/* A card on the page's own surface — the same background, hairline and radius
-   as every p-card beside it. Not the shared .panel: that slab is dark on both
-   themes on purpose, because it marks the two places the *model's* output is
-   shown, and this panel holds the user's own account data instead. As the only
-   near-black block on a light page it read as a widget from another product. */
-.bill-slab {
+/* ── the two columns ────────────────────────────────────── */
+/* An even split, because both columns now hold content of the same weight:
+   a form on the left, a figure and a field on the right.
+
+   Stretched, so the two columns end on the same line. Ranged from the top,
+   the buy card ran a head below the stack beside it — the shorter column
+   simply stopped early and the page ended in a step. The taller column sets
+   the row, each card fills the height it is given, and the bottom edge is one
+   line at any content length. */
+.bill-grid {
+  align-items: stretch;
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* The two right-hand cards share the column's height between them, so the
+   stack's bottom edge lands on the buy card's. 1fr rather than
+   minmax(0, 1fr): the bare fr keeps an automatic minimum of its content, so a
+   card can never be squeezed under its own text. Stated before the query
+   below, which has to be able to override it. */
+.bill-side {
+  display: grid;
+  gap: var(--s4);
+  grid-auto-rows: 1fr;
+}
+
+/* Below this the two columns are narrower than the form's own field wants to
+   be, so they become one and the cards go back to being bands. Keyed to the
+   viewport because the rail is a fixed 264px the columns cannot see. */
+@media (max-width: 1040px) {
+  .bill-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* One card per row again, so there is no partner to match and nothing to
+     share out: back to each card's own height. Left at 1fr, the balance card
+     in a one-column layout would have been padded out to the taller redeem
+     card's height for no reason. */
+  .bill-side {
+    grid-auto-rows: auto;
+  }
+}
+
+/* ── cards ──────────────────────────────────────────────── */
+/* Hand-rolled rather than p-card. The preset gives every card body 20px of
+   padding on all four sides, which on a card that already carries a header
+   doubles up with the header's own inset — 40px between the card edge and its
+   own title. This is the same surface, hairline and radius the balance slab
+   used, so the change is one of padding, not of appearance. */
+.bill-card {
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  flex: none;
   overflow: hidden;
 }
 
-/* The row owns its own grid rather than borrowing the shared .cells, which is
-   built for the dark slab: it hard-codes three columns and divides with
-   --slab-line. Both are overridden here, but as a second class of equal weight
-   they would have won or lost purely on which stylesheet Angular happened to
-   inject last, so the shared class is dropped from the markup instead.
-   Four columns, not three: the plan, both allowances and the credit reserve are
-   read as one row, and dropping the plan out would leave the two that follow it
-   without a subject. */
-.bill-cells {
+.bill-card-hd {
+  align-items: center;
   border-bottom: 1px solid var(--line-soft);
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  gap: var(--s3);
+  justify-content: space-between;
+  min-height: 44px;
+  padding: var(--s2) var(--s4);
 }
 
-/* The shared .cell divides with --slab-line, which is tuned for a near-black
-   ground and all but disappears on a white card. Same divide, page hairline.
-   The :first-child reset has to be restated at this specificity: the shared
-   `.cell:first-child` is one class lighter, so it would lose here and the first
-   cell would draw a hairline down the card's own left edge. */
-.bill-cells .cell {
-  border-left: 1px solid var(--line-soft);
+.bill-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s4);
 }
 
-.bill-cells .cell:first-child {
-  border-left: 0;
+/* ── balance ────────────────────────────────────────────── */
+/* Figure and price list on one line. Wraps back to a stack on a narrow
+   column, where there is no room to pair them.
+
+   Row, not column, has to be said out loud. This element also carries
+   .bill-card-body, so the body's own column direction is what it inherits
+   otherwise — and under column direction .bill-costs' `flex: 1 1 180px` stops
+   being a horizontal basis and becomes a 180px-tall box, which was the tall
+   half-empty balance card. */
+.bill-balance-row {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s6);
 }
 
-/* Three classes deep on purpose. The shared `.cell .tnum` in components.css
-   sets font-size and weight on this very element — the figure carries both
-   classes — and at equal specificity the winner is whichever stylesheet Angular
-   injected last. Naming the cell here puts this rule one class ahead of it, so
-   the larger figure is a decision rather than an accident of injection order. */
-.bill-cells .cell .bill-figure {
-  font-size: var(--t-2xl);
+.bill-figure {
+  font-size: var(--t-3xl);
   font-weight: 600;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1;
 }
 
-/* The denominator, set as a suffix of the figure rather than beside it: it is
-   part of the same reading ("18 of 30"), not a second figure. */
-.bill-figure-of {
-  font-size: var(--t-md);
-  font-weight: 500;
-  letter-spacing: -0.01em;
+.bill-costs {
+  color: var(--tx-3);
+  display: flex;
+  flex: 1 1 180px;
+  flex-direction: column;
+  font-size: var(--t-2xs);
+  gap: 3px;
+  list-style: none;
+  margin: 0;
+  min-width: 0;
+  /* Optical, not structural: at 32px the figure's cap height starts a few px
+     below its own box, so the list needs the same nudge to share its top line
+     rather than sitting visibly above it. */
+  padding: 3px 0 0;
 }
 
 .bill-note {
   color: var(--tx-3);
+  flex: 1 1 180px;
   font-size: var(--t-2xs);
+  padding-top: 6px;
 }
 
-.bill-meters {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s4);
-  padding: var(--s4) var(--s5) var(--s5);
-}
-
-.bill-meter-block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-}
-
-.bill-meter-head {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s2) var(--s4);
-  justify-content: space-between;
-}
-
-/* Height and radius only. The colour overrides that used to live here existed
-   solely because this panel was the dark slab — a near-black ground needed the
-   track and fill restated, and the preset's own track (--border-subtle, a light
-   grey in the light theme) would have been drawn straight across it. On a
-   themed card the preset's bindings are already correct and already follow the
-   theme, so restating them here could only make them disagree with it.
-
-   The token names are PrimeNG's, not Material's: --mat-progress-bar-*, which
-   this rule used to set, has been read by nothing since the migration, so the
-   meter silently fell back to the preset's own defaults. */
-.bill-meter {
-  --p-progressbar-border-radius: var(--r-pill);
-  --p-progressbar-height: 6px;
-}
-
+/* Row, not column — it overrides .bill-card-body's own direction for the one
+   case that is a status line rather than a stack of content. */
 .bill-state {
   align-items: center;
   color: var(--tx-3);
-  display: flex;
+  flex-direction: row;
   font-size: var(--t-sm);
   gap: var(--s2);
   line-height: 1.55;
-  padding: var(--s5);
-}
-
-/* Already inside the padded meter group — the state replaces a meter there, so
-   it must not pay for the padding twice. */
-.bill-state-flush {
-  padding: 0;
-}
-
-/* ── top-up ─────────────────────────────────────────────── */
-.bill-topup-row {
-  align-items: start;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s4);
-  justify-content: space-between;
-  padding: var(--s5);
-}
-
-/* Two currencies in one card, ruled apart: they are separate balances that
-   cannot be spent on each other. */
-.bill-topup-row + .bill-topup-row {
-  border-top: 1px solid var(--line-soft);
-}
-
-.bill-topup-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 260px;
-}
-
-.bill-topup-name {
-  font-family: var(--fh);
-  font-size: var(--t-sm);
-  font-weight: 600;
-}
-
-/* The balance sits directly above its own buy control, so the number and the
-   thing that changes it read as one unit. */
-.bill-topup-act {
-  align-items: flex-end;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-}
-
-.bill-balance {
-  color: var(--tx-3);
-}
-
-.bill-balance .tnum {
-  color: var(--tx);
-  font-size: var(--t-md);
-  font-weight: 600;
-}
-
-.bill-promo-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s3);
-  padding: var(--s5);
-}
-
-/* ── cards and rows ─────────────────────────────────────── */
-/* Every p-card on this page carries its own hairline, for the same reason
-   .acct-card does: the Aura preset themes a card with a background and a
-   radius but neither a border nor a shadow (card.root.shadow is 'none', and
-   Aura has no borderColor token to bind). With --bg-surface and --bg-canvas
-   both #ffffff in the light theme, a card without one is not a faint card —
-   it is no card at all, and these four would read as loose text on the page.
-   --line, not .acct-card's --line-soft: this is a free-standing card on the
-   page ground, which is what --line is for, and it is what .tile, .plate and
-   .tbl use. */
-.bill-topup,
-.bill-current {
-  border: 1px solid var(--line);
-}
-
-.bill-current-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s3);
-  padding: var(--s5);
-}
-
-.bill-row {
-  font-size: var(--t-xs);
-}
-
-.bill-key {
-  color: var(--tx-2);
-}
-
-.bill-val {
-  color: var(--tx);
-  font-weight: 600;
-  text-align: right;
-}
-
-/* A renewal date belongs to the line above it, so it is set quieter rather than
-   given equal weight in the list. */
-.bill-row-sub .bill-key,
-.bill-row-sub .bill-val {
-  color: var(--tx-3);
-  font-weight: 400;
-}
-
-/* Add-ons are separately billed SKUs held alongside the tier, so each one is
-   ruled off from the plan's own rows rather than reading as part of it. */
-.bill-row-addon {
-  border-top: 1px solid var(--line-soft);
-  margin-top: var(--s2);
-  padding-top: var(--s3);
 }
 
 .bill-msg {
@@ -286,69 +199,8 @@
   max-width: 58ch;
 }
 
-/* ── plans ──────────────────────────────────────────────── */
-.bill-plans {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s3);
-  padding-top: var(--s1);
-}
-
-.bill-plans-head {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.bill-h {
-  font-size: var(--t-lg);
-  letter-spacing: -0.017em;
-}
-
 .bill-disc {
   border-top: 1px solid var(--line-soft);
   margin-top: auto;
   padding-top: var(--s4);
-}
-
-/* Two rows of two before they stack: at 1000px four columns squeeze the
-   figures into numbers with no room for their own labels. */
-@media (max-width: 1000px) {
-  .bill-cells {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .bill-cells .cell:nth-child(odd) {
-    border-left: 0;
-  }
-
-  .bill-cells .cell:nth-child(n + 3) {
-    border-top: 1px solid var(--line-soft);
-  }
-}
-
-@media (max-width: 700px) {
-  /* Inside the slab, the third and fourth figures now start a new column of
-     their own, so the hairlines move from the sides to between the rows. */
-  .bill-cells {
-    grid-template-columns: 1fr;
-  }
-
-  .bill-cells .cell {
-    border-left: 0;
-    border-top: 1px solid var(--line-soft);
-  }
-
-  .bill-cells .cell:first-child {
-    border-top: 0;
-  }
-
-  /* Stacked, the balance/button column would sit marooned on the right. */
-  .bill-topup-act {
-    align-items: flex-start;
-  }
-
-  .bill-topup-copy {
-    min-width: 0;
-  }
 }

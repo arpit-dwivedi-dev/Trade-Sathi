@@ -86,7 +86,13 @@ const DAILY_REFRESH_MS = 5 * 60_000;
 const STREAMING_INTRADAY_REFRESH_MS = 2 * 60_000;
 const ROLLOVER_REFETCH_MIN_GAP_MS = 5_000;
 
-type AnalyzeState = 'idle' | 'starting' | 'processing' | 'complete' | 'failed' | 'quota_exceeded';
+type AnalyzeState =
+  | 'idle'
+  | 'starting'
+  | 'processing'
+  | 'complete'
+  | 'failed'
+  | 'insufficient_credits';
 
 /** The exact chart an analysis run belongs to: one instrument, one timeframe's lookback. */
 interface AnalysisTarget {
@@ -234,7 +240,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
 
   /**
    * A finished analysis for an instrument the user has since navigated away
-   * from. Surfaced as a note rather than dropped silently: the quota unit was
+   * from. Surfaced as a note rather than dropped silently: the credit was
    * spent and the result is real, it just does not belong on this chart.
    */
   protected readonly finishedElsewhere = signal<AnalysisTarget | null>(null);
@@ -703,7 +709,9 @@ export class WorkspacePage implements OnInit, OnDestroy {
     const started = await this.live.startAnalysis(target.instrumentId, target.lookbackDays, chart);
     if (!started.ok) {
       this.runningFor.set(null);
-      this.analyzeState.set(started.reason === 'quota_exceeded' ? 'quota_exceeded' : 'failed');
+      this.analyzeState.set(
+        started.reason === 'insufficient_credits' ? 'insufficient_credits' : 'failed',
+      );
       this.analyzeError.set(started.message);
       return;
     }

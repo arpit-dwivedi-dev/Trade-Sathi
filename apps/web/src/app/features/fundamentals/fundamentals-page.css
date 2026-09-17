@@ -29,6 +29,11 @@
   margin-right: 4px;
 }
 
+.fund-ai-cost {
+  font-size: var(--t-2xs);
+  margin-left: var(--s2);
+}
+
 /* ── identity card ───────────────────────────────────────── */
 
 /* p-card's own preset (primeng-preset.ts) only hands it a background, radius

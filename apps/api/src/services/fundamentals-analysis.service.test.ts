@@ -103,7 +103,7 @@ beforeEach(() => {
   getFundamentalsForInstrument.mockResolvedValue(RAW_PROVIDER_FUNDAMENTALS);
   getRawStatementsForInstrument.mockResolvedValue(RAW_STATEMENTS);
   deriveFundamentals.mockReturnValue(DERIVED);
-  callRpc.mockResolvedValue(true);
+  callRpc.mockResolvedValue("consumed");
 
   from
     .mockImplementationOnce(() => chainable({ data: null, error: null })) // in-flight lookup

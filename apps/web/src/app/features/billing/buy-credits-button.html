@@ -1,19 +1,139 @@
 @switch (state()) {
   @case ('idle') {
-    @if (isEntryPassUsed()) {
-      <div class="note billing-msg" style="--tone: var(--tx-3)">
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></svg>
-        This account has already used its entry pass.
+    <!-- One column, the width of the card. It was briefly split into "what is
+         being bought" and "what it costs" side by side, which only paid off in
+         a card far wider than this one — at any real width the total and the
+         button sat marooned in space the field did not fill, 13px below the
+         label they were supposed to line up with. -->
+    <form class="buy-form" (submit)="$event.preventDefault(); onBuyClick()">
+      <div class="buy-field">
+        <div class="buy-field-head">
+          <label class="buy-label" for="buy-qty">Quantity</label>
+          @if (minQuantity(); as min) {
+            <!-- The ceiling is only named when the region actually has one:
+                 "Max " with nothing after it is what a config without the
+                 bounds columns used to render. -->
+            <span class="buy-hint">
+              @if (maxQuantity(); as max) {
+                Min {{ min }} · Max {{ max }}
+              } @else {
+                Min {{ min }}
+              }
+            </span>
+          }
+        </div>
+
+        <!-- A stepper rather than a bare number field: the quantity is the one
+             thing this form is about, and the ±  targets the common "a bit more
+             than the minimum" case without a keyboard. Both ends disable at
+             their bound rather than silently clamping. -->
+        <div class="buy-stepper">
+          <button
+            type="button"
+            class="buy-step"
+            aria-label="Fewer credits"
+            [disabled]="!canStepDown()"
+            (click)="stepQuantity(-1)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12" /></svg>
+          </button>
+
+          <span class="buy-qty-wrap">
+            <input
+              id="buy-qty"
+              #qtyInput
+              class="buy-qty tnum"
+              type="number"
+              inputmode="numeric"
+              [min]="minQuantity() ?? 1"
+              [attr.max]="maxQuantity()"
+              [attr.step]="rules()?.step ?? 1"
+              [value]="quantity() ?? ''"
+              (input)="onQuantityInput(qtyInput.value)"
+              (blur)="onQuantityBlur()"
+            />
+            <span class="buy-unit">credits</span>
+          </span>
+
+          <button
+            type="button"
+            class="buy-step"
+            aria-label="More credits"
+            [disabled]="!canStepUp()"
+            (click)="stepQuantity(1)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 6v12M6 12h12" /></svg>
+          </button>
+        </div>
       </div>
-    } @else {
-      <button pButton (click)="onBuyClick()">
+
+      @if (quickOptions().length) {
+        <div class="buy-quick" role="group" aria-label="Quick amounts, in credits">
+          @for (option of quickOptions(); track option.credits) {
+            <button
+              type="button"
+              class="buy-chip"
+              [class.buy-chip-on]="isQuickSelected(option.credits)"
+              [attr.aria-pressed]="isQuickSelected(option.credits)"
+              [attr.aria-label]="option.credits + ' credits'"
+              (click)="selectQuick(option.credits)"
+            >
+              {{ option.credits }}
+            </button>
+          }
+        </div>
+      }
+
+      <!-- Revealed on request rather than always taking a row: most purchases
+           have no code, and an empty optional field sitting above the price is
+           just one more thing to read past.
+
+           Named for what it does rather than "promo code" — this field only
+           accepts a code that reduces the price, and the redeem card beside
+           the form takes the kind that grants credits. Calling both "promo
+           code" left the user with no way to tell which one they were
+           holding. -->
+      @if (promoOpen()) {
+        <div class="buy-promo">
+          <input
+            #promoInput
+            class="input buy-promo-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Discount code"
+            aria-label="Discount code"
+            [value]="promoCode()"
+            (input)="promoCode.set(promoInput.value)"
+          />
+          <button type="button" class="buy-promo-drop" (click)="closePromo()">Remove</button>
+        </div>
+      } @else {
+        <button type="button" class="buy-promo-toggle" (click)="openPromo()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0l-7-7A2 2 0 013 12.2V5a2 2 0 012-2h7.2a2 2 0 011.4.6l7 7a2 2 0 010 2.8z" /><path d="M7.5 7.5h.01" /></svg>
+          Have a discount code?
+        </button>
+      }
+
+      <!-- The one figure that matters, given its own weight — rather than the
+           old trailing "= ₹198" hung off the input. -->
+      <div class="buy-total">
+        <span class="buy-total-lbl">Total</span>
+        <b class="tnum buy-total-val">{{ estimatedCostLabel() ?? '—' }}</b>
+      </div>
+
+      <button
+        pButton
+        type="submit"
+        class="buy-cta"
+        [disabled]="orderQuantity() === null"
+      >
         {{ buyLabel() }}
       </button>
-    }
+    </form>
   }
   @case ('ordering') {
-    <!-- A div, not a p: p-progress-spinner renders a div, and a block inside a
-         paragraph is invalid HTML the browser's parser splits. -->
+    <!-- A div, not a p: p-progress-spinner renders a div, and a block inside
+         a paragraph is invalid HTML the browser's parser splits. -->
     <div class="note billing-msg" style="--tone: var(--tx-3)"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Starting your purchase…</div>
   }
   @case ('loading_checkout') {
@@ -31,7 +151,7 @@
   @case ('success') {
     <p class="note billing-msg billing-msg-ok" style="--tone: var(--up)">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></svg>
-      {{ successLabel() }}
+      Credits added. You're good to go.
     </p>
   }
   @case ('confirming_slow') {
@@ -46,12 +166,6 @@
     <button pButton [outlined]="true" class="billing-retry" (click)="onCheckAgain()">
       Check again
     </button>
-  }
-  @case ('used_up') {
-    <p class="note billing-msg" style="--tone: var(--tx-3)">
-      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></svg>
-      This account has already used its entry pass.
-    </p>
   }
   @case ('poll_error') {
     <p class="note billing-msg billing-msg-error" style="--tone: var(--down)" role="alert">

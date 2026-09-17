@@ -45,14 +45,21 @@ export class PromoRedeemBox {
       if (result.ok) {
         this.code.set('');
         this.message.set({ text: 'Code applied — credits added to your balance.', tone: 'ok' });
-        // The balance this control's callers display comes from the plan
-        // summary; refresh it so "applied" is immediately visible, not just
-        // claimed.
-        void this.billing.refreshPlanSummary();
+        // The balance this control's callers display comes from the shared
+        // credit balance; refresh it so "applied" is immediately visible, not
+        // just claimed.
+        void this.billing.refreshCreditBalance();
         this.redeemed.emit();
       } else {
         // Worded per outcome so the user knows whether to retype, wait, or
         // stop; 'invalid_code' is deliberately vague to match the backend.
+        //
+        // It is also where a discount code lands: the backend collapses
+        // "unknown" and "exists, but only discounts" into this one answer so
+        // the box cannot be used to enumerate codes. The user holding a
+        // perfectly good discount code has no way to tell that from a typo, so
+        // the message points at the other box rather than leaving them
+        // retyping the same code.
         this.message.set({
           text:
             result.outcome === 'duplicate'
@@ -61,7 +68,9 @@ export class PromoRedeemBox {
                 ? 'That code has expired.'
                 : result.outcome === 'exhausted'
                   ? 'That code has reached its redemption limit.'
-                  : "That code isn't valid.",
+                  : result.outcome === 'not_eligible_region'
+                    ? "That code isn't available in your region."
+                    : "That code isn't valid. Discount codes go in the Buy credits box.",
           tone: 'err',
         });
       }

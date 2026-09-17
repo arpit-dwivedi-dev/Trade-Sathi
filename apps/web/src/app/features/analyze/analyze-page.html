@@ -1,34 +1,29 @@
 <section class="body content-max analyze">
   <!-- `fill` while there is nothing else on the screen: the drop target then
        *is* the screen. Once anything else is rendered — a result, a progress
-       card, the quota callout — it drops to a compact row so the real content
+       card, the out-of-credits callout — it drops to a compact row so the real content
        gets the height. -->
   <app-chart-drop
-    [class.fill]="state() === 'idle' && !quotaExhausted()"
-    [disabled]="(state() !== 'idle' && state() !== 'complete') || quotaExhausted()"
+    [class.fill]="state() === 'idle' && !balanceExhausted()"
+    [disabled]="(state() !== 'idle' && state() !== 'complete') || balanceExhausted()"
     (fileSelected)="onFileSelected($event)"
   />
 
-  <!-- Shown before any upload: a user who is already out of analyses gets the
-       upgrade path on arrival rather than after a doomed upload. -->
-  @if (state() === 'idle' && quotaExhausted()) {
-    <div class="note analyze-quota" style="--tone: var(--warn)">
+  <!-- Shown before any upload: a user who is already out of credits gets the
+       buy-credits path on arrival rather than after a doomed upload. -->
+  @if (state() === 'idle' && balanceExhausted()) {
+    <div class="note analyze-credits" style="--tone: var(--warn)">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warn)"
            stroke-width="1.6" aria-hidden="true" class="note-icon">
         <circle cx="12" cy="12" r="9" />
         <path d="M12 8v5M12 16h.01" />
       </svg>
-      <span class="analyze-quota-copy">
-        @if (hasNoPlan()) {
-          <b>You don't have an active plan.</b>
-          Choose a plan to start analyzing charts.
-        } @else {
-          <b>You've used all your analyses this month.</b>
-          Upgrade to keep going, or wait for the quota to reset.
-        }
+      <span class="analyze-credits-copy">
+        <b>You're out of credits.</b>
+        Buy more credits to keep analyzing charts.
       </span>
-      <button pButton class="analyze-quota-cta" (click)="plansRequested.emit()">
-        See plans
+      <button pButton class="analyze-credits-cta" (click)="plansRequested.emit()">
+        Buy credits
       </button>
     </div>
   }
@@ -95,17 +90,17 @@
       }
     }
 
-    @case ('quota_exceeded') {
+    @case ('insufficient_credits') {
       <p-card role="alert">
         <div class="state-card">
           <div class="state-head">
-            <span class="st st-failed">Quota reached</span>
-            <h3 class="state-title">You're out of analyses</h3>
+            <span class="st st-failed">Out of credits</span>
+            <h3 class="state-title">You're out of credits</h3>
           </div>
           <p class="state-msg">{{ error() }}</p>
           <div class="billing-actions">
             <button pButton (click)="plansRequested.emit()">
-              See plans &amp; credits
+              Buy credits
             </button>
           </div>
         </div>

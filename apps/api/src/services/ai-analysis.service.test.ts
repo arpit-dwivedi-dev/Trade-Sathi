@@ -1006,7 +1006,7 @@ describe("reclaimStrandedAnalyses", () => {
     return builder;
   }
 
-  it("refunds the fundamentals entitlement for a row stranded by a process restart", async () => {
+  it("refunds the fundamentals credit for a row stranded by a process restart", async () => {
     const row = {
       id: "a1",
       source: "fundamentals",
@@ -1018,9 +1018,10 @@ describe("reclaimStrandedAnalyses", () => {
     const reclaimed = await reclaimStrandedAnalyses();
 
     expect(reclaimed).toBe(1);
-    expect(mockCallRpc).toHaveBeenCalledWith("decrement_fundamentals_usage", {
+    expect(mockCallRpc).toHaveBeenCalledWith("refund_credits", {
       p_profile_id: "p1",
-      p_period: "2026-09",
+      p_feature_key: "fundamental_analysis",
+      p_ref_analysis_id: "a1",
     });
   });
 

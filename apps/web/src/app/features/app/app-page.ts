@@ -175,9 +175,10 @@ export class AppPage implements OnInit {
   /**
    * AnalyzePage stays mounted for the life of the shell (it is hidden, not
    * destroyed, on the History tab), so this reference is stable. It is how a
-   * purchase made in the overlay reaches the page's reset — including a
-   * purchase started from the nav while the page sits in quota_exceeded, which
-   * an output wired only to the quota block would miss.
+   * purchase made on the billing tab reaches the page's reset — including a
+   * purchase started from the nav while the page sits in
+   * insufficient_credits, which an output wired only to that block would
+   * miss.
    */
   private readonly analyzePage = viewChild(AnalyzePage);
 
@@ -201,15 +202,16 @@ export class AppPage implements OnInit {
       if (tab !== 'dailyBriefing') this.dailyBriefingSelection.set(null);
     });
 
-    // The one plan read for the whole shell. Everything downstream — the
-    // rail's CTA label, the overlay, the plan picker's "Current plan" marker —
-    // reads the cache it fills rather than querying again.
-    void this.billing.ensurePlanSummary();
+    // The one credit balance read for the whole shell. Everything downstream —
+    // the rail's balance label, the analyze/fundamentals/daily-briefing
+    // screens, the billing tab — reads the cache it fills rather than
+    // querying again.
+    void this.billing.ensureCreditBalance();
 
-    // Same idea for the price list: the pack buttons in the overlay and on the
-    // billing tab label themselves from it, and reading it once here means
-    // they are priced by the time either surface is opened. The endpoint
-    // resolves the region from this account's locked profile column.
+    // Same idea for the price list: the buy-credits control and the billing
+    // tab label themselves from it, and reading it once here means it is
+    // priced by the time either surface is opened. The endpoint resolves the
+    // region from this account's locked profile column.
     void this.billing.ensurePricing();
 
     this.destroyRef.onDestroy(() => this.clearMarketStatusTimer());
@@ -302,15 +304,11 @@ export class AppPage implements OnInit {
 
   /**
    * Billing is a plain tab now, not a popup — see plans-overlay.ts removal.
-   * Both entry points (the nav rail's own link and the quota block's
-   * button) land here so they behave identically.
+   * Both entry points (the nav rail's own link and the "not enough credits"
+   * block's button) land here so they behave identically.
    */
   protected openPlans(): void {
     this.select('billing');
-  }
-
-  protected onUpgraded(): void {
-    this.analyzePage()?.onUpgraded();
   }
 
   protected onCreditsAdded(): void {

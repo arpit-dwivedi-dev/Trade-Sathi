@@ -26,7 +26,7 @@ export type SubmitResult =
   | { ok: true; id: string }
   | {
       ok: false;
-      reason: 'quota_exceeded' | 'invalid' | 'unauthenticated' | 'error';
+      reason: 'insufficient_credits' | 'invalid' | 'unauthenticated' | 'error';
       message: string;
     };
 
@@ -35,8 +35,6 @@ export type PollOutcome =
   | { outcome: 'failed'; row: AnalysisRow }
   | { outcome: 'timed_out' }
   | { outcome: 'poll_error' };
-
-export type QuotaStatus = { used: number; limit: number; remaining: number };
 
 export interface PollHandle {
   result: Promise<PollOutcome>;
@@ -100,50 +98,31 @@ export class AnalyzeService {
   }
 
   /**
-   * Reads this month's quota straight from Supabase, the same way pollAnalysis
-   * reads analyses — the profiles/plans/usage_counters select policies already
-   * permit reading your own row, so no backend endpoint is needed.
+   * Reads the one credit balance straight from Supabase, the same way
+   * pollAnalysis reads analyses — the profiles select-own policy already
+   * permits this, so no backend endpoint is needed.
    *
    * Returns null if it can't be determined (SSR, no session, read error): the
-   * caller must not treat "unknown" as "exhausted" and block a usable account.
+   * caller must not treat "unknown" as "zero" and block a usable account.
    */
-  async fetchQuota(): Promise<QuotaStatus | null> {
+  async fetchCreditBalance(): Promise<number | null> {
     const client = this.supabase.client;
     if (!client) return null;
 
     const profileId = this.auth.user()?.id;
     if (!profileId) return null;
 
-    // Same UTC bucket the check_and_increment_usage function uses. Deriving it
-    // from local time would read the wrong month's counter near a boundary.
-    const period = new Date().toISOString().slice(0, 7);
-
     try {
-      const [profile, counter] = await Promise.all([
-        client
-          .from('profiles')
-          .select('plans(analyses_per_month)')
-          .eq('id', profileId)
-          .single<{ plans: { analyses_per_month: number } | null }>(),
-        client
-          .from('usage_counters')
-          .select('analyses_used')
-          .eq('profile_id', profileId)
-          .eq('period', period)
-          .maybeSingle<{ analyses_used: number }>(),
-      ]);
+      const { data, error } = await client
+        .from('profiles')
+        .select('credit_balance')
+        .eq('id', profileId)
+        .single<{ credit_balance: number }>();
 
-      if (profile.error) throw profile.error;
-      if (counter.error) throw counter.error;
-
-      const limit = profile.data?.plans?.analyses_per_month;
-      if (typeof limit !== 'number') return null;
-
-      // No counter row yet just means nothing has been used this month.
-      const used = counter.data?.analyses_used ?? 0;
-      return { used, limit, remaining: Math.max(0, limit - used) };
+      if (error) throw error;
+      return data?.credit_balance ?? 0;
     } catch (cause) {
-      console.warn('quota lookup failed', cause);
+      console.warn('credit balance lookup failed', cause);
       return null;
     }
   }
@@ -174,8 +153,8 @@ export class AnalyzeService {
       if (status === 402) {
         return {
           ok: false,
-          reason: 'quota_exceeded',
-          message: "You've used all your analyses this month.",
+          reason: 'insufficient_credits',
+          message: "You don't have enough credits for this analysis.",
         };
       }
       if (status === 400) {
