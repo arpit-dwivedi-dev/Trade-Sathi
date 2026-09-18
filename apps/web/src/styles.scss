@@ -6,6 +6,16 @@
 @import './styles/tokens.css';
 @import './styles/components.css';
 
+/* The brand face. Only the wordmark and the marketing page use it — the
+   interface itself stays on the system stack. Self-hosted in public/fonts. */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-variable.woff2') format('woff2');
+}
+
 *,
 *::before,
 *::after {

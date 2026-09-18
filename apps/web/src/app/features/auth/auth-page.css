@@ -28,16 +28,10 @@
   position: absolute;
 }
 
-.auth-brand,
 .auth-card,
 .auth-disc {
   position: relative;
   z-index: 1;
-}
-
-.auth-brand {
-  font-size: var(--t-lg);
-  margin-bottom: var(--s6);
 }
 
 /* The card's lockup, stacked: mark over wordmark. The brand sheet ships only
@@ -58,13 +52,15 @@
   gap: var(--s3);
 }
 
-:root[data-theme='dark'] .auth-card-brand {
+:host-context(html[data-theme='dark']) .auth-card-brand {
   --wordmark-ink: #f5f7fa;
 }
 
 .auth-card-wordmark {
   color: var(--wordmark-ink);
-  font-family: var(--fh);
+  display: inline-flex;
+  font-family: 'Plus Jakarta Sans', var(--fh);
+  gap: 0.26em;
   font-size: var(--t-xl);
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -104,14 +100,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--s2);
-}
-
-.auth-eyebrow {
-  color: var(--acc-tx);
-  font-size: var(--t-2xs);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .auth-head h1 {
@@ -312,11 +300,8 @@
 @media (max-width: 520px) {
   .auth {
     justify-content: flex-start;
-    padding: var(--s8) var(--s3) var(--s6);
-  }
-
-  .auth-brand {
-    margin-bottom: var(--s5);
+    /* Clears the fixed corner theme toggle (16px inset + 44px). */
+    padding: 76px var(--s3) var(--s6);
   }
 
   .auth-card {

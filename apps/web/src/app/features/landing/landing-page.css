@@ -1,552 +1,2111 @@
-.landing {
-  background: var(--ground);
-  display: flex;
-  flex-direction: column;
+/* Trade Sathi marketing page.
+
+   This page runs its own visual system — Plus Jakarta Sans, a
+   near-black-blue canvas, mint/blue/purple accents, 16px radii and a long
+   700ms ease — rather than the dashboard's token set. That is deliberate: it
+   is a website, not the application, and the two are allowed to look
+   different. Everything here is scoped to :host so nothing leaks into the
+   app shell, and the theme still keys off the same <html data-theme> the
+   ThemeService writes, so one toggle drives both surfaces. */
+
+:host {
+  --page: #f5f7fa;
+  --page-raised: #ffffff;
+  --ink: #0b1220;
+  --ink-soft: #454c60;
+  --ink-faint: #6b7385;
+  --hair: #e0e3eb;
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-strong: rgba(255, 255, 255, 0.9);
+  --glass-hair: rgba(11, 18, 32, 0.08);
+  --head-from: #000000;
+  --head-to: #666666;
+  --app-canvas: #ffffff;
+  --app-panel: #f8f9fd;
+  --app-hair: #e0e3eb;
+  --app-ink: #131722;
+  --app-ink-soft: #5a6172;
+  --grid: rgba(19, 23, 34, 0.07);
+  --hero-scrim: rgba(245, 247, 250, 0.82);
+  --nav-hair: rgba(11, 18, 32, 0.14);
+  --nav-shadow: 0 10px 34px rgba(11, 18, 32, 0.14);
+  --nav-shadow-lifted: 0 16px 44px rgba(11, 18, 32, 0.22);
+  --light-op: 1;
+  --dark-op: 0;
+
+  /* Fixed across both themes: a candle, a CTA and an AI badge must never
+     shift hue when the theme flips. */
+  --brand: #2962ff;
+  --mint: #00d4a0;
+  --ai: #9d2bff;
+  --up: #089981;
+  --down: #f23645;
+
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur: 700ms;
+
+  background: var(--page);
+  color: var(--ink);
+  display: block;
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   min-height: 100vh;
-}
-
-.landing-inner {
-  margin-inline: auto;
-  max-width: 1160px;
-  width: 100%;
-}
-
-.landing-bar {
-  height: 64px;
-  padding: 0 var(--s6);
-}
-
-.landing-bar-inner {
-  align-items: center;
-  display: flex;
-  height: 100%;
-  justify-content: space-between;
-}
-
-.landing-nav {
-  align-items: center;
-  display: flex;
-  gap: var(--s4);
-}
-
-.landing-link {
-  color: var(--tx-2);
-  font-size: var(--t-sm);
-  font-weight: 500;
-  text-decoration: none;
-  transition: color var(--dur-subtle) var(--ease-move);
-}
-
-.landing-link:hover {
-  color: var(--tx);
-}
-
-/* ── hero ────────────────────────────────────────────────
-   Asymmetric on purpose: the copy owns the reading column
-   and the product still gets to be seen at a real size. */
-.landing-hero-wrap {
-  border-bottom: 1px solid var(--line);
-  padding: 0 var(--s6);
-}
-
-.landing-hero {
-  align-items: center;
-  display: grid;
-  gap: var(--s16);
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.86fr);
-  padding: var(--s20) 0 var(--s24);
-}
-
-.landing-hero-copy {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s5);
-}
-
-.landing-eyebrow {
-  align-items: center;
-  align-self: flex-start;
-  background: var(--surf);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  color: var(--tx-2);
-  display: inline-flex;
-  font-size: var(--t-xs);
-  font-weight: 500;
-  gap: var(--s2);
-  padding: 5px var(--s3) 5px var(--s2);
-}
-
-.landing-eyebrow-dot {
-  background: var(--up);
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--up) 18%, transparent);
-  height: 6px;
-  margin-left: 3px;
-  width: 6px;
-}
-
-/* Sentence case at a size that still commands the page. The uppercase
-   letterspaced treatment this replaced read as a template, not a product. */
-.landing-h1 {
-  font-size: clamp(38px, 5vw, var(--t-5xl));
-  font-weight: 600;
-  letter-spacing: -0.033em;
-  line-height: 1.06;
-}
-
-.landing-lede {
-  color: var(--tx-2);
-  font-size: var(--t-lg);
-  line-height: 1.62;
-  max-width: 52ch;
-}
-
-.landing-actions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s4);
-  padding-top: var(--s1);
-}
-
-.landing-actions-note {
-  align-items: center;
-  color: var(--tx-3);
-  display: inline-flex;
-  font-size: var(--t-xs);
-  gap: 6px;
-}
-
-.landing-trust {
-  color: var(--tx-3);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: var(--t-xs);
-  gap: var(--s2) var(--s4);
-  list-style: none;
-  margin: var(--s2) 0 0;
-  padding: 0;
-}
-
-/* A tick before each item, drawn rather than pulled from an icon set. */
-.landing-trust li {
-  align-items: center;
-  display: flex;
-  gap: 6px;
-}
-
-.landing-trust li::before {
-  border-bottom: 1.5px solid var(--up);
-  border-left: 1.5px solid var(--up);
-  content: '';
-  height: 4px;
-  rotate: -45deg;
-  translate: 0 -1px;
-  width: 8px;
-}
-
-/* ── hero preview ───────────────────────────────────────── */
-.landing-preview {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-}
-
-.landing-preview-card {
-  box-shadow: var(--sh-3);
-  overflow: hidden;
-}
-
-.landing-preview-hd {
-  background: var(--surf-2);
-}
-
-.landing-preview-sym {
-  align-items: center;
-  display: flex;
-  gap: var(--s2);
-}
-
-.landing-preview-sym .sym {
-  font-size: var(--t-md);
-}
-
-.landing-preview-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s4);
-  padding: var(--s4) var(--s5);
-}
-
-.landing-preview-readings {
-  display: grid;
-  gap: var(--s3);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.landing-preview-readings > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.landing-preview-readings b {
-  font-size: var(--t-md);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-}
-
-.landing-preview-levels {
-  border-top: 1px solid var(--line-soft);
-  display: flex;
-  flex-direction: column;
-  padding-top: var(--s3);
-}
-
-.landing-preview-level {
-  align-items: center;
-  display: grid;
-  gap: var(--s2);
-  grid-template-columns: 3px 1fr auto;
-  padding: 5px 0;
-}
-
-.landing-preview-level .tnum {
-  font-size: var(--t-sm);
-  /* The zones stack, so a shared right edge is what makes their widths
-     comparable at a glance. */
-  text-align: right;
-}
-
-.landing-preview-tick {
-  border-radius: 1px;
-  height: 12px;
-  width: 3px;
-}
-
-.landing-preview-tick-up {
-  background: var(--up);
-}
-
-.landing-preview-tick-down {
-  background: var(--down);
-}
-
-.landing-preview-panel {
-  border-radius: 0;
-  border-width: 1px 0 0;
-  display: grid;
-  grid-template-columns: 148px minmax(0, 1fr);
-}
-
-.landing-preview-dir {
-  border-right: 1px solid var(--slab-line);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: var(--s4);
-}
-
-.landing-preview-dir-val {
-  font-size: var(--t-2xl);
-  line-height: 1.1;
-}
-
-.landing-preview-cells .cell {
-  padding: var(--s3) var(--s4);
-}
-
-.landing-preview-cells .cell .tnum {
-  font-size: var(--t-sm);
-}
-
-.landing-preview-cap {
-  color: var(--tx-3);
-  font-size: var(--t-3xs);
-  text-align: right;
-}
-
-/* ── sections ───────────────────────────────────────────── */
-.landing-section-wrap {
-  border-bottom: 1px solid var(--line);
-  padding: 0 var(--s6);
-}
-
-.landing-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s8);
-  padding: var(--s20) 0;
-}
-
-.landing-section-head {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-width: 60ch;
-}
-
-.landing-h2 {
-  font-size: var(--t-3xl);
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
-}
-
-.landing-section-sub {
-  color: var(--tx-2);
-  font-size: var(--t-md);
-}
-
-/* Three panes of one surface, divided by the same hairline the rest of the
-   product uses — so the group reads as a single report, not as three cards. */
-.landing-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  overflow: hidden;
-}
-
-.landing-grid-item {
-  border-left: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-  padding: var(--s6);
-}
-
-.landing-grid-item:first-child {
-  border-left: 0;
-}
-
-.landing-grid-num {
-  color: var(--tx-3);
-  font-family: var(--fm);
-  font-size: var(--t-2xs);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-}
-
-.landing-h3 {
-  font-size: var(--t-lg);
-  font-weight: 600;
-  letter-spacing: -0.017em;
-}
-
-.landing-grid-copy {
-  color: var(--tx-2);
-  font-size: var(--t-sm);
-  line-height: 1.6;
-}
-
-/* ── pricing ────────────────────────────────────────────── */
-/* The price sits between the plan name and its copy, sized to be the number
-   the section is scrolled to for, with the cadence ("once", "/ month") as a
-   quiet suffix rather than a second competing figure. */
-.landing-price {
-  align-items: baseline;
-  display: flex;
-  font-size: var(--t-2xl);
-  font-weight: 600;
-  gap: 6px;
-  letter-spacing: -0.02em;
-  margin: var(--s1) 0 var(--s2);
-}
-
-.landing-price-note {
-  color: var(--tx-3);
-  font-size: var(--t-xs);
-  font-weight: 400;
-}
-
-/* The grid items' s2 gap is tight for a card with a CTA at the bottom; the
-   button gets breathing room and is pushed to the foot of the card so the
-   three CTAs align however tall the copy above them is. */
-.landing-grid-item .landing-grid-copy {
-  flex: 1;
-}
-
-/* The quick-amounts and feature-cost lists inside a grid card — plain lines,
-   not bulleted, since each is already a short self-contained statement. */
-.landing-quick-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.landing-pricing-pending {
-  color: var(--tx-3);
-}
-
-/* ── steps ──────────────────────────────────────────────── */
-.landing-steps {
-  counter-reset: step;
-  display: grid;
-  gap: var(--s8);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-/* The rule runs from each mark to the next, so the row reads as a sequence
-   rather than as three unrelated columns. */
-.landing-step {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-  padding-top: var(--s6);
+  overflow-x: clip;
   position: relative;
 }
 
-.landing-step::before {
-  background: var(--line);
-  content: '';
-  height: 1px;
-  left: 0;
-  position: absolute;
-  right: calc(var(--s8) * -1);
-  top: 13px;
+:host-context(html[data-theme='dark']) {
+  --page: #0b1220;
+  --page-raised: #131722;
+  --ink: #f5f7fa;
+  --ink-soft: #9aa7bd;
+  --ink-faint: #7c879b;
+  --hair: #2b3139;
+  --glass: rgba(30, 34, 45, 0.68);
+  --glass-strong: rgba(19, 23, 34, 0.88);
+  --glass-hair: rgba(245, 247, 250, 0.12);
+  --head-from: #ffffff;
+  --head-to: #9b9b9b;
+  --app-canvas: #131722;
+  --app-panel: #1e222d;
+  --app-hair: #2b3139;
+  --app-ink: #d1d4dc;
+  --app-ink-soft: #868b98;
+  --grid: rgba(209, 212, 220, 0.08);
+  --hero-scrim: rgba(11, 18, 32, 0.78);
+  --nav-hair: rgba(245, 247, 250, 0.2);
+  --nav-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+  --nav-shadow-lifted: 0 16px 44px rgba(0, 0, 0, 0.7);
+  --light-op: 0;
+  --dark-op: 1;
 }
 
-.landing-step:last-child::before {
+/* No colour here on purpose: emulated encapsulation makes this selector
+   outrank a single class, which turned the blue CTAs' labels dark. The
+   global stylesheet already makes anchors inherit. */
+:host a {
+  text-decoration: none;
+}
+
+:host h1,
+:host h2,
+:host h3 {
+  margin: 0;
+}
+
+:host p {
+  margin: 0;
+}
+
+/* ════════════════════════════════════════════════════════
+   Motion
+   ════════════════════════════════════════════════════════ */
+
+@keyframes ts-drift {
+  from {
+    transform: translateY(24px);
+  }
+  to {
+    transform: translateY(-24px);
+  }
+}
+
+@keyframes ts-ping {
+  0% {
+    r: 5;
+    opacity: 0.55;
+  }
+  100% {
+    r: 22;
+    opacity: 0;
+  }
+}
+
+@keyframes ts-march {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+@keyframes ts-sweep {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(44px);
+  }
+}
+
+@keyframes ts-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes ts-orbit {
+  0%,
+  100% {
+    transform: rotateY(-17deg) rotateZ(-1.5deg);
+  }
+  50% {
+    transform: rotateY(-8deg) rotateZ(0deg);
+  }
+}
+
+@keyframes ts-pan {
+  to {
+    transform: translateX(-48px);
+  }
+}
+
+@keyframes ts-rise {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes ts-fall {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(12px);
+  }
+}
+
+@keyframes ts-ticker {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes ts-trace {
+  0% {
+    stroke-dashoffset: 320;
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.1;
+  }
+  70% {
+    stroke-dashoffset: 0;
+    opacity: 0.1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes ts-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   Page furniture
+   ════════════════════════════════════════════════════════ */
+
+/* The standing background: a panning hairline grid, two drifting candle
+   clusters and two price traces that draw themselves in. Fixed, so the page
+   scrolls over it rather than it scrolling with the page. */
+.ts-bg {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: fixed;
+  z-index: 0;
+}
+
+.ts-bg svg {
+  height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.ts-bg-grid {
+  opacity: 0.9;
+}
+
+.ts-bg-props {
+  opacity: 0.6;
+}
+
+.ts-pan {
+  animation: ts-pan 9s linear infinite;
+}
+
+.ts-rise {
+  animation: ts-rise 14s ease-in-out infinite;
+}
+
+.ts-fall {
+  animation: ts-fall 18s ease-in-out infinite;
+}
+
+.ts-trace {
+  animation: ts-trace 7s var(--ease) infinite;
+  stroke-dasharray: 320;
+}
+
+.ts-trace-b {
+  animation-delay: 3.5s;
+}
+
+/* Scroll-driven where supported, invisible where not — no listener either
+   way. */
+.ts-progress {
+  animation: ts-progress linear both;
+  animation-timeline: scroll(root block);
+  background: var(--mint);
+  height: 2px;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  z-index: 120;
+}
+
+.ts-sentinel {
+  height: 80px;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: 1px;
+}
+
+.ts-skip {
+  background: var(--brand);
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  left: 8px;
+  padding: 12px 16px;
+  position: fixed;
+  top: 8px;
+  transform: translateY(-200%);
+  z-index: 200;
+}
+
+.ts-skip:focus-visible {
+  transform: translateY(0);
+}
+
+:host :focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+
+/* ════════════════════════════════════════════════════════
+   Navigation
+   ════════════════════════════════════════════════════════ */
+
+.ts-nav-wrap {
+  display: flex;
+  justify-content: center;
+  left: 0;
+  padding: 0 16px;
+  pointer-events: none;
+  position: fixed;
+  right: 0;
+  top: 16px;
+  z-index: 100;
+}
+
+/* Fades in under the floating bar once the page has moved, so the pill has
+   something to sit against instead of type running under it. */
+.ts-nav-scrim {
+  background: var(--page);
+  backdrop-filter: blur(12px);
+  height: 88px;
+  left: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 56%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 56%, transparent 100%);
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  right: 0;
+  top: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.ts-nav-scrim.is-lifted {
+  opacity: 1;
+}
+
+.ts-nav {
+  align-items: center;
+  backdrop-filter: blur(24px) saturate(180%);
+  background: var(--glass-strong);
+  border: 1px solid var(--nav-hair);
+  border-radius: 9999px;
+  box-shadow: var(--nav-shadow);
+  display: flex;
+  gap: 8px;
+  max-width: 960px;
+  padding: 8px 8px 8px 16px;
+  pointer-events: auto;
+  transition:
+    max-width var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+  width: 100%;
+}
+
+.ts-nav.is-lifted {
+  box-shadow: var(--nav-shadow-lifted);
+  max-width: 860px;
+  transform: translateY(-2px);
+}
+
+/* The brand lockup, built from the SVG mark plus live wordmark text. Not the
+   lockup SVG as an <img>: its wordmark is live text in Plus Jakarta Sans,
+   and an <img> cannot reach page fonts, so it fell back to a wider face and
+   overflowed its own viewBox. */
+.ts-logo {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.ts-logo-mark {
+  background: url('/brand/svg/logo-mark.svg') center / contain no-repeat;
+  display: block;
+  height: 28px;
+  width: 23px;
+}
+
+:host-context(html[data-theme='dark']) .ts-logo-mark {
+  background-image: url('/brand/svg/logo-mark-dark-bg.svg');
+}
+
+.ts-logo-word {
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ts-logo-word span {
+  color: var(--mint);
+}
+
+.ts-nav-links {
+  align-items: center;
+  display: none;
+  gap: 4px;
+  margin-left: 16px;
+}
+
+.ts-nav-link {
+  border-radius: 9999px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 12px;
+  transition:
+    background var(--dur) var(--ease),
+    color 180ms var(--ease);
+  white-space: nowrap;
+}
+
+.ts-nav-link:hover {
+  background: rgba(41, 98, 255, 0.08);
+  color: var(--ink);
+}
+
+.ts-nav-link.is-active {
+  background: rgba(41, 98, 255, 0.12);
+  color: var(--brand);
+}
+
+.ts-nav-spacer {
+  flex: 1 1 auto;
+}
+
+.ts-icon-btn {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--glass-hair);
+  border-radius: 9999px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: grid;
+  flex: 0 0 auto;
+  height: 36px;
+  justify-content: center;
+  place-items: center;
+  position: relative;
+  transition:
+    background 180ms var(--ease),
+    color 180ms var(--ease),
+    transform 180ms var(--ease);
+  width: 36px;
+}
+
+.ts-icon-btn:hover {
+  background: rgba(41, 98, 255, 0.08);
+  color: var(--ink);
+}
+
+.ts-icon-btn:active {
+  transform: scale(0.98);
+}
+
+.ts-icon-btn svg {
+  height: 16px;
+  position: absolute;
+  width: 16px;
+}
+
+/* The icon names the theme a click switches TO, like every other toggle in
+   the app: a moon on the light page, a sun on the dark one. */
+.ts-sun {
+  opacity: var(--dark-op);
+}
+
+.ts-moon {
+  opacity: var(--light-op);
+}
+
+.ts-burger {
+  color: var(--ink);
+  display: grid;
+}
+
+.ts-burger-box {
+  display: block;
+  height: 12px;
+  position: relative;
+  width: 16px;
+}
+
+.ts-burger-bar {
+  background: currentColor;
+  border-radius: 2px;
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transition: transform var(--dur) var(--ease);
+  width: 16px;
+}
+
+.ts-burger-bar-top {
+  top: 0;
+}
+
+.ts-burger-bar-bottom {
+  bottom: 0;
+}
+
+.ts-burger.is-open .ts-burger-bar-top {
+  transform: translateY(5px) rotate(45deg);
+}
+
+.ts-burger.is-open .ts-burger-bar-bottom {
+  transform: translateY(-5px) rotate(-45deg);
+}
+
+/* Always shown, at every width — the one way back in for a returning user. */
+.ts-nav-signin {
+  align-items: center;
+  border: 1px solid var(--nav-hair);
+  border-radius: 9999px;
+  color: var(--ink);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 600;
+  height: 36px;
+  padding: 0 16px;
+  transition: background 180ms var(--ease);
+  white-space: nowrap;
+}
+
+.ts-nav-signin:hover {
+  background: rgba(41, 98, 255, 0.08);
+  color: var(--ink);
+}
+
+/* Pinned to the page's top-right corner, outside the floating nav. */
+.ts-theme-toggle {
+  backdrop-filter: blur(24px) saturate(180%);
+  background: var(--glass-strong);
+  border-color: var(--nav-hair);
+  box-shadow: var(--nav-shadow);
+  height: 44px;
+  position: fixed;
+  right: 24px;
+  top: 21px;
+  width: 44px;
+  z-index: 101;
+}
+
+.ts-theme-toggle:hover {
+  background: var(--glass-strong);
+}
+
+.ts-nav-cta {
+  align-items: center;
+  background: var(--brand);
+  border-radius: 9999px;
+  color: #ffffff;
+  display: none;
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 600;
+  height: 36px;
+  padding: 0 16px;
+  transition:
+    transform 180ms var(--ease),
+    box-shadow 180ms var(--ease);
+  white-space: nowrap;
+}
+
+.ts-nav-cta:hover {
+  box-shadow: 0 6px 18px rgba(41, 98, 255, 0.35);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.ts-nav-cta:active {
+  transform: scale(0.98);
+}
+
+/* ── mobile overlay ─────────────────────────────────────── */
+.ts-overlay {
+  backdrop-filter: blur(24px) saturate(180%);
+  background: var(--glass);
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  inset: 0;
+  justify-content: center;
+  padding: 48px 32px;
+  position: fixed;
+  z-index: 99;
+}
+
+.ts-overlay.is-open {
+  display: flex;
+}
+
+.ts-overlay a {
+  color: var(--ink);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  opacity: 0;
+  transform: translateY(48px);
+  transition:
+    transform var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+
+.ts-overlay.is-open a {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ts-overlay a:nth-child(2) {
+  transition-delay: 100ms;
+}
+
+.ts-overlay a:nth-child(3) {
+  transition-delay: 150ms;
+}
+
+.ts-overlay a:nth-child(4) {
+  transition-delay: 200ms;
+}
+
+.ts-overlay a:nth-child(5) {
+  transition-delay: 225ms;
+}
+
+.ts-overlay a.ts-overlay-cta {
+  align-items: center;
+  background: var(--brand);
+  border-radius: 9999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 18px !important;
+  font-weight: 600;
+  height: 56px;
+  justify-content: center;
+  margin-top: 32px;
+  max-width: 320px;
+  transition-delay: 250ms;
+}
+
+/* ════════════════════════════════════════════════════════
+   Hero
+   ════════════════════════════════════════════════════════ */
+
+.ts-hero {
+  align-items: center;
+  display: flex;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 160px 24px 120px;
+  position: relative;
+}
+
+.ts-hero-chart {
+  height: 100%;
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+
+.ts-hero-scrim {
+  background: var(--hero-scrim);
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.ts-zone-group,
+.ts-candles,
+.ts-line,
+.ts-projection {
+  transition: opacity 900ms var(--ease);
+}
+
+.ts-zone-group {
+  transition-duration: 1200ms;
+}
+
+.ts-candle {
+  transition: opacity 600ms linear;
+}
+
+.ts-scan {
+  transition:
+    x 240ms linear,
+    opacity 600ms linear;
+}
+
+.ts-price-line,
+.ts-price-dot {
+  transition:
+    y1 700ms linear,
+    y2 700ms linear,
+    cy 700ms linear;
+}
+
+.ts-ping {
+  animation: ts-ping 2.8s var(--ease) infinite;
+}
+
+/* The live-read strip pinned to the foot of the hero. */
+.ts-live {
+  align-items: center;
+  background: var(--page-raised);
+  border-top: 1px solid var(--hair);
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  left: 0;
+  padding: 12px 24px;
+  position: absolute;
   right: 0;
 }
 
-.landing-step-mark {
+.ts-live-group {
+  align-items: baseline;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.ts-live-group-center {
   align-items: center;
-  background: var(--surf);
-  border: 1px solid var(--line-strong);
-  border-radius: 50%;
-  color: var(--tx);
-  display: flex;
-  font-family: var(--fm);
-  font-size: var(--t-2xs);
+}
+
+.ts-dot {
+  border-radius: 9999px;
+  display: block;
+  height: 6px;
+  width: 6px;
+}
+
+.ts-dot-up {
+  background: var(--up);
+}
+
+.ts-dot-mint {
+  background: var(--mint);
+}
+
+.ts-breathe {
+  animation: ts-breathe 3.2s var(--ease) infinite;
+}
+
+.ts-live-name {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ts-live-meta {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.ts-live-price {
+  color: var(--ink);
+  font-size: 14px;
   font-weight: 600;
-  height: 26px;
-  justify-content: center;
-  left: 0;
-  position: absolute;
-  top: 0;
-  width: 26px;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ── closing CTA ────────────────────────────────────────── */
-.landing-cta-wrap {
-  border-bottom: 1px solid var(--line);
-  padding: 0 var(--s6);
+.ts-live-change {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.landing-cta {
+.ts-live-phase {
+  align-items: center;
+  color: var(--ai);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 8px;
+}
+
+.ts-live-spacer {
+  flex: 1 1 auto;
+}
+
+.ts-hero-inner {
+  margin: 0 auto;
+  max-width: 1200px;
+  position: relative;
+  width: 100%;
+}
+
+.ts-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.ts-eyebrow {
+  align-items: center;
+  align-self: flex-start;
+  background: var(--page-raised);
+  border: 1px solid var(--hair);
+  border-radius: 9999px;
+  color: var(--ink-soft);
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 500;
+  gap: 8px;
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+
+.ts-eyebrow svg {
+  color: var(--ai);
+}
+
+/* The gradient runs on the text itself; the fallback if background-clip is
+   unavailable is the plain --ink colour underneath. */
+.ts-h1 {
+  background-clip: text;
+  background-image: linear-gradient(90deg, var(--head-from), var(--head-to));
+  -webkit-background-clip: text;
+  color: transparent;
+  font-size: clamp(48px, 6vw, 72px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+  max-width: 680px;
+  text-wrap: balance;
+}
+
+.ts-lede {
+  color: var(--ink-soft);
+  font-size: 20px;
+  line-height: 1.55;
+  max-width: 680px;
+  text-wrap: pretty;
+}
+
+.ts-actions {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s6);
-  justify-content: space-between;
-  padding: var(--s16) 0;
+  gap: 16px;
 }
 
-/* ── footer ─────────────────────────────────────────────── */
-.landing-foot {
-  background: var(--surf);
-  border-top: 1px solid var(--line);
-  margin-top: auto;
-  padding: 0 var(--s6);
+.ts-btn {
+  align-items: center;
+  background: var(--brand);
+  border: 0;
+  border-radius: 9999px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  gap: 8px;
+  height: 56px;
+  justify-content: center;
+  padding: 0 32px;
+  transition:
+    transform 180ms var(--ease),
+    box-shadow 180ms var(--ease);
+  white-space: nowrap;
 }
 
-.landing-foot-inner {
-  align-items: flex-start;
+.ts-btn:hover {
+  box-shadow: 0 10px 28px rgba(41, 98, 255, 0.35);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.ts-btn:active {
+  transform: scale(0.98);
+}
+
+.ts-btn-ghost {
+  background: var(--page-raised);
+  border: 1px solid var(--hair);
+  color: var(--ink);
+  padding: 0 24px;
+}
+
+.ts-btn-ghost:hover {
+  box-shadow: none;
+  color: var(--ink);
+  transform: translateY(-2px);
+}
+
+.ts-hero-note {
+  color: var(--ink-faint);
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 680px;
+  text-wrap: pretty;
+}
+
+/* ════════════════════════════════════════════════════════
+   Sections
+   ════════════════════════════════════════════════════════ */
+
+.ts-section {
+  border-top: 1px solid var(--hair);
+  padding: 96px 24px;
+  position: relative;
+}
+
+.ts-section-flat {
+  border-top: 0;
+}
+
+.ts-section-raised {
+  background: var(--page-raised);
+}
+
+.ts-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  margin: 0 auto;
+  max-width: 1100px;
+}
+
+.ts-inner-narrow {
+  max-width: 800px;
+}
+
+.ts-head {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 680px;
+}
+
+.ts-kicker-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+/* A short rule with a mint pip that sweeps along it — the section marker. */
+.ts-rule {
+  background: var(--hair);
+  border-radius: 2px;
+  display: block;
+  height: 2px;
+  overflow: hidden;
+  position: relative;
+  width: 56px;
+}
+
+.ts-rule span {
+  animation: ts-sweep 2.6s var(--ease) infinite alternate;
+  background: var(--mint);
+  border-radius: 2px;
+  display: block;
+  height: 2px;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 12px;
+}
+
+.ts-kicker {
+  color: var(--ink-faint);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ts-h2 {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.ts-sub {
+  color: var(--ink-soft);
+  font-size: 18px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* ── the pull-quote tagline ─────────────────────────────── */
+.ts-tagline {
+  margin: 0 auto;
+  max-width: 680px;
+  padding: 48px 0;
+}
+
+.ts-tagline h2 {
+  font-size: clamp(36px, 5vw, 60px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+/* Each word lifts to full strength as the line enters — the class is added
+   per word by the observer, in reading order. */
+.ts-word {
+  opacity: 0.3;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.ts-word.is-in {
+  opacity: 1;
+}
+
+/* ── illustrative tape ──────────────────────────────────── */
+.ts-tape {
+  background: var(--page-raised);
+  border-bottom: 1px solid var(--hair);
+  border-top: 1px solid var(--hair);
+  overflow: hidden;
+}
+
+.ts-tape-row {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+}
+
+.ts-tape-badge {
+  align-items: center;
+  border-right: 1px solid var(--hair);
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  height: 48px;
+  padding: 0 16px;
+}
+
+.ts-tape-badge span:last-child {
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ts-tape-track {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.ts-tape-run {
+  align-items: center;
+  animation: ts-ticker 48s linear infinite;
+  display: flex;
+  font-variant-numeric: tabular-nums;
+  gap: 32px;
+  height: 48px;
+  width: max-content;
+}
+
+.ts-tape-run:hover {
+  animation-play-state: paused;
+}
+
+.ts-tape-item {
+  align-items: baseline;
+  display: inline-flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.ts-tape-sym {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ts-tape-px {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.ts-tape-ch {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ts-up {
+  color: var(--up);
+}
+
+.ts-down {
+  color: var(--down);
+}
+
+/* ════════════════════════════════════════════════════════
+   The read, taken apart
+   ════════════════════════════════════════════════════════ */
+
+.ts-read {
+  background: var(--page-raised);
+  border: 1px solid var(--hair);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ts-read-hd {
+  align-items: center;
+  background: var(--app-panel);
+  border-bottom: 1px solid var(--hair);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 24px;
+}
+
+.ts-read-sym {
+  color: var(--app-ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ts-read-meta {
+  color: var(--app-ink-soft);
+  font-size: 12px;
+}
+
+.ts-read-credit {
+  align-items: center;
+  color: var(--ai);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 8px;
+}
+
+.ts-read-pair {
+  border-bottom: 1px solid var(--hair);
   display: grid;
-  gap: var(--s6);
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  padding: var(--s8) 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
 }
 
-.landing-foot-brand {
-  font-size: var(--t-sm);
+.ts-read-cell {
+  padding: 24px;
 }
 
-.landing-disc {
-  max-width: 74ch;
+.ts-read-cell + .ts-read-cell {
+  border-left: 1px solid var(--hair);
 }
 
-.landing-foot-copy {
-  color: var(--tx-3);
-  font-family: var(--fm);
-  font-size: var(--t-2xs);
+.ts-lbl {
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-@media (max-width: 1000px) {
-  .landing-hero {
-    gap: var(--s10);
-    grid-template-columns: 1fr;
-    padding: var(--s12) 0 var(--s16);
+.ts-val-row {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.ts-val {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.ts-val-ai {
+  color: var(--ai);
+}
+
+.ts-val-sub {
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-note {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 12px;
+  text-wrap: pretty;
+}
+
+.ts-zone-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.ts-swatch {
+  border-radius: 2px;
+  height: 8px;
+  width: 8px;
+}
+
+.ts-swatch-down {
+  background: var(--down);
+}
+
+.ts-swatch-up {
+  background: var(--up);
+}
+
+.ts-zone-band {
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-top: 12px;
+}
+
+.ts-zone-meta {
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-top: 8px;
+}
+
+.ts-scn-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ts-pill {
+  align-items: center;
+  border-radius: 6px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 4px;
+  padding: 2px 8px;
+}
+
+.ts-pill-long {
+  background: rgba(8, 153, 129, 0.12);
+  color: var(--up);
+}
+
+.ts-pill-short {
+  background: rgba(242, 54, 69, 0.12);
+  color: var(--down);
+}
+
+.ts-dl {
+  display: grid;
+  font-size: 14px;
+  gap: 12px 24px;
+  grid-template-columns: auto 1fr;
+  margin: 16px 0 0;
+}
+
+.ts-dl dt {
+  color: var(--ink-faint);
+}
+
+.ts-dl dd {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.ts-dl dd.ts-prob {
+  color: var(--ai);
+  font-weight: 700;
+}
+
+.ts-scn-note {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 20px;
+  text-wrap: pretty;
+}
+
+.ts-fals {
+  background: rgba(157, 43, 255, 0.05);
+  border-bottom: 1px solid var(--hair);
+  padding: 24px;
+}
+
+.ts-fals-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.ts-fals-head svg {
+  color: var(--ai);
+}
+
+.ts-fals-kicker {
+  color: var(--ai);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ts-lead {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.55;
+  margin-top: 12px;
+  max-width: 680px;
+  text-wrap: pretty;
+}
+
+.ts-base {
+  padding: 24px;
+}
+
+/* ════════════════════════════════════════════════════════
+   Trust — the stacked timeframes, and the three cards
+   ════════════════════════════════════════════════════════ */
+
+.ts-orbit-stage {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 24px;
+  perspective: 1500px;
+}
+
+.ts-orbit {
+  animation: ts-orbit 24s var(--ease) infinite;
+  height: 480px;
+  position: relative;
+  transform-style: preserve-3d;
+  width: min(100%, 620px);
+}
+
+.ts-orbit-layer {
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.ts-orbit-layer svg {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.ts-orbit-back {
+  opacity: 0.5;
+  top: 0;
+  transform: translate3d(68px, 0, -80px);
+}
+
+.ts-orbit-mid {
+  opacity: 0.78;
+  top: 140px;
+  transform: translate3d(34px, 0, 0);
+}
+
+.ts-orbit-front {
+  top: 280px;
+  transform: translateZ(80px);
+}
+
+.ts-march {
+  animation: ts-march 1.6s linear infinite;
+}
+
+.ts-cards {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
+.ts-card {
+  background: var(--page-raised);
+  border: 1px solid var(--hair);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+}
+
+.ts-card svg {
+  color: var(--mint);
+}
+
+.ts-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.ts-card p {
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* ════════════════════════════════════════════════════════
+   How it works
+   ════════════════════════════════════════════════════════ */
+
+.ts-steps {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ts-step {
+  background: var(--page-raised);
+  border: 1px solid var(--hair);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+}
+
+.ts-step-art {
+  display: block;
+  height: auto;
+  max-width: 180px;
+  width: 100%;
+}
+
+.ts-step-n {
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ts-step h3 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.ts-step p {
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* ════════════════════════════════════════════════════════
+   Scope
+   ════════════════════════════════════════════════════════ */
+
+.ts-scope {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}
+
+.ts-scope-card {
+  background: var(--page-raised);
+  border: 1px solid var(--hair);
+  border-radius: 16px;
+  padding: 32px;
+}
+
+.ts-scope-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.ts-scope-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+.ts-scope-list li {
+  color: var(--ink-soft);
+  display: flex;
+  font-size: 16px;
+  gap: 12px;
+  line-height: 1.55;
+}
+
+.ts-scope-list svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+/* The refusal card is a live app surface, not a marketing panel — it uses
+   the --app-* ramp so it reads as a screenshot of the product. */
+.ts-refusal {
+  background: var(--app-canvas);
+  border: 1px solid var(--app-hair);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ts-refusal-hd {
+  align-items: center;
+  background: var(--app-panel);
+  border-bottom: 1px solid var(--app-hair);
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.ts-refusal-name {
+  color: var(--app-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ts-refusal-refund {
+  color: var(--up);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ts-refusal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+}
+
+.ts-refusal-kicker {
+  align-items: center;
+  color: var(--down);
+  display: flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ts-refusal-lead {
+  color: var(--app-ink);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.ts-refusal-sub {
+  color: var(--app-ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* ════════════════════════════════════════════════════════
+   Also included
+   ════════════════════════════════════════════════════════ */
+
+.ts-else {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  margin: 0;
+}
+
+.ts-else dt {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ts-else dd {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+  text-wrap: pretty;
+}
+
+/* ════════════════════════════════════════════════════════
+   Pricing
+   ════════════════════════════════════════════════════════ */
+
+.ts-price-grid {
+  display: grid;
+  max-width: 560px;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+}
+
+.ts-price-card {
+  background: var(--page-raised);
+  border: 1px solid var(--hair);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 32px;
+}
+
+.ts-price-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ts-price-head h3 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.ts-badge {
+  background: rgba(41, 98, 255, 0.1);
+  border-radius: 6px;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+}
+
+.ts-rate {
+  font-size: 36px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+}
+
+.ts-rate-sub {
+  color: var(--ink-soft);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+
+.ts-topups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ts-topup {
+  align-items: center;
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  display: flex;
+  font-variant-numeric: tabular-nums;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.ts-topup-amt {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ts-topup-cr {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.ts-skel {
+  background: var(--hair);
+  border-radius: 8px;
+}
+
+.ts-skel-rate {
+  height: 36px;
+  width: 180px;
+}
+
+.ts-skel-sub {
+  height: 16px;
+  width: 120px;
+}
+
+.ts-skel-row {
+  border-radius: 10px;
+  height: 44px;
+}
+
+.ts-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ts-stack-12 {
+  gap: 12px;
+}
+
+.ts-terms {
+  background: var(--page-raised);
+  border: 1px solid var(--hair);
+  border-radius: 16px;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  padding: 32px;
+}
+
+.ts-terms h3 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ts-terms p {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 8px;
+  text-wrap: pretty;
+}
+
+/* ════════════════════════════════════════════════════════
+   FAQ
+   ════════════════════════════════════════════════════════ */
+
+.ts-faq {
+  background: var(--page-raised);
+  border: 1px solid var(--hair);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ts-faq-item {
+  border-bottom: 1px solid var(--hair);
+}
+
+.ts-faq-item:last-child {
+  border-bottom: 0;
+}
+
+.ts-faq-q {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 24px;
+  text-align: left;
+  width: 100%;
+}
+
+/* A plus that becomes a cross — the same mark doing both jobs. */
+.ts-plus {
+  color: var(--ink-faint);
+  flex: 0 0 auto;
+  font-size: 20px;
+  line-height: 1;
+  transition:
+    transform var(--dur) var(--ease),
+    color 180ms var(--ease);
+}
+
+.ts-faq-item.is-open .ts-plus {
+  color: var(--brand);
+  transform: rotate(135deg);
+}
+
+/* Height is animated from a measured pixel value (see the component) so the
+   panel slides rather than snapping; grid-template-rows would be neater but
+   is not animatable everywhere this page has to run. */
+.ts-faq-a-wrap {
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    height var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+
+.ts-faq-a {
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.65;
+  padding: 0 24px 24px;
+  text-wrap: pretty;
+}
+
+/* ════════════════════════════════════════════════════════
+   Sign-up
+   ════════════════════════════════════════════════════════ */
+
+.ts-signup {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: 0 auto;
+  max-width: 680px;
+}
+
+.ts-signup h2 {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.ts-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ts-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ts-input {
+  background: var(--page);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  color: var(--ink);
+  flex: 1 1 240px;
+  font-family: inherit;
+  font-size: 18px;
+  height: 56px;
+  padding: 0 16px;
+}
+
+.ts-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.ts-btn-submit {
+  border-radius: 12px;
+}
+
+.ts-form-msg {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+  min-height: 20px;
+}
+
+.ts-form-msg-err {
+  color: var(--down);
+}
+
+.ts-sr {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* ════════════════════════════════════════════════════════
+   Footer
+   ════════════════════════════════════════════════════════ */
+
+.ts-footer {
+  border-top: 1px solid var(--hair);
+  padding: 64px 24px;
+  position: relative;
+}
+
+.ts-footer-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin: 0 auto;
+  max-width: 1100px;
+}
+
+.ts-footer-grid {
+  display: grid;
+  gap: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+
+.ts-foot-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ts-foot-blurb {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 34ch;
+  text-wrap: pretty;
+}
+
+.ts-foot-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ts-foot-nav-head {
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ts-foot-nav a {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.ts-foot-nav a:hover {
+  color: var(--mint);
+}
+
+.ts-foot-disc {
+  border-top: 1px solid var(--hair);
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.7;
+  max-width: 90ch;
+  padding-top: 24px;
+  text-wrap: pretty;
+}
+
+.ts-foot-copy {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+/* ════════════════════════════════════════════════════════
+   Scroll reveal
+   ════════════════════════════════════════════════════════ */
+
+/* The observer adds .is-in; everything below is the resting state it
+   animates out of. The `.ts-revealed` class on the host is the no-JS and
+   no-IntersectionObserver escape hatch — see the component's fallback
+   timer. */
+.ts-reveal {
+  filter: blur(12px);
+  opacity: 0;
+  transform: translateY(64px);
+  transition:
+    transform 800ms var(--ease),
+    filter 800ms var(--ease),
+    opacity 800ms var(--ease);
+}
+
+.ts-reveal.is-in,
+:host(.ts-revealed) .ts-reveal {
+  filter: blur(0);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ts-reveal-1 {
+  transition-delay: 100ms;
+}
+
+.ts-reveal-2 {
+  transition-delay: 150ms;
+}
+
+/* ════════════════════════════════════════════════════════
+   Responsive
+   ════════════════════════════════════════════════════════ */
+
+@media (min-width: 860px) {
+  .ts-nav-links {
+    display: flex;
   }
 
-  .landing-preview {
-    max-width: 460px;
+  .ts-nav-cta {
+    display: inline-flex;
+  }
+
+  .ts-burger {
+    display: none;
   }
 }
 
-@media (max-width: 760px) {
-  .landing-bar,
-  .landing-hero-wrap,
-  .landing-section-wrap,
-  .landing-cta-wrap,
-  .landing-foot {
-    padding-inline: var(--s4);
+@media (max-width: 859px) {
+  .ts-hero {
+    padding: 140px 20px 140px;
   }
 
-  .landing-section {
-    gap: var(--s6);
-    padding: var(--s12) 0;
+  .ts-h1 {
+    font-size: clamp(38px, 9vw, 52px);
   }
 
-  .landing-grid,
-  .landing-steps {
-    grid-template-columns: 1fr;
+  .ts-lede {
+    font-size: 18px;
   }
 
-  .landing-grid-item {
+  .ts-section {
+    padding: 72px 20px;
+  }
+
+  .ts-inner {
+    gap: 32px;
+  }
+
+  .ts-h2 {
+    font-size: 30px;
+  }
+
+  .ts-read-cell + .ts-read-cell {
     border-left: 0;
-    border-top: 1px solid var(--line);
-    padding: var(--s5);
+    border-top: 1px solid var(--hair);
   }
 
-  .landing-grid-item:first-child {
-    border-top: 0;
+  .ts-orbit {
+    height: 380px;
   }
 
-  .landing-steps {
-    gap: var(--s6);
+  .ts-orbit-mid {
+    top: 110px;
   }
 
-  .landing-step::before {
-    display: none;
+  .ts-orbit-front {
+    top: 220px;
   }
 
-  .landing-cta {
-    padding: var(--s12) 0;
+  .ts-signup h2 {
+    font-size: 34px;
   }
 
-  .landing-foot-inner {
-    grid-template-columns: 1fr;
-    gap: var(--s4);
+  /* Leave room on the right for the corner theme toggle. */
+  .ts-nav-wrap {
+    padding-right: 76px;
   }
 
-  .landing-link {
-    display: none;
+  .ts-theme-toggle {
+    right: 16px;
   }
 
-  .landing-preview-panel {
-    grid-template-columns: 1fr;
+  .ts-live {
+    gap: 12px;
+    padding: 10px 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ts-pan,
+  .ts-rise,
+  .ts-fall,
+  .ts-trace,
+  .ts-ping,
+  .ts-march,
+  .ts-breathe,
+  .ts-orbit,
+  .ts-tape-run,
+  .ts-progress,
+  .ts-rule span {
+    animation: none !important;
   }
 
-  .landing-preview-dir {
-    border-bottom: 1px solid var(--slab-line);
-    border-right: 0;
+  .ts-reveal,
+  .ts-word,
+  .ts-faq-a-wrap {
+    transition: none !important;
   }
 }

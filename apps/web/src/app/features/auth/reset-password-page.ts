@@ -6,10 +6,11 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
+import { ThemeToggle } from '../../shared/theme-toggle';
 
 @Component({
   selector: 'app-reset-password-page',
-  imports: [FormsModule, RouterLink, ButtonModule, ProgressSpinnerModule],
+  imports: [FormsModule, RouterLink, ButtonModule, ProgressSpinnerModule, ThemeToggle],
   styleUrl: './auth-page.css',
   templateUrl: './reset-password-page.html',
 })

@@ -5,10 +5,11 @@ import { ButtonModule } from 'primeng/button';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import { AuthService } from '../../core/auth.service';
+import { ThemeToggle } from '../../shared/theme-toggle';
 
 @Component({
   selector: 'app-forgot-password-page',
-  imports: [FormsModule, RouterLink, ButtonModule, ProgressSpinnerModule],
+  imports: [FormsModule, RouterLink, ButtonModule, ProgressSpinnerModule, ThemeToggle],
   styleUrl: './auth-page.css',
   templateUrl: './forgot-password-page.html',
 })

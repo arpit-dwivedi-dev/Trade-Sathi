@@ -5,6 +5,7 @@ import { ButtonModule } from 'primeng/button';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import { AuthService } from '../../core/auth.service';
+import { ThemeToggle } from '../../shared/theme-toggle';
 
 /**
  * Supabase's own default minimum. Checked here only so an obviously too-short
@@ -40,7 +41,7 @@ export type AuthMode = 'signin' | 'signup' | 'otp';
  */
 @Component({
   selector: 'app-auth-page',
-  imports: [FormsModule, RouterLink, ButtonModule, ProgressSpinnerModule],
+  imports: [FormsModule, RouterLink, ButtonModule, ProgressSpinnerModule, ThemeToggle],
   styleUrl: './auth-page.css',
   templateUrl: './auth-page.html',
 })

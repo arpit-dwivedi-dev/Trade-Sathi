@@ -543,11 +543,29 @@ button.nav-toggle {
   font-weight: 600;
 }
 
-/* The second half of the wordmark drops back so the mark reads as one word
-   with a stress, not as two competing ones. */
-.brand span {
-  color: var(--tx-3);
-  font-weight: 400;
+/* Brand-sheet wordmark colours, deliberately not app tokens: "Trade" in
+   ink (navy on light, off-white on dark), "Sathi" always in the brand teal.
+   :not(.brand-mark) because the mark is itself a span inside .brand. */
+.brand > span:not(.brand-mark) {
+  color: #00d4a0;
+  /* .brand's flex gap is sized for mark-to-wordmark; between the two words
+     it should be a normal word space, as in the lockup. */
+  margin-left: calc(0.26em - var(--s2));
+}
+
+.brand b,
+.brand > span:not(.brand-mark) {
+  font-family: 'Plus Jakarta Sans', var(--fh);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.brand b {
+  color: #0b1220;
+}
+
+:root[data-theme='dark'] .brand b {
+  color: #f5f7fa;
 }
 
 /* The brand mark, painted from the SVG in public/brand/svg rather than drawn
@@ -567,11 +585,11 @@ button.nav-toggle {
   width: 21px;
 }
 
-/* On the dark theme the navy body sinks into the surface, so the mark swaps
-   to its single-colour light variant — the same substitution the brand sheet
-   prescribes for dark backgrounds. */
+/* On the dark theme the navy body would sink into the surface, so the mark
+   swaps to its dark-background variant: off-white body, same red and green
+   candles — the treatment logo-lockup-horizontal-dark-bg.svg uses. */
 :root[data-theme='dark'] .brand-mark {
-  background-image: url('/brand/svg/logo-mark-mono-light.svg');
+  background-image: url('/brand/svg/logo-mark-dark-bg.svg');
 }
 
 /* ════════════════════════════════════════════════════════
