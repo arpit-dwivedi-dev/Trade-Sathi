@@ -531,7 +531,16 @@
   </section>
 
   <!-- ── pricing ──────────────────────────────────────── -->
-  <section id="pricing" class="ts-section" aria-labelledby="pricing-heading">
+  <section id="pricing" class="ts-section ts-section-chart" aria-labelledby="pricing-heading">
+    <svg class="ts-hero-chart" viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true">
+      <g stroke="var(--grid)" stroke-width="1">
+        @for (ly of live().grid; track $index) {
+          <line x1="0" [attr.y1]="ly" x2="1440" [attr.y2]="ly" />
+        }
+      </g>
+      <polyline class="ts-loop-line" [attr.points]="pricingLine" fill="none" stroke="#2962FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    <div class="ts-hero-scrim" aria-hidden="true"></div>
     <div class="ts-inner">
       <div class="ts-head ts-reveal">
         <div class="ts-kicker-row">

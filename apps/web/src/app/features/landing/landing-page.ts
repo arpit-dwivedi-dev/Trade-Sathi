@@ -80,6 +80,25 @@ const TAPE_ROWS: readonly [string, string, string][] = [
 
 const LIVE = { n: 56, w: 1440, top: 140, bot: 620, volTop: 700, volBot: 830, bw: 9 };
 const STEP = LIVE.w / (LIVE.n - 1);
+/**
+ * Pricing backdrop: a periodic price-like line (whole-cycle sines, so the end
+ * meets the start) drawn twice across 2×width, then panned by CSS forever.
+ */
+const PRICING_LINE = (() => {
+  const pts: string[] = [];
+  for (let x = 0; x <= LIVE.w * 2; x += 12) {
+    const t = (x / LIVE.w) * Math.PI * 2;
+    const y =
+      400 +
+      Math.sin(t * 2) * 90 +
+      Math.sin(t * 5 + 1.3) * 45 +
+      Math.sin(t * 11 + 0.7) * 22 +
+      Math.sin(t * 23 + 2.1) * 10;
+    pts.push(`${x},${y.toFixed(1)}`);
+  }
+  return pts.join(' ');
+})();
+
 const PHASES = ['Reading the series', 'Zones located', 'Scenario drafted', 'Holding the read'];
 
 interface Candle {
@@ -163,6 +182,7 @@ export class LandingPage implements OnInit {
   private readonly tick = signal(0);
   private readonly open = this.series()[LIVE.n - 2];
 
+  protected readonly pricingLine = PRICING_LINE;
   protected readonly live = computed(() => this.geometry(this.series(), this.tick()));
 
   protected readonly credits = computed(() => {
@@ -443,14 +463,18 @@ export class LandingPage implements OnInit {
 
   /** New candle is drawn one slot right, then the series glides left one tick. */
   private glide(root: HTMLElement): void {
-    const g = root.querySelector<SVGGElement>('.ts-treadmill');
-    if (!g) return;
-    g.style.transition = 'none';
-    g.style.transform = `translateX(${STEP.toFixed(2)}px)`;
-    void g.getBoundingClientRect();
+    const groups = root.querySelectorAll<SVGGElement>('.ts-treadmill');
+    if (!groups.length) return;
+    groups.forEach((g) => {
+      g.style.transition = 'none';
+      g.style.transform = `translateX(${STEP.toFixed(2)}px)`;
+    });
+    void root.getBoundingClientRect();
     requestAnimationFrame(() => {
-      g.style.transition = 'transform 900ms linear';
-      g.style.transform = 'translateX(0)';
+      groups.forEach((g) => {
+        g.style.transition = 'transform 900ms linear';
+        g.style.transform = 'translateX(0)';
+      });
     });
   }
 }

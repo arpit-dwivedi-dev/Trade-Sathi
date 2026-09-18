@@ -1617,8 +1617,34 @@
    Pricing
    ════════════════════════════════════════════════════════ */
 
+/* Pricing reuses the hero's live line chart as a backdrop. */
+.ts-section-chart {
+  overflow: hidden;
+}
+
+.ts-loop-line {
+  animation: ts-loop 30s linear infinite;
+}
+
+@keyframes ts-loop {
+  to {
+    transform: translateX(-1440px);
+  }
+}
+
+.ts-section-chart > .ts-inner {
+  position: relative;
+}
+
+#pricing .ts-head {
+  align-items: center;
+  margin: 0 auto;
+  text-align: center;
+}
+
 .ts-price-grid {
   display: grid;
+  margin: 0 auto;
   max-width: 560px;
   gap: 24px;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
@@ -2089,6 +2115,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ts-loop-line,
   .ts-pan,
   .ts-rise,
   .ts-fall,
