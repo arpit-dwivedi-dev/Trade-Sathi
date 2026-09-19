@@ -2,9 +2,7 @@
    screens are one flow and must not drift apart. */
 .auth {
   align-items: center;
-  background:
-    radial-gradient(680px 360px at 50% -8%, color-mix(in srgb, var(--acc) 10%, transparent), transparent 72%),
-    var(--ground);
+  background: var(--surf);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -14,18 +12,6 @@
   overflow: auto;
   padding: clamp(var(--s6), 6vh, var(--s12)) var(--s4);
   position: relative;
-}
-
-.auth::before {
-  background-image: linear-gradient(color-mix(in srgb, var(--line) 45%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--line) 45%, transparent) 1px, transparent 1px);
-  background-size: 40px 40px;
-  content: '';
-  inset: 0;
-  mask-image: linear-gradient(to bottom, black, transparent 68%);
-  opacity: 0.2;
-  pointer-events: none;
-  position: absolute;
 }
 
 .auth-card,
@@ -84,15 +70,10 @@
 }
 
 .auth-card {
-  background: color-mix(in srgb, var(--surf) 94%, transparent);
-  border: 1px solid var(--line);
-  border-radius: var(--r-xl);
-  box-shadow: var(--sh-3);
   display: flex;
   flex-direction: column;
   gap: var(--s6);
-  max-width: 27rem;
-  padding: clamp(var(--s6), 5vw, var(--s8));
+  max-width: 24rem;
   width: 100%;
 }
 
@@ -301,12 +282,7 @@
   .auth {
     justify-content: flex-start;
     /* Clears the fixed corner theme toggle (16px inset + 44px). */
-    padding: 76px var(--s3) var(--s6);
-  }
-
-  .auth-card {
-    border-radius: var(--r-lg);
-    padding: var(--s5);
+    padding: 76px var(--s5) var(--s6);
   }
 
   .auth-foot {
