@@ -333,6 +333,9 @@ export class SymbolSearch {
     this.searched.set(false);
     this.showingRecent.set(false);
     this.recent.set(pushRecentSymbol(this.isBrowser, instrument));
+    // The input keeps focus after a pick, which on a phone leaves the
+    // on-screen keyboard covering the chart the user just asked for.
+    this.hostRef.nativeElement.querySelector('input')?.blur();
     this.instrumentSelected.emit(instrument);
   }
 

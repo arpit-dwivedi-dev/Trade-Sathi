@@ -1,34 +1,3 @@
-<!-- ── standing background ─────────────────────────────── -->
-<div class="ts-bg" aria-hidden="true">
-  <svg class="ts-bg-grid" preserveAspectRatio="none">
-    <defs>
-      <pattern id="ts-grid" width="48" height="48" patternUnits="userSpaceOnUse">
-        <path d="M48 0H0v48" fill="none" stroke="var(--grid)" stroke-width="1" />
-      </pattern>
-    </defs>
-    <rect class="ts-pan" x="-48" y="0" width="200%" height="100%" fill="url(#ts-grid)" />
-  </svg>
-  <svg class="ts-bg-props" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
-    <g class="ts-rise" fill="var(--grid)">
-      <rect x="64" y="300" width="10" height="120" rx="2" />
-      <rect x="96" y="260" width="10" height="180" rx="2" />
-      <rect x="128" y="340" width="10" height="90" rx="2" />
-      <rect x="160" y="290" width="10" height="150" rx="2" />
-    </g>
-    <g class="ts-fall" fill="var(--grid)">
-      <rect x="1240" y="520" width="10" height="140" rx="2" />
-      <rect x="1272" y="470" width="10" height="200" rx="2" />
-      <rect x="1304" y="540" width="10" height="110" rx="2" />
-      <rect x="1336" y="500" width="10" height="170" rx="2" />
-    </g>
-    <path class="ts-trace" d="M120 720 L260 640 L360 690 L500 540 L640 600 L780 470 L920 520 L1060 400 L1200 450 L1340 330"
-          fill="none" stroke="#00D4A0" stroke-width="1.5" stroke-linecap="round" />
-    <path class="ts-trace ts-trace-b" d="M100 200 L240 260 L380 210 L520 300 L660 250 L800 340 L940 290 L1080 380 L1220 320 L1360 410"
-          fill="none" stroke="#FF5C5C" stroke-width="1.5" stroke-linecap="round" />
-  </svg>
-</div>
-
-<div class="ts-progress" aria-hidden="true"></div>
 <div class="ts-sentinel" aria-hidden="true"></div>
 <a class="ts-skip" href="#main">Skip to content</a>
 
@@ -147,7 +116,6 @@
       </span>
       <span class="ts-live-spacer"></span>
       <span class="ts-live-phase">
-        <svg class="ts-breathe" width="13" height="13" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="m208 144-40.6-13.5a16 16 0 0 1-10.1-10.1L144 79.7a8.5 8.5 0 0 0-16 0l-13.5 40.7a16 16 0 0 1-10.1 10.1L64 144a8.5 8.5 0 0 0 0 16l40.6 13.5a16 16 0 0 1 10.1 10.1L128 224a8.5 8.5 0 0 0 16 0l13.5-40.6a16 16 0 0 1 10.1-10.1L208 160a8.5 8.5 0 0 0 0-16Z" /></svg>
         {{ g.phaseLabel }}
       </span>
       <span class="ts-live-meta">Illustrative data</span>
@@ -155,10 +123,7 @@
 
     <div class="ts-hero-inner">
       <div class="ts-hero-copy">
-        <div class="ts-eyebrow">
-          <svg class="ts-breathe" width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="m208 144-40.6-13.5a16 16 0 0 1-10.1-10.1L144 79.7a8.5 8.5 0 0 0-16 0l-13.5 40.7a16 16 0 0 1-10.1 10.1L64 144a8.5 8.5 0 0 0 0 16l40.6 13.5a16 16 0 0 1 10.1 10.1L128 224a8.5 8.5 0 0 0 16 0l13.5-40.6a16 16 0 0 1 10.1-10.1L208 160a8.5 8.5 0 0 0 0-16ZM48 64h16v16a8 8 0 0 0 16 0V64h16a8 8 0 0 0 0-16H80V32a8 8 0 0 0-16 0v16H48a8 8 0 0 0 0 16Zm176 48h-8v-8a8 8 0 0 0-16 0v8h-8a8 8 0 0 0 0 16h8v8a8 8 0 0 0 16 0v-8h8a8 8 0 0 0 0-16Z" /></svg>
-          A second read before you commit
-        </div>
+        <p class="ts-eyebrow">A second read before you commit</p>
 
         <h1 id="hero-heading" class="ts-h1">Know the level to act on, and the level that proves you wrong.</h1>
 
@@ -194,33 +159,11 @@
     </div>
   </section>
 
-  <!-- ── illustrative tape ────────────────────────────── -->
-  <section class="ts-tape" aria-label="Illustrative market data">
-    <div class="ts-tape-row">
-      <div class="ts-tape-badge">
-        <span class="ts-dot ts-dot-mint ts-breathe"></span>
-        <span>Illustrative</span>
-      </div>
-      <div class="ts-tape-track">
-        <div class="ts-tape-run">
-          @for (t of tape; track $index) {
-            <span class="ts-tape-item">
-              <span class="ts-tape-sym">{{ t.symbol }}</span>
-              <span class="ts-tape-px">{{ t.price }}</span>
-              <span class="ts-tape-ch" [class.ts-up]="t.up" [class.ts-down]="!t.up">{{ t.change }}</span>
-            </span>
-          }
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- ── the read, taken apart ────────────────────────── -->
   <section id="the-read" class="ts-section" aria-labelledby="read-heading">
     <div class="ts-inner">
       <div class="ts-head ts-reveal">
         <div class="ts-kicker-row">
-          <span class="ts-rule" aria-hidden="true"><span></span></span>
           <span class="ts-kicker">The read, taken apart</span>
         </div>
         <h2 id="read-heading" class="ts-h2">One read, field by field, and what you do with each one.</h2>
@@ -333,53 +276,10 @@
     <div class="ts-inner">
       <div class="ts-head ts-reveal">
         <div class="ts-kicker-row">
-          <span class="ts-rule" aria-hidden="true"><span></span></span>
           <span class="ts-kicker">Why it is worth trusting</span>
         </div>
         <h2 id="trust-heading" class="ts-h2">There is no accuracy score here, and that is deliberate.</h2>
         <p class="ts-sub">One headline number tells you nothing about the chart in front of you. Three things do the work instead.</p>
-      </div>
-
-      <div class="ts-orbit-stage ts-reveal">
-        <div class="ts-orbit" role="img"
-             aria-label="Three timeframes of the same symbol stacked in depth: the daily, hourly and fifteen minute reads, each with its own support and resistance zones">
-          <div class="ts-orbit-layer ts-orbit-back">
-            <svg viewBox="0 0 680 220" aria-hidden="true">
-              <rect x="1" y="1" width="678" height="218" rx="14" fill="var(--app-canvas)" stroke="var(--app-hair)" stroke-width="1.5" />
-              <rect x="1" y="44" width="678" height="22" fill="#F23645" opacity="0.10" />
-              <rect x="1" y="150" width="678" height="22" fill="#089981" opacity="0.10" />
-              <polyline points="40,150 120,132 200,158 280,116 360,140 440,96 520,120 600,78 640,92" fill="none" stroke="var(--app-ink-soft)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-              <rect x="24" y="16" width="70" height="22" rx="6" fill="var(--app-hair)" />
-              <text x="38" y="31" font-size="12" font-weight="700" fill="var(--app-ink)">1D</text>
-            </svg>
-          </div>
-          <div class="ts-orbit-layer ts-orbit-mid">
-            <svg viewBox="0 0 680 220" aria-hidden="true">
-              <rect x="1" y="1" width="678" height="218" rx="14" fill="var(--app-canvas)" stroke="var(--app-hair)" stroke-width="1.5" />
-              <rect x="1" y="52" width="678" height="24" fill="#F23645" opacity="0.12" />
-              <rect x="1" y="146" width="678" height="24" fill="#089981" opacity="0.12" />
-              <polyline points="40,132 110,148 180,120 250,160 320,128 390,152 460,110 530,138 600,104 640,118" fill="none" stroke="var(--app-ink-soft)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-              <rect x="24" y="16" width="70" height="22" rx="6" fill="var(--app-hair)" />
-              <text x="38" y="31" font-size="12" font-weight="700" fill="var(--app-ink)">1H</text>
-            </svg>
-          </div>
-          <div class="ts-orbit-layer ts-orbit-front">
-            <svg viewBox="0 0 680 220" aria-hidden="true">
-              <rect x="1" y="1" width="678" height="218" rx="14" fill="var(--app-panel)" stroke="var(--app-hair)" stroke-width="1.5" />
-              <rect x="1" y="58" width="678" height="26" fill="#F23645" opacity="0.14" />
-              <rect x="1" y="140" width="678" height="26" fill="#089981" opacity="0.14" />
-              <g stroke-width="2" stroke-linecap="round">
-                <path stroke="#089981" d="M70 176v-34M110 170v-40M150 158v-38M330 146v-40M370 134v-34M560 122v-38M600 112v-34" />
-                <path stroke="#F23645" d="M190 132v38M230 124v40M270 136v34M410 120v40M450 132v36M490 126v34M520 118v40" />
-              </g>
-              <line class="ts-march" x1="1" y1="120" x2="679" y2="120" stroke="var(--app-ink-soft)" stroke-dasharray="4 6" opacity="0.7" />
-              <circle class="ts-ping" cx="620" cy="112" r="5" fill="none" stroke="#9D2BFF" stroke-width="1.5" />
-              <circle cx="620" cy="112" r="4" fill="#9D2BFF" />
-              <rect x="24" y="16" width="70" height="22" rx="6" fill="#9D2BFF" opacity="0.14" />
-              <text x="36" y="31" font-size="12" font-weight="700" fill="#9D2BFF">m15</text>
-            </svg>
-          </div>
-        </div>
       </div>
 
       <div class="ts-cards">
@@ -407,7 +307,6 @@
     <div class="ts-inner">
       <div class="ts-head ts-reveal">
         <div class="ts-kicker-row">
-          <span class="ts-rule" aria-hidden="true"><span></span></span>
           <span class="ts-kicker">How it works</span>
         </div>
         <h2 id="how-heading" class="ts-h2">Three steps, about thirty seconds, one credit.</h2>
@@ -462,7 +361,6 @@
     <div class="ts-inner">
       <div class="ts-head ts-reveal">
         <div class="ts-kicker-row">
-          <span class="ts-rule" aria-hidden="true"><span></span></span>
           <span class="ts-kicker">Scope</span>
         </div>
         <h2 id="scope-heading" class="ts-h2">What you get, and what you do not.</h2>
@@ -525,7 +423,7 @@
   <!-- ── also included ────────────────────────────────── -->
   <section class="ts-section ts-section-raised" aria-labelledby="else-heading">
     <div class="ts-inner ts-reveal">
-      <h2 id="else-heading" class="ts-card-title" style="font-size:20px;font-weight:700;letter-spacing:-0.015em">Also included, once you are inside</h2>
+      <h2 id="else-heading" class="ts-else-title">Also included, once you are inside</h2>
       <dl class="ts-else">
         <div><dt>Fundamentals analysis</dt><dd>A read on the company rather than the chart.</dd></div>
         <div><dt>Daily Briefing</dt><dd>Track symbols, re-read every day by a scheduled job, results emailed.</dd></div>
@@ -536,20 +434,10 @@
   </section>
 
   <!-- ── pricing ──────────────────────────────────────── -->
-  <section id="pricing" class="ts-section ts-section-chart" aria-labelledby="pricing-heading">
-    <svg class="ts-hero-chart" viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true">
-      <g stroke="var(--grid)" stroke-width="1">
-        @for (ly of live().grid; track $index) {
-          <line x1="0" [attr.y1]="ly" x2="1440" [attr.y2]="ly" />
-        }
-      </g>
-      <polyline class="ts-loop-line" [attr.points]="pricingLine" fill="none" stroke="#2962FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-    <div class="ts-hero-scrim" aria-hidden="true"></div>
+  <section id="pricing" class="ts-section" aria-labelledby="pricing-heading">
     <div class="ts-inner">
       <div class="ts-head ts-reveal">
         <div class="ts-kicker-row">
-          <span class="ts-rule" aria-hidden="true"><span></span></span>
           <span class="ts-kicker">Pricing</span>
         </div>
         <h2 id="pricing-heading" class="ts-h2">Credits only. There is no subscription and no monthly fee.</h2>
@@ -613,7 +501,6 @@
     <div class="ts-inner ts-inner-narrow">
       <div class="ts-head ts-reveal">
         <div class="ts-kicker-row">
-          <span class="ts-rule" aria-hidden="true"><span></span></span>
           <span class="ts-kicker">FAQ</span>
         </div>
         <h2 id="faq-heading" class="ts-h2">Six questions, answered plainly.</h2>
@@ -637,7 +524,7 @@
   </section>
 
   <!-- ── sign-up ──────────────────────────────────────── -->
-  <section id="signup" class="ts-section ts-section-raised" aria-labelledby="signup-heading" style="padding-top:120px;padding-bottom:120px">
+  <section id="signup" class="ts-section ts-section-raised ts-section-signup" aria-labelledby="signup-heading">
     <div class="ts-signup ts-reveal">
       <h2 id="signup-heading">Read one chart before you decide anything.</h2>
       <p class="ts-sub">No subscription, so there is nothing to cancel. A failed analysis is refunded automatically. Prices are in your own currency, and promo codes convert straight into credits.</p>

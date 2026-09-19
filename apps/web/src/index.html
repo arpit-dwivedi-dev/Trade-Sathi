@@ -34,6 +34,18 @@
   <meta name="twitter:title" content="Trade Sathi">
   <meta name="twitter:description" content="Your AI Trading Companion">
   <meta name="twitter:image" content="https://tradesathi.app/brand/social/twitter-card.png">
+  <!-- Resolve the theme before first paint (same rule as ThemeService): a
+       stored choice wins, otherwise follow the OS. Without this, dark-mode
+       users get a flash of the server-rendered light page. -->
+  <script>
+    try {
+      var t = localStorage.getItem('tradesathi.theme');
+      if (t !== 'light' && t !== 'dark') {
+        t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
 </head>
 <body>
   <app-root></app-root>

@@ -62,43 +62,10 @@ const FAQS: readonly FaqEntry[] = [
 const TAGLINE =
   'Every read states its own clarity, and the one condition that would break it.'.split(' ');
 
-/** Illustrative only — labelled as such on the page. Doubled so the loop has no seam. */
-const TAPE_ROWS: readonly [string, string, string][] = [
-  ['RELIANCE', '₹1,478.40', '+0.42%'],
-  ['HDFCBANK', '₹1,694.25', '-0.18%'],
-  ['TATAMOTORS', '₹742.85', '+1.06%'],
-  ['INFY', '₹1,556.70', '-0.64%'],
-  ['NIFTY 50', '24,318.45', '+0.27%'],
-  ['BANKNIFTY', '52,214.80', '+0.39%'],
-  ['SBIN', '₹618.35', '-0.22%'],
-  ['ICICIBANK', '₹1,142.90', '+0.55%'],
-  ['ITC', '₹436.15', '+0.11%'],
-  ['USDINR', '87.42', '-0.09%'],
-];
-
 /* ── live hero chart ───────────────────────────────────────────────────── */
 
 const LIVE = { n: 56, w: 1440, top: 140, bot: 620, volTop: 700, volBot: 830, bw: 9 };
 const STEP = LIVE.w / (LIVE.n - 1);
-/**
- * Pricing backdrop: a periodic price-like line (whole-cycle sines, so the end
- * meets the start) drawn twice across 2×width, then panned by CSS forever.
- */
-const PRICING_LINE = (() => {
-  const pts: string[] = [];
-  for (let x = 0; x <= LIVE.w * 2; x += 12) {
-    const t = (x / LIVE.w) * Math.PI * 2;
-    const y =
-      400 +
-      Math.sin(t * 2) * 90 +
-      Math.sin(t * 5 + 1.3) * 45 +
-      Math.sin(t * 11 + 0.7) * 22 +
-      Math.sin(t * 23 + 2.1) * 10;
-    pts.push(`${x},${y.toFixed(1)}`);
-  }
-  return pts.join(' ');
-})();
-
 const PHASES = ['Reading the series', 'Zones located', 'Scenario drafted', 'Holding the read'];
 
 interface Candle {
@@ -163,13 +130,6 @@ export class LandingPage implements OnInit {
   protected readonly theme = this.themeService.theme;
   protected readonly faqs = FAQS;
   protected readonly tagline = TAGLINE;
-  protected readonly tape = [...TAPE_ROWS, ...TAPE_ROWS].map(([symbol, price, change]) => ({
-    symbol,
-    price,
-    change,
-    up: !change.startsWith('-'),
-  }));
-
   protected readonly pricing = signal<PricingOverview | null>(null);
   protected readonly menuOpen = signal(false);
   protected readonly navLifted = signal(false);
@@ -182,7 +142,6 @@ export class LandingPage implements OnInit {
   private readonly tick = signal(0);
   private readonly open = this.series()[LIVE.n - 2];
 
-  protected readonly pricingLine = PRICING_LINE;
   protected readonly live = computed(() => this.geometry(this.series(), this.tick()));
 
   protected readonly credits = computed(() => {
