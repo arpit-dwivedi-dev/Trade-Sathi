@@ -333,10 +333,22 @@ export class SymbolSearch {
     this.searched.set(false);
     this.showingRecent.set(false);
     this.recent.set(pushRecentSymbol(this.isBrowser, instrument));
-    // The input keeps focus after a pick, which on a phone leaves the
-    // on-screen keyboard covering the chart the user just asked for.
-    this.hostRef.nativeElement.querySelector('input')?.blur();
+    this.blurOnHide = true;
     this.instrumentSelected.emit(instrument);
+  }
+
+  /**
+   * PrimeNG refocuses its input when the panel closes after a pick (inside a
+   * setTimeout, so blurring from onSelect is undone). On a phone that leaves
+   * the on-screen keyboard covering the chart the user just asked for, so the
+   * blur waits for onHide, which fires after that refocus.
+   */
+  private blurOnHide = false;
+
+  protected onPanelHide(): void {
+    if (!this.blurOnHide) return;
+    this.blurOnHide = false;
+    this.hostRef.nativeElement.querySelector('input')?.blur();
   }
 
   /**
