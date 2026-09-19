@@ -64,12 +64,15 @@ interface GrowthBar {
   fill: number;
 }
 
-/** The series the annual chart and table can be switched between. */
+/**
+ * The series the annual chart and table can be switched between. `short` is
+ * what the picker shows on a phone, where the four full labels do not fit.
+ */
 const ANNUAL_METRICS = [
-  { key: 'revenue', label: 'Revenue', money: true },
-  { key: 'operatingIncome', label: 'Operating income', money: true },
-  { key: 'netIncome', label: 'Net income', money: true },
-  { key: 'dilutedEps', label: 'Diluted EPS', money: false },
+  { key: 'revenue', label: 'Revenue', short: 'Revenue', money: true },
+  { key: 'operatingIncome', label: 'Operating income', short: 'Op. income', money: true },
+  { key: 'netIncome', label: 'Net income', short: 'Net income', money: true },
+  { key: 'dilutedEps', label: 'Diluted EPS', short: 'EPS', money: false },
 ] as const;
 
 type AnnualMetric = (typeof ANNUAL_METRICS)[number]['key'];

@@ -86,6 +86,16 @@ describe("getCandlesForInstrument", () => {
     expect(window.timeframeLabel).toBe("1D · 30d");
   });
 
+  it("serves the last session when today has no candles (weekend/holiday)", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    getHistoricalCandles.mockResolvedValue([candleOn(subtractDays(today, 2))]);
+
+    const window = await getCandlesForInstrument(ref, 1);
+
+    expect(window.candles).toHaveLength(1);
+    expect(window.marketDataDate).toBe(subtractDays(today, 2));
+  });
+
   it("serves a repeat request from cache instead of hitting the provider again", async () => {
     getHistoricalCandles.mockResolvedValue([candleOn(new Date().toISOString().slice(0, 10))]);
 

@@ -69,7 +69,6 @@
   margin-top: 0;
 }
 
-:host(:not(.fill)) .drop-hint,
 :host(:not(.fill)) .drop-formats {
   display: none;
 }
@@ -145,11 +144,6 @@
 
 .drop-browse {
   margin-top: 0;
-}
-
-.drop-hint {
-  max-width: 56ch;
-  padding-top: var(--s1);
 }
 
 /* Why a paste or drop was refused. Sits under the zone rather than inside it,

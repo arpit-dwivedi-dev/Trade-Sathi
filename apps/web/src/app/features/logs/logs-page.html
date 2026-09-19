@@ -7,14 +7,6 @@
                       [options]="typeFilters" optionLabel="label" optionValue="value"
                       [ngModel]="typeFilter()" (onChange)="selectType($event.value)" />
 
-      @if (!loading() && visibleRows().length) {
-        <span class="logs-head-trailing">
-          <span class="logs-count">
-            <span class="tnum">{{ visibleRows().length }}</span>
-            <span class="lbl">shown</span>
-          </span>
-        </span>
-      }
     </div>
   </ng-template>
 

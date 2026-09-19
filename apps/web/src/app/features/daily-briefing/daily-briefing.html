@@ -23,11 +23,20 @@
     <p class="err" role="alert">{{ err }}</p>
   }
 
+  <!-- Shown until acknowledged once; afterwards the cost lives on the run
+       buttons' and toggle's tooltips instead of a permanent banner. -->
   @if (runCostLabel(); as cost) {
-    <p class="note daily-briefing-cost-note" role="status">
-      {{ cost }} — scheduled runs and Analyze Now both spend from your credit balance.
-      <a routerLink="/app/billing">Buy credits</a> any time.
-    </p>
+    @if (!costNoteDismissed()) {
+      <p class="note daily-briefing-cost-note" role="status">
+        <span class="daily-briefing-cost-copy">
+          {{ cost }} — scheduled runs and Analyze Now both spend from your credit balance.
+          <a routerLink="/app/billing">Buy credits</a> any time.
+        </span>
+        <button pButton [text]="true" class="daily-briefing-cost-dismiss" (click)="dismissCostNote()">
+          Got it
+        </button>
+      </p>
+    }
   }
 
   <!-- <p-card class="daily-briefing-card"> -->
@@ -53,7 +62,7 @@
           styleClass="daily-briefing-table"
         >
           <ng-template #header>
-            <tr>
+            <tr class="daily-briefing-columns-row">
               <th>Symbol</th>
               <th>Chart window</th>
               <th>Run at</th>
@@ -63,7 +72,7 @@
           </ng-template>
           <ng-template #body let-item>
             <tr class="daily-briefing-row">
-              <td>
+              <td class="daily-briefing-cell-sym">
                 @if (canReopen(item)) {
                   <button
                     type="button"
@@ -94,7 +103,8 @@
                 }
               </td>
 
-              <td>
+              <td class="daily-briefing-cell-window">
+                <span class="daily-briefing-cell-label" aria-hidden="true">Chart window</span>
                 @if (isCustomLookback(item)) {
                   <span class="daily-briefing-custom">
                     <input
@@ -125,7 +135,8 @@
                 }
               </td>
 
-              <td>
+              <td class="daily-briefing-cell-time">
+                <span class="daily-briefing-cell-label" aria-hidden="true">Run at</span>
                 <span class="daily-briefing-time">
                   <p-datepicker
                     class="daily-briefing-time-field"
@@ -157,12 +168,13 @@
                 }
               </td>
 
-              <td>
+              <td class="daily-briefing-cell-toggle">
                 <span class="daily-briefing-toggle">
                   <p-toggleswitch
                     [ngModel]="item.enabled_for_daily_analysis"
                     (onChange)="toggleDailyAnalysis(item)"
                     [attr.aria-label]="'Daily briefing for ' + displaySymbol(item)"
+                    [title]="runCostLabel() ? runCostLabel() + ' when a scheduled run happens' : ''"
                   />
                   <span class="daily-briefing-toggle-label">{{ item.enabled_for_daily_analysis ? 'On' : 'Off' }}</span>
                 </span>
@@ -171,13 +183,14 @@
                 }
               </td>
 
-              <td>
+              <td class="daily-briefing-cell-actions">
                 <span class="daily-briefing-actions">
                   <button
                     pButton
                     [outlined]="true"
                     [disabled]="isBusy(item.id)"
                     (click)="analyzeNow(item)"
+                    [title]="runCostLabel() ?? ''"
                   >
                     @if (preparing()[item.id]) {
                       <p-progress-spinner styleClass="daily-briefing-spinner-sm" [style]="{ width: '16px', height: '16px' }" aria-hidden="true" /> Drawing chart…
@@ -194,7 +207,7 @@
                     pButton
                     [disabled]="isBusy(item.id)"
                     (click)="analyzeNow(item, false, 'brief')"
-                    title="Run this symbol now and email me the analysis as a PDF"
+                    [title]="'Run this symbol now and email me the analysis as a PDF' + (runCostLabel() ? ' — ' + runCostLabel()!.toLowerCase() : '')"
                   >
                     Brief now
                   </button>

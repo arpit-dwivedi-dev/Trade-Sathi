@@ -499,3 +499,164 @@ p-progress-spinner.daily-briefing-cell-spinner {
     flex-direction: column;
   }
 }
+
+/* Only shown in the phone card layout below, where the column headers go. */
+.daily-briefing-cell-label {
+  display: none;
+}
+
+/* ── phone: one card per symbol ─────────────────────────────
+   Same approach as History: the 900px table is un-tabled with `display` and
+   each row becomes a card laid out by grid area. The template is unchanged
+   apart from cell classes, so the desktop table above is untouched. */
+@media (max-width: 640px) {
+  .daily-briefing {
+    gap: var(--s3);
+    padding: var(--s3) var(--s3) var(--s10);
+  }
+
+  .daily-briefing-cost-note {
+    font-size: var(--t-xs);
+    padding: var(--s3);
+  }
+
+  .daily-briefing-table {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .daily-briefing-table ::ng-deep table,
+  .daily-briefing-table ::ng-deep .p-datatable-tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .daily-briefing-table ::ng-deep .p-datatable-thead,
+  .daily-briefing-columns-row {
+    display: none;
+  }
+
+  .daily-briefing-table ::ng-deep tr.daily-briefing-row {
+    background: var(--surf);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--sh-1);
+    display: grid;
+    gap: var(--s3);
+    grid-template-areas:
+      'sym    sym  toggle'
+      'window time time'
+      'act    act  act';
+    grid-template-columns: auto 1fr auto;
+    height: auto;
+    margin-top: var(--s3);
+    padding: var(--s3);
+    position: relative;
+  }
+
+  .daily-briefing-table ::ng-deep tr.daily-briefing-row:first-child {
+    margin-top: 0;
+  }
+
+  .daily-briefing-row:hover {
+    background: var(--surf);
+  }
+
+  .daily-briefing-table td,
+  .daily-briefing-table th:nth-child(n),
+  .daily-briefing-table td:nth-child(n) {
+    border: 0;
+    display: block;
+    min-width: 0;
+    padding: 0;
+    position: static;
+    width: auto;
+  }
+
+  .daily-briefing-cell-sym { grid-area: sym; }
+  .daily-briefing-cell-toggle { align-self: start; grid-area: toggle; }
+  .daily-briefing-cell-window { grid-area: window; }
+  .daily-briefing-cell-time { grid-area: time; }
+
+  .daily-briefing-cell-actions {
+    border-top: 1px solid var(--line-soft) !important;
+    grid-area: act;
+    padding-top: var(--s3) !important;
+  }
+
+  .daily-briefing-cell-label {
+    color: var(--tx-3);
+    display: block;
+    font-size: var(--t-3xs);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--s1);
+    text-transform: uppercase;
+  }
+
+  .daily-briefing-item-name {
+    max-width: none;
+  }
+
+  .daily-briefing-select-field {
+    width: 120px;
+  }
+
+  .daily-briefing-time-field {
+    width: 84px;
+  }
+
+  /* Remove sits at the left, the two run buttons stay content-sized on the
+     right — no full-width CTAs. */
+  .daily-briefing-actions {
+    justify-content: flex-end;
+  }
+
+  .daily-briefing-actions .p-button-text {
+    margin-right: auto;
+    order: -1;
+  }
+
+  /* The busy overlay covers the whole card instead of each cell. The row is
+     a grid block here, so it is a reliable containing block. */
+  .daily-briefing-cell-overlay {
+    border-radius: var(--r-lg);
+  }
+
+  .daily-briefing-cell-window .daily-briefing-cell-overlay,
+  .daily-briefing-cell-time .daily-briefing-cell-overlay,
+  .daily-briefing-cell-toggle .daily-briefing-cell-overlay {
+    display: none;
+  }
+
+  .daily-briefing-table ::ng-deep tr.daily-briefing-note-row,
+  .daily-briefing-table ::ng-deep td.daily-briefing-note-cell {
+    display: block;
+  }
+
+  .daily-briefing-note-cell {
+    padding: var(--s2) 0 0 !important;
+  }
+
+  .daily-briefing-confirm-copy {
+    min-width: 0;
+  }
+}
+
+/* ── cost notice ─────────────────────────────────────────── */
+.daily-briefing-cost-note {
+  align-items: center;
+}
+
+.daily-briefing-cost-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.daily-briefing-cost-dismiss.p-button {
+  flex: none;
+  font-size: var(--t-2xs);
+  height: 28px;
+  padding: 0 var(--s2);
+  white-space: nowrap;
+}

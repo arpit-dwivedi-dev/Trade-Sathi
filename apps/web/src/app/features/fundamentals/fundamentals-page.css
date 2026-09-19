@@ -393,6 +393,11 @@
 
 /* ── annual charts and table ─────────────────────────────── */
 
+/* The metric picker's labels: full width everywhere but a phone. */
+.fund-seg-short {
+  display: none;
+}
+
 .fund-annual-head {
   flex-wrap: wrap;
 }
@@ -652,6 +657,252 @@
   .fund-figures-3col,
   .fund-figures-2col {
     grid-template-columns: 1fr;
+  }
+
+  .fund {
+    padding: var(--s3) var(--s3) var(--s5);
+  }
+
+  /* p-card's preset body padding (--s5) stacks on top of the insets every
+     section below already draws for itself, which doubled the side margins and
+     left the header rule sitting at a different inset from the content under
+     it. On a phone the sections own the whole inset; the AI status cards have
+     no inner padding of their own, so they keep the preset's. */
+  .fund-card:not(.fund-ai-status) {
+    --p-card-body-padding: 0;
+    --p-card-body-gap: 0;
+  }
+
+  /* Identity header, stacked for a narrow column: symbol and listing chips on
+     one line, the price under them, then the AI action as a full-width,
+     thumb-sized button with its cost beneath. */
+  .fund-ident-head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--s3);
+    padding: var(--s4);
+  }
+
+  .fund-ident {
+    flex-wrap: wrap;
+    gap: var(--s2);
+  }
+
+  .fund-chips ::ng-deep .p-chip {
+    font-size: var(--t-2xs);
+    padding: 2px var(--s2);
+    white-space: nowrap;
+  }
+
+  /* Price on the left, a compact AI action on the right of the same row —
+     sized to its label, not stretched across the card. */
+  .fund-head-end {
+    align-items: center;
+    display: grid;
+    gap: 2px var(--s3);
+    grid-template-areas:
+      'quote ai'
+      'quote cost';
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .fund-quote {
+    flex-direction: column;
+    gap: 2px;
+    grid-area: quote;
+  }
+
+  .fund-head-end .fund-ai {
+    font-size: var(--t-xs);
+    gap: 4px;
+    grid-area: ai;
+    justify-self: end;
+    min-height: 36px;
+    padding: 6px 12px;
+  }
+
+  .fund-head-end .fund-ai app-icon {
+    font-size: 16px;
+    height: 16px;
+    width: 16px;
+  }
+
+  .fund-head-end .fund-ai-cost {
+    grid-area: cost;
+    justify-self: end;
+    margin: 0;
+  }
+
+  .fund-price {
+    font-size: var(--t-xl);
+  }
+
+  .fund-ident-body {
+    padding-block: var(--s4);
+  }
+
+  /* Inline rather than a wrapping flex row, with the separator trailing each
+     fact: a wrapped line then never starts with a stray dot. */
+  .fund-ident-meta {
+    display: block;
+  }
+
+  .fund-ident-meta span + span::before {
+    content: none;
+  }
+
+  .fund-ident-meta span:not(:last-child)::after {
+    content: ' · ';
+  }
+
+  /* Flush with the text above it, with a 44px touch target. */
+  .fund-summary-toggle {
+    margin: calc(var(--s2) * -1) 0 0;
+    min-height: 44px;
+    padding-inline: 0;
+  }
+
+  /* The card-level inset drops from --s5 to --s4 everywhere, matching what
+     components.css already does for .hd at this width. */
+  .fund-ident-body,
+  .fund-range-card,
+  .fund-annual-body,
+  .fund-cashdebt {
+    padding-inline: var(--s4);
+  }
+
+  .fund-figures,
+  .fund-bars {
+    padding-inline: var(--s4);
+  }
+
+  .fund-growth-note {
+    padding-inline: var(--s4);
+  }
+
+  .fund-range-head {
+    flex-wrap: wrap;
+    gap: var(--s1) var(--s3);
+  }
+
+  /* Metric picker gets its own line and may scroll sideways rather than
+     overflowing the card. */
+  .fund-annual-head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--s3);
+    padding: var(--s4);
+  }
+
+  /* Four options split the full width evenly, each label on one line, instead
+     of wrapping "Operating income" onto two lines inside a 34px-high pill. */
+  .fund-annual-head .seg {
+    width: 100%;
+    --p-togglebutton-content-padding: 2px 4px;
+  }
+
+  .fund-annual-head .seg ::ng-deep .p-selectbutton {
+    display: flex;
+    width: 100%;
+  }
+
+  .fund-annual-head .seg ::ng-deep .p-togglebutton {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .fund-annual-head .seg ::ng-deep .p-togglebutton-content {
+    font-size: var(--t-xs);
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .fund-seg-full {
+    display: none;
+  }
+
+  .fund-seg-short {
+    display: inline;
+  }
+
+  .fund-chart-pane-head {
+    flex-wrap: wrap;
+    gap: var(--s1) var(--s3);
+  }
+
+  .fund-chart-canvas {
+    height: 220px;
+  }
+
+  /* All five columns fit the phone width at once — no sideways scroll. The
+     headers and year cells switch to their short forms (see .fund-seg-short),
+     and the cell insets and type step down to make the room. */
+  .fund-tbl-wrap {
+    overflow: hidden;
+  }
+
+  .fund-tbl-wrap ::ng-deep table {
+    table-layout: auto;
+    width: 100%;
+  }
+
+  .fund-tbl-wrap ::ng-deep th,
+  .fund-tbl-wrap ::ng-deep td {
+    padding: var(--s3) var(--s2);
+    white-space: nowrap;
+  }
+
+  .fund-tbl-wrap ::ng-deep th:first-child,
+  .fund-tbl-wrap ::ng-deep td:first-child {
+    padding-left: var(--s3);
+  }
+
+  .fund-tbl-wrap ::ng-deep th:last-child,
+  .fund-tbl-wrap ::ng-deep td:last-child {
+    padding-right: var(--s3);
+  }
+
+  .fund-tbl-wrap ::ng-deep th {
+    font-size: var(--t-3xs);
+    letter-spacing: 0.03em;
+  }
+
+  .fund-tbl-wrap ::ng-deep td {
+    font-size: var(--t-xs);
+  }
+
+  .fund-annual-body {
+    gap: var(--s4);
+    padding-block: var(--s4);
+  }
+
+  .fund-chart-grid {
+    gap: var(--s5);
+  }
+
+  .fund .hd {
+    min-height: 44px;
+    padding: var(--s2) var(--s4);
+  }
+
+  .fund-cashdebt-row {
+    grid-template-columns: 72px minmax(0, 1fr) auto;
+    gap: var(--s2);
+  }
+
+  .fund-placeholder {
+    min-height: 0;
+    padding: var(--s5) var(--s4);
+  }
+
+  .fund-placeholder h2 {
+    font-size: var(--t-lg);
+  }
+
+  .fund-ai-status ::ng-deep .p-card-content {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
   }
 }
 

@@ -328,7 +328,14 @@ export async function getCandlesForInstrument(
   // Trimming happens per request, not before caching: the shared entry holds
   // the full upstream range, and two callers with different lookbacks inside
   // that range each get their own window from it.
-  const candles = fetched.filter((candle) => candle.timestamp.slice(0, 10) >= fromDate);
+  //
+  // The window is anchored on the latest session upstream returned, not on
+  // today: on a weekend or holiday the newest candle is the last trading day's,
+  // and a today-anchored 1-day window would trim it away and draw nothing.
+  const lastFetched = fetched[fetched.length - 1];
+  const sessionDate = lastFetched ? lastFetched.timestamp.slice(0, 10) : toDate;
+  const windowFrom = subtractDays(sessionDate < toDate ? sessionDate : toDate, lookbackDays);
+  const candles = fetched.filter((candle) => candle.timestamp.slice(0, 10) >= windowFrom);
 
   const last = candles[candles.length - 1];
   return {

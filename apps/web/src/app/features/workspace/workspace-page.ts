@@ -203,6 +203,24 @@ export class WorkspacePage implements OnInit, OnDestroy {
   protected readonly loadingChart = signal(false);
   protected readonly chartError = signal<string | null>(null);
   protected readonly lastRefreshedAt = signal<string | null>(null);
+  /** Calendar date (YYYY-MM-DD) of the newest candle on the chart — see CandleWindow.marketDataDate. */
+  private readonly marketDataDate = signal<string | null>(null);
+  /**
+   * The session being shown when it is not today's — a weekend, a holiday, or
+   * before the open. The API then serves the last trading session, and the
+   * chart says which day that was rather than passing it off as live.
+   */
+  protected readonly closedSessionLabel = computed(() => {
+    const date = this.marketDataDate();
+    if (!date || date >= localIsoDate()) return null;
+    return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-IN', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+  });
 
   protected readonly tool = signal<DrawTool>('cursor');
   protected readonly drawings = signal<Drawing[]>([]);
@@ -471,6 +489,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
     }
     this.chartError.set(null);
     this.applyWindow(result.window.candles, result.window.intervalMinutes);
+    this.marketDataDate.set(result.window.marketDataDate);
   }
 
   private applyWindow(candles: LiveCandle[], intervalMinutes: number): void {
@@ -776,6 +795,13 @@ function lookbackDaysFor(timeframe: WorkspaceInterval): number {
 }
 
 /** The timeframe's own short label, stamped onto the captured chart image and used in analysis-status copy. */
+/** Today's date in the viewer's own timezone, as YYYY-MM-DD. */
+function localIsoDate(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 function timeframeLabelFor(timeframe: WorkspaceInterval): string | null {
   return TIMEFRAMES.find((t) => t.value === timeframe)?.label ?? null;
 }

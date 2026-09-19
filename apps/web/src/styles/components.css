@@ -2460,3 +2460,18 @@ button.topbar-search-toggle {
     border-top: 0;
   }
 }
+
+/* Below the rail breakpoint (hamburger shown) use the short label (top bar title, nav row) in place of the full nav label. */
+.title-phone {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .title-wide {
+    display: none;
+  }
+
+  .title-phone {
+    display: inline;
+  }
+}

@@ -34,7 +34,7 @@
           (click)="select('analyze-by-image')"
           [attr.aria-current]="active() === 'analyze-by-image' ? 'page' : null">
     <app-icon aria-hidden="true" name="image_search" />
-    <span class="nav-item-lbl">{{ labels['analyze-by-image'] }}</span>
+    <span class="nav-item-lbl"><span class="title-wide">{{ labels['analyze-by-image'] }}</span><span class="title-phone">Image Analysis</span></span>
   </button>
 
   <button type="button" class="nav-item" [title]="labels['symbol-search']"

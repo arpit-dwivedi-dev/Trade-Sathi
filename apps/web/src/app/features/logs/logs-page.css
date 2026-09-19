@@ -142,34 +142,13 @@
   background: var(--surf-2);
 }
 
-/* Filter on the leading edge, count on the trailing one. */
+/* The filter toolbar. */
 .logs-head {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--s3) var(--s4);
   justify-content: space-between;
-}
-
-.logs-head-trailing {
-  align-items: center;
-  display: flex;
-  gap: var(--s3);
-}
-
-.logs-count {
-  align-items: baseline;
-  color: var(--tx-2);
-  display: flex;
-  flex: none;
-  gap: 5px;
-  white-space: nowrap;
-}
-
-.logs-count .tnum {
-  color: var(--tx);
-  font-size: var(--t-md);
-  font-weight: 600;
 }
 
 /* ── Type cell ───────────────────────────────────────────── */
@@ -295,5 +274,125 @@
 
   .logs-empty {
     flex: none;
+  }
+}
+
+/* ── phone: one card per event ──────────────────────────────
+   Same approach as History and Daily Briefing: the 760px table is un-tabled
+   with `display`, the column-label row goes, and each row becomes a card laid
+   out by grid area. The filter toolbar stays above the cards. */
+@media (max-width: 640px) {
+  .logs {
+    gap: var(--s3);
+    padding: var(--s3) var(--s3) var(--s10);
+  }
+
+  /* The cards are the surface now, so the wrapper stops being one. */
+  .logs-table-wrap {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    min-width: 0;
+  }
+
+  .logs-table-wrap ::ng-deep .p-datatable {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .logs-table-wrap ::ng-deep .p-datatable-table-container {
+    overflow: visible !important;
+  }
+
+  .logs-table-wrap ::ng-deep colgroup,
+  .logs-columns-row {
+    display: none;
+  }
+
+  .logs-table-wrap ::ng-deep table,
+  .logs-table-wrap ::ng-deep .p-datatable-thead,
+  .logs-table-wrap ::ng-deep .p-datatable-tbody,
+  .logs-filter-row,
+  .logs-filter-cell {
+    display: block;
+    width: 100%;
+  }
+
+  .logs-table-wrap ::ng-deep .p-datatable-thead {
+    background: transparent;
+    position: static !important;
+  }
+
+  .logs-table-wrap ::ng-deep .logs-filter-row .logs-filter-cell {
+    background: transparent;
+    border: 0;
+    padding: 0 0 var(--s3);
+  }
+
+  .logs-table-wrap ::ng-deep tr.logs-row {
+    background: var(--surf);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--sh-1);
+    display: grid;
+    gap: var(--s2) var(--s3);
+    grid-template-areas:
+      'kind   status'
+      'detail detail'
+      'amount date';
+    grid-template-columns: 1fr auto;
+    height: auto;
+    margin-top: var(--s2);
+    padding: var(--s3);
+  }
+
+  .logs-table-wrap ::ng-deep tr.logs-row:first-child {
+    margin-top: 0;
+  }
+
+  .logs-row:hover {
+    background: var(--surf);
+  }
+
+  .logs-table-wrap ::ng-deep tr.logs-row > td {
+    border: 0 !important;
+    border-radius: 0 !important;
+    display: block;
+    min-width: 0;
+    padding: 0;
+    width: auto;
+  }
+
+  .logs-row .col-kind { grid-area: kind; }
+  .logs-row .col-status { grid-area: status; justify-self: end; }
+  .logs-row .col-detail { grid-area: detail; }
+
+  .logs-row .col-amount {
+    color: var(--tx);
+    font-weight: 600;
+    grid-area: amount;
+  }
+
+  .logs-row .col-date {
+    color: var(--tx-3) !important;
+    font-size: var(--t-xs);
+    grid-area: date;
+    justify-self: end;
+  }
+
+  /* Skeleton: drop the header row and stack the placeholders. */
+  .logs .tbl .tr-h {
+    display: none;
+  }
+
+  .logs-end {
+    border-top: 0;
+    padding: var(--s3);
+  }
+
+  .logs-empty {
+    min-height: 200px;
+    padding: var(--s6) var(--s4);
   }
 }

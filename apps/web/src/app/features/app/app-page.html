@@ -19,7 +19,14 @@
           <app-icon aria-hidden="true" name="menu" />
         </button>
 
-        <h1 class="topbar-title trunc">{{ pageTitle() }}</h1>
+        <h1 class="topbar-title trunc">
+          @if (mobileTitle(); as short) {
+            <span class="title-wide">{{ pageTitle() }}</span>
+            <span class="title-phone">{{ short }}</span>
+          } @else {
+            {{ pageTitle() }}
+          }
+        </h1>
 
         <!-- One search for every chart tab. Bound with [hidden] rather than
              wrapped in @if: an @if would destroy it on the way to, say, the

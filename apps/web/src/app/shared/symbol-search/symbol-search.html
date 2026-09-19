@@ -28,6 +28,7 @@
       [ngModel]="queryInput()"
       (ngModelChange)="onQueryChange($event)"
       (keydown.escape)="dismissResults()"
+      (onFocus)="onFocus()"
       (onSelect)="onOptionSelected($event.value)"
       [suggestions]="results()"
       [minLength]="2"
@@ -40,6 +41,11 @@
       autocomplete="off"
       ariaLabel="Search instruments"
     >
+      <ng-template #header>
+        @if (showingRecent()) {
+          <div class="symbol-search-recent-header">Recent searches</div>
+        }
+      </ng-template>
       <ng-template #item let-result>
         <span class="symbol-search-row-content">
           @if (result.logoUrl) {

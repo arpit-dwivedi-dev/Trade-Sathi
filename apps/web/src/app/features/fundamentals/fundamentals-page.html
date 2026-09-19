@@ -12,7 +12,7 @@
       } @else {
         <app-icon aria-hidden="true" name="psychology" />
       }
-      {{ aiState() === 'queued' ? 'Analyzing…' : 'Analyze with AI' }}
+      {{ aiState() === 'queued' ? 'Analyzing…' : 'AI Analysis' }}
     </button>
     @if (aiCostLabel(); as cost) {
       <span class="fund-ai-cost dim">{{ cost }}</span>
@@ -219,7 +219,12 @@
           </span>
           <p-selectButton class="seg" aria-label="Financial metric"
                           [options]="annualMetricOptions" optionLabel="label" optionValue="key"
-                          [ngModel]="annualMetric()" (onChange)="selectAnnualMetric($event.value)" />
+                          [ngModel]="annualMetric()" (onChange)="selectAnnualMetric($event.value)">
+            <ng-template #item let-option>
+              <span class="fund-seg-full">{{ option.label }}</span>
+              <span class="fund-seg-short" [attr.aria-label]="option.label">{{ option.short }}</span>
+            </ng-template>
+          </p-selectButton>
         </div>
 
         <div class="fund-annual-body">
@@ -238,7 +243,7 @@
                   }
                 </div>
                 <div class="fund-chart-canvas">
-                  <p-chart type="bar" [data]="revenueChartData().chartData"
+                  <p-chart type="bar" height="100%" [data]="revenueChartData().chartData"
                            [options]="revenueChartOptions()" [plugins]="barChartPlugins" />
                 </div>
               </div>
@@ -254,7 +259,7 @@
                   </span>
                 </div>
                 <div class="fund-chart-canvas">
-                  <p-chart type="line" [data]="marginTrendData().chartData"
+                  <p-chart type="line" height="100%" [data]="marginTrendData().chartData"
                            [options]="marginTrendOptions()" />
                 </div>
               </div>
@@ -265,16 +270,19 @@
             <p-table [value]="annualRows()" [dataKey]="'asOfDate'">
               <ng-template #header>
                 <tr>
-                  <th>Fiscal year end</th>
-                  <th class="fund-tbl-num">Revenue</th>
-                  <th class="fund-tbl-num">Operating income</th>
-                  <th class="fund-tbl-num">Net income</th>
-                  <th class="fund-tbl-num">Diluted EPS</th>
+                  <th><span class="fund-seg-full">Fiscal year end</span><span class="fund-seg-short">Year</span></th>
+                  <th class="fund-tbl-num"><span class="fund-seg-full">Revenue</span><span class="fund-seg-short">Rev.</span></th>
+                  <th class="fund-tbl-num"><span class="fund-seg-full">Operating income</span><span class="fund-seg-short">Op. inc.</span></th>
+                  <th class="fund-tbl-num"><span class="fund-seg-full">Net income</span><span class="fund-seg-short">Net inc.</span></th>
+                  <th class="fund-tbl-num"><span class="fund-seg-full">Diluted EPS</span><span class="fund-seg-short">EPS</span></th>
                 </tr>
               </ng-template>
               <ng-template #body let-period>
                 <tr>
-                  <td class="tnum">{{ period.asOfDate }}</td>
+                  <td class="tnum">
+                    <span class="fund-seg-full">{{ period.asOfDate }}</span>
+                    <span class="fund-seg-short" [attr.aria-label]="period.asOfDate">FY{{ period.asOfDate.slice(2, 4) }}</span>
+                  </td>
                   <td class="tnum fund-tbl-num">{{ annualValue(period, 'revenue') }}</td>
                   <td class="tnum fund-tbl-num">{{ annualValue(period, 'operatingIncome') }}</td>
                   <td class="tnum fund-tbl-num">{{ annualValue(period, 'netIncome') }}</td>
@@ -409,7 +417,7 @@
       <p>
         Type a symbol or company name in the search box at the top of the page. Once a company
         is open you get its valuation and ratios, margins and returns, growth, scale and
-        balance sheet, and every fiscal year it has reported — and Analyze with AI turns on.
+        balance sheet, and every fiscal year it has reported — and AI Analysis turns on.
       </p>
 
       <dl class="fund-placeholder-features">

@@ -287,6 +287,11 @@ export class AppPage implements OnInit {
     return TAB_LABELS[this.tab()];
   }
 
+  /** A shorter top-bar title for phones, where the full label reads awkwardly. */
+  protected mobileTitle(): string | null {
+    return this.tab() === 'analyze-by-image' ? 'Image Analysis' : null;
+  }
+
   /** Whether the top bar's symbol search applies to the current tab. */
   protected searchVisible(): boolean {
     return SEARCHABLE_TABS.includes(this.tab());

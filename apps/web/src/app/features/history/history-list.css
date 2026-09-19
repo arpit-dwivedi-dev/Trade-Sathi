@@ -264,22 +264,25 @@
    very different label lengths to end up the same width. */
 .history-head .seg ::ng-deep .p-togglebutton {
   flex: 1 1 0;
-  min-width: 0;
+  min-width: min-content;
 }
 
 .history-head .seg ::ng-deep .p-togglebutton-content {
   width: 100%;
 }
 
-/* Wraps rather than ellipsises: a cut-off "DAILY BRIEF…" is exactly what this
-   is meant to stop. Centred so a two-line option still reads as one label. */
+/* Wraps only between words ("Daily / briefing"), never inside one — the
+   font shrinks with the viewport instead, and the button's min-content floor
+   above keeps the longest word ("Fundamentals") whole. Centred so a two-line
+   option still reads as one label. */
 .history-head .seg ::ng-deep .p-togglebutton-label {
-  font-size: clamp(9px, 2.4vw, var(--t-xs));
-  hyphens: auto;
+  font-size: clamp(8px, 2vw, var(--t-xs));
+  hyphens: none;
   line-height: 1.15;
+  overflow-wrap: normal;
   text-align: center;
   white-space: normal;
-  word-break: break-word;
+  word-break: normal;
 }
 
 .history-head-trailing {

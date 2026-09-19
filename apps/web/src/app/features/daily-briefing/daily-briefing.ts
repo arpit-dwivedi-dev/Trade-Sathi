@@ -2,6 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   OnDestroy,
+  PLATFORM_ID,
   OnInit,
   computed,
   effect,
@@ -10,6 +11,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -106,6 +108,8 @@ const MAX_LOOKBACK_DAYS = 365;
  * shell's top bar for every tab that needs one — this screen receives the
  * chosen instrument through `selection` and only stages it for adding.
  */
+const COST_NOTE_DISMISSED_KEY = 'daily-briefing:cost-note-dismissed:v1';
+
 @Component({
   selector: 'app-daily-briefing',
   imports: [
@@ -148,6 +152,34 @@ export class DailyBriefing implements OnInit, OnDestroy {
     if (!cost) return null;
     return `Costs ${cost.credits} credit${cost.credits === 1 ? '' : 's'} per run`;
   });
+
+  /**
+   * The cost notice is shown until the user acknowledges it once, then stays
+   * out of the way; the cost remains discoverable on the run buttons' and
+   * toggle's tooltips. Per-browser (localStorage), which is enough for a
+   * notice — it is not consent, and the balance check still gates every run.
+   */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  protected readonly costNoteDismissed = signal(this.readCostNoteDismissed());
+
+  protected dismissCostNote(): void {
+    this.costNoteDismissed.set(true);
+    try {
+      localStorage.setItem(COST_NOTE_DISMISSED_KEY, '1');
+    } catch {
+      // Storage blocked (private mode etc.) — hidden for this visit only.
+    }
+  }
+
+  private readCostNoteDismissed(): boolean {
+    // Hidden during SSR so a dismissed notice never flashes in on hydration.
+    if (!this.isBrowser) return true;
+    try {
+      return localStorage.getItem(COST_NOTE_DISMISSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
 
   protected readonly items = signal<DailyBriefingItem[]>([]);
   protected readonly loading = signal(true);

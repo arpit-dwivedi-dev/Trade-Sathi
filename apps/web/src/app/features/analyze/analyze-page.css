@@ -28,6 +28,42 @@
   align-items: center;
 }
 
+.analyze-hint {
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
+  line-height: 1.5;
+  margin: 0;
+  text-align: center;
+}
+
+.analyze-hint summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.analyze-hint summary::-webkit-details-marker {
+  display: none;
+}
+
+.analyze-hint-more,
+.analyze-hint-less {
+  color: var(--acc);
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.analyze-hint[open] .analyze-hint-more,
+.analyze-hint-less {
+  display: none;
+}
+
+.analyze-hint ul {
+  display: inline-block;
+  margin: var(--s2) 0 0;
+  padding-left: var(--s4);
+  text-align: left;
+}
+
 .note-icon {
   flex: none;
 }

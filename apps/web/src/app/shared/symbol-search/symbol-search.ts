@@ -24,6 +24,7 @@ import { MARKETS, type Instrument, type MarketCode } from '@tradesathi/shared';
 import { AppIcon } from '../icons/app-icon';
 import { AuthService } from '../../core/auth.service';
 import { ProfileService } from '../../features/account/profile.service';
+import { loadRecentSymbols, pushRecentSymbol } from './recent-symbols-store';
 
 /** geoip country code -> the market a trader from that country almost always means. */
 const MARKET_BY_COUNTRY: Record<string, MarketCode> = {
@@ -68,6 +69,7 @@ export class SymbolSearch {
   private readonly auth = inject(AuthService);
   private readonly profileService = inject(ProfileService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly instrumentSelected = output<Instrument>();
   /** Fires on init (once the geo default resolves) and on every manual switch. */
@@ -98,6 +100,10 @@ export class SymbolSearch {
   protected readonly results = signal<Instrument[]>([]);
   protected readonly searching = signal(false);
   protected readonly searched = signal(false);
+  /** Last few picked instruments (localStorage), shown when the box is focused while empty. */
+  private readonly recent = signal<Instrument[]>(loadRecentSymbols(this.isBrowser));
+  /** Whether the open panel is listing recents rather than search results. */
+  protected readonly showingRecent = signal(false);
 
   /**
    * p-autoComplete renders its own internal <input> rather than exposing the
@@ -116,7 +122,7 @@ export class SymbolSearch {
   private readonly narrow = signal(false);
 
   constructor() {
-    if (isPlatformBrowser(inject(PLATFORM_ID))) {
+    if (this.isBrowser) {
       const query = matchMedia('(max-width: 640px)');
       this.narrow.set(query.matches);
       const onChange = (event: MediaQueryListEvent) => this.narrow.set(event.matches);
@@ -171,6 +177,13 @@ export class SymbolSearch {
 
     this.queryInput.set(value);
     const trimmed = value.trim();
+    this.showingRecent.set(false);
+    if (trimmed.length === 0) {
+      this.searching.set(false);
+      this.searched.set(false);
+      this.showRecent();
+      return;
+    }
     if (trimmed.length < MIN_QUERY_LENGTH) {
       this.results.set([]);
       this.searching.set(false);
@@ -220,9 +233,29 @@ export class SymbolSearch {
     }
   }
 
+  /** Focus on an empty box lists the recent picks instead of an empty panel. */
+  protected onFocus(): void {
+    if (this.queryInput().trim().length === 0) this.showRecent();
+  }
+
+  private showRecent(): void {
+    const recent = this.recent();
+    if (recent.length === 0) {
+      this.results.set([]);
+      this.autocomplete()?.hide();
+      return;
+    }
+    this.results.set(recent);
+    this.showingRecent.set(true);
+    // Same PrimeNG quirk as dismissResults(): a suggestions change outside a
+    // search doesn't open the panel by itself, so open it explicitly.
+    this.autocomplete()?.show();
+  }
+
   /** Dismisses the suggestion list without choosing anything. */
   protected dismissResults(): void {
     this.results.set([]);
+    this.showingRecent.set(false);
     this.searched.set(false);
     // p-autoComplete's own panel only reacts to a `suggestions` change while
     // it considers itself mid-search (see PrimeNG's handleSuggestionsChange),
@@ -298,6 +331,8 @@ export class SymbolSearch {
     );
     this.results.set([]);
     this.searched.set(false);
+    this.showingRecent.set(false);
+    this.recent.set(pushRecentSymbol(this.isBrowser, instrument));
     this.instrumentSelected.emit(instrument);
   }
 
@@ -308,6 +343,7 @@ export class SymbolSearch {
   clear(): void {
     this.queryInput.set('');
     this.results.set([]);
+    this.showingRecent.set(false);
     this.searched.set(false);
     this.autocomplete()?.hide();
   }

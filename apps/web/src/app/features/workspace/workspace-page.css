@@ -264,6 +264,40 @@
   min-width: 0;
   overflow: hidden;
   padding: var(--s3);
+  position: relative;
+}
+
+/* Floats over the chart's top edge, centred so it clears the indicator
+   legend the chart draws top-left. */
+.ws-session-note {
+  align-items: center;
+  background: color-mix(in srgb, var(--warn) 12%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  border-radius: 999px;
+  color: var(--warn);
+  display: flex;
+  font-size: 12px;
+  gap: 6px;
+  left: 50%;
+  margin: 0;
+  padding: 2px var(--s2);
+  pointer-events: none;
+  position: absolute;
+  top: var(--s1);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.ws-session-dot {
+  background: var(--warn);
+  border-radius: 50%;
+  height: 6px;
+  width: 6px;
+}
+
+.ws-session-note b {
+  font-weight: 600;
 }
 
 .ws-chart-skel {

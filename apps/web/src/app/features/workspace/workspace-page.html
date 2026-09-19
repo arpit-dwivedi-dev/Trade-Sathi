@@ -153,6 +153,12 @@
         } @else if (loadingChart() && candles().length === 0) {
           <div class="skel ws-chart-skel" aria-busy="true"></div>
         } @else {
+          @if (closedSessionLabel(); as sessionDate) {
+            <p class="ws-session-note" role="status">
+              <span class="ws-session-dot" aria-hidden="true"></span>
+              Market closed today · showing last session, <b>{{ sessionDate }}</b>
+            </p>
+          }
           <app-workspace-chart
             [candles]="candles()"
             [overlays]="overlays()"

@@ -268,10 +268,6 @@
     max-height: 34px;
   }
 
-  .symbol-search-icon {
-    height: 34px;
-  }
-
   /* An outset focus ring reads as extra height next to the unfocused picker,
      so the ring is drawn inside the field's own box instead. */
   .symbol-search-row .symbol-search-autocomplete ::ng-deep .p-autocomplete-input:focus,
@@ -280,9 +276,27 @@
     outline: none;
   }
 
-  .symbol-search-icon {
-    height: 32px;
+  /* Stretched to the field's own box (34px, see above) rather than a fixed
+     height, so the icon and the clear button sit on its vertical centre. */
+  .symbol-search-icon,
+  .symbol-search-clear {
+    bottom: 0;
+    height: auto;
+    top: 0;
     width: 32px;
+  }
+
+  .symbol-search-clear {
+    right: 2px;
+  }
+
+  .symbol-search-icon app-icon,
+  .symbol-search-clear app-icon {
+    font-size: 14px;
+  }
+
+  .symbol-search-spin {
+    top: 9px;
   }
 
   /* Every pixel the trigger gives up here goes to the field beside it. */
@@ -293,6 +307,22 @@
   }
 
   .symbol-search-market ::ng-deep .p-select-dropdown {
-    width: 22px;
+    width: 20px;
   }
+
+  /* PrimeNG's chevron keeps its desktop size otherwise, which dwarfed the
+     short "NSE" label on a phone. */
+  .symbol-search-market ::ng-deep .p-select-dropdown-icon {
+    height: 10px;
+    width: 10px;
+  }
+}
+
+.symbol-search-recent-header {
+  padding: 0.5rem 0.75rem 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
 }
