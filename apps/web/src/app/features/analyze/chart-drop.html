@@ -28,10 +28,22 @@
 
   <div class="drop-copy">
     <h2 class="drop-title">
-      {{ dragging() ? 'Drop to upload' : 'Paste a chart screenshot' }}
+      @if (dragging()) {
+        Drop to upload
+      } @else if (isMobileDevice()) {
+        Add a chart screenshot
+      } @else {
+        Paste a chart screenshot
+      }
     </h2>
+    <!-- There is no Ctrl+V on a phone, so the touch copy names what is
+         actually on offer there instead. -->
     <p class="drop-sub">
-      Press <span class="kbd">Ctrl</span><span class="kbd">V</span> or drop an image here
+      @if (isMobileDevice()) {
+        Take a photo of the chart, or pick a screenshot
+      } @else {
+        Press <span class="kbd">Ctrl</span><span class="kbd">V</span> or drop an image here
+      }
     </p>
   </div>
 

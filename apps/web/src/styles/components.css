@@ -1257,9 +1257,233 @@ button.nav-toggle {
   .body {
     padding: var(--s5) var(--s4) var(--s12);
   }
+
+  /* The drawer never covers the whole screen, so a sliver of the page stays
+     visible as the tap-away target. */
+  .nav {
+    padding-bottom: calc(var(--s4) + env(safe-area-inset-bottom, 0px));
+    padding-top: calc(var(--s4) + env(safe-area-inset-top, 0px));
+    width: min(var(--nav-w), 85vw);
+  }
+
+  .nav-item {
+    min-height: 48px;
+  }
+
+  .topbar {
+    padding-top: calc(var(--s2) + env(safe-area-inset-top, 0px));
+  }
+}
+
+/* ── phone layout ─────────────────────────────────────────
+   Pieces that only exist under 768px. Hidden by default so the desktop and
+   tablet layouts never see them. */
+.tabbar,
+.nav-mobile-actions,
+button.topbar-search-toggle {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /* One 52px line: drawer toggle, title, market badge, search. The search row
+     folds away until the search button asks for it. */
+  /* A fixed height, not a minimum, and no wrapping: the bar measures the same
+     whether it is showing the title or the search, so opening the search
+     cannot shift the page below it. The safe-area inset is padding on top of
+     that fixed height rather than part of it. */
+  .topbar {
+    box-sizing: content-box;
+    flex-wrap: nowrap;
+    gap: var(--s1);
+    height: 44px;
+    min-height: 0;
+    padding-block: 0;
+    padding-inline: var(--s1) var(--s2);
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .topbar button.p-button {
+    height: 36px;
+    min-height: 36px;
+    min-width: 36px;
+    width: 36px;
+  }
+
+
+  /* Size and weight stay as the desktop rule sets them (--t-md / 600), which
+     is the app's own heading step — a heavier, larger phone-only title read
+     as a different piece of type from everything under it. */
+  .topbar-title {
+    flex: 1 1 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar-end {
+    gap: var(--s1);
+    margin-inline-start: 0;
+  }
+
+  .topbar button.p-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  button.topbar-desktop-only {
+    display: none;
+  }
+
+  button.topbar-search-toggle {
+    display: inline-flex;
+  }
+
+  /* Opening the search takes over the header line rather than adding a second
+     row: the title and the market badge collapse to nothing and the field
+     expands into the space they leave, so the bar never changes height.
+     Everything animates on flex-basis and opacity (both cheap and both
+     animatable) instead of on `display`, which cannot be transitioned. */
+  .topbar-title,
+  .market-status-badge {
+    overflow: hidden;
+    transition:
+      flex-basis var(--dur-standard) var(--ease-move),
+      max-width var(--dur-standard) var(--ease-move),
+      opacity var(--dur-subtle) var(--ease-move),
+      padding var(--dur-standard) var(--ease-move);
+  }
+
+  .topbar-search-open .topbar-title,
+  .topbar-search-open .market-status-badge {
+    flex-basis: 0;
+    max-width: 0;
+    opacity: 0;
+    padding-inline: 0;
+  }
+
+  /* order: 0 undoes the tablet rule above, which drops the field to a second
+     row after the buttons; here it belongs between the menu and the close. */
+  .topbar-search {
+    flex: 0 1 0;
+    min-width: 0;
+    opacity: 0;
+    order: 0;
+    padding-block: 0;
+    padding-inline: 0;
+    pointer-events: none;
+    transition:
+      flex-basis var(--dur-standard) var(--ease-move),
+      opacity var(--dur-subtle) var(--ease-move);
+  }
+
+  /* Clipped only while collapsing, never once open: p-autoComplete renders its
+     suggestion panel inline, right below the field, so an overflow clip on
+     this element hides every result. */
+  .topbar:not(.topbar-search-open) .topbar-search {
+    overflow: hidden;
+  }
+
+  .topbar-search-open .topbar-search {
+    flex: 1 1 auto;
+    opacity: 1;
+    overflow: visible;
+    padding-inline: var(--s1);
+    pointer-events: auto;
+  }
+
+  /* The component's own phone rules stack the market picker above the field,
+     which was right when the search had a row to itself. On the header line
+     both have to stay side by side inside the bar's fixed height, or the bar
+     grows and the page shifts. Three classes deep to outrank those rules. */
+  .topbar .topbar-search .symbol-search-row {
+    flex-wrap: nowrap;
+  }
+
+  .topbar .topbar-search .symbol-search-market {
+    flex: none;
+    width: auto;
+  }
+
+  .topbar .topbar-search .symbol-search {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+  }
+
+  /* In the flow, not fixed: .main is a flex column and .body above it is the
+     one thing that scrolls, so the bar can never cover the last row. The auto
+     margin pins it to the bottom on a tab whose content is shorter than the
+     screen. */
+  .tabbar {
+    background: var(--surf);
+    border-top: 1px solid var(--line);
+    display: grid;
+    flex: none;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    margin-top: auto;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 30;
+  }
+
+  /* The chart gets every pixel; the drawer is still one tap away. */
+  .shell-chart-tab .tabbar {
+    display: none;
+  }
+
+  .tabbar-item {
+    align-items: center;
+    appearance: none;
+    background: none;
+    border: 0;
+    color: var(--tx-3);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--fh);
+    font-size: var(--t-3xs);
+    font-weight: 600;
+    gap: var(--s1);
+    justify-content: center;
+    min-height: 56px;
+    padding: var(--s1) 0;
+  }
+
+  .tabbar-item app-icon {
+    height: 22px;
+    width: 22px;
+  }
+
+  .tabbar-item[aria-current='page'] {
+    color: var(--acc-tx);
+  }
+
+  .tabbar-item:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+  }
+
+  .nav-mobile-actions {
+    border-top: 1px solid var(--line-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: var(--s2);
+  }
+
+  .nav-item-danger,
+  .nav-item-danger:hover {
+    color: var(--down);
+  }
+
+  .body {
+    padding: var(--s4) var(--s4) var(--s8);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .market-status-badge,
+  .topbar-search,
+  .topbar-title,
   .brand,
   .nav,
   .nav-cta,
@@ -1343,6 +1567,77 @@ button.nav-toggle {
   --p-togglebutton-content-checked-shadow: none;
 }
 
+/* Phones: the workspace's filter rows stretch edge to edge and split the width
+   evenly between their options, instead of sitting at their natural width and
+   leaving a ragged gap down the right-hand side. These live here rather than in
+   workspace-page.css because .p-selectbutton and .p-togglebutton are PrimeNG's
+   own nodes — a component stylesheet cannot reach them. */
+@media (max-width: 640px) {
+  /* The six timeframes share the row evenly, so it ends flush instead of
+     trailing off into dead space. Tighter padding and a smaller label are what
+     let all six fit without any of them being swiped for. */
+  /* No width here: .seg's own `width: fit-content` plus a 100% override both
+     act as a flex basis wide enough to claim the whole line, which is what
+     pushed the other two filters onto a row of their own. The flex item is
+     sized by the rule in workspace-page.css instead; this only has to make
+     the inner PrimeNG row fill whatever width that lands on. */
+  .ws-timeframes.seg {
+    --p-togglebutton-content-padding: 2px 2px;
+  }
+
+  /* "15m" and "30m" are the widest labels and were being cut: a step down in
+     size plus the tighter padding above is what makes all six fit the width
+     they share. */
+  .ws-timeframes .p-togglebutton-label {
+    font-size: var(--t-3xs);
+  }
+
+  /* Candle/Line gives up padding so the timeframes beside it get the room. */
+  .ws-chart-style.seg {
+    --p-togglebutton-content-padding: 2px 8px;
+  }
+
+  /* The glyph was reading a size larger than the controls next to it. Three
+     classes deep to outrank the component's own 18px rule. */
+  .ws-indicators .ind-trigger .ind-trigger-icon {
+    font-size: 16px;
+    height: 16px;
+    width: 16px;
+  }
+
+  .ws-indicators .ind-trigger {
+    padding-inline: var(--s2);
+  }
+
+  /* Row 2 matches row 1's shorter controls, so the bar keeps one rhythm. */
+  .ws-timeframes.seg,
+  .ws-chart-style.seg {
+    height: 30px;
+  }
+
+  .ws-indicators .ind-trigger {
+    height: 30px;
+  }
+
+  .ws-timeframes .p-selectbutton {
+    display: flex;
+    width: 100%;
+  }
+
+  .ws-timeframes .p-togglebutton {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  /* Indicators drops to its glyph beside them — the label is the widest part
+     of the control and the icon plus its count already say what it is. Its
+     title attribute still names it for a screen reader. */
+  .ws-indicators .ind-trigger-label,
+  .ws-indicators .ind-trigger-caret {
+    display: none;
+  }
+}
+
 .seg .p-togglebutton-label {
   font-family: var(--fb);
   font-size: var(--t-xs);
@@ -1377,6 +1672,38 @@ button.nav-toggle {
 .ind-panel .p-popover-content,
 .tool-panel .p-popover-content {
   padding: 0;
+}
+
+/* On phones both flyouts open as a bottom sheet instead of floating beside
+   their trigger, which at this width would land half off-screen. !important is
+   needed to beat the top/left PrimeNG writes inline when it positions them. */
+@media (max-width: 640px) {
+  .ind-panel.p-popover,
+  .tool-panel.p-popover {
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    bottom: 0 !important;
+    left: 0 !important;
+    margin: 0 !important;
+    max-height: 80dvh;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    position: fixed !important;
+    right: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+  }
+
+  .ind-panel.p-popover::before,
+  .ind-panel.p-popover::after,
+  .tool-panel.p-popover::before,
+  .tool-panel.p-popover::after {
+    display: none;
+  }
+
+  .ind-panel .ind-item,
+  .tool-panel .tool-item {
+    min-height: 48px;
+  }
 }
 
 /* Every row is a plain <button>, not a PrimeNG menu-item component (this is

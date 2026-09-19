@@ -51,6 +51,14 @@
   width: 100vw;
 }
 
+/* Belt and braces with the template's own @if: the placeholder is only in the
+   DOM when nothing is charted, and with nothing charted the bar has no
+   controls worth a row — its only one is Full screen, and there is nothing to
+   make full screen. */
+.ws-shell:has(.ws-placeholder) .ws-topbar {
+  display: none;
+}
+
 /* No instrument yet: the tools rail and side panel aren't rendered, so
    collapse their reserved columns — otherwise the placeholder centers
    inside the leftover middle column instead of the whole shell. */
@@ -81,6 +89,11 @@
   margin-inline-start: auto;
 }
 
+/* Only the phone layout wraps this bar; see the responsive section. */
+.ws-topbar-break {
+  display: none;
+}
+
 /* pButton's default sizing runs taller than the .seg/ind-trigger controls
    beside it in this bar — pinned to the same 34px so the row reads as one
    height rather than the analyze action looming over the filters. */
@@ -92,6 +105,15 @@
   align-items: center;
   display: flex;
   gap: var(--s2);
+}
+
+/* The company mark, beside the ticker it belongs to. */
+.ws-logo {
+  border-radius: 50%;
+  flex: none;
+  height: 20px;
+  object-fit: contain;
+  width: 20px;
 }
 
 .ws-price {
@@ -590,5 +612,214 @@
 
   .ws-timeframes {
     margin-inline-start: 0;
+  }
+}
+
+/* Phones: the chart runs edge to edge, and the drawing tools leave the left
+   rail for a thumb-height toolbar under the chart. */
+@media (max-width: 640px) {
+  .workspace {
+    padding: 0;
+  }
+
+  .ws-shell,
+  .ws-shell.ws-drawings-collapsed {
+    border: 0;
+    border-radius: 0;
+    grid-template-areas: 'top' 'chart' 'tools' 'side';
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+  }
+
+  /* Two rows, fixed by `order` plus the break element rather than left to
+     wherever the content happens to wrap:
+       1 · symbol and price — analyse — full screen
+       2 · timeframes — candle/line — indicators
+     The actions come out of .ws-topbar-end (display: contents drops its box
+     without touching what it renders) so the analyse button and the full
+     screen toggle can be placed independently. */
+  .ws-topbar {
+    align-items: center;
+    gap: var(--s2);
+    padding: var(--s1) var(--s3);
+  }
+
+  /* The symbol sets row 1's floor once the controls beside it are this short,
+     so it comes down a step too. */
+  .ws-price {
+    font-size: var(--t-sm);
+  }
+
+  .ws-topbar-end {
+    display: contents;
+  }
+
+  .ws-ident {
+    flex: 1 1 auto;
+    min-width: 0;
+    order: 1;
+  }
+
+  .ws-analyze-btn {
+    flex: none;
+    font-size: var(--t-xs);
+    height: 26px;
+    order: 2;
+    padding-block: 0;
+    padding-inline: var(--s3);
+  }
+
+  /* PrimeNG sizes its icon buttons for a pointer; on this bar the row height
+     is what that costs, so it is pinned to the same height as the controls
+     beside it. */
+  .ws-fullscreen-btn {
+    flex: none;
+    height: 30px;
+    min-width: 0;
+    order: 3;
+    padding: 0;
+    width: 30px;
+  }
+
+  .ws-topbar-break {
+    display: block;
+    flex-basis: 100%;
+    height: 0;
+    order: 4;
+  }
+
+  /* Takes whatever the other two filters leave and splits it between the six
+     timeframes, so the row ends flush and nothing has to be swiped. A zero
+     basis (not auto) is what keeps all three on one line: with `auto` the
+     control's natural width is what the line is measured against, and six
+     timeframes plus Candle/Line plus Indicators do not fit at this width. */
+  .ws-timeframes {
+    flex: 1 1 0;
+    min-width: 0;
+    order: 5;
+  }
+
+  .ws-chart-style {
+    flex: none;
+    order: 6;
+  }
+
+  .ws-indicators {
+    flex: none;
+    order: 7;
+  }
+
+  /* "Analyse using AI" would crowd the symbol beside it; the verb alone says
+     enough, and the button is the only primary on the bar. */
+  .ws-analyze-suffix {
+    display: none;
+  }
+
+  .ws-chart-area {
+    padding: var(--s1);
+  }
+
+  .ws-tools {
+    border-right: 0;
+    border-top: 1px solid var(--line);
+    flex-direction: row;
+    justify-content: space-around;
+    overflow-x: auto;
+    padding: var(--s1) var(--s2);
+  }
+
+  .ws-tool-btn {
+    flex: none;
+    height: 44px;
+    width: 44px;
+  }
+
+  .ws-tool-divider {
+    height: 24px;
+    margin: 0 var(--s1);
+    width: 1px;
+  }
+
+  /* Nothing drawn, nothing to show: the panel is absent until the first
+     drawing exists, so an empty strip never eats chart height. The chart is
+     what the user came for at this width. */
+  .ws-shell:not(.ws-has-drawings) .ws-side {
+    display: none;
+  }
+
+  /* Open or closed, the panel is one short strip at this width — a stacked
+     list would cost several rows of chart for the same information. Entries
+     run left to right and the strip scrolls sideways once they outgrow it. */
+  .ws-side,
+  .ws-side.ws-side-collapsed {
+    align-items: center;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    flex-direction: row;
+    gap: var(--s3);
+    max-height: none;
+    overflow: hidden;
+    padding: var(--s2) var(--s3);
+  }
+
+  .ws-side-head,
+  .ws-side-collapsed .ws-side-head {
+    flex: none;
+    margin: 0;
+  }
+
+  /* Scrolls when the chips outgrow the strip, but the bar itself is never
+     drawn: on a touch screen it is a swipe, not a control, and a permanent
+     track under a single chip reads as clutter. */
+  .ws-side-content,
+  .ws-side-collapsed .ws-drawing-list {
+    scrollbar-width: none;
+  }
+
+  .ws-side-content::-webkit-scrollbar,
+  .ws-side-collapsed .ws-drawing-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ws-side-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  /* There is no hover on a phone, so the delete control cannot be something
+     that appears on it — the X sits on every chip, always. */
+  .ws-side-collapsed .ws-drawing-delete {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .ws-drawing-list,
+  .ws-side-collapsed .ws-drawing-list {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: var(--s2);
+    overflow-x: auto;
+    width: max-content;
+  }
+
+  /* Each entry is a chip: it keeps its own width instead of filling the row,
+     which is what lets them sit side by side and scroll. */
+  .ws-drawing-list li {
+    border: 1px solid var(--line);
+    flex: none;
+    min-height: 36px;
+    padding-inline: var(--s3) var(--s1);
+    width: auto;
+  }
+
+  .ws-drawing-list li > .trunc {
+    overflow: visible;
+    white-space: nowrap;
+  }
+
+  .ws-drawing-selected {
+    border-color: var(--acc-line);
   }
 }

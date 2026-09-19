@@ -78,7 +78,7 @@ export const routes: Routes = [
   },
   {
     path: 'workspace',
-    redirectTo: '/app/analyze-by-symbol',
+    redirectTo: '/app/symbol-search',
   },
   // Catch-all. Without it the router matched nothing for an unknown URL — a
   // mistyped path, or a stale bookmark — and left the page blank with only a

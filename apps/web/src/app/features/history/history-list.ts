@@ -384,7 +384,7 @@ export class HistoryList implements OnInit, OnDestroy {
     const instrument = row.instruments;
     if (!instrument) return null;
     const tab: ChartDestinationTab =
-      row.source === 'fundamentals' ? 'fundamentals' : 'analyze-by-symbol';
+      row.source === 'fundamentals' ? 'fundamentals' : 'symbol-search';
     return {
       instrument: {
         id: instrument.id,

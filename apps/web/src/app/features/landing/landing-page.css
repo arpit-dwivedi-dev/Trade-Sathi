@@ -644,6 +644,31 @@
   transition-delay: 225ms;
 }
 
+/* Reads as one of the menu's own lines, not as a control dropped into it. */
+.ts-overlay-theme {
+  background: none;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  opacity: 0;
+  padding: 0;
+  text-align: left;
+  transform: translateY(48px);
+  transition:
+    transform var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+  transition-delay: 240ms;
+}
+
+.ts-overlay.is-open .ts-overlay-theme {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .ts-overlay a.ts-overlay-cta {
   align-items: center;
   background: var(--brand);
@@ -2099,18 +2124,49 @@
     font-size: 34px;
   }
 
-  /* Leave room on the right for the corner theme toggle. */
-  .ts-nav-wrap {
-    padding-right: 76px;
-  }
-
+  /* The corner toggle used to sit here and the nav reserved 76px for it, which
+     left the pill too little room: its contents don't shrink (nowrap, flex:
+     none), so at phone widths they ran past the screen edge instead. The
+     toggle moves into the menu overlay and the pill gets the width back. */
   .ts-theme-toggle {
-    right: 16px;
+    display: none;
   }
 
   .ts-live {
     gap: 12px;
     padding: 10px 20px;
+  }
+}
+
+/* Phones. The nav pill has to hold the logo, Sign in and the menu button
+   inside ~360px, so the padding, gaps and wordmark all come down a step. The
+   logo is also allowed to shrink (min-width: 0 defeats a flex item's
+   automatic min-content floor) so that on the narrowest screens it ellipses
+   instead of pushing the menu button off the edge. */
+@media (max-width: 600px) {
+  .ts-nav {
+    gap: 6px;
+    padding: 6px 6px 6px 12px;
+  }
+
+  .ts-logo {
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .ts-logo-word {
+    font-size: 19px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ts-nav-signin {
+    padding: 0 12px;
+  }
+
+  .ts-overlay-theme,
+  .ts-overlay a {
+    font-size: 30px;
   }
 }
 

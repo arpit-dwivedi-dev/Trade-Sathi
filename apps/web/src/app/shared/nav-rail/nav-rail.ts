@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { BillingService } from '../../features/billing/billing.service';
 import { ProfileService } from '../../features/account/profile.service';
+import { ThemeService } from '../../core/theme.service';
 import { AppIcon } from '../icons/app-icon';
 import { TAB_LABELS, type NavTab } from './nav-tabs';
 
@@ -28,6 +29,9 @@ export class NavRail {
   private readonly auth = inject(AuthService);
   private readonly billing = inject(BillingService);
   private readonly profiles = inject(ProfileService);
+  private readonly themeService = inject(ThemeService);
+
+  protected readonly theme = this.themeService.theme;
 
   /** The row to mark as the current screen. */
   readonly active = input.required<NavTab>();
@@ -72,6 +76,16 @@ export class NavRail {
     // ensureCreditBalance is cached on the root service, so this shares
     // whatever the shell already fetched rather than adding a request.
     void this.billing.ensureCreditBalance();
+  }
+
+  protected toggleTheme(): void {
+    this.themeService.toggle();
+  }
+
+  protected async signOut(): Promise<void> {
+    this.activated.emit();
+    await this.auth.signOut();
+    await this.router.navigateByUrl('/login');
   }
 
   protected toggleCollapsed(): void {

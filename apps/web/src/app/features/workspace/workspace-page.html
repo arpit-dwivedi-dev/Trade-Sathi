@@ -6,10 +6,22 @@
     #shell
     [class.ws-fullscreen]="isFullscreen()"
     [class.ws-drawings-collapsed]="!drawingsPanelOpen()"
+    [class.ws-has-drawings]="drawings().length > 0"
   >
-    <header class="ws-topbar">
-      @if (instrument(); as picked) {
+    <!-- The whole bar waits for an instrument: with nothing charted, its only
+         control is Full screen, and there is nothing to make full screen. -->
+    @if (instrument(); as picked) {
+      <header class="ws-topbar">
         <span class="ws-ident">
+          @if (picked.logoUrl) {
+            <img
+              class="ws-logo"
+              [src]="picked.logoUrl"
+              (error)="onLogoError($event)"
+              alt=""
+              aria-hidden="true"
+            />
+          }
           <span class="sym">{{ picked.symbol }}</span>
           <!-- <p-chip [label]="picked.exchange" aria-label="Exchange" /> -->
           @if (lastPrice(); as price) {
@@ -32,35 +44,38 @@
                         [ngModel]="chartStyle()" (onChange)="selectChartStyle($event.value)" />
 
         <app-indicator-menu class="ws-indicators" [active]="activeIndicators()" [appendTo]="shellElement()" (activeChange)="onIndicatorsChange($event)" />
-      }
 
       <span class="ws-topbar-end">
-        @if (instrument()) {
-          <button
-            pButton
-            class="ws-analyze-btn"
-            [disabled]="busy() || candles().length === 0"
-            (click)="analyze()"
-          >
-            @if (busy()) {
-              <p-progress-spinner class="ws-btn-spinner" aria-hidden="true" />
-              Analysing…
-            } @else {
-              Analyse using AI
-            }
-          </button>
-        }
+        <button
+          pButton
+          class="ws-analyze-btn"
+          [disabled]="busy() || candles().length === 0"
+          (click)="analyze()"
+        >
+          @if (busy()) {
+            <p-progress-spinner class="ws-btn-spinner" aria-hidden="true" />
+            Analysing…
+          } @else {
+            <!-- The suffix is dropped on phones, where this button shares a
+                 row with the timeframes — see ws-analyze-suffix. -->
+            Analyse<span class="ws-analyze-suffix">&nbsp;using AI</span>
+          }
+        </button>
 
-        <button pButton [rounded]="true" [text]="true" (click)="toggleFullscreen()"
+        <button pButton [rounded]="true" [text]="true" class="ws-fullscreen-btn" (click)="toggleFullscreen()"
                 [attr.aria-pressed]="isFullscreen()"
                 [title]="isFullscreen() ? 'Exit full screen' : 'Full screen'"
                 [attr.aria-label]="isFullscreen() ? 'Exit full screen' : 'Full screen'">
           <app-icon aria-hidden="true" [name]="isFullscreen() ? 'fullscreen_exit' : 'fullscreen'" />
         </button>
       </span>
-    </header>
 
-    @if (instrument()) {
+      <!-- Phone only (zero-height and invisible elsewhere): forces the wrap
+           after the symbol row, so the bar is exactly two rows rather than
+           however many the content happens to need. -->
+      <span class="ws-topbar-break" aria-hidden="true"></span>
+      </header>
+
       <nav class="ws-tools" aria-label="Drawing tools">
         <button
           type="button"
@@ -218,7 +233,7 @@
         @if (drawingsPanelOpen()) {
           <div id="ws-drawings-panel-content" class="ws-side-content">
             @if (drawings().length === 0) {
-              <p class="ws-side-empty">Nothing drawn yet. Pick a tool on the left and click the chart.</p>
+              <p class="ws-side-empty">Nothing drawn yet. Pick a tool and click the chart.</p>
             } @else {
               <ul class="ws-drawing-list">
                 @for (drawing of drawings(); track drawing.id) {

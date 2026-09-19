@@ -1,4 +1,5 @@
-<main class="shell" [class.shell-nav-open]="navOpen()" [class.shell-nav-collapsed]="navCollapsed()">
+<main class="shell" [class.shell-nav-open]="navOpen()" [class.shell-nav-collapsed]="navCollapsed()"
+      [class.shell-chart-tab]="tab() === 'symbol-search'">
   @if (user()) {
     <!-- Closes the drawer by tapping away from it. Present in the DOM only as
          a plain div — CSS gives it a box exclusively while the rail is
@@ -12,7 +13,7 @@
     />
 
     <div class="main">
-      <header class="topbar">
+      <header class="topbar" [class.topbar-search-open]="searchOpen()">
         <button pButton [rounded]="true" [text]="true" class="nav-toggle" (click)="toggleNav()"
                 title="Sections" aria-label="Sections">
           <app-icon aria-hidden="true" name="menu" />
@@ -45,13 +46,23 @@
             </span>
           }
 
-          <button pButton [rounded]="true" [text]="true" (click)="toggleTheme()"
+          <!-- Phones only: the search row is folded away until asked for, so
+               the header stays one 52px line. -->
+          @if (searchVisible()) {
+            <button pButton [rounded]="true" [text]="true" class="topbar-search-toggle"
+                    (click)="toggleSearch()" [attr.aria-expanded]="searchOpen()"
+                    title="Search symbol" aria-label="Search symbol">
+              <app-icon aria-hidden="true" [name]="searchOpen() ? 'close' : 'search'" />
+            </button>
+          }
+
+          <button pButton [rounded]="true" [text]="true" class="topbar-desktop-only" (click)="toggleTheme()"
                   [attr.title]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
                   [attr.aria-label]="theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
             <app-icon aria-hidden="true" [name]="theme() === 'dark' ? 'light_mode' : 'dark_mode'" />
           </button>
 
-          <button pButton [rounded]="true" [text]="true" (click)="signOut()"
+          <button pButton [rounded]="true" [text]="true" class="topbar-desktop-only" (click)="signOut()"
                   title="Sign out" aria-label="Sign out">
             <app-icon aria-hidden="true" name="logout" />
           </button>
@@ -73,8 +84,8 @@
          wrapper takes over: a live analysis takes 20-30s and its poll must
          survive a glance at another tab, and the chart's own refresh timer
          idles on its own while the browser tab is in the background. -->
-    @defer (when tab() === 'analyze-by-symbol') {
-      <div class="tab-pane" [hidden]="tab() !== 'analyze-by-symbol'">
+    @defer (when tab() === 'symbol-search') {
+      <div class="tab-pane" [hidden]="tab() !== 'symbol-search'">
         <app-workspace-page
           class="tab-pane"
           [selection]="workspaceSelection()"
@@ -162,6 +173,23 @@
     } @loading (after 150ms; minimum 300ms) {
       <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading your account…</p>
     }
+
+    <!-- Phones only (CSS shows it under 768px). The daily destinations get a
+         slot each; everything else stays in the drawer, which More opens. -->
+    <nav class="tabbar" aria-label="Primary">
+      @for (item of tabbarItems; track item.tab) {
+        <button type="button" class="tabbar-item" (click)="select(item.tab)"
+                [attr.aria-current]="tab() === item.tab ? 'page' : null">
+          <app-icon aria-hidden="true" [name]="item.icon" />
+          <span>{{ item.label }}</span>
+        </button>
+      }
+      <button type="button" class="tabbar-item" (click)="toggleNav()"
+              [attr.aria-current]="isDrawerTab() ? 'page' : null" aria-label="More sections">
+        <app-icon aria-hidden="true" name="more_horiz" />
+        <span>More</span>
+      </button>
+    </nav>
     </div>
   } @else {
     <!-- Rendered during SSR and before client-side session restoration completes. -->

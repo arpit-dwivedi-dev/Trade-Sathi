@@ -214,4 +214,56 @@
   .drop-formats {
     display: none;
   }
+
+  /* The dashed frame is the phone layout's only cue that the card itself is
+     the target — there is no cursor to change over it. It goes solid while a
+     drag is over the zone (tablets with a mouse), matching .plate.over. */
+  .drop-zone {
+    border-style: dashed;
+  }
+
+  .drop-zone.over {
+    border-style: solid;
+  }
+
+  /* A round tinted disc rather than the small outlined tile: at this size the
+     icon is the first thing read, so it carries the accent. */
+  .drop-icon {
+    background: var(--acc-soft);
+    border-color: var(--acc-line);
+    border-radius: var(--r-pill);
+    color: var(--acc);
+    height: 56px;
+    width: 56px;
+  }
+
+  .drop-icon svg {
+    height: 26px;
+    width: 26px;
+  }
+
+  /* Full-width pills, stacked, at a comfortable thumb height. */
+  .drop-actions {
+    flex-direction: column;
+    gap: var(--s3);
+    margin-top: var(--s2);
+    width: 100%;
+  }
+
+  .drop-actions .btn {
+    border-radius: var(--r-pill);
+    font-size: var(--t-md);
+    min-height: 52px;
+    width: 100%;
+  }
+
+  /* The camera leads on a phone — the chart is usually on another screen in
+     front of the user — so it takes the filled treatment and the top slot.
+     Two classes deep to outrank the themed .btn-s background. */
+  .drop-actions .drop-camera {
+    background: var(--acc);
+    border-color: var(--acc);
+    color: #fff;
+    order: -1;
+  }
 }

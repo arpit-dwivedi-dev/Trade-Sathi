@@ -13,6 +13,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import type { Instrument, MarketCode, MarketStatus } from '@tradesathi/shared';
 import { AppIcon } from '../../shared/icons/app-icon';
+import type { IconName } from '../../shared/icons/icon-paths';
 import { AccountPage } from '../account/account-page';
 import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingPage } from '../billing/billing-page';
@@ -58,7 +59,15 @@ type Tab = NavTab;
  * than torn down — see the template) so a chart tab returns to the symbol still
  * written in the box.
  */
-const SEARCHABLE_TABS: readonly Tab[] = ['analyze-by-symbol', 'daily-briefing', 'fundamentals'];
+const SEARCHABLE_TABS: readonly Tab[] = ['symbol-search', 'daily-briefing', 'fundamentals'];
+
+/** The phone tab bar's slots. Every other destination is reached through the drawer. */
+const TABBAR_ITEMS: readonly { tab: Tab; label: string; icon: IconName }[] = [
+  { tab: 'analyze-by-image', label: 'Image', icon: 'image_search' },
+  { tab: 'symbol-search', label: 'Chart', icon: 'candlestick_chart' },
+  { tab: 'daily-briefing', label: 'Briefing', icon: 'routine' },
+  { tab: 'history', label: 'History', icon: 'history' },
+];
 
 @Component({
   selector: 'app-app-page',
@@ -113,6 +122,9 @@ export class AppPage implements OnInit {
    * screen, so it survives a tab change without stranding anyone.
    */
   protected readonly navCollapsed = signal(false);
+  /** Phone-only: whether the folded search row under the header is showing. */
+  protected readonly searchOpen = signal(false);
+  protected readonly tabbarItems = TABBAR_ITEMS;
   /**
    * The instrument the workspace chart is showing, as chosen in the top bar's
    * one shared search. Kept rather than reset on every tab switch so coming
@@ -163,6 +175,7 @@ export class AppPage implements OnInit {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const tab = parseTab(params.get('tab'));
       this.tab.set(tab);
+      this.searchOpen.set(false);
       // See dailyBriefingSelection: a staged add does not survive leaving.
       if (tab !== 'daily-briefing') this.dailyBriefingSelection.set(null);
     });
@@ -280,9 +293,19 @@ export class AppPage implements OnInit {
   }
 
   /** Routes a symbol picked in the top bar to whichever chart tab is open. */
+  /** Whether the current tab lives in the drawer rather than in a tab bar slot. */
+  protected isDrawerTab(): boolean {
+    return !TABBAR_ITEMS.some((item) => item.tab === this.tab());
+  }
+
+  protected toggleSearch(): void {
+    this.searchOpen.update((open) => !open);
+  }
+
   protected onInstrumentSelected(instrument: Instrument): void {
+    this.searchOpen.set(false);
     const selection: SymbolSelection = { instrument, requestId: ++this.selectionSeq };
-    if (this.tab() === 'analyze-by-symbol') this.workspaceSelection.set(selection);
+    if (this.tab() === 'symbol-search') this.workspaceSelection.set(selection);
     else if (this.tab() === 'daily-briefing') this.dailyBriefingSelection.set(selection);
     else if (this.tab() === 'fundamentals') this.fundamentalsSelection.set(selection);
   }

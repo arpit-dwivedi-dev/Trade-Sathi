@@ -37,11 +37,11 @@
     <span class="nav-item-lbl">{{ labels['analyze-by-image'] }}</span>
   </button>
 
-  <button type="button" class="nav-item" [title]="labels['analyze-by-symbol']"
-          (click)="select('analyze-by-symbol')"
-          [attr.aria-current]="active() === 'analyze-by-symbol' ? 'page' : null">
+  <button type="button" class="nav-item" [title]="labels['symbol-search']"
+          (click)="select('symbol-search')"
+          [attr.aria-current]="active() === 'symbol-search' ? 'page' : null">
     <app-icon aria-hidden="true" name="candlestick_chart" />
-    <span class="nav-item-lbl">{{ labels['analyze-by-symbol'] }}</span>
+    <span class="nav-item-lbl">{{ labels['symbol-search'] }}</span>
   </button>
 
   <button type="button" class="nav-item" [title]="labels['daily-briefing']"
@@ -112,4 +112,17 @@
     <span class="who-mark" aria-hidden="true">{{ name().charAt(0) }}</span>
     <span class="who-email trunc">{{ name() }}</span>
   </span>
+
+  <!-- Phones only: the header is too narrow to hold these, so they move here,
+       at the bottom of the drawer and away from the thumb's resting spot. -->
+  <div class="nav-mobile-actions">
+    <button type="button" class="nav-item" (click)="toggleTheme()">
+      <app-icon aria-hidden="true" [name]="theme() === 'dark' ? 'light_mode' : 'dark_mode'" />
+      <span class="nav-item-lbl">{{ theme() === 'dark' ? 'Light theme' : 'Dark theme' }}</span>
+    </button>
+    <button type="button" class="nav-item nav-item-danger" (click)="signOut()">
+      <app-icon aria-hidden="true" name="logout" />
+      <span class="nav-item-lbl">Sign out</span>
+    </button>
+  </div>
 </div>

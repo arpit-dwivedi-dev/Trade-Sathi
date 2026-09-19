@@ -180,6 +180,11 @@
                         emailed
                       </span>
                     }
+                    <!-- Phone only. On a card the status reads as one more tag
+                         about the row, so it sits on this chip line; the
+                         Status cell below is the desktop table's copy and CSS
+                         shows exactly one of the two. -->
+                    <span class="st st-{{ row.status }} history-st-inline">{{ row.status }}</span>
                   </span>
                 </span>
               </span>

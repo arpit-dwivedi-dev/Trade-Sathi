@@ -1,8 +1,11 @@
 import { HttpClient } from '@angular/common/http';
+import { isPlatformBrowser } from '@angular/common';
 import {
   Component,
   DestroyRef,
   ElementRef,
+  computed,
+  PLATFORM_ID,
   inject,
   input,
   output,
@@ -71,10 +74,24 @@ export class SymbolSearch {
   readonly marketChanged = output<MarketCode>();
   readonly placeholder = input('Search symbol or company, e.g. RELIANCE');
 
+  /**
+   * One word on a phone. The field there is a fraction of the desktop width,
+   * so a longer hint only ever showed its first two or three words.
+   */
+  protected readonly fieldPlaceholder = computed(() =>
+    this.narrow() ? 'Search' : this.placeholder(),
+  );
+
   /** p-select's [options]/optionLabel need a plain string label, not a template. */
+  /**
+   * `short` is what the closed trigger shows on a phone, where the field
+   * beside it needs the width more than the country name does — the flag
+   * already says which country it is. The open list keeps the full label.
+   */
   protected readonly marketOptions = MARKETS.map((m) => ({
     code: m.code,
     label: `${m.flag} ${m.label}`,
+    short: `${m.flag} ${m.code}`,
   }));
   protected readonly market = signal<MarketCode>('NSE');
   protected readonly queryInput = signal('');
@@ -91,7 +108,22 @@ export class SymbolSearch {
   private readonly autocomplete = viewChild(AutoComplete);
   private readonly querySubject = new Subject<string>();
 
+  /**
+   * Whether this is the phone layout, kept in sync with the same 640px
+   * breakpoint the stylesheet uses. A media query rather than a user-agent
+   * check: what matters is the width the field actually has.
+   */
+  private readonly narrow = signal(false);
+
   constructor() {
+    if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      const query = matchMedia('(max-width: 640px)');
+      this.narrow.set(query.matches);
+      const onChange = (event: MediaQueryListEvent) => this.narrow.set(event.matches);
+      query.addEventListener('change', onChange);
+      this.destroyRef.onDestroy(() => query.removeEventListener('change', onChange));
+    }
+
     this.querySubject
       .pipe(
         debounceTime(SEARCH_DEBOUNCE_MS),
@@ -255,8 +287,15 @@ export class SymbolSearch {
     (event.target as HTMLImageElement).style.visibility = 'hidden';
   }
 
+  /**
+   * Just the ticker on a phone. The full "TCS — Tata Consultancy Services"
+   * does not fit the header field, so it read as a truncated company name
+   * where the symbol is the part that identifies what is on the chart.
+   */
   protected onOptionSelected(instrument: Instrument): void {
-    this.queryInput.set(`${instrument.symbol} — ${instrument.name}`);
+    this.queryInput.set(
+      this.narrow() ? instrument.symbol : `${instrument.symbol} — ${instrument.name}`,
+    );
     this.results.set([]);
     this.searched.set(false);
     this.instrumentSelected.emit(instrument);

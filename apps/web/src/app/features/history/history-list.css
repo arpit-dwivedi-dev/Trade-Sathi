@@ -233,6 +233,55 @@
   justify-content: space-between;
 }
 
+/* The source filter carries five options with labels as long as "Daily
+   briefing", so at some width they stop fitting. Rather than scroll sideways
+   (which hides options behind an unadvertised swipe) or wrap the strip onto a
+   second line, the control fills the width it is given and the options divide
+   it evenly: the type and the padding scale down with the viewport, and a
+   label that still will not fit on one line wraps inside its own option.
+   That way it fits exactly, at every width, without ever clipping or
+   overflowing.
+
+   `.seg` is global and fixes `flex: none`, a 34px height and its content
+   padding — none of which survives a control that has to adapt to its width. */
+.history-head .seg {
+  --p-togglebutton-content-padding: 3px clamp(3px, 1.6vw, 10px);
+
+  flex: 1 1 auto;
+  height: auto;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+}
+
+.history-head .seg ::ng-deep .p-selectbutton {
+  display: flex;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+/* `1 1 0` rather than `auto`: the basis has to be zero for five options of
+   very different label lengths to end up the same width. */
+.history-head .seg ::ng-deep .p-togglebutton {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.history-head .seg ::ng-deep .p-togglebutton-content {
+  width: 100%;
+}
+
+/* Wraps rather than ellipsises: a cut-off "DAILY BRIEF…" is exactly what this
+   is meant to stop. Centred so a two-line option still reads as one label. */
+.history-head .seg ::ng-deep .p-togglebutton-label {
+  font-size: clamp(9px, 2.4vw, var(--t-xs));
+  hyphens: auto;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
+}
+
 .history-head-trailing {
   align-items: center;
   display: flex;
@@ -468,6 +517,11 @@
   color: var(--acc-tx);
 }
 
+/* Desktop keeps the status in its own column, so the card's copy is off. */
+.history-st-inline {
+  display: none;
+}
+
 .history-mailed {
   align-items: center;
   background: transparent;
@@ -520,4 +574,304 @@
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, currentColor 70%, transparent);
   text-underline-offset: 3px;
+}
+
+/* ── phone: one card per analysis ───────────────────────────
+   The table is 900px wide by design and a phone is 360. Rather than leave the
+   user scrolling a grid sideways to read one row, the same markup is folded
+   into cards here: the table elements are un-tabled with `display`, the column
+   header row goes (labels mean nothing once each row stands alone), and the
+   cells are placed by grid area. Nothing in the template changes, so the
+   desktop table above is untouched. */
+@media (max-width: 640px) {
+  .history {
+    gap: var(--s3);
+    padding: var(--s3) var(--s3) var(--s10);
+  }
+
+  /* The card is the surface now, so the wrapper stops being one. */
+  .history-table-wrap {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    min-width: 0;
+  }
+
+  .history-table {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .history-table ::ng-deep .p-datatable-table-container {
+    overflow: visible !important;
+  }
+
+  .history-table ::ng-deep table,
+  .history-table ::ng-deep .p-datatable-thead,
+  .history-table ::ng-deep .p-datatable-tbody {
+    display: block;
+    width: 100%;
+  }
+
+  /* Only the toolbar survives the header, and it no longer needs to stick to
+     anything — it is just the filter above a list of cards. */
+  .history-table ::ng-deep .p-datatable-thead {
+    background: transparent;
+    position: static !important;
+  }
+
+  .history-columns-row {
+    display: none;
+  }
+
+  .history-filter-row,
+  .history-filter-cell {
+    display: block;
+  }
+
+  .history-table th.history-filter-cell {
+    background: transparent;
+    border: 0;
+    padding: 0 0 var(--s3);
+  }
+
+  /* Beats `.p-datatable-tbody > tr`'s block above — the row is the card. */
+  .history-table ::ng-deep tr.history-row {
+    background: var(--surf);
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--sh-1);
+    column-gap: var(--s2);
+    display: grid;
+    /* The name gets the whole of the first line. The status moved down to the
+       chip line's level and is drawn as a capsule like the source and emailed
+       tags, because that is what it is — a small label about the row, not
+       something worth a column of its own beside a truncated company name. */
+    grid-template-areas:
+      'logo sym  sym sym  sym'
+      'str  str  tf  tf   setup'
+      'act  act  act when when';
+    /* The logo column is a fixed 30px rather than `auto`. With `auto` it was
+       sized by whatever else landed in column one — "Downtrend" on one card,
+       an em dash on the next — so every card indented its company name by a
+       different amount and the list read as crooked. */
+    grid-template-columns: 30px auto auto minmax(0, 1fr) auto;
+    height: auto;
+    margin-bottom: var(--s3);
+    padding: var(--s3);
+    padding-bottom: var(--s2);
+    row-gap: var(--s2);
+  }
+
+  /* Hover tinting was a pointer affordance; on a card it just looks selected. */
+  .history-row:hover {
+    background: var(--surf);
+  }
+
+  /* The declared column widths above are table-layout instructions and mean
+     nothing to a grid item — left in place they would pin these cells to their
+     desktop sizes. */
+  .history-row > td {
+    align-items: center;
+    border: 0;
+    display: flex;
+    min-width: 0;
+    padding: 0;
+    width: auto;
+  }
+
+  .history-row > .col-logo {
+    grid-area: logo;
+  }
+
+  .history-row > .col-symbol {
+    grid-area: sym;
+  }
+
+  .history-row > .col-structure {
+    grid-area: str;
+  }
+
+  .history-row > .col-setup {
+    grid-area: setup;
+  }
+
+  .history-row > .col-tf {
+    grid-area: tf;
+  }
+
+  /* Same capsule as .history-src/.history-mailed above, keeping whatever
+     colour the .dir tone class is already giving it. On a card this is one tag
+     among several, not the headline it is in a scanned desktop column. */
+  .history-row .history-dir {
+    border-radius: var(--r-sm);
+    font-family: var(--fh);
+    font-size: var(--t-2xs);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    padding: 3px 5px;
+  }
+
+  /* Same capsule as .history-src/.history-mailed above, keeping whatever
+     colour the .st status class is already giving it. */
+  .history-row .st {
+    border-radius: var(--r-sm);
+    font-size: var(--t-2xs);
+    font-weight: 500;
+    line-height: 1;
+    padding: 3px 6px;
+  }
+
+  .history-row > .col-analyzed {
+    grid-area: when;
+    justify-content: flex-end;
+  }
+
+  .history-row > .col-actions {
+    grid-area: act;
+  }
+
+  /* The actions and the date sit on a tinted foot that runs the full width of
+     the card. It is drawn by the row's own ::after — a grid item like any
+     other — rather than as a background on the two cells, because the column
+     gap between them would show as a white seam straight through the band. */
+  .history-row::after {
+    background: var(--surf-2);
+    border-radius: 0 0 calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px);
+    border-top: 1px solid var(--line-soft);
+    content: '';
+    grid-area: 3 / 1 / 4 / -1;
+    margin: 0 calc(-1 * var(--s3)) calc(-1 * var(--s2));
+  }
+
+  .history-row > .col-actions,
+  .history-row > .col-analyzed {
+    padding-block: var(--s1);
+    position: relative;
+    z-index: 1;
+  }
+
+  /* The three metadata cells read as one quiet line under the name, so they
+     drop to the same size and colour as each other. */
+  .history-row > .col-structure {
+    border-top: 1px solid var(--line-soft);
+    padding-top: var(--s2);
+  }
+
+  .history-row > .col-setup {
+    border-top: 1px solid var(--line-soft);
+    justify-content: flex-end;
+    padding-top: var(--s2);
+  }
+
+  .history-row > .col-tf {
+    border-top: 1px solid var(--line-soft);
+    justify-content: flex-start;
+    padding-top: var(--s2);
+  }
+
+  /* Trend and timeframe are one phrase — "Downtrend, on the 1 minute" — so
+     they are joined rather than spaced apart as two columns. */
+  .history-row > .col-tf::before {
+    content: '•';
+    margin-inline: 6px;
+  }
+
+  /* The status is on the chip line inside the name cell here. */
+  .history-row > .col-status {
+    display: none;
+  }
+
+  .history-row .history-st-inline {
+    display: inline-flex;
+  }
+
+  .history-row > .col-structure,
+  .history-row > .col-tf,
+  .history-row > .col-analyzed {
+    color: var(--tx-3);
+    font-size: var(--t-2xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .history-row .history-cell {
+    font-size: var(--t-2xs);
+  }
+
+  .history-logo {
+    font-size: 12px;
+    height: 30px;
+    width: 30px;
+  }
+
+  /* 44px targets: on a card these are the only controls, and they are being
+     tapped rather than clicked. */
+  .history-actions {
+    gap: var(--s2);
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .history-actions .p-button-text {
+    height: 40px;
+    width: 40px;
+  }
+
+  .history-more,
+  .history-end {
+    padding: var(--s3) 0;
+  }
+
+  .history-end {
+    border-top: 0;
+  }
+
+  /* The loading skeleton is still the hand-rolled grid, so it gets card
+     chrome of its own to match what it is standing in for. */
+  .history .tbl {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s3);
+  }
+
+  .history .tbl .tr {
+    background: var(--surf);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+  }
+
+  .history-empty {
+    min-height: 200px;
+    padding: var(--s6) var(--s4);
+  }
+
+  /* Name and tags can use the full width of their column; without this the
+     'emailed' chip was being cut off at the cell edge. */
+  .history-row .history-sym-text-wrap {
+    width: 100%;
+  }
+
+  .history-row .history-sub-line,
+  .history-row .history-tags {
+    flex-wrap: wrap;
+  }
+
+  .history-row .history-tags {
+    flex: 0 1 auto;
+  }
+
+  .history-head {
+    width: 100%;
+  }
+
+  /* The row count is a desktop convenience; on a phone it costs the filter a
+     whole line of its own and the cards below already say how many there are. */
+  .history-head-trailing {
+    display: none;
+  }
 }

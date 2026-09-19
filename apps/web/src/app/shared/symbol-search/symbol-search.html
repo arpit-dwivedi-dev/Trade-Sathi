@@ -7,7 +7,14 @@
     [ngModel]="market()"
     (onChange)="onMarketChange($event.value)"
     ariaLabel="Stock market"
-  />
+  >
+    <!-- Both forms are rendered and CSS picks one, so the swap costs no
+         re-render and the width is settled before paint. -->
+    <ng-template #selectedItem let-option>
+      <span class="symbol-search-market-long">{{ option.label }}</span>
+      <span class="symbol-search-market-short">{{ option.short }}</span>
+    </ng-template>
+  </p-select>
 
   <div class="symbol-search">
     <span class="symbol-search-icon" aria-hidden="true">
@@ -17,7 +24,7 @@
       class="symbol-search-autocomplete"
       styleClass="symbol-search-autocomplete-field"
       panelStyleClass="symbol-search-panel"
-      [placeholder]="placeholder()"
+      [placeholder]="fieldPlaceholder()"
       [ngModel]="queryInput()"
       (ngModelChange)="onQueryChange($event)"
       (keydown.escape)="dismissResults()"

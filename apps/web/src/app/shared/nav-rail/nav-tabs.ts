@@ -18,7 +18,7 @@
  */
 export type NavTab =
   | 'analyze-by-image'
-  | 'analyze-by-symbol'
+  | 'symbol-search'
   | 'daily-briefing'
   | 'fundamentals'
   | 'history'
@@ -29,7 +29,7 @@ export type NavTab =
 /** Every destination, in the order the modals and the prerenderer enumerate them. */
 export const TABS: readonly NavTab[] = [
   'analyze-by-image',
-  'analyze-by-symbol',
+  'symbol-search',
   'daily-briefing',
   'fundamentals',
   'history',
@@ -46,7 +46,7 @@ export const TABS: readonly NavTab[] = [
  */
 export const TAB_LABELS: Readonly<Record<NavTab, string>> = {
   'analyze-by-image': 'Analyze by Image',
-  'analyze-by-symbol': 'Analyze by Symbol',
+  'symbol-search': 'Symbol Search',
   'daily-briefing': 'Daily Briefing',
   fundamentals: 'Fundamentals',
   history: 'History',
@@ -72,7 +72,9 @@ export const TAB_ALIASES: Readonly<Record<string, NavTab>> = {
   credits: 'billing',
   watchlist: 'daily-briefing',
   analyze: 'analyze-by-image',
-  workspace: 'analyze-by-symbol',
+  workspace: 'symbol-search',
+  // What this tab's URL was while it was called "Analyze by Symbol".
+  'analyze-by-symbol': 'symbol-search',
   dailyBriefing: 'daily-briefing',
   logs: 'activity-logs',
   account: 'account-settings',

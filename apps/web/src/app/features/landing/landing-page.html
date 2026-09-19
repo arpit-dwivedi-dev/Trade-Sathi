@@ -77,6 +77,11 @@
   <a href="#pricing" (click)="setMenu(false)">Pricing</a>
   <a href="#faq" (click)="setMenu(false)">FAQ</a>
   <a routerLink="/login" (click)="setMenu(false)">Sign in</a>
+  <!-- The corner toggle is hidden at this width (it crowded the nav pill),
+       so the theme switch lives in the menu instead. -->
+  <button type="button" class="ts-overlay-theme" (click)="toggleTheme()">
+    {{ theme() === 'dark' ? 'Light theme' : 'Dark theme' }}
+  </button>
   <a class="ts-overlay-cta" routerLink="/signup" (click)="setMenu(false)">Create free account</a>
 </div>
 

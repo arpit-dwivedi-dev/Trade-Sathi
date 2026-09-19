@@ -59,3 +59,35 @@
   justify-content: center;
   padding: var(--s16) var(--s6);
 }
+
+/* Phones: the market badge is drawn as the same small capsule the rest of the
+   app's tags use (History's source/emailed chips, the row status) — 2xs type,
+   a hairline in its own colour and a small radius — instead of a filled pill
+   sized for the desktop bar. It keeps its open/closed colour. */
+@media (max-width: 640px) {
+  /* The phone header is one nowrap line and this badge carries
+     `overflow: hidden` (for the search-open collapse), which also zeroes its
+     automatic minimum size — so it is free to be squeezed out of existence by
+     whatever else is on the line. While the search is closed it is not
+     shrinkable; the collapse rule still owns the open state. */
+  .topbar:not(.topbar-search-open) .market-status-badge {
+    flex: none;
+  }
+
+  .market-status-badge {
+    border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+    border-radius: var(--r-sm);
+    font-family: var(--fh);
+    font-size: var(--t-2xs);
+    font-weight: 500;
+    gap: 4px;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    padding: 3px 5px;
+  }
+
+  .market-status-dot {
+    block-size: 5px;
+    inline-size: 5px;
+  }
+}

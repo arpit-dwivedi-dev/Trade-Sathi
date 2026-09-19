@@ -52,6 +52,8 @@ interface WorkspaceInstrument {
   symbol: string;
   name: string;
   exchange: string;
+  /** Resolved server-side and often absent; see Instrument in @tradesathi/shared. */
+  logoUrl?: string;
 }
 
 interface TimeframeOption {
@@ -423,6 +425,11 @@ export class WorkspacePage implements OnInit, OnDestroy {
     this.chartError.set(null);
     this.clearResult();
     void this.reload();
+  }
+
+  /** A logo URL that 404s leaves the space it occupied rather than reflowing the row. */
+  protected onLogoError(event: Event): void {
+    (event.target as HTMLImageElement).style.visibility = 'hidden';
   }
 
   protected selectTimeframe(value: WorkspaceInterval): void {
