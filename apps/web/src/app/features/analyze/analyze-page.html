@@ -7,7 +7,26 @@
     [class.fill]="state() === 'idle' && !balanceExhausted()"
     [disabled]="(state() !== 'idle' && state() !== 'complete') || balanceExhausted()"
     (fileSelected)="onFileSelected($event)"
-  />
+  >
+    @if (state() === 'idle' && !balanceExhausted()) {
+      <details class="analyze-hint">
+        <summary>
+          Upload a clear, full-size chart with the price axis and timeframe visible. Blurry or
+          cropped images still use a credit. <span class="analyze-hint-more">View more</span>
+          <span class="analyze-hint-less">View less</span>
+        </summary>
+        <ul>
+          <li>Each upload uses 1 credit, even if the image turns out to be unusable.</li>
+          <li>Use a sharp screenshot, not a phone photo of a screen.</li>
+          <li>Keep the price axis, timeframe label and symbol name visible.</li>
+          <li>Show one chart with enough candles (roughly 50+) to read a trend.</li>
+          <li>Blurry or low-resolution images lead to misread prices and wrong levels.</li>
+          <li>Indicators, drawings or pop-ups over the candles can hide patterns.</li>
+          <li>Anything that isn't a single price chart may fail or return no call.</li>
+        </ul>
+      </details>
+    }
+  </app-chart-drop>
 
   <!-- Shown before any upload: a user who is already out of credits gets the
        buy-credits path on arrival rather than after a doomed upload. -->
@@ -28,24 +47,6 @@
     </div>
   }
 
-  @if (state() === 'idle' && !balanceExhausted()) {
-    <details class="analyze-hint">
-      <summary>
-        Upload a clear, full-size chart with the price axis and timeframe visible. Blurry or
-        cropped images still use a credit. <span class="analyze-hint-more">View more</span>
-        <span class="analyze-hint-less">View less</span>
-      </summary>
-      <ul>
-        <li>Each upload uses 1 credit, even if the image turns out to be unusable.</li>
-        <li>Use a sharp screenshot, not a phone photo of a screen.</li>
-        <li>Keep the price axis, timeframe label and symbol name visible.</li>
-        <li>Show one chart with enough candles (roughly 50+) to read a trend.</li>
-        <li>Blurry or low-resolution images lead to misread prices and wrong levels.</li>
-        <li>Indicators, drawings or pop-ups over the candles can hide patterns.</li>
-        <li>Anything that isn't a single price chart may fail or return no call.</li>
-      </ul>
-    </details>
-  }
 
   @switch (state()) {
     @case ('uploading') {

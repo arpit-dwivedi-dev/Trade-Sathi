@@ -184,11 +184,20 @@
 }
 
 @media (max-width: 640px) {
-  /* Narrow screens scroll rather than fit, and the compact row stacks — a
+  /* The idle card takes the whole screen under the topbar; if its content is
+     taller than that, the page scrolls. The compact row stacks — a
      three-across row at this width leaves nothing for the copy. */
   :host(.fill) .drop-zone {
-    flex: none;
+    flex: 1 0 auto;
     min-height: 0;
+  }
+
+  /* The projected hint sits at the bottom of the card. The two auto margins
+     split the leftover height, so the icon, copy and buttons stay centred in
+     the space above it. */
+  :host(.fill) .drop-icon,
+  :host(.fill) .drop-extra {
+    margin-top: auto;
   }
 
   :host(:not(.fill)) .drop-zone {
@@ -260,4 +269,13 @@
     color: #fff;
     order: -1;
   }
+}
+
+.drop-extra {
+  cursor: auto;
+  max-width: 560px;
+}
+
+.drop-extra:empty {
+  display: none;
 }

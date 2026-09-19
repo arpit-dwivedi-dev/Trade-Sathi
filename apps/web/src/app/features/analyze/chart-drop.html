@@ -53,6 +53,12 @@
       <span class="btn btn-s drop-camera" (click)="openCamera($event)">Take a photo</span>
     }
   </span>
+
+  <!-- Projected hint (e.g. upload tips). Its own clicks and keys must not
+       reach the zone, or opening the tips would also open the file picker. -->
+  <div class="drop-extra" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+    <ng-content />
+  </div>
 </div>
 
 @if (notice(); as message) {
