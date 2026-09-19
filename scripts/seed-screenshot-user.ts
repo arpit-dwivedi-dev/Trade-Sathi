@@ -9,7 +9,7 @@
 //   pnpm tsx scripts/seed-screenshot-user.ts --cleanup
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
 const envLines = readFileSync(path.join(repoRoot, '.env'), 'utf8').split('\n');

@@ -186,34 +186,6 @@
   gap: var(--s2);
 }
 
-.acct-check {
-  align-items: center;
-  background: var(--surf);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-pill);
-  cursor: pointer;
-  display: inline-flex;
-  font-size: var(--t-sm);
-  gap: 6px;
-  padding: 6px var(--s3) 6px var(--s2);
-  transition: border-color var(--dur-subtle) var(--ease-move), background var(--dur-subtle) var(--ease-move);
-}
-
-:root[data-theme='dark'] .acct-check {
-  background: var(--surf-2);
-}
-
-.acct-check:has(:checked) {
-  background: var(--acc-soft);
-  border-color: var(--acc);
-  color: var(--acc-tx);
-}
-
-.acct-check input {
-  accent-color: var(--acc);
-  margin: 0;
-}
-
 /* Two short fields on one line only pays off once the *card* is wide enough
    for both to keep a real typing width — below that they are cramped rather
    than compact. A container query rather than a viewport media query: the

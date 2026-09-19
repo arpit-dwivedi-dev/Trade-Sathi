@@ -132,13 +132,6 @@
   width: 220px;
 }
 
-.state-skel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-  padding-top: var(--s1);
-}
-
 /* The quota-block actions sit side by side, wrapping on narrow screens. Each
    child renders either a button or a status line, so aligning on the start
    keeps a spinner line from stretching next to a button. */

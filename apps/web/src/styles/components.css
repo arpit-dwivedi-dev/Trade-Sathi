@@ -503,13 +503,6 @@ button.nav-toggle {
   width: 100%;
 }
 
-/* Page-level heading block, now carrying only a page's leading actions. */
-.page-head {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-}
-
 /* ── marketing top bar ──────────────────────────────────
    The landing page keeps a conventional horizontal header; it is a website,
    not the application. */

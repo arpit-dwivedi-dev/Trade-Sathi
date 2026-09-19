@@ -292,10 +292,6 @@ p-progress-spinner.daily-briefing-spinner-sm {
    overlay instead (a real, ordinary positioning context), so the row reads as
    uniformly blurred without relying on <tr> positioning at all. Only the
    symbol cell's overlay carries the message text; the rest are blank blur. */
-.daily-briefing-cell {
-  position: relative;
-}
-
 .daily-briefing-cell-overlay {
   align-items: center;
   backdrop-filter: blur(2px);

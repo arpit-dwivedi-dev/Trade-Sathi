@@ -278,14 +278,6 @@
   color: var(--down);
 }
 
-/* A second header inside one card: growth is three figures, which would be
-   almost entirely chrome as a section of its own, and it answers the same
-   question as the margins above it — what the company earns. */
-.fund-hd-mid {
-  border-top: 1px solid var(--line-soft);
-  margin-top: var(--s2);
-}
-
 /* ── margin bars ─────────────────────────────────────────── */
 
 .fund-bars {

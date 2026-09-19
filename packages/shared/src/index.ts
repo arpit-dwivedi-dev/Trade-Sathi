@@ -1,5 +1,3 @@
-export const SHARED_PLACEHOLDER = true;
-
 // The billing/pricing contract: region bands, the public pricing overview,
 // and promo redemption. See billing.ts.
 export * from './billing.js';

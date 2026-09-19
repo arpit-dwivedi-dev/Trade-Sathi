@@ -25,8 +25,6 @@
   --s10: 40px;
   --s12: 48px;
   --s16: 64px;
-  --s20: 80px;
-  --s24: 96px;
 
   /* ── radii ───────────────────────────────────────────────
      Softer than a dense terminal, tighter than a consumer app.
@@ -70,8 +68,6 @@
   --t-xl: 21px;
   --t-2xl: 26px;
   --t-3xl: 32px;
-  --t-4xl: 40px;
-  --t-5xl: 56px;
 
   --lh-tight: 1.15;
   --lh-snug: 1.35;
@@ -81,7 +77,6 @@
      Short and unshowy. Nothing on this surface should take
      long enough to be noticed as an animation. */
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
   --dur-instant: 90ms;
   --dur-subtle: 130ms;
@@ -122,7 +117,6 @@
   --brand-primary: #2962ff;
   --market-up: #089981;
   --market-down: #f23645;
-  --ai-accent: #9d2bff;
 
   /* ── internal aliases ────────────────────────────────
      The names ~400 existing call sites already use, resolved onto the
@@ -153,16 +147,8 @@
   --acc-soft: #e8eeff;
   --acc-line: #b3c6ff;
 
-  /* the AI accent, kept apart from market data by design. --ai-tx is its
-     text-safe form, for the same reason --acc-tx exists. */
-  --ai-tx: #7b1fca;
-  --ai-soft: #f4e7ff;
-  --ai-line: #ddb8ff;
-
   /* the primary control: ink on paper, inverted in dark */
   --ink: #131722;
-  --ink-hi: #000000;
-  --ink-fg: #ffffff;
 
   /* the dark analytical slab — the canvas colour on both themes */
   --slab: #131722;
@@ -183,7 +169,6 @@
      true overlays (menus, dialogs) that float free of the layout and have
      no adjacent edge to borrow separation from. */
   --sh-1: none;
-  --sh-2: none;
   --sh-3: 0 4px 16px rgba(19, 23, 34, 0.14);
 }
 
@@ -216,7 +201,6 @@
      percentage set at --t-2xs on a panel is the one place to check by eye. */
   --market-up: #089981;
   --market-down: #f23645;
-  --ai-accent: #9d2bff;
 
   /* ── internal aliases ──────────────────────────────── */
 
@@ -238,14 +222,8 @@
   --acc-soft: rgba(41, 98, 255, 0.18);
   --acc-line: #2a4586;
 
-  --ai-tx: #c58aff;
-  --ai-soft: rgba(157, 43, 255, 0.18);
-  --ai-line: #5c2a8f;
-
   /* inverted: the primary control is the light one here */
   --ink: #d1d4dc;
-  --ink-hi: #ffffff;
-  --ink-fg: #131722;
 
   --slab: #131722;
   --slab-line: rgba(209, 212, 220, 0.11);
