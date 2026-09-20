@@ -53,7 +53,8 @@
           (click)="analyze()"
         >
           @if (busy()) {
-            <p-progress-spinner class="ws-btn-spinner" aria-hidden="true" />
+            <p-progress-spinner [style]="{ width: '16px', height: '16px' }"
+                                strokeWidth="4" aria-hidden="true" />
             Analysing…
           } @else {
             <!-- The suffix is dropped on phones, where this button shares a
@@ -283,18 +284,6 @@
       </aside>
     }
   </div>
-
-  <!-- A run is charged when it starts, so it is never abandoned when the
-       chart changes underneath it. This says what is still running. -->
-  @if (runningFor(); as running) {
-    <div class="note ws-note" style="--tone: var(--acc)">
-      <p-progress-spinner class="ws-note-spinner" aria-hidden="true" />
-      <span>
-        Analysing <b>{{ running.symbol }}</b> on the chart. You can keep looking around — the
-        result appears here when it's ready.
-      </span>
-    </div>
-  }
 
   @if (analyzeState() === 'insufficient_credits') {
     <div class="note ws-note" style="--tone: var(--warn)">

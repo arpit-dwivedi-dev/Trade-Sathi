@@ -249,16 +249,6 @@ export class WorkspacePage implements OnInit, OnDestroy {
   protected readonly patterns = signal<AnalysisPattern[]>([]);
 
   /**
-   * What the in-flight run is for, or null.
-   *
-   * A run is paid for the moment it starts, so changing the timeframe or the
-   * symbol while one is in flight no longer abandons it — this is what lets
-   * the view keep saying which chart is still being analysed after the user
-   * has moved on to looking at another one.
-   */
-  protected readonly runningFor = signal<AnalysisTarget | null>(null);
-
-  /**
    * A finished analysis for an instrument the user has since navigated away
    * from. Surfaced as a note rather than dropped silently: the credit was
    * spent and the result is real, it just does not belong on this chart.
@@ -718,7 +708,6 @@ export class WorkspacePage implements OnInit, OnDestroy {
 
     this.clearResult();
     this.analyzeState.set('starting');
-    this.runningFor.set(target);
 
     // The image is rendered here, from the candles already on screen, and
     // posted with the request purely so the stored analysis keeps the exact
@@ -734,7 +723,6 @@ export class WorkspacePage implements OnInit, OnDestroy {
 
     const started = await this.live.startAnalysis(target.instrumentId, target.lookbackDays, chart);
     if (!started.ok) {
-      this.runningFor.set(null);
       this.analyzeState.set(
         started.reason === 'insufficient_credits' ? 'insufficient_credits' : 'failed',
       );
@@ -753,7 +741,6 @@ export class WorkspacePage implements OnInit, OnDestroy {
     const outcome = await handle.result;
     if (this.pending !== handle) return;
     this.pending = null;
-    this.runningFor.set(null);
 
     if (outcome.outcome === 'complete' || outcome.outcome === 'failed') {
       this.row.set(outcome.row);

@@ -9,13 +9,20 @@ export const serverRoutes: ServerRoute[] = [
     path: 'analysis/:id',
     renderMode: RenderMode.Client,
   },
-  // The Google return trip. Client-only for the same reason as the route
-  // above, and one more: the code in the URL is exchanged for a session by
-  // the browser's Supabase client, so a prerendered copy of this page is a
-  // spinner frozen at the moment before that ever happened.
+  // The Google return trip. Prerendered, not client-rendered, because the
+  // deployment is static: a route with no prerendered file falls through to
+  // the catch-all rewrite, which serves the landing page. That put a fully
+  // rendered landing page on screen for the whole of the return trip, then
+  // blanked it when the router caught up — so the user saw landing, white,
+  // dashboard instead of one spinner.
+  //
+  // A prerendered copy is a spinner frozen before the code is exchanged, and
+  // that is exactly the right first paint: the exchange is the browser
+  // Supabase client's job (detectSessionInUrl) and runs on hydration, so the
+  // static shell is the same spinner the component would have drawn anyway.
   {
     path: 'auth/callback',
-    renderMode: RenderMode.Client,
+    renderMode: RenderMode.Prerender,
   },
   // The shell's tab is a route parameter, so the prerenderer has to be told
   // which values exist — under RenderMode.Prerender an unenumerated parameter
