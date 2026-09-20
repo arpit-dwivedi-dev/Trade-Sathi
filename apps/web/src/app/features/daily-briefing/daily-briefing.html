@@ -190,14 +190,13 @@
                     [outlined]="true"
                     [disabled]="isBusy(item.id)"
                     (click)="analyzeNow(item)"
-                    [title]="runCostLabel() ?? ''"
+                    [title]="'Analyse ' + displaySymbol(item) + ' with AI now' + (runCostLabel() ? ' — ' + runCostLabel()!.toLowerCase() : '')"
+                    [attr.aria-label]="'Analyse ' + displaySymbol(item) + ' with AI now'"
                   >
-                    @if (preparing()[item.id]) {
-                      <p-progress-spinner styleClass="daily-briefing-spinner-sm" [style]="{ width: '16px', height: '16px' }" aria-hidden="true" /> Drawing chart…
-                    } @else if (runIdFor(item.id)) {
-                      <p-progress-spinner styleClass="daily-briefing-spinner-sm" [style]="{ width: '16px', height: '16px' }" aria-hidden="true" /> Analyzing…
+                    @if (preparing()[item.id] || runIdFor(item.id)) {
+                      <p-progress-spinner styleClass="daily-briefing-spinner-sm" [style]="{ width: '16px', height: '16px' }" aria-hidden="true" />
                     } @else {
-                      Analyze now
+                      <app-icon aria-hidden="true" name="auto_awesome" />
                     }
                   </button>
                   <!-- Same run, same credit cost as the button beside it — the
@@ -208,8 +207,12 @@
                     [disabled]="isBusy(item.id)"
                     (click)="analyzeNow(item, false, 'brief')"
                     [title]="'Run this symbol now and email me the analysis as a PDF' + (runCostLabel() ? ' — ' + runCostLabel()!.toLowerCase() : '')"
+                    [attr.aria-label]="'Analyse ' + displaySymbol(item) + ' with AI and email me the PDF'"
                   >
-                    Brief now
+                    <!-- Same sparkle as the button beside it, since it is the
+                         same AI run; the page marks the mailed variant. -->
+                    <app-icon aria-hidden="true" name="auto_awesome" />
+                    <app-icon aria-hidden="true" name="newspaper" />
                   </button>
                   <button
                     pButton

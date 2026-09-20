@@ -354,6 +354,21 @@ export class SymbolSearch {
   }
 
   /**
+   * Labels the box with an instrument the parent already has open, without
+   * emitting a selection — the shell uses it after a reload, where the chart
+   * is restored from storage and the box would otherwise sit empty next to a
+   * chart that plainly has a symbol on it.
+   */
+  showInstrument(instrument: { symbol: string; name: string }): void {
+    this.queryInput.set(
+      this.narrow() ? instrument.symbol : `${instrument.symbol} — ${instrument.name}`,
+    );
+    this.results.set([]);
+    this.searched.set(false);
+    this.showingRecent.set(false);
+  }
+
+  /**
    * Lets a parent reset the box after consuming a selection — the shell
    * clears it once the watchlist has added an instrument.
    */

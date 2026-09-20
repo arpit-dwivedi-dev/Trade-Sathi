@@ -55,17 +55,53 @@
           <div class="acct-field-row">
             <div class="field">
               <label for="acct-phone">Phone number</label>
-              <ngx-intl-tel-input class="acct-phone" [cssClass]="'input'" [inputId]="'acct-phone'"
-                                   name="phoneNumber" [maxLength]="18"
-                                   [enableAutoCountrySelect]="true" [enablePlaceholder]="true"
-                                   [searchCountryFlag]="true"
-                                   [searchCountryField]="[SearchCountryField.Iso2, SearchCountryField.Name]"
-                                   [preferredCountries]="phonePreferredCountries"
-                                   [selectedCountryISO]="CountryISO.India"
-                                   [ngModel]="phoneNumber()" #phoneCtrl="ngModel"
-                                   (ngModelChange)="onPhoneChange($event)" />
-              @if (phoneCtrl.invalid && phoneCtrl.dirty) {
-                <p class="err acct-phone-err" role="alert">Enter a valid phone number.</p>
+              <div class="acct-phone">
+                <p-select class="acct-phone-country" [inputId]="'acct-phone-country'"
+                          [options]="phoneCountries" optionLabel="name" optionValue="iso2"
+                          [filter]="true" filterBy="search" filterPlaceholder="Search country"
+                          [ariaLabel]="'Country'" [appendTo]="'body'"
+                          [ngModel]="phoneCountryIso()" name="phoneCountry"
+                          (ngModelChange)="onPhoneCountryChange($event)">
+                  <!-- Closed picker: flag + ISO code. A full country name ("United
+                       Kingdom") does not fit this column at any realistic width, and
+                       truncating it to "United Kin..." tells the user less than the two
+                       letters do. The dial code sits in the box to its right, so
+                       repeating it here would show it twice. -->
+                  <ng-template #selectedItem let-country>
+                    <span class="acct-phone-trigger">
+                      <span [class]="flagClass(country.iso2)" aria-hidden="true"></span>
+                      <span class="acct-phone-iso">{{ country.isoLabel }}</span>
+                    </span>
+                  </ng-template>
+                  <!-- Open list: the dial code is shown here because it's what the user is
+                       choosing between, and several countries share a name prefix. -->
+                  <ng-template #item let-country>
+                    <span class="acct-phone-opt">
+                      <span [class]="flagClass(country.iso2)" aria-hidden="true"></span>
+                      <span class="acct-phone-opt-name">{{ country.name }}</span>
+                      <span class="acct-phone-opt-code">+{{ country.dialCode }}</span>
+                    </span>
+                  </ng-template>
+                </p-select>
+                <!-- Read-only by design: the dial code follows the country picker and is
+                     never typed in, so the two can't disagree. Not `disabled`, which would
+                     drop it out of the tab order and out of the submitted value. -->
+                <!-- `size` rather than a CSS width: an <input> defaults to 20 characters
+                     wide, so a grid `auto` track can't shrink-to-fit one. This keeps the
+                     box exactly as wide as "+1" or "+441" needs. -->
+                <input pInputText class="acct-phone-code" id="acct-phone-code" type="text"
+                       readonly tabindex="-1" aria-label="Country code"
+                       [size]="phoneDialCode().length + 1"
+                       [value]="'+' + phoneDialCode()" />
+                <input pInputText class="acct-phone-national" id="acct-phone" type="tel"
+                       inputmode="numeric" autocomplete="tel-national"
+                       [placeholder]="phonePlaceholder()"
+                       [attr.maxlength]="phoneNationalMaxLength()" [attr.aria-invalid]="phoneInvalid() ? 'true' : null"
+                       [attr.aria-describedby]="phoneError() ? 'acct-phone-err' : null"
+                       [value]="phoneNational()" (input)="onPhoneNationalInput($event)" />
+              </div>
+              @if (phoneError(); as phoneErr) {
+                <p class="err acct-phone-err" id="acct-phone-err" role="alert">{{ phoneErr }}</p>
               }
             </div>
 

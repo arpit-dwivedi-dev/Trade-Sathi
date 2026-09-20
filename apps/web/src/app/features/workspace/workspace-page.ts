@@ -22,8 +22,14 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SelectButtonModule } from 'primeng/selectbutton';
 
 import { type MarketTick } from '@tradesathi/shared';
+import { AuthService } from '../../core/auth.service';
 import { LiveService, type WorkspaceInterval } from '../../core/live.service';
 import { MarketStreamService } from '../../core/market-stream.service';
+import {
+  clearPendingAnalysis,
+  loadPendingAnalysis,
+  savePendingAnalysis,
+} from '../../core/pending-analysis-store';
 import { AppIcon } from '../../shared/icons/app-icon';
 import type { IconName } from '../../shared/icons/icon-paths';
 import type { ChartOverlays, ChartStyle, LiveCandle, OverlayBand } from '../../shared/live-chart/live-chart';
@@ -44,6 +50,7 @@ import {
   type ToolGroup,
 } from './drawing/drawing.types';
 import { IndicatorMenu, type IndicatorKind } from './indicators/indicator-menu';
+import { loadLastChart, saveLastChart } from './last-chart-store';
 import { loadIndicators, saveIndicators } from './indicators/indicator-store';
 
 /** The instrument shape both a search result and a candle-window response carry — see LiveService.fetchCandles. */
@@ -90,6 +97,8 @@ const ROLLOVER_REFETCH_MIN_GAP_MS = 5_000;
 
 type AnalyzeState =
   | 'idle'
+  /** Reopening a chart after a reload, while it is still unknown whether a run is going. */
+  | 'restoring'
   | 'starting'
   | 'processing'
   | 'complete'
@@ -143,11 +152,19 @@ export class WorkspacePage implements OnInit, OnDestroy {
   // shared with the upload flow and formerly Live rather than reimplemented here.
   private readonly analyses = inject(AnalyzeService);
   private readonly chartCapture = inject(ChartCaptureService);
+  private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /** Raised when the user needs to buy more analyses — the shell opens plans. */
   readonly plansRequested = output<void>();
+
+  /**
+   * Raised when this screen opened a chart on its own, from storage, after a
+   * reload — the shell's search box owns the symbol label and has no other way
+   * to learn what is on the chart.
+   */
+  readonly chartRestored = output<WorkspaceInstrument>();
 
   /**
    * The instrument to chart, chosen in the shell's top-bar search. This
@@ -369,6 +386,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
     if (this.isBrowser) {
       document.addEventListener('visibilitychange', this.onVisibilityChange);
       document.addEventListener('fullscreenchange', this.onFullscreenChange);
+      this.restoreWorkspace();
     }
     this.destroyRef.onDestroy(() => this.teardown());
   }
@@ -430,6 +448,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
    */
   private openInstrument(instrument: WorkspaceInstrument): void {
     this.instrument.set(instrument);
+    saveLastChart(this.isBrowser, { instrument, timeframe: this.timeframe() });
     this.chartError.set(null);
     this.clearResult();
     void this.reload();
@@ -443,6 +462,8 @@ export class WorkspacePage implements OnInit, OnDestroy {
   protected selectTimeframe(value: WorkspaceInterval): void {
     if (value === this.timeframe()) return;
     this.timeframe.set(value);
+    const instrument = this.instrument();
+    if (instrument) saveLastChart(this.isBrowser, { instrument, timeframe: value });
     // A different timeframe is a different chart, so the previous analysis's
     // levels stop applying — overlays() drops them on its own. The result
     // itself, and any run still in flight, are deliberately left alone.
@@ -730,10 +751,39 @@ export class WorkspacePage implements OnInit, OnDestroy {
       return;
     }
 
+    // Remembered before the wait starts, so a reload mid-run can pick the same
+    // row back up instead of losing a run that is already charged and running.
+    savePendingAnalysis(this.isBrowser, 'workspace', {
+      id: started.analysisId,
+      startedAt: Date.now(),
+      chart: {
+        instrument: {
+          id: instrument.id,
+          symbol: instrument.symbol,
+          name: instrument.name,
+          exchange: instrument.exchange,
+          logoUrl: instrument.logoUrl,
+        },
+        timeframe: this.timeframe(),
+        lookbackDays: target.lookbackDays,
+      },
+    });
+
+    await this.watchRun(started.analysisId, target);
+  }
+
+  /**
+   * Waits for one run to settle and puts the outcome on screen.
+   *
+   * Shared by a run started here and one resumed after a reload: both are just
+   * an analyses row id plus the chart it belongs to, and neither cares which
+   * page load started it.
+   */
+  private async watchRun(analysisId: string, target: AnalysisTarget): Promise<void> {
     this.analyzeState.set('processing');
     // Watched by row id, so a run that fails reports 'failed' as soon as the
     // pipeline records it rather than after a three-minute client timeout.
-    const handle = this.analyses.pollAnalysis(started.analysisId, () => {
+    const handle = this.analyses.pollAnalysis(analysisId, () => {
       /* Intermediate states are not rendered here; only the outcome matters. */
     });
     this.pending = handle;
@@ -741,6 +791,13 @@ export class WorkspacePage implements OnInit, OnDestroy {
     const outcome = await handle.result;
     if (this.pending !== handle) return;
     this.pending = null;
+
+    // Only a settled run stops being remembered. 'timed_out' means the backend
+    // may still be working on it, and 'poll_error' means this browser could not
+    // read the row — neither says the run is over, so both stay resumable.
+    if (outcome.outcome === 'complete' || outcome.outcome === 'failed') {
+      clearPendingAnalysis(this.isBrowser, 'workspace');
+    }
 
     if (outcome.outcome === 'complete' || outcome.outcome === 'failed') {
       this.row.set(outcome.row);
@@ -761,6 +818,89 @@ export class WorkspacePage implements OnInit, OnDestroy {
         ? "This is taking longer than expected. If it finished, it'll be in your history."
         : 'Could not read the finished analysis. Check your connection and try again.',
     );
+  }
+
+  /**
+   * Puts the workspace back the way the user left it after a reload.
+   *
+   * Two things are restored, and neither survives a page load on its own: the
+   * chart (the instrument comes from the shell's search as an input, which
+   * starts null every load) and any analysis still running on it (charged and
+   * executed server-side the moment it starts, so it must not look like
+   * nothing is happening).
+   *
+   * Anything the shell hands down afterwards still wins — the selection effect
+   * in the constructor calls openInstrument in its own right.
+   */
+  private restoreWorkspace(): void {
+    const pending = loadPendingAnalysis(this.isBrowser, 'workspace');
+    const last = loadLastChart(this.isBrowser);
+    const chart = pending?.chart ?? last;
+    if (!chart) return;
+
+    // A stored timeframe this build no longer offers falls back to the default
+    // rather than charting an interval the API would reject.
+    this.timeframe.set(
+      TIMEFRAMES.find((t) => t.value === chart.timeframe)?.value ?? DEFAULT_TIMEFRAME,
+    );
+    this.openInstrument(chart.instrument);
+    this.chartRestored.emit(chart.instrument);
+
+    // After openInstrument, whose clearResult() would otherwise put this back
+    // to idle, and still before the first paint. A remembered run is known to
+    // be going; without one it is not known yet, and 'restoring' keeps the
+    // Analyse button disabled — without claiming an analysis is running — until
+    // adoptUnfinishedRun settles the question.
+    this.analyzeState.set(pending ? 'processing' : 'restoring');
+
+    // Awaited rather than read straight away: on a fresh page load the Supabase
+    // session is restored asynchronously, and a read issued before it lands is
+    // refused by RLS — which would look like a run that cannot be read when
+    // nothing is wrong with it.
+    void this.auth.whenRestored().then(() => {
+      if (pending?.chart) {
+        return this.watchRun(pending.id, {
+          instrumentId: pending.chart.instrument.id,
+          symbol: pending.chart.instrument.symbol,
+          lookbackDays: pending.chart.lookbackDays,
+        });
+      }
+      return this.adoptUnfinishedRun(chart.instrument);
+    });
+  }
+
+  /**
+   * Re-attaches to a run this browser never got to remember.
+   *
+   * The row is created server-side before /api/market/analyze has even
+   * responded, so a refresh in that window — the most likely moment for one,
+   * since the user has just clicked and is watching — leaves a charged run with
+   * no local record. The database is the authority on what is still running, so
+   * it is asked directly.
+   */
+  private async adoptUnfinishedRun(instrument: WorkspaceInstrument): Promise<void> {
+    const row = await this.analyses.findUnfinishedAnalysis(instrument.id);
+    // The user may have started a run of their own, or moved on to another
+    // symbol, while this was read.
+    if (this.busy() || this.instrument()?.id !== instrument.id) return;
+    if (!row) {
+      // Nothing running: release the button restoreWorkspace held disabled.
+      if (this.analyzeState() === 'restoring') this.analyzeState.set('idle');
+      return;
+    }
+
+    const lookbackDays = row.analysis_lookback_days ?? lookbackDaysFor(this.timeframe());
+    savePendingAnalysis(this.isBrowser, 'workspace', {
+      id: row.id,
+      startedAt: Date.parse(row.created_at) || Date.now(),
+      chart: { instrument, timeframe: this.timeframe(), lookbackDays },
+    });
+
+    await this.watchRun(row.id, {
+      instrumentId: instrument.id,
+      symbol: instrument.symbol,
+      lookbackDays,
+    });
   }
 
   protected openPlans(): void {

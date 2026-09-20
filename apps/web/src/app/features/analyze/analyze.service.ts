@@ -19,6 +19,11 @@ const JPEG_QUALITY = 0.8;
  * The backend gives up on its own at 120s per attempt (see lib/ai-client.ts),
  * so this now outlasts the work rather than pre-empting it. */
 const POLL_TIMEOUT_MS = 180_000;
+/**
+ * How far back findUnfinishedAnalysis will look. Past the pipeline's own
+ * budget, so anything older is stranded rather than running.
+ */
+const UNFINISHED_LOOKBACK_MS = 10 * 60_000;
 /** Consecutive query failures (~6s of continuous failure) before giving up. */
 const MAX_CONSECUTIVE_POLL_FAILURES = 3;
 
@@ -123,6 +128,43 @@ export class AnalyzeService {
       return data?.credit_balance ?? 0;
     } catch (cause) {
       console.warn('credit balance lookup failed', cause);
+      return null;
+    }
+  }
+
+  /**
+   * The newest still-running analysis for one instrument, or null.
+   *
+   * Read straight from Supabase like every other analyses read here — RLS
+   * limits it to this user's own rows. The workspace uses it after a reload to
+   * re-attach to a run whose id it never got to remember: the row is created
+   * server-side before the POST that started it has even returned, so a refresh
+   * in that window leaves a charged run with nothing pointing at it.
+   *
+   * Bounded by age so a row left stranded by a dead API instance (the
+   * stranded-analysis sweeper owns those) can't keep a chart busy forever.
+   */
+  async findUnfinishedAnalysis(instrumentId: string): Promise<AnalysisRow | null> {
+    const client = this.supabase.client;
+    if (!client) return null;
+
+    const since = new Date(Date.now() - UNFINISHED_LOOKBACK_MS).toISOString();
+
+    try {
+      const { data, error } = await client
+        .from('analyses')
+        .select('*')
+        .eq('instrument_id', instrumentId)
+        .in('status', ['queued', 'processing'])
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .returns<AnalysisRow[]>();
+
+      if (error) throw error;
+      return data?.[0] ?? null;
+    } catch (cause) {
+      console.warn('unfinished analysis lookup failed', cause);
       return null;
     }
   }

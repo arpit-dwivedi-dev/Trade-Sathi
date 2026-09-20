@@ -281,10 +281,16 @@ p-progress-spinner.daily-briefing-spinner-sm {
 }
 
 .daily-briefing-actions .p-button:not(.p-button-text) {
-  font-size: var(--t-2xs);
+  gap: 2px;
   height: 28px;
+  min-width: 0;
   padding: 0 var(--s2);
   white-space: nowrap;
+}
+
+.daily-briefing-actions .p-button:not(.p-button-text) app-icon {
+  height: 16px;
+  width: 16px;
 }
 
 .daily-briefing-actions .p-button-text {

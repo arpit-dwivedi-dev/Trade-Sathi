@@ -97,6 +97,7 @@
           class="tab-pane"
           [selection]="workspaceSelection()"
           (plansRequested)="openPlans()"
+          (chartRestored)="onWorkspaceChartRestored($event)"
         />
       </div>
     } @loading (after 150ms; minimum 300ms) {

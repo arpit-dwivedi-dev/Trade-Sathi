@@ -6,13 +6,14 @@
        while a run is already queued. -->
   <ng-template #analyzeButton let-ready="ready">
     <button pButton class="fund-ai"
-            [disabled]="!ready || aiState() === 'queued'" (click)="analyzeWithAi()">
+            [disabled]="!ready || aiState() === 'queued'" (click)="analyzeWithAi()"
+            title="Analyse these fundamentals with AI"
+            aria-label="Analyse these fundamentals with AI">
       @if (aiState() === 'queued') {
         <p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" />
       } @else {
-        <app-icon aria-hidden="true" name="psychology" />
+        <app-icon aria-hidden="true" name="auto_awesome" />
       }
-      {{ aiState() === 'queued' ? 'Analyzing…' : 'AI Analysis' }}
     </button>
     @if (aiCostLabel(); as cost) {
       <span class="fund-ai-cost dim">{{ cost }}</span>

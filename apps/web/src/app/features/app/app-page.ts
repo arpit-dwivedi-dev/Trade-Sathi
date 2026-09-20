@@ -315,6 +315,16 @@ export class AppPage implements OnInit {
     else if (this.tab() === 'fundamentals') this.fundamentalsSelection.set(selection);
   }
 
+  /**
+   * The workspace reopened a chart from storage after a reload. The search box
+   * is the only place the chosen symbol is spelled out, and it starts every
+   * page load empty, so it is labelled here to match the chart. No selection is
+   * emitted — the workspace already has the instrument open.
+   */
+  protected onWorkspaceChartRestored(instrument: { symbol: string; name: string }): void {
+    this.symbolSearch()?.showInstrument(instrument);
+  }
+
   /** The daily briefing tab asking for the box back after an add (or a cancel). */
   protected clearSearch(): void {
     this.dailyBriefingSelection.set(null);

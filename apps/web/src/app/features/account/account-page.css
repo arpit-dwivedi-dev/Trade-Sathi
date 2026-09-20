@@ -200,119 +200,114 @@
   }
 }
 
-/* Country-code + flag phone input (ngx-intl-tel-input-gg), skinned to look
-   like a native .field control instead of the library's Bootstrap-flavoured
-   defaults. Its markup renders inside the component's own template, so
-   reaching it needs ::ng-deep; everything is scoped under .acct-phone to
-   keep the blast radius to this one control. */
+/* Three-part phone control: country picker, read-only dial code, national
+   digits. The country choice is the only way to change the dial code, so the
+   middle box is never focusable or editable. The first two tracks size to
+   their content — both hold short fixed-width text — leaving every spare
+   pixel to the number, which is the part that actually varies in length. */
 .acct-phone {
-  --iti-border-color: var(--line-strong);
-  --iti-country-selector-bg: var(--surf);
-  --iti-hover-color: var(--bg-hover);
-  --iti-icon-color: var(--tx-3);
-  display: block;
+  align-items: center;
+  display: grid;
+  gap: var(--s2);
+  grid-template-columns: auto auto minmax(0, 1fr);
   width: 100%;
 }
 
-/* The border lives on this wrapper rather than the inner <input> — the flag
-   button is an absolutely-positioned overlay on the input's left edge, so an
-   input-level border reads as broken/missing where the button sits on top
-   of it. */
-.acct-phone ::ng-deep .iti {
-  background: var(--surf);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-sm);
-  display: block;
-  transition:
-    border-color var(--dur-subtle) var(--ease-move),
-    box-shadow var(--dur-subtle) var(--ease-move);
+.acct-phone-country ::ng-deep .p-select {
   width: 100%;
 }
 
-.acct-phone ::ng-deep .iti:hover {
-  border-color: var(--tx-3);
+/* Keeps the flag and ISO code on one line with the chevron, and stops PrimeNG's
+   default label truncation from kicking in on two characters. */
+.acct-phone-country ::ng-deep .p-select-label {
+  padding-right: var(--s1);
 }
 
-.acct-phone ::ng-deep .iti:focus-within {
-  border-color: var(--acc);
-  box-shadow: 0 0 0 3px var(--acc-soft);
+.acct-phone-trigger {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
 }
 
-.acct-phone ::ng-deep input.iti__tel-input {
-  background: transparent;
-  border: none;
+.acct-phone-iso {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
-.acct-phone ::ng-deep input.iti__tel-input:focus,
-.acct-phone ::ng-deep input.iti__tel-input:focus-visible {
+/* Reads as a label attached to the number, not as an input the user skipped
+   filling in — hence the muted fill and the non-text cursor. */
+.acct-phone-code {
+  background: var(--bg-hover);
+  color: var(--tx-2);
+  cursor: default;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.acct-phone-code:focus,
+.acct-phone-code:focus-visible {
+  border-color: var(--line-strong);
   box-shadow: none;
   outline: none;
 }
 
-.acct-phone ::ng-deep .iti__selected-country-primary {
-  border-right: 1px solid var(--line-strong);
-}
-
-.acct-phone ::ng-deep .dropdown-menu.country-dropdown {
-  background: var(--surf);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-md);
-  box-shadow: var(--sh-3);
-  color: var(--tx);
-  font-size: var(--t-sm);
-  margin-top: 4px;
-  max-height: 280px;
-  max-width: min(320px, 90vw);
-  min-width: 100%;
-  overflow-y: auto;
-  padding: var(--s2) 0;
-  width: max-content;
-}
-
-.acct-phone ::ng-deep .iti__country-list {
+.acct-phone-national {
+  min-width: 0;
   width: 100%;
 }
 
-.acct-phone ::ng-deep .iti__country {
+/* One row in the open list: flag, full country name, and the dial code pushed
+   to the far edge. The name is spelled out here because this is where the
+   user is choosing; the closed picker shows the ISO code instead. */
+.acct-phone-opt {
   align-items: center;
-  color: var(--tx);
   display: flex;
   gap: var(--s2);
-  padding: var(--s2) var(--s4);
+  min-width: 0;
+  width: 100%;
 }
 
-.acct-phone ::ng-deep li.iti__country:hover {
+.acct-phone-opt-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acct-phone-opt-code {
+  color: var(--tx-3);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+  padding-left: var(--s3);
+}
+
+/* The sprite frame is 20x15 and comes from the global .iti__flag rule. The
+   spacing here is our flex gap, so drop the margin that rule adds for the
+   widget's own (unused) country list. */
+.acct-phone-trigger .iti__flag,
+.acct-phone-opt .iti__flag {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+/* Reads as a label attached to the number, not as an input the user skipped
+   filling in — hence the muted fill and the non-text cursor. */
+.acct-phone-code {
   background: var(--bg-hover);
+  color: var(--tx-2);
+  cursor: default;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  width: 5.5ch;
 }
 
-.acct-phone ::ng-deep .iti__dial-code {
-  color: var(--tx-3);
+.acct-phone-code:focus,
+.acct-phone-code:focus-visible {
+  border-color: var(--line-strong);
+  box-shadow: none;
+  outline: none;
 }
 
-.acct-phone ::ng-deep .iti__divider {
-  border-top: 1px solid var(--line-soft);
-  margin: var(--s2) 0;
-}
-
-.acct-phone ::ng-deep .search-container.iti__search-input-wrapper {
-  border-bottom: 1px solid var(--line-soft);
-  padding: var(--s2) var(--s3);
-}
-
-.acct-phone ::ng-deep .iti__search-input {
-  background: var(--surf);
-  border: none !important;
-  border-radius: 0;
-  color: var(--tx);
-  font-size: var(--t-sm);
-  height: 32px;
-  padding-left: var(--s2) !important;
-}
-
-.acct-phone ::ng-deep .iti__search-input::placeholder {
-  color: var(--tx-3);
-}
-
-.acct-phone ::ng-deep input.iti__tel-input {
+.acct-phone-national {
+  min-width: 0;
   width: 100%;
 }

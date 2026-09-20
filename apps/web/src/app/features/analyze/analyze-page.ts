@@ -1,7 +1,9 @@
+import { isPlatformBrowser } from '@angular/common';
 import {
   Component,
   OnDestroy,
   OnInit,
+  PLATFORM_ID,
   effect,
   inject,
   output,
@@ -13,6 +15,11 @@ import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 
+import {
+  clearPendingAnalysis,
+  loadPendingAnalysis,
+  savePendingAnalysis,
+} from '../../core/pending-analysis-store';
 import { LottiePlayer } from '../../shared/lottie-player';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
 import { AnalyzeService, type PollHandle } from './analyze.service';
@@ -47,6 +54,7 @@ type AnalyzeState =
 })
 export class AnalyzePage implements OnInit, OnDestroy {
   private readonly analyze = inject(AnalyzeService);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /**
    * Asks the shell to switch to the billing tab. Routed through the shell
@@ -97,6 +105,25 @@ export class AnalyzePage implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     void this.refreshBalance();
+    this.resumePending();
+  }
+
+  /**
+   * Picks an upload back up after a reload.
+   *
+   * The credit is spent and the pipeline runs server-side the moment the image
+   * is accepted, so a refresh mid-run must not drop the user back to an empty
+   * upload box. The row id was remembered at submit time; watching it again is
+   * all it takes, and if it finished while the page was gone the first read
+   * settles immediately with the result.
+   */
+  private resumePending(): void {
+    const pending = loadPendingAnalysis(this.isBrowser, 'upload');
+    if (!pending) return;
+
+    this.analysisId.set(pending.id);
+    this.state.set('processing');
+    this.startPolling(pending.id);
   }
 
   /** True only when the balance is known *and* zero. */
@@ -187,6 +214,7 @@ export class AnalyzePage implements OnInit, OnDestroy {
     }
 
     void this.refreshBalance();
+    savePendingAnalysis(this.isBrowser, 'upload', { id: submitted.id, startedAt: Date.now() });
     this.analysisId.set(submitted.id);
     this.state.set('processing');
     this.startPolling(submitted.id);
@@ -198,6 +226,12 @@ export class AnalyzePage implements OnInit, OnDestroy {
 
     void handle.result.then((outcome) => {
       this.poll = null;
+
+      // 'timed_out' keeps the remembered run: the backend may still be working
+      // on it, so a later reload should pick it up again rather than forget it.
+      if (outcome.outcome !== 'timed_out') {
+        clearPendingAnalysis(this.isBrowser, 'upload');
+      }
 
       switch (outcome.outcome) {
         case 'complete':
@@ -233,6 +267,7 @@ export class AnalyzePage implements OnInit, OnDestroy {
   }
 
   protected reset(): void {
+    clearPendingAnalysis(this.isBrowser, 'upload');
     this.poll?.cancel();
     this.poll = null;
     this.pendingSelection.set(null);

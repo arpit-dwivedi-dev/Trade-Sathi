@@ -18,6 +18,11 @@ export const MATERIAL_SYMBOL_PATHS: Readonly<Record<string, string>> = {
     'm560-240-56-58 142-142H160v-80h486L504-662l56-58 240 240-240 240Z',
   arrow_upward:
     'M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80Z',
+  /* The one AI marker in the app: every button that spends a credit on a
+     model run carries this sparkle and nothing else. Drawn here rather than
+     taken from Google's export, which has no outlined auto_awesome. */
+  auto_awesome:
+    'M380-880 Q410-670 620-640 Q410-610 380-400 Q350-610 140-640 Q350-670 380-880Zm340 500 Q735-255 880-220 Q735-185 720-60 Q705-185 560-220 Q705-255 720-380Z',
   backspace:
     'm456-320 104-104 104 104 56-56-104-104 104-104-56-56-104 104-104-104-56 56 104 104-104 104 56 56Zm-96 160q-19 0-36-8.5T296-192L80-480l216-288q11-15 28-23.5t36-8.5h440q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H360ZM180-480l180 240h440v-480H360L180-480Zm400 0Z',
   balance:

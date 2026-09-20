@@ -96,9 +96,17 @@
 
 /* pButton's default sizing runs taller than the .seg/ind-trigger controls
    beside it in this bar — pinned to the same 34px so the row reads as one
-   height rather than the analyze action looming over the filters. */
+   height rather than the analyze action looming over the filters. Square,
+   because the button carries the AI sparkle and no label. */
 .ws-analyze-btn {
   height: 34px;
+  min-width: 0;
+  padding: 0;
+  width: 34px;
+
+  app-icon {
+    font-size: 18px;
+  }
 }
 
 .ws-ident {
@@ -696,11 +704,10 @@
 
   .ws-analyze-btn {
     flex: none;
-    font-size: var(--t-xs);
-    height: 26px;
+    height: 30px;
     order: 2;
-    padding-block: 0;
-    padding-inline: var(--s3);
+    padding: 0;
+    width: 30px;
   }
 
   /* PrimeNG sizes its icon buttons for a pointer; on this bar the row height
@@ -741,12 +748,6 @@
   .ws-indicators {
     flex: none;
     order: 7;
-  }
-
-  /* "Analyse using AI" would crowd the symbol beside it; the verb alone says
-     enough, and the button is the only primary on the bar. */
-  .ws-analyze-suffix {
-    display: none;
   }
 
   .ws-chart-area {
