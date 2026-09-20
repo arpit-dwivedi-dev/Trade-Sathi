@@ -817,6 +817,22 @@ async function sendSingleItemBriefing(profileId: string, processed: ProcessedIte
     await markAnalysesEmailed([processed.analysisId]);
   } catch (cause) {
     logger.error("failed to send brief-now email", { profileId, cause: String(cause) });
+    // Also recorded for the user, the way the scheduled briefing records the
+    // same failure. The run itself is genuinely complete — the analysis is in
+    // History — so it settles as such and nothing else on this path says the
+    // email never left. Without this row, "Brief Now" reporting success while
+    // no mail arrives is indistinguishable from a slow inbox, and the reason
+    // lives only in stdout.
+    await logAppError(
+      profileId,
+      "briefing",
+      "Briefing was generated but the email failed to send",
+      {
+        analysisId: processed.analysisId,
+        symbol: processed.item.symbol,
+        mode: "brief",
+      },
+    );
   }
 }
 
