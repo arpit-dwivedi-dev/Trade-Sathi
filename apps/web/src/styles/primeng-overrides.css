@@ -21,3 +21,67 @@ p-progress-spinner.p-progressspinner {
   flex: 0 0 auto;
   margin: 0;
 }
+
+/* ── button scale ─────────────────────────────────────────
+   PrimeNG sizes buttons off the root font-size (1rem = 16px) with an
+   8px/16px pad, which lands every default button at ~40px tall with a
+   16px label — a third bigger than the inputs, chips and table rows it
+   sits next to in this app, and the reason unstyled buttons read as
+   heavy. This pins the app's own scale instead: 36px default, 32px
+   small, 44px large (the touch target for the marketing CTAs), with a
+   fixed 16px icon so the glyph no longer shrinks with the label. The
+   token-level paddings stay in primeng-preset.ts; only the type and the
+   icon size, which the preset has no token for, are set here. */
+.p-button {
+  font-size: var(--t-sm);
+  line-height: 1.25;
+}
+
+.p-button app-icon,
+.p-button .p-button-icon {
+  font-size: 16px;
+}
+
+.p-button-sm {
+  font-size: var(--t-xs);
+  padding: var(--s1) var(--s3);
+}
+
+.p-button-sm app-icon,
+.p-button-sm .p-button-icon {
+  font-size: 15px;
+}
+
+.p-button-lg {
+  font-size: var(--t-base);
+  padding: var(--s3) var(--s5);
+}
+
+.p-button-lg app-icon,
+.p-button-lg .p-button-icon {
+  font-size: 18px;
+}
+
+/* An icon-only button is square at the same height as a labelled one,
+   rather than inheriting the label's side padding. PrimeNG only sets
+   .p-button-icon-only when the icon came through its own [icon] input,
+   so the :has() arm covers the app's own bare
+   `<button pButton><app-icon /></button>`, which is how most of the
+   toolbars here are written — wrapped in :where() so a feature's own
+   size for one of these buttons still wins over this baseline. */
+.p-button:where(:has(> app-icon:only-child)),
+.p-button.p-button-icon-only {
+  height: 36px;
+  padding: 0;
+  width: 36px;
+}
+
+.p-button-icon-only.p-button-sm {
+  height: 32px;
+  width: 32px;
+}
+
+.p-button-icon-only.p-button-lg {
+  height: 44px;
+  width: 44px;
+}

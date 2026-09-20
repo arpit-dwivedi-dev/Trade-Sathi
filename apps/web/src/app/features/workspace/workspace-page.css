@@ -95,18 +95,25 @@
 }
 
 /* pButton's default sizing runs taller than the .seg/ind-trigger controls
-   beside it in this bar — pinned to the same 34px so the row reads as one
-   height rather than the analyze action looming over the filters. Square,
-   because the button carries the AI sparkle and no label. */
+   beside it in this bar — pinned to the same box so the row reads as one
+   height rather than the analyze action looming over the filters. It is the
+   only filled control up here, so it carries enough weight from its colour
+   alone; the type and the sparkle stay one step down from the default
+   button to keep it from dominating the bar. */
 .ws-analyze-btn {
-  height: 34px;
+  box-sizing: border-box;
+  gap: var(--s1);
+  height: 32px;
   min-width: 0;
-  padding: 0;
-  width: 34px;
+  padding: 0 var(--s3);
 
   app-icon {
-    font-size: 18px;
+    font-size: 15px;
   }
+}
+
+.ws-analyze-label {
+  font-size: var(--t-xs);
 }
 
 .ws-ident {
@@ -704,10 +711,13 @@
 
   .ws-analyze-btn {
     flex: none;
-    height: 30px;
+    height: 28px;
     order: 2;
-    padding: 0;
-    width: 30px;
+    padding: 0 var(--s2);
+  }
+
+  .ws-analyze-label {
+    font-size: var(--t-xs);
   }
 
   /* PrimeNG sizes its icon buttons for a pointer; on this bar the row height

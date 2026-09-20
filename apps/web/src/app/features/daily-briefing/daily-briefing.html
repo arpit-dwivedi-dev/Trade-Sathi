@@ -190,14 +190,15 @@
                     [outlined]="true"
                     [disabled]="isBusy(item.id)"
                     (click)="analyzeNow(item)"
-                    [title]="'Analyse ' + displaySymbol(item) + ' with AI now' + (runCostLabel() ? ' — ' + runCostLabel()!.toLowerCase() : '')"
-                    [attr.aria-label]="'Analyse ' + displaySymbol(item) + ' with AI now'"
+                    [title]="'Analyze ' + displaySymbol(item) + ' now' + (runCostLabel() ? ' — ' + runCostLabel()!.toLowerCase() : '')"
+                    [attr.aria-label]="'Analyze ' + displaySymbol(item) + ' now'"
                   >
                     @if (preparing()[item.id] || runIdFor(item.id)) {
                       <p-progress-spinner styleClass="daily-briefing-spinner-sm" [style]="{ width: '16px', height: '16px' }" aria-hidden="true" />
                     } @else {
                       <app-icon aria-hidden="true" name="auto_awesome" />
                     }
+                    <span class="daily-briefing-action-label">Analyze</span>
                   </button>
                   <!-- Same run, same credit cost as the button beside it — the
                        difference is that this one emails the result with its
@@ -206,13 +207,13 @@
                     pButton
                     [disabled]="isBusy(item.id)"
                     (click)="analyzeNow(item, false, 'brief')"
-                    [title]="'Run this symbol now and email me the analysis as a PDF' + (runCostLabel() ? ' — ' + runCostLabel()!.toLowerCase() : '')"
-                    [attr.aria-label]="'Analyse ' + displaySymbol(item) + ' with AI and email me the PDF'"
+                    [title]="'Analyze ' + displaySymbol(item) + ' and email the PDF' + (runCostLabel() ? ' — ' + runCostLabel()!.toLowerCase() : '')"
+                    [attr.aria-label]="'Analyze ' + displaySymbol(item) + ' and email the PDF'"
                   >
                     <!-- Same sparkle as the button beside it, since it is the
-                         same AI run; the page marks the mailed variant. -->
+                         same AI run; the label is what marks the mailed variant. -->
                     <app-icon aria-hidden="true" name="auto_awesome" />
-                    <app-icon aria-hidden="true" name="newspaper" />
+                    <span class="daily-briefing-action-label">Email PDF</span>
                   </button>
                   <button
                     pButton

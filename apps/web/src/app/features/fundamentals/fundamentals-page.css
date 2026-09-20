@@ -21,11 +21,27 @@
   gap: var(--s4);
 }
 
+/* The button and its running cost as one unit: the cost is taken out of
+   flow and hung under the button, centred on it, so the button itself
+   sits centred in whatever lays this out — the card header row and the
+   empty-state column both — instead of being pushed off-centre by a
+   label sitting beside it. */
+.fund-ai-wrap {
+  display: inline-flex;
+  flex: none;
+  position: relative;
+}
+
 .fund-ai {
   flex: none;
+  gap: var(--s2);
   min-width: 0;
-  padding: 0;
-  width: 36px;
+  padding: 6px var(--s3);
+  width: 100%;
+}
+
+.fund-ai-label {
+  font-size: var(--t-sm);
 }
 
 .fund-ai app-icon {
@@ -34,7 +50,11 @@
 
 .fund-ai-cost {
   font-size: var(--t-2xs);
-  margin-left: var(--s2);
+  inset-inline: 0;
+  position: absolute;
+  text-align: center;
+  top: calc(100% + 2px);
+  white-space: nowrap;
 }
 
 /* ── identity card ───────────────────────────────────────── */
@@ -559,8 +579,10 @@
 /* Stands where the workspace placeholder puts its icon tile. Disabled here,
    so it reads as the thing this screen is heading towards rather than
    something to press now. */
-.fund-placeholder .fund-ai {
-  margin-block-end: var(--s2);
+/* Room under the button for the cost line, which no longer takes space
+   of its own. */
+.fund-placeholder .fund-ai-wrap {
+  margin-block-end: var(--s5);
 }
 
 .fund-placeholder h2 {
@@ -693,38 +715,29 @@
      sized to its label, not stretched across the card. */
   .fund-head-end {
     align-items: center;
-    display: grid;
-    gap: 2px var(--s3);
-    grid-template-areas:
-      'quote ai'
-      'quote cost';
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    gap: var(--s3);
+    justify-content: space-between;
   }
 
   .fund-quote {
     flex-direction: column;
     gap: 2px;
-    grid-area: quote;
+    min-width: 0;
   }
 
+  /* Sized to its label like the desktop button, not a bare 32px square —
+     the same vertical padding, just a tighter side pad for the narrow
+     column. */
   .fund-head-end .fund-ai {
-    grid-area: ai;
-    justify-self: end;
     min-height: 32px;
-    padding: 0;
-    width: 32px;
+    padding: 6px var(--s2);
   }
 
   .fund-head-end .fund-ai app-icon {
     font-size: 16px;
     height: 16px;
     width: 16px;
-  }
-
-  .fund-head-end .fund-ai-cost {
-    grid-area: cost;
-    justify-self: end;
-    margin: 0;
   }
 
   .fund-price {

@@ -6,20 +6,23 @@
        run is already queued, and while a reload is still working out whether
        one is. -->
   <ng-template #analyzeButton let-ready="ready">
+    <span class="fund-ai-wrap">
     <button pButton class="fund-ai"
             [disabled]="!ready || aiState() === 'queued' || aiState() === 'restoring'"
             (click)="analyzeWithAi()"
-            title="Analyse these fundamentals with AI"
-            aria-label="Analyse these fundamentals with AI">
+            title="Analyze these fundamentals with AI"
+            aria-label="Analyze fundamentals">
       @if (aiState() === 'queued') {
         <p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" />
       } @else {
         <app-icon aria-hidden="true" name="auto_awesome" />
       }
+      <span class="fund-ai-label">Analyze</span>
     </button>
     @if (aiCostLabel(); as cost) {
       <span class="fund-ai-cost dim">{{ cost }}</span>
     }
+    </span>
   </ng-template>
 
   @if (loading()) {

@@ -51,18 +51,19 @@
           class="ws-analyze-btn"
           [disabled]="busy() || analyzeState() === 'restoring' || candles().length === 0"
           (click)="analyze()"
-          title="Analyse this chart with AI"
-          aria-label="Analyse this chart with AI"
+          title="Analyze this chart with AI"
+          aria-label="Analyze chart"
         >
-          <!-- Icon only: the sparkle is the app's one AI marker, used on every
-               button that spends a credit on a model run, so no label is
-               needed to tell them apart from the chart controls beside it. -->
+          <!-- The sparkle is the app's one AI marker, used on every button
+               that spends a credit on a model run; the label names the action
+               so it reads apart from the chart controls beside it. -->
           @if (busy()) {
             <p-progress-spinner [style]="{ width: '16px', height: '16px' }"
                                 strokeWidth="4" aria-hidden="true" />
           } @else {
             <app-icon aria-hidden="true" name="auto_awesome" />
           }
+          <span class="ws-analyze-label">Analyze</span>
         </button>
 
         <button pButton [rounded]="true" [text]="true" class="ws-fullscreen-btn" (click)="toggleFullscreen()"
