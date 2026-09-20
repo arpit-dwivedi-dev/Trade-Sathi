@@ -195,13 +195,16 @@ p-progress-spinner.daily-briefing-spinner-sm {
 /* z-index: the symbol cell's overlay stretches its right edge across the
    next three cells (see .daily-briefing-cell-sym .daily-briefing-cell-overlay
    below) so the message can sit centred in the blurred row rather than in
-   just this narrow column. Each `position: relative` td is its own stacking
-   context, and later siblings paint over earlier ones by default — without
-   this, cells 2-4's own (blank) overlays would paint on top of the stretched
-   one and hide the message text again. */
+   just this narrow column. Cells 2-4 only get `position: relative` (no
+   z-index of their own), which means THEY don't form a new stacking
+   context — their blank `.daily-briefing-cell-overlay` (z-index: 2) escapes
+   upward and stacks directly against this td as a plain z-index: 2 box, not
+   contained inside cell 2-4's own layer. This td's z-index has to beat that
+   2, not just be positive, or the escaped blank overlays paint on top of the
+   stretched message and hide it again. */
 .daily-briefing-table td:nth-child(1) {
   position: relative;
-  z-index: 1;
+  z-index: 3;
 }
 
 .daily-briefing-table th:nth-child(1),
@@ -209,8 +212,15 @@ p-progress-spinner.daily-briefing-spinner-sm {
   width: auto;
 }
 
+/* z-index: 0 (not just `position: relative`) is deliberate — it makes this
+   td its own stacking context, per spec, so its blank
+   `.daily-briefing-cell-overlay` (z-index: 2) is contained inside it instead
+   of escaping to compete directly against td:nth-child(1)'s stretched
+   overlay above. Without it, `position: relative` alone leaves z-index:
+   auto, which does NOT create a stacking context. */
 .daily-briefing-table td:nth-child(2) {
   position: relative;
+  z-index: 0;
 }
 
 .daily-briefing-table th:nth-child(2),
@@ -220,6 +230,7 @@ p-progress-spinner.daily-briefing-spinner-sm {
 
 .daily-briefing-table td:nth-child(3) {
   position: relative;
+  z-index: 0;
 }
 
 .daily-briefing-table th:nth-child(3),
@@ -229,6 +240,7 @@ p-progress-spinner.daily-briefing-spinner-sm {
 
 .daily-briefing-table td:nth-child(4) {
   position: relative;
+  z-index: 0;
 }
 
 .daily-briefing-table th:nth-child(4),
