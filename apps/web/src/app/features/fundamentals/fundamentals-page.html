@@ -2,11 +2,13 @@
   <!-- Declared once, placed twice: it stands where the placeholder's icon
        would otherwise be while there is nothing to read, and docks into the
        company card's own header once there is. Disabled until the figures
-       have arrived (there is nothing for it to analyse before that) and
-       while a run is already queued. -->
+       have arrived (there is nothing for it to analyse before that), while a
+       run is already queued, and while a reload is still working out whether
+       one is. -->
   <ng-template #analyzeButton let-ready="ready">
     <button pButton class="fund-ai"
-            [disabled]="!ready || aiState() === 'queued'" (click)="analyzeWithAi()"
+            [disabled]="!ready || aiState() === 'queued' || aiState() === 'restoring'"
+            (click)="analyzeWithAi()"
             title="Analyse these fundamentals with AI"
             aria-label="Analyse these fundamentals with AI">
       @if (aiState() === 'queued') {

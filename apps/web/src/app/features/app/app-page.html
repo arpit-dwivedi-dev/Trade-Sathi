@@ -112,6 +112,7 @@
         <app-fundamentals-page
           class="tab-pane"
           [selection]="fundamentalsSelection()"
+          (companyRestored)="onFundamentalsCompanyRestored($event)"
         />
       </div>
     } @loading (after 150ms; minimum 300ms) {

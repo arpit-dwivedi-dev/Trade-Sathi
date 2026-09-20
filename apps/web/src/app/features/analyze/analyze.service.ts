@@ -136,15 +136,22 @@ export class AnalyzeService {
    * The newest still-running analysis for one instrument, or null.
    *
    * Read straight from Supabase like every other analyses read here — RLS
-   * limits it to this user's own rows. The workspace uses it after a reload to
-   * re-attach to a run whose id it never got to remember: the row is created
-   * server-side before the POST that started it has even returned, so a refresh
-   * in that window leaves a charged run with nothing pointing at it.
+   * limits it to this user's own rows. The workspace and the Fundamentals tab
+   * use it after a reload to re-attach to a run whose id they never got to
+   * remember: the row is created server-side before the POST that started it
+   * has even returned, so a refresh in that window leaves a charged run with
+   * nothing pointing at it.
+   *
+   * `source` narrows it to the caller's own flow — both screens can be running
+   * on the same instrument at once, and neither may adopt the other's run.
    *
    * Bounded by age so a row left stranded by a dead API instance (the
    * stranded-analysis sweeper owns those) can't keep a chart busy forever.
    */
-  async findUnfinishedAnalysis(instrumentId: string): Promise<AnalysisRow | null> {
+  async findUnfinishedAnalysis(
+    instrumentId: string,
+    source: AnalysisRow['source'],
+  ): Promise<AnalysisRow | null> {
     const client = this.supabase.client;
     if (!client) return null;
 
@@ -155,6 +162,7 @@ export class AnalyzeService {
         .from('analyses')
         .select('*')
         .eq('instrument_id', instrumentId)
+        .eq('source', source)
         .in('status', ['queued', 'processing'])
         .gte('created_at', since)
         .order('created_at', { ascending: false })

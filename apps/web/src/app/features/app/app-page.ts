@@ -2,6 +2,7 @@ import {
   Component,
   DestroyRef,
   OnInit,
+  effect,
   inject,
   signal,
   viewChild,
@@ -19,6 +20,8 @@ import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingPage } from '../billing/billing-page';
 import { BillingService } from '../billing/billing.service';
 import { FundamentalsPage } from '../fundamentals/fundamentals-page';
+import { loadLastCompany } from '../fundamentals/last-company-store';
+import { loadLastChart } from '../workspace/last-chart-store';
 import { HistoryList } from '../history/history-list';
 import { LogsPage } from '../logs/logs-page';
 import { DailyBriefing } from '../daily-briefing/daily-briefing';
@@ -148,6 +151,21 @@ export class AppPage implements OnInit {
   private selectionSeq = 0;
 
   /**
+   * What the one shared search box should read on each tab it applies to.
+   *
+   * The box is a single component reused across the chart tabs, so without
+   * this it keeps whatever was last typed into it anywhere: searching TCS on
+   * the chart, then LESLE on Fundamentals, then switching back to the chart
+   * left "LESLE" written above a TCS chart. Each tab already keeps its own
+   * selection, and this is the label that goes with it.
+   *
+   * Daily Briefing is deliberately absent: its pick is a staged add that is
+   * dropped on the way out (see dailyBriefingSelection), so arriving there
+   * must hand back an empty box rather than restage last week's symbol.
+   */
+  private readonly searchLabels = new Map<Tab, { symbol: string; name: string }>();
+
+  /**
    * AnalyzePage stays mounted for the life of the shell (it is hidden, not
    * destroyed, on the History tab), so this reference is stable. It is how a
    * purchase made on the billing tab reaches the page's reset — including a
@@ -166,6 +184,18 @@ export class AppPage implements OnInit {
   private readonly symbolSearch = viewChild(SymbolSearch);
 
   ngOnInit(): void {
+    // Seeded before the tab subscription below, and from the same stores the
+    // two screens restore themselves from.
+    //
+    // Neither pane is mounted on a page load that lands on some other tab —
+    // both are @defer'd — so without this the shell would not know what
+    // Fundamentals is showing until the user opens it and its restore reports
+    // back, and the box would sit empty (or, worse, holding the other tab's
+    // symbol) until then. Reading the stores here means every tab's label is
+    // known from the first paint, whichever tab the reload landed on. The
+    // panes' own restore outputs still fire and simply confirm this.
+    this.seedSearchLabels();
+
     // The tab lives in the URL so links from outside the shell — the Account
     // page's nav, a bookmark — can land on a specific tab. Subscribed rather
     // than read once: moving between tabs reuses this component, because they
@@ -211,6 +241,33 @@ export class AppPage implements OnInit {
     // priced by the time either surface is opened. The endpoint resolves the
     // region from this account's locked profile column.
     void this.billing.ensurePricing();
+  }
+
+  constructor() {
+    // Labels the box for whichever tab is open. An effect rather than a call
+    // from the tab subscription because the box is not merely a view child
+    // (absent until the first change detection) but one behind @if (user()) —
+    // on a page load it does not exist until the Supabase session has been
+    // restored, which is well after both ngOnInit and ngAfterViewInit. Reading
+    // the view-child signal here means this runs when the box actually appears
+    // and again on every tab change, rather than at a fixed moment that is too
+    // early on a reload.
+    effect(() => {
+      const search = this.symbolSearch();
+      if (!search) return;
+      this.applySearchLabel(this.tab(), search);
+    });
+  }
+
+  /** See the call in ngOnInit. Browser-only: both stores read localStorage. */
+  private seedSearchLabels(): void {
+    if (!this.supabase.isBrowser) return;
+
+    const chart = loadLastChart(true);
+    if (chart) this.rememberSearchLabel('symbol-search', chart.instrument);
+
+    const company = loadLastCompany(true);
+    if (company) this.rememberSearchLabel('fundamentals', company.instrument);
   }
 
   /**
@@ -313,6 +370,30 @@ export class AppPage implements OnInit {
     if (this.tab() === 'symbol-search') this.workspaceSelection.set(selection);
     else if (this.tab() === 'daily-briefing') this.dailyBriefingSelection.set(selection);
     else if (this.tab() === 'fundamentals') this.fundamentalsSelection.set(selection);
+    this.rememberSearchLabel(this.tab(), instrument);
+  }
+
+  /**
+   * Records what the search box should read when this tab is next opened. The
+   * box itself is left alone — the caller either just typed into it or is
+   * about to switch tabs, and applySearchLabel owns writing to it.
+   */
+  private rememberSearchLabel(tab: Tab, instrument: { symbol: string; name: string }): void {
+    if (tab === 'daily-briefing') return;
+    this.searchLabels.set(tab, { symbol: instrument.symbol, name: instrument.name });
+  }
+
+  /**
+   * Writes the tab's own symbol back into the shared box on arrival, or empties
+   * it where the tab has none. Tabs the search does not apply to are skipped —
+   * the box is hidden there, and a chart tab must find its symbol still written
+   * in it on the way back.
+   */
+  private applySearchLabel(tab: Tab, search: SymbolSearch): void {
+    if (!SEARCHABLE_TABS.includes(tab)) return;
+    const label = this.searchLabels.get(tab);
+    if (label) search.showInstrument(label);
+    else search.clear();
   }
 
   /**
@@ -322,7 +403,17 @@ export class AppPage implements OnInit {
    * emitted — the workspace already has the instrument open.
    */
   protected onWorkspaceChartRestored(instrument: { symbol: string; name: string }): void {
-    this.symbolSearch()?.showInstrument(instrument);
+    this.rememberSearchLabel('symbol-search', instrument);
+    if (this.tab() === 'symbol-search') this.symbolSearch()?.showInstrument(instrument);
+  }
+
+  /**
+   * Same as onWorkspaceChartRestored, for the Fundamentals tab reopening a
+   * company from storage after a reload.
+   */
+  protected onFundamentalsCompanyRestored(instrument: { symbol: string; name: string }): void {
+    this.rememberSearchLabel('fundamentals', instrument);
+    if (this.tab() === 'fundamentals') this.symbolSearch()?.showInstrument(instrument);
   }
 
   /** The daily briefing tab asking for the box back after an add (or a cancel). */
@@ -379,6 +470,9 @@ export class AppPage implements OnInit {
     const selection: SymbolSelection = { instrument, requestId: ++this.selectionSeq };
     if (tab === 'fundamentals') this.fundamentalsSelection.set(selection);
     else this.workspaceSelection.set(selection);
+    // Before select(), so the tab change's applySearchLabel writes this
+    // instrument into the box rather than the one that tab held before.
+    this.rememberSearchLabel(tab, instrument);
     this.select(tab);
   }
 

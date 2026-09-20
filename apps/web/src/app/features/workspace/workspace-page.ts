@@ -879,7 +879,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
    * it is asked directly.
    */
   private async adoptUnfinishedRun(instrument: WorkspaceInstrument): Promise<void> {
-    const row = await this.analyses.findUnfinishedAnalysis(instrument.id);
+    const row = await this.analyses.findUnfinishedAnalysis(instrument.id, 'live');
     // The user may have started a run of their own, or moved on to another
     // symbol, while this was read.
     if (this.busy() || this.instrument()?.id !== instrument.id) return;

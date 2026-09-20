@@ -7,10 +7,11 @@
  * finished result was only reachable from History. Remembering the row id lets
  * both entry points pick the same run back up on load and finish watching it.
  *
- * Per-browser and per-flow — one upload run and one workspace run can be
- * remembered at a time, which is all either screen can have in flight.
+ * Per-browser and per-flow — one upload run, one workspace run and one
+ * fundamentals run can be remembered at a time, which is all any of those
+ * screens can have in flight.
  */
-export type PendingAnalysisKind = 'upload' | 'workspace';
+export type PendingAnalysisKind = 'upload' | 'workspace' | 'fundamentals';
 
 export interface PendingAnalysis {
   /** The analyses row id, which is what gets watched. */
@@ -19,7 +20,10 @@ export interface PendingAnalysis {
   startedAt: number;
   /**
    * Workspace runs only: the chart the run was read from, so a resumed result
-   * can be put back on that same chart rather than floating free.
+   * can be put back on that same chart rather than floating free. Fundamentals
+   * runs need no equivalent — the company they belong to is always the one in
+   * last-company-store.ts, since starting a run requires it to be on screen
+   * and opening another company cancels the run's panel.
    */
   chart?: {
     instrument: { id: string; symbol: string; name: string; exchange: string; logoUrl?: string };

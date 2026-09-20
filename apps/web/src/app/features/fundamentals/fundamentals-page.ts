@@ -2,11 +2,13 @@ import { DOCUMENT, NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
 import {
   Component,
   OnDestroy,
+  OnInit,
   PLATFORM_ID,
   computed,
   effect,
   inject,
   input,
+  output,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -20,18 +22,33 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { TableModule } from 'primeng/table';
 
 import type { FundamentalsAnnualPeriod, InstrumentFundamentals } from '@tradesathi/shared';
+import { AuthService } from '../../core/auth.service';
+import {
+  clearPendingAnalysis,
+  loadPendingAnalysis,
+  savePendingAnalysis,
+} from '../../core/pending-analysis-store';
 import { ThemeService } from '../../core/theme.service';
 import { AppIcon } from '../../shared/icons/app-icon';
 import { LottiePlayer } from '../../shared/lottie-player';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import type { AnalysisRow } from '../analyze/analysis.types';
+import { AnalyzeService } from '../analyze/analyze.service';
 import { BillingService } from '../billing/billing.service';
 import { FundamentalsAnalysisResultComponent } from './fundamentals-analysis-result';
 import { FundamentalsService, type FundamentalsPollHandle } from './fundamentals.service';
+import { loadLastCompany, saveLastCompany, type LastCompany } from './last-company-store';
 
 /** State of the "Analyze with AI" run, independent of the raw-data load above it. */
 type AiState =
   | 'idle'
+  /**
+   * Only ever set during a reload, while it is still unknown whether a run is
+   * in flight for the restored company. Renders nothing — it exists to hold
+   * the Analyse button disabled so a second (charged) run cannot be started
+   * on top of one that is about to be adopted.
+   */
+  | 'restoring'
   | 'queued'
   | 'complete'
   | 'failed'
@@ -164,8 +181,10 @@ const FALLBACK_PALETTE: ChartPalette = {
   templateUrl: './fundamentals-page.html',
   styleUrl: './fundamentals-page.css',
 })
-export class FundamentalsPage implements OnDestroy {
+export class FundamentalsPage implements OnInit, OnDestroy {
   private readonly fundamentals = inject(FundamentalsService);
+  private readonly analyses = inject(AnalyzeService);
+  private readonly auth = inject(AuthService);
   private readonly billing = inject(BillingService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly document = inject(DOCUMENT);
@@ -187,6 +206,14 @@ export class FundamentalsPage implements OnDestroy {
   /** The instrument to read, chosen in the shell's top-bar search. */
   readonly selection = input<SymbolSelection | null>(null);
 
+  /**
+   * Reopened a company from storage after a reload. The search box is the only
+   * place the chosen symbol is spelled out, and it starts every page load
+   * empty, so the shell labels it to match. No selection comes back — this
+   * screen already has the company open.
+   */
+  readonly companyRestored = output<LastCompany['instrument']>();
+
   protected readonly annualMetrics = ANNUAL_METRICS;
   // p-selectButton's [options] wants a mutable array, so this is a shallow
   // copy of the readonly module-level constant above.
@@ -204,6 +231,14 @@ export class FundamentalsPage implements OnDestroy {
    * same symbol can be selected twice in a row — see the effect below).
    */
   private requestSeq = 0;
+
+  /**
+   * The company currently owning the screen, set the moment it is opened
+   * rather than when its figures land. `data()` cannot stand in for it: the
+   * fetch takes a round trip, and the restore path needs to know what it is
+   * looking at before that returns.
+   */
+  private openInstrumentId: string | null = null;
 
   /* ── Analyze with AI ─────────────────────────────────────── */
 
@@ -225,12 +260,34 @@ export class FundamentalsPage implements OnDestroy {
     effect(() => {
       const selection = this.selection();
       if (!this.isBrowser || !selection) return;
-      void this.load(selection.instrument.id);
+      this.openCompany(selection.instrument);
     });
 
     // For the "Costs N credits" label — the shell already loads this on
     // mount, so this shares that cache rather than adding a request.
     void this.billing.ensurePricing();
+  }
+
+  ngOnInit(): void {
+    if (this.isBrowser) this.restoreCompany();
+  }
+
+  /**
+   * Opens one company: remembered first, then loaded. Shared by a pick from
+   * the shell's search and by a reload restore, so both take the same path.
+   */
+  private openCompany(instrument: LastCompany['instrument']): void {
+    this.openInstrumentId = instrument.id;
+    saveLastCompany(this.isBrowser, {
+      instrument: {
+        id: instrument.id,
+        symbol: instrument.symbol,
+        name: instrument.name,
+        exchange: instrument.exchange,
+        logoUrl: instrument.logoUrl,
+      },
+    });
+    void this.load(instrument.id);
   }
 
   protected async reload(): Promise<void> {
@@ -288,14 +345,44 @@ export class FundamentalsPage implements OnDestroy {
       return;
     }
 
-    this.aiAnalysisId.set(submitted.id);
-    const handle = this.fundamentals.pollFundamentalsAnalysis(submitted.id, (row) =>
+    // Remembered before the wait starts, so a reload mid-run can pick the same
+    // row back up instead of losing a run that is already charged and running.
+    savePendingAnalysis(this.isBrowser, 'fundamentals', {
+      id: submitted.id,
+      startedAt: Date.now(),
+    });
+
+    this.watchRun(submitted.id);
+  }
+
+  /**
+   * Watches one run to its outcome and puts it on screen.
+   *
+   * Shared by a run started here and one resumed after a reload: both are just
+   * an analyses row id, and neither cares which page load started it.
+   */
+  private watchRun(analysisId: string): void {
+    this.aiState.set('queued');
+    this.aiAnalysisId.set(analysisId);
+
+    const handle = this.fundamentals.pollFundamentalsAnalysis(analysisId, (row) =>
       this.aiRow.set(row),
     );
     this.aiPoll = handle;
 
     void handle.result.then((outcome) => {
+      // A new company (or a cancel) took the panel while this was in flight.
+      if (this.aiPoll !== handle) return;
       this.aiPoll = null;
+
+      // Only a settled run stops being remembered. 'timed_out' means the
+      // backend may still be working on it and 'poll_error' means this browser
+      // could not read the row — neither says the run is over, so both stay
+      // resumable.
+      if (outcome.outcome === 'complete' || outcome.outcome === 'failed') {
+        clearPendingAnalysis(this.isBrowser, 'fundamentals');
+      }
+
       switch (outcome.outcome) {
         case 'complete':
           this.aiRow.set(outcome.row);
@@ -313,6 +400,83 @@ export class FundamentalsPage implements OnDestroy {
           break;
       }
     });
+  }
+
+  /**
+   * Puts the tab back the way the user left it after a reload.
+   *
+   * Two things are restored, and neither survives a page load on its own: the
+   * company (it comes from the shell's search as an input, which starts null
+   * every load) and any AI run still going on it (charged and executed
+   * server-side the moment it starts, so it must not look like nothing is
+   * happening).
+   *
+   * Anything the shell hands down afterwards still wins — the selection effect
+   * in the constructor calls openCompany in its own right.
+   */
+  private restoreCompany(): void {
+    // The shell can hand a company down before this pane is first mounted —
+    // "open in Fundamentals" from History sets the input, then switches tab.
+    // That pick is a deliberate one and outranks whatever was stored.
+    if (this.selection()) return;
+
+    const last = loadLastCompany(this.isBrowser);
+    if (!last) return;
+
+    const pending = loadPendingAnalysis(this.isBrowser, 'fundamentals');
+
+    this.openCompany(last.instrument);
+    this.companyRestored.emit(last.instrument);
+
+    // After openCompany, whose resetAi() would otherwise put this back to
+    // idle, and still before the first paint. A remembered run is known to be
+    // going; without one it is not known yet, and 'restoring' holds the
+    // Analyse button disabled — without claiming a run is going — until
+    // adoptUnfinishedRun settles the question.
+    this.aiState.set(pending ? 'queued' : 'restoring');
+
+    // Awaited rather than read straight away: on a fresh page load the Supabase
+    // session is restored asynchronously, and a read issued before it lands is
+    // refused by RLS — which would look like a run that cannot be read when
+    // nothing is wrong with it.
+    void this.auth.whenRestored().then(() => {
+      // The user picked another company from the search while the session was
+      // being restored; that pick owns the panel now.
+      if (this.selection()) return;
+      if (pending) {
+        this.watchRun(pending.id);
+        return;
+      }
+      return this.adoptUnfinishedRun(last.instrument.id);
+    });
+  }
+
+  /**
+   * Re-attaches to a run this browser never got to remember.
+   *
+   * The row is created server-side before /api/market/fundamentals/analyze has
+   * even responded, so a refresh in that window — the most likely moment for
+   * one, since the user has just clicked and is watching — leaves a charged run
+   * with no local record. The database is the authority on what is still
+   * running, so it is asked directly, narrowed to this screen's own runs.
+   */
+  private async adoptUnfinishedRun(instrumentId: string): Promise<void> {
+    const row = await this.analyses.findUnfinishedAnalysis(instrumentId, 'fundamentals');
+    // The user may have started a run of their own, or moved on to another
+    // company, while this was read.
+    if (this.aiState() !== 'restoring' || this.openInstrumentId !== instrumentId) return;
+
+    if (!row) {
+      // Nothing running: release the button restoreCompany held disabled.
+      this.aiState.set('idle');
+      return;
+    }
+
+    savePendingAnalysis(this.isBrowser, 'fundamentals', {
+      id: row.id,
+      startedAt: Date.parse(row.created_at) || Date.now(),
+    });
+    this.watchRun(row.id);
   }
 
   ngOnDestroy(): void {
