@@ -192,8 +192,16 @@ p-progress-spinner.daily-briefing-spinner-sm {
    context for content inside them) — it must NOT land on th, or its
    higher-specificity nth-child selector overrides the sticky header rule
    above and that column's heading stops sticking/aligning with the rest. */
+/* z-index: the symbol cell's overlay stretches its right edge across the
+   next three cells (see .daily-briefing-cell-sym .daily-briefing-cell-overlay
+   below) so the message can sit centred in the blurred row rather than in
+   just this narrow column. Each `position: relative` td is its own stacking
+   context, and later siblings paint over earlier ones by default — without
+   this, cells 2-4's own (blank) overlays would paint on top of the stretched
+   one and hide the message text again. */
 .daily-briefing-table td:nth-child(1) {
   position: relative;
+  z-index: 1;
 }
 
 .daily-briefing-table th:nth-child(1),
@@ -307,6 +315,16 @@ p-progress-spinner.daily-briefing-spinner-sm {
   position: absolute;
   text-align: center;
   z-index: 2;
+}
+
+/* The message lives in the symbol cell's overlay, but the blur it should read
+   as centred within spans every blanked-out cell after it too (chart window,
+   run at, daily briefing — 200px + 220px + 140px). Stretching this one
+   overlay's right edge across those cells, rather than only its own td,
+   is what makes the text sit in the middle of the blurred row instead of the
+   middle of the narrow first column alone. */
+.daily-briefing-cell-sym .daily-briefing-cell-overlay {
+  right: calc(-1 * (200px + 220px + 140px));
 }
 
 /* Keep the spinner and its message as one centred unit. A raw text node beside
@@ -617,6 +635,14 @@ p-progress-spinner.daily-briefing-cell-spinner {
      a grid block here, so it is a reliable containing block. */
   .daily-briefing-cell-overlay {
     border-radius: var(--r-lg);
+  }
+
+  /* Undo the desktop-only stretch (see .daily-briefing-cell-sym
+     .daily-briefing-cell-overlay above): here the overlay is already sized
+     to the whole card via the row's own containing block, so the fixed
+     pixel stretch would push its right edge past the card instead. */
+  .daily-briefing-cell-sym .daily-briefing-cell-overlay {
+    right: 0;
   }
 
   .daily-briefing-cell-window .daily-briefing-cell-overlay,
