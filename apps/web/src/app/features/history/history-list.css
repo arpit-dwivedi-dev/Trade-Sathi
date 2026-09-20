@@ -285,6 +285,33 @@
   word-break: normal;
 }
 
+/* Above the 900px stack point there is room for the count next to the filter,
+   so the strip gives up `width: 100%` and takes only what its options need —
+   otherwise it claims the whole line and pushes "N shown" onto a second one,
+   wasting a full row of vertical space on a single number. */
+@media (min-width: 901px) {
+  .history-head .seg {
+    --p-togglebutton-content-padding: 3px 10px;
+
+    flex: 0 1 auto;
+    width: auto;
+  }
+
+  .history-head .seg ::ng-deep .p-togglebutton {
+    flex: 0 0 auto;
+  }
+
+  /* Wrapping is a narrow-screen concession only. With the strip sized to its
+     content there is room for every label on one line, so "Daily briefing"
+     stays one line instead of breaking in two and making the whole filter row
+     taller than it needs to be. */
+  .history-head .seg ::ng-deep .p-togglebutton-label {
+    font-size: var(--t-xs);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+}
+
 .history-head-trailing {
   align-items: center;
   display: flex;

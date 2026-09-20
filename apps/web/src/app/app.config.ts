@@ -1,5 +1,5 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { routes } from './app.routes';
 import { provideClientHydration } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -10,7 +10,12 @@ import { AppPreset } from './core/primeng-preset';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes),
+    // Same-tab report viewing: going back to the history list should land on
+    // the row the user left from, and opening a report should start at the top.
+    provideRouter(
+      routes,
+      withInMemoryScrolling({ scrollPositionRestoration: 'enabled', anchorScrolling: 'enabled' }),
+    ),
     provideClientHydration(),
     // withFetch: XHR does not exist during SSR.
     provideHttpClient(withFetch()),

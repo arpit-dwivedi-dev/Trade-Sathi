@@ -45,6 +45,10 @@
 .analysis-detail-theme-toggle,
 .analysis-detail-back {
   align-items: center;
+  appearance: none;
+  background: none;
+  border: 0;
+  cursor: pointer;
   border-radius: var(--r-sm);
   color: var(--tx-2);
   display: inline-flex;

@@ -6,14 +6,15 @@
         <b>Trade</b><span>Sathi</span>
       </a>
       <div class="analysis-detail-header-actions">
-        <a
+        <button
+          type="button"
           class="analysis-detail-back"
-          routerLink="/app/history"
-          aria-label="Back to history"
-          title="Back to history"
+          (click)="goBack()"
+          aria-label="Back"
+          title="Back"
         >
-          <app-icon aria-hidden="true" name="history" />
-        </a>
+          <app-icon aria-hidden="true" name="arrow_back" />
+        </button>
         <button
           pButton
           type="button"

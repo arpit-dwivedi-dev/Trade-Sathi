@@ -1,7 +1,7 @@
-import { DatePipe, isPlatformBrowser } from '@angular/common';
+import { DatePipe, Location, isPlatformBrowser } from '@angular/common';
 import { Component, DestroyRef, PLATFORM_ID, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
@@ -27,6 +27,8 @@ export class AnalysisDetailPage {
   private readonly pdf = inject(AnalysisPdfService);
   private readonly themeService = inject(ThemeService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly location = inject(Location);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly destroyRef = inject(DestroyRef);
   private requestToken = 0;
@@ -44,6 +46,21 @@ export class AnalysisDetailPage {
       if (!isPlatformBrowser(this.platformId)) return;
       void this.load(id);
     });
+  }
+
+  /**
+   * The report opens in the same tab now, so "back" should land the user
+   * exactly where they left off — the history list at its old scroll offset,
+   * or the analyze page they just ran. Only when this page was entered
+   * directly (deep link, refresh, restored tab) is there nothing to step back
+   * to, and then history is the sensible home.
+   */
+  protected goBack(): void {
+    if (this.router.lastSuccessfulNavigation()?.previousNavigation) {
+      this.location.back();
+      return;
+    }
+    void this.router.navigate(['/app/history']);
   }
 
   protected toggleTheme(): void {

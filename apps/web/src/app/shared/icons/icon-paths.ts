@@ -12,6 +12,8 @@
  * built once in provideMaterialSymbols rather than repeated 68 times.
  */
 export const MATERIAL_SYMBOL_PATHS: Readonly<Record<string, string>> = {
+  arrow_back:
+    'M313-440l224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z',
   arrow_right_alt:
     'm560-240-56-58 142-142H160v-80h486L504-662l56-58 240 240-240 240Z',
   arrow_upward:

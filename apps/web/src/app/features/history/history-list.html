@@ -245,10 +245,8 @@
                   pButton
                   [text]="true"
                   [routerLink]="['/analysis', row.id]"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  [attr.aria-label]="'View analysis for ' + (displaySymbol(row) ?? 'this analysis') + ' (opens in a new tab)'"
-                  title="Open analysis in a new tab"
+                  [attr.aria-label]="'View analysis for ' + (displaySymbol(row) ?? 'this analysis')"
+                  title="View analysis"
                 >
                   <app-icon aria-hidden="true" name="visibility" />
                 </a>
