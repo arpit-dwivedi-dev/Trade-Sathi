@@ -333,22 +333,24 @@ export class SymbolSearch {
     this.searched.set(false);
     this.showingRecent.set(false);
     this.recent.set(pushRecentSymbol(this.isBrowser, instrument));
-    this.blurOnHide = true;
+    this.dismissKeyboard();
     this.instrumentSelected.emit(instrument);
   }
 
   /**
-   * PrimeNG refocuses its input when the panel closes after a pick (inside a
-   * setTimeout, so blurring from onSelect is undone). On a phone that leaves
-   * the on-screen keyboard covering the chart the user just asked for, so the
-   * blur waits for onHide, which fires after that refocus.
+   * PrimeNG refocuses its input after a pick (from a setTimeout inside its
+   * hide()), and on Android the tap on the overlay option can refocus it
+   * again after that. On a phone that leaves the on-screen keyboard covering
+   * the chart the user just asked for, so the blur is deferred past all of
+   * it rather than tied to a PrimeNG event.
    */
-  private blurOnHide = false;
-
-  protected onPanelHide(): void {
-    if (!this.blurOnHide) return;
-    this.blurOnHide = false;
-    this.hostRef.nativeElement.querySelector('input')?.blur();
+  private dismissKeyboard(): void {
+    if (!this.isBrowser) return;
+    const input = this.hostRef.nativeElement.querySelector('input');
+    const timer = setTimeout(() => {
+      if (input && document.activeElement === input) input.blur();
+    }, 300);
+    this.destroyRef.onDestroy(() => clearTimeout(timer));
   }
 
   /**
