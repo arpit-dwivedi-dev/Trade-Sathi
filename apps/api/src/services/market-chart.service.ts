@@ -334,7 +334,14 @@ export async function getCandlesForInstrument(
   // and a today-anchored 1-day window would trim it away and draw nothing.
   const lastFetched = fetched[fetched.length - 1];
   const sessionDate = lastFetched ? lastFetched.timestamp.slice(0, 10) : toDate;
-  const windowFrom = subtractDays(sessionDate < toDate ? sessionDate : toDate, lookbackDays);
+  const anchor = sessionDate < toDate ? sessionDate : toDate;
+  // lookbackDays - 1, because the anchor day is itself the first day of the
+  // window: a 1-day lookback is that one session, not it and the day before.
+  // The off-by-one was invisible while a 1-day window asked upstream for one
+  // day and so had nothing older to keep; now that the smallest upstream
+  // range is five days (see toYahooRange) it would hand a caller that asked
+  // for one session two of them.
+  const windowFrom = subtractDays(anchor, lookbackDays - 1);
   const candles = fetched.filter((candle) => candle.timestamp.slice(0, 10) >= windowFrom);
 
   const last = candles[candles.length - 1];

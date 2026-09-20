@@ -90,7 +90,14 @@ function toIsoTimestamp(epochSeconds: number): string {
  * the ranges paired with them here stay inside those limits.
  */
 function toYahooRange(spanDays: number): string {
-  if (spanDays <= 1) return "1d";
+  // There is deliberately no "1d" bucket. Yahoo reads range=1d as the last 24
+  // hours of wall-clock time rather than "the last session", and outside
+  // trading hours some of its edges answer that with a 200 and an EMPTY
+  // window instead of the previous session's candles — reproducibly so from a
+  // datacentre IP, which is why a one-day lookback analysed fine from a
+  // laptop and returned zero candles on the deployed API every weekend.
+  // Five days always spans a session; getCandlesForInstrument trims the
+  // surplus back to the window the caller actually asked for.
   if (spanDays <= 5) return "5d";
   if (spanDays <= 30) return "1mo";
   if (spanDays <= 90) return "3mo";
@@ -391,6 +398,19 @@ export class YahooFinanceMarketDataProvider implements MarketDataProvider {
         low,
         close,
         volume,
+      });
+    }
+
+    // An empty payload is a 200 like any other, so without this the only
+    // trace left is "zero candles" several layers up — which reads as a
+    // closed market and hides which (range, interval) Yahoo answered nothing
+    // for, and whether it sent no slots at all or slots with null OHLCV.
+    if (candles.length === 0) {
+      logger.error("yahoo finance returned no usable candles", {
+        instrumentKey,
+        range,
+        interval,
+        slots: chartResult.timestamp.length,
       });
     }
 

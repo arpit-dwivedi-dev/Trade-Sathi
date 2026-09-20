@@ -96,6 +96,44 @@ describe("getCandlesForInstrument", () => {
     expect(window.marketDataDate).toBe(subtractDays(today, 2));
   });
 
+  it("never asks Yahoo for a one-day range, which is empty outside market hours", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    getHistoricalCandles.mockResolvedValue([candleOn(subtractDays(today, 2))]);
+
+    await getCandlesForInstrument(ref, 1);
+
+    // range=1d is the request that returned nothing from the deployed API on
+    // a weekend; five days always contains a session.
+    expect(getHistoricalCandles).toHaveBeenCalledWith(
+      expect.objectContaining({ fromDate: subtractDays(today, 1), toDate: today }),
+    );
+    const { resolveUpstreamRequest } = await import(
+      "../lib/market-data/provider/yahoo-finance-provider.js"
+    );
+    expect(
+      resolveUpstreamRequest({
+        instrumentKey: ref.instrumentKey,
+        unit: "minutes",
+        interval: 1,
+        fromDate: subtractDays(today, 1),
+        toDate: today,
+      }).range,
+    ).toBe("5d");
+  });
+
+  it("keeps a one-day window to the latest session when the range carries earlier ones", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    getHistoricalCandles.mockResolvedValue([
+      candleOn(subtractDays(today, 3)),
+      candleOn(subtractDays(today, 2)),
+    ]);
+
+    const window = await getCandlesForInstrument(ref, 1);
+
+    expect(window.candles).toHaveLength(1);
+    expect(window.marketDataDate).toBe(subtractDays(today, 2));
+  });
+
   it("serves a repeat request from cache instead of hitting the provider again", async () => {
     getHistoricalCandles.mockResolvedValue([candleOn(new Date().toISOString().slice(0, 10))]);
 
