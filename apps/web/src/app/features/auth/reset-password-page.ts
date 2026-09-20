@@ -84,6 +84,8 @@ export class ResetPasswordPage implements OnInit {
       return;
     }
 
-    await this.router.navigateByUrl('/app');
+    // replaceUrl: the recovery link is single-use, so back would land on a
+    // reset form whose token has already been spent.
+    await this.router.navigateByUrl('/app', { replaceUrl: true });
   }
 }

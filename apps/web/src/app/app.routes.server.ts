@@ -9,6 +9,14 @@ export const serverRoutes: ServerRoute[] = [
     path: 'analysis/:id',
     renderMode: RenderMode.Client,
   },
+  // The Google return trip. Client-only for the same reason as the route
+  // above, and one more: the code in the URL is exchanged for a session by
+  // the browser's Supabase client, so a prerendered copy of this page is a
+  // spinner frozen at the moment before that ever happened.
+  {
+    path: 'auth/callback',
+    renderMode: RenderMode.Client,
+  },
   // The shell's tab is a route parameter, so the prerenderer has to be told
   // which values exist — under RenderMode.Prerender an unenumerated parameter
   // fails the build rather than falling back. Every tab server-renders the same

@@ -16,6 +16,7 @@ import { firstValueFrom } from 'rxjs';
 
 import type { PricingOverview } from '@tradesathi/shared';
 
+import { AuthService } from '../../core/auth.service';
 import { SupabaseClientService } from '../../core/supabase-client';
 import { ThemeService } from '../../core/theme.service';
 import { formatPriceMinor } from '../billing/billing.service';
@@ -121,6 +122,21 @@ export class LandingPage implements OnInit {
   private readonly themeService = inject(ThemeService);
   private readonly http = inject(HttpClient);
   private readonly supabase = inject(SupabaseClientService);
+  private readonly auth = inject(AuthService);
+
+  /**
+   * Whether to address the visitor as someone who already has an account.
+   *
+   * Gated on sessionKnown, so this is false while prerendering and stays false
+   * until the browser has actually looked — the page is the marketing page and
+   * must render as one for a first-time visitor and for crawlers. It flips
+   * only once a session is confirmed, which swaps "Sign in" / "Create free
+   * account" for a way back into the app. Deliberately not a redirect: this
+   * page is prerendered and paints at once, so a redirect after restoration
+   * would show every signed-in user a flash of the pitch first, and would take
+   * away the pricing and FAQ they came back to read.
+   */
+  protected readonly signedIn = computed(() => this.auth.sessionKnown() && !!this.auth.session());
   private readonly document = inject(DOCUMENT);
   private readonly renderer = inject(Renderer2);
   private readonly router = inject(Router);

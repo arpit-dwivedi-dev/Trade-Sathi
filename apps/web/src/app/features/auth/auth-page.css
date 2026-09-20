@@ -281,8 +281,8 @@
 @media (max-width: 520px) {
   .auth {
     justify-content: flex-start;
-    /* Clears the fixed corner theme toggle (16px inset + 44px). */
-    padding: 76px var(--s5) var(--s6);
+    /* Clears the fixed corner theme toggle (16px inset + 40px). */
+    padding: 72px var(--s5) var(--s6);
   }
 
   .auth-foot {
@@ -306,4 +306,82 @@
   .auth-password-toggle {
     transition: none;
   }
+}
+
+/* Google sign-in, above the email fields. Deliberately not a PrimeNG button:
+   Google's brand guidance fixes the white/neutral surface and the mark's
+   placement, which the themed button would override. */
+.auth-oauth {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.auth-google {
+  align-items: center;
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--tx);
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  gap: var(--s2);
+  justify-content: center;
+  min-height: 42px;
+  padding-inline: var(--s4);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+  width: 100%;
+}
+
+.auth-google:hover:not(:disabled) {
+  background: var(--surf-3);
+}
+
+.auth-google:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* A rule with the word sitting in the gap. */
+.auth-or {
+  align-items: center;
+  color: var(--tx-3);
+  display: flex;
+  font-size: var(--t-xs);
+  gap: var(--s3);
+}
+
+.auth-or::before,
+.auth-or::after {
+  background: var(--line);
+  content: '';
+  flex: 1;
+  height: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-google {
+    transition: none;
+  }
+}
+
+/* Shared by the auth screens' pre-session state and the OAuth callback's
+   waiting state. Mirrors .shell-loading in app-page.css — see the note in the callback
+   page's template for why the two are kept identical. */
+.auth-boot,
+.callback-loading {
+  align-items: center;
+  background: var(--surf);
+  color: var(--tx-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--s16);
 }

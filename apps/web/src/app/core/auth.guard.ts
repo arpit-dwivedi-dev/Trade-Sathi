@@ -1,6 +1,6 @@
 import { isPlatformServer } from '@angular/common';
 import { PLATFORM_ID, inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { CanActivateFn, RedirectCommand, Router } from '@angular/router';
 
 import { AuthService } from './auth.service';
 
@@ -56,7 +56,13 @@ export const guestGuard: CanActivateFn = async () => {
 
   await auth.whenRestored();
 
-  return auth.session() ? router.createUrlTree(['/app']) : true;
+  if (!auth.session()) return true;
+
+  // RedirectCommand with replaceUrl, not a bare UrlTree: a plain redirect
+  // pushes, so a signed-in user pressing back onto an old /login entry is sent
+  // forward to /app on a NEW entry — back then finds /login again, and the
+  // button is dead. Replacing consumes the stale entry instead.
+  return new RedirectCommand(router.createUrlTree(['/app']), { replaceUrl: true });
 };
 
 /**
@@ -88,5 +94,8 @@ export const pendingSignupGuard: CanActivateFn = async () => {
 
   await auth.whenRestored();
 
-  return auth.pendingSignupEmail() ? true : router.createUrlTree(['/signup']);
+  if (auth.pendingSignupEmail()) return true;
+
+  // Replaces for the same reason as guestGuard above.
+  return new RedirectCommand(router.createUrlTree(['/signup']), { replaceUrl: true });
 };

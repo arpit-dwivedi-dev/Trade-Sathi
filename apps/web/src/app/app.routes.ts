@@ -31,6 +31,14 @@ export const routes: Routes = [
   // after checking their inbox, and a reload has to land somewhere real.
   // pendingSignupGuard is what decides "somewhere real" — see auth.guard.ts.
   authStep('verify-email', 'otp', [pendingSignupGuard]),
+  // The Google round trip's landing point. No guestGuard: the session is being
+  // established as this route activates, so the guard would race it and bounce
+  // the user either way it resolved.
+  {
+    path: 'auth/callback',
+    loadComponent: () =>
+      import('./features/auth/oauth-callback-page').then((m) => m.OauthCallbackPage),
+  },
   {
     path: 'forgot-password',
     canActivate: [guestGuard],

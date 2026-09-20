@@ -1,6 +1,7 @@
 import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
+  RedirectCommand,
   Router,
   provideRouter,
   type ActivatedRouteSnapshot,
@@ -98,7 +99,7 @@ describe('guestGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('bounces an already signed-in user away to /app', async () => {
+  it('bounces an already signed-in user away to /app, replacing the entry', async () => {
     configure('browser');
     const auth = TestBed.inject(AuthService) as unknown as StubAuthService;
     auth.setSession(FAKE_SESSION);
@@ -106,7 +107,11 @@ describe('guestGuard', () => {
     const result = await TestBed.runInInjectionContext(() => guestGuard(route, state));
 
     const router = TestBed.inject(Router);
-    expect(router.serializeUrl(result as never)).toBe('/app');
+    const redirect = result as RedirectCommand;
+    expect(router.serializeUrl(redirect.redirectTo)).toBe('/app');
+    // replaceUrl is the point: a pushed redirect leaves the stale /login entry
+    // in place and the back button stops working. See the guard.
+    expect(redirect.navigationBehaviorOptions?.replaceUrl).toBe(true);
   });
 });
 
@@ -137,6 +142,8 @@ describe('pendingSignupGuard', () => {
     const result = await TestBed.runInInjectionContext(() => pendingSignupGuard(route, state));
 
     const router = TestBed.inject(Router);
-    expect(router.serializeUrl(result as never)).toBe('/signup');
+    const redirect = result as RedirectCommand;
+    expect(router.serializeUrl(redirect.redirectTo)).toBe('/signup');
+    expect(redirect.navigationBehaviorOptions?.replaceUrl).toBe(true);
   });
 });

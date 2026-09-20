@@ -29,6 +29,17 @@ export class AuthService {
   readonly restored = this._restored.asReadonly();
 
   /**
+   * Whether this render can actually answer "is anyone signed in?".
+   *
+   * False during SSR and prerendering, where `restored` is true but only
+   * because there is no browser storage to consult — the honest answer there
+   * is "unknown", and a screen that treats it as "signed out" bakes a
+   * signed-out view into static HTML. That is what made an already signed-in
+   * user see the sign-in card flash before guestGuard could redirect them.
+   */
+  readonly sessionKnown = computed(() => this.supabase.isBrowser && this._restored());
+
+  /**
    * The address `/signup` sent a code to, for `/verify-email` to confirm.
    *
    * Signup and the code step are separate routes now, so the two screens cannot
@@ -167,6 +178,41 @@ export class AuthService {
 
     const { error } = await client.auth.signInWithPassword({ email, password });
     return error ? { ok: false, message: error.message } : { ok: true };
+  }
+
+  /**
+   * Hands the browser off to Google's consent screen.
+   *
+   * Nothing is returned on success: supabase-js navigates away, and the user
+   * comes back to `/auth/callback` with a code in the URL that the client
+   * exchanges for a session (detectSessionInUrl — see SupabaseClientService).
+   * The returnUrl rides in the callback URL rather than in memory because the
+   * round trip leaves the app entirely and this instance does not survive it.
+   */
+  async signInWithGoogle(returnUrl: string): Promise<AuthResult> {
+    const client = this.supabase.client;
+    if (!client) return NOT_AVAILABLE;
+
+    const callback = new URL('/auth/callback', window.location.origin);
+    callback.searchParams.set('returnUrl', returnUrl);
+
+    // skipBrowserRedirect, then replace rather than assign: left to itself
+    // supabase-js pushes the hand-off to Google onto the history stack, so
+    // pressing back from the app re-requested Supabase's authorize URL with a
+    // state that had already been spent — which bounced the user to the site
+    // root carrying ?error=bad_oauth_state. Replacing means the whole round
+    // trip occupies the entry this screen already had, and the callback then
+    // replaces that in turn with the destination.
+    const { data, error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: callback.toString(), skipBrowserRedirect: true },
+    });
+
+    if (error) return { ok: false, message: error.message };
+    if (!data.url) return { ok: false, message: 'Could not reach Google. Please try again.' };
+
+    window.location.replace(data.url);
+    return { ok: true };
   }
 
   /**

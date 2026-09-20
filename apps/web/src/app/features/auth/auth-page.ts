@@ -51,6 +51,15 @@ export class AuthPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
 
   protected readonly mode = this.route.snapshot.data['mode'] as AuthMode;
+
+  /**
+   * Whether it is yet known if anyone is signed in. Until it is, this screen
+   * shows the app's loading state rather than the form: prerendered HTML
+   * reaches the browser before guestGuard has had a chance to redirect a
+   * signed-in user, and a sign-in card that flashes for a second on the way to
+   * the dashboard is worse than no card at all.
+   */
+  protected readonly sessionKnown = this.auth.sessionKnown;
   protected readonly email = signal('');
   protected readonly password = signal('');
   protected readonly passwordVisible = signal(false);
@@ -149,6 +158,25 @@ export class AuthPage implements OnInit, OnDestroy {
     return null;
   }
 
+  /**
+   * Leaves the app for Google's consent screen. `busy` is never cleared on
+   * success: the navigation away is the success case, and re-enabling the
+   * button would only invite a second press during the hand-off.
+   */
+  protected async signInWithGoogle(): Promise<void> {
+    if (this.busy()) return;
+
+    this.busy.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+
+    const result = await this.auth.signInWithGoogle(this.returnUrl);
+    if (!result.ok) {
+      this.busy.set(false);
+      this.error.set(result.message);
+    }
+  }
+
   protected togglePasswordVisibility(): void {
     this.passwordVisible.update((visible) => !visible);
   }
@@ -197,7 +225,12 @@ export class AuthPage implements OnInit, OnDestroy {
       return;
     }
 
-    await this.router.navigateByUrl(this.returnUrl);
+    // replaceUrl: signing in consumes this screen. Left on the stack, the back
+    // button from the app returns to a sign-in form the user has already used,
+    // which guestGuard then bounces straight back — so back appears to do
+    // nothing at all. Replacing it means back goes where they actually came
+    // from, which is the page before they started signing in.
+    await this.router.navigateByUrl(this.returnUrl, { replaceUrl: true });
   }
 
   private async submitOtp(): Promise<void> {
@@ -230,15 +263,21 @@ export class AuthPage implements OnInit, OnDestroy {
       return;
     }
 
-    // Confirmed, so there is nothing left to come back to this screen for.
+    // Confirmed, so there is nothing left to come back to this screen for —
+    // hence replaceUrl, for the same reason as the sign-in above.
     this.auth.clearPendingSignupEmail();
-    await this.router.navigateByUrl(this.returnUrl);
+    await this.router.navigateByUrl(this.returnUrl, { replaceUrl: true });
   }
 
   /** Lets the user correct a mistyped email instead of resending to it forever. */
   protected useDifferentEmail(): void {
     this.auth.clearPendingSignupEmail();
-    void this.router.navigate(['/signup'], { queryParams: this.returnUrlQuery });
+    // replaceUrl: the code already sent is worthless now, so going back to
+    // the step that asks for it would only strand the user there.
+    void this.router.navigate(['/signup'], {
+      queryParams: this.returnUrlQuery,
+      replaceUrl: true,
+    });
   }
 
   protected async resendOtp(): Promise<void> {

@@ -1,116 +1,142 @@
+@if (!sessionKnown()) {
+  <!-- Mirrors the app shell's loading state; see sessionKnown in auth-page.ts
+       for why the form is withheld until the session is known. -->
+  <div class="auth-boot">
+    <p-progress-spinner [style]="{ width: '28px', height: '28px' }" strokeWidth="4" aria-hidden="true" />
+    <p class="lbl">Loading</p>
+  </div>
+} @else {
 <main class="auth">
-  <app-theme-toggle />
-  <div class="auth-card">
-    <a class="auth-card-brand" routerLink="/" aria-label="TradeSathi home">
-      <span class="brand-mark" aria-hidden="true"></span>
-      <span class="auth-card-wordmark"><b>Trade</b><span>Sathi</span></span>
-    </a>
+    <app-theme-toggle />
+    <div class="auth-card">
+      <a class="auth-card-brand" routerLink="/" aria-label="TradeSathi home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="auth-card-wordmark"><b>Trade</b><span>Sathi</span></span>
+      </a>
 
-    @if (mode === 'otp') {
-      <div class="auth-head">
-        <h1>Verify your email</h1>
-        <p class="disc">Enter the 6-digit code we just sent you.</p>
-      </div>
-    }
-
-    <form (ngSubmit)="submit()" class="auth-form">
       @if (mode === 'otp') {
-        <div class="auth-field">
-          <label for="auth-otp">Verification code</label>
-          <input class="auth-otp" id="auth-otp" type="text" name="otp" required
-                 inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code"
-                 placeholder="000000"
-                 [attr.aria-invalid]="error() ? 'true' : null"
-                 [attr.aria-describedby]="error() ? 'auth-error' : 'auth-otp-hint'"
-                 [ngModel]="otp()" (ngModelChange)="otp.set($event)" />
-          <span class="auth-otp-hint" id="auth-otp-hint">The code expires shortly.</span>
+        <div class="auth-head">
+          <h1>Verify your email</h1>
+          <p class="disc">Enter the 6-digit code we just sent you.</p>
         </div>
-      } @else {
-        <div class="auth-field">
-          <label for="auth-email">Email address</label>
-          <input id="auth-email" type="email" name="email" required
-                 autocomplete="email" inputmode="email" spellcheck="false"
-                 placeholder="you@example.com"
-                 [attr.aria-invalid]="error() ? 'true' : null"
-                 [attr.aria-describedby]="error() ? 'auth-error' : null"
-                 [ngModel]="email()" (ngModelChange)="email.set($event)" />
-        </div>
+      }
 
-        <div class="auth-field">
-          <label for="auth-password">Password</label>
-          <div class="auth-input-wrap">
-            <input id="auth-password" [type]="passwordVisible() ? 'text' : 'password'" name="password" required
-                   [autocomplete]="mode === 'signup' ? 'new-password' : 'current-password'"
+      @if (mode !== 'otp') {
+        <!-- Above the form, not below it: it is a whole alternative to filling
+             the form in, so it should be seen before the fields are started. -->
+        <div class="auth-oauth">
+          <button type="button" class="auth-google" [disabled]="busy()" (click)="signInWithGoogle()">
+            <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
+              <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z" />
+              <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18Z" />
+              <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33Z" />
+              <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58C13.46.89 11.42 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58Z" />
+            </svg>
+            Continue with Google
+          </button>
+          <p class="auth-or"><span>or</span></p>
+        </div>
+      }
+
+      <form (ngSubmit)="submit()" class="auth-form">
+        @if (mode === 'otp') {
+          <div class="auth-field">
+            <label for="auth-otp">Verification code</label>
+            <input class="auth-otp" id="auth-otp" type="text" name="otp" required
+                   inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code"
+                   placeholder="000000"
+                   [attr.aria-invalid]="error() ? 'true' : null"
+                   [attr.aria-describedby]="error() ? 'auth-error' : 'auth-otp-hint'"
+                   [ngModel]="otp()" (ngModelChange)="otp.set($event)" />
+            <span class="auth-otp-hint" id="auth-otp-hint">The code expires shortly.</span>
+          </div>
+        } @else {
+          <div class="auth-field">
+            <label for="auth-email">Email address</label>
+            <input id="auth-email" type="email" name="email" required
+                   autocomplete="email" inputmode="email" spellcheck="false"
+                   placeholder="you@example.com"
                    [attr.aria-invalid]="error() ? 'true' : null"
                    [attr.aria-describedby]="error() ? 'auth-error' : null"
-                   [ngModel]="password()" (ngModelChange)="password.set($event)" />
-            <button class="auth-password-toggle" type="button"
-                    [attr.aria-label]="passwordVisible() ? 'Hide password' : 'Show password'"
-                    [attr.aria-pressed]="passwordVisible()"
-                    (click)="togglePasswordVisibility()">
-              @if (passwordVisible()) {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-                  <path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A10.8 10.8 0 0 1 12 5c5 0 8.5 4 9.5 7a12 12 0 0 1-3.1 4.8M6.2 6.2C3.8 7.8 2.4 10.2 2.5 12c.2 2.8 4 7 9.5 7 1 0 2-.2 2.8-.5" />
-                </svg>
-              } @else {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-                  <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" />
-                  <circle cx="12" cy="12" r="2.5" />
-                </svg>
-              }
-            </button>
+                   [ngModel]="email()" (ngModelChange)="email.set($event)" />
           </div>
-        </div>
-      }
 
-      @if (error(); as message) {
-        <p class="err" id="auth-error" role="alert">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.6" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 8v5M12 16h.01" />
-          </svg>
-          {{ message }}
-        </p>
-      }
-      @if (notice(); as message) {
-        <p class="auth-notice" role="status">{{ message }}</p>
-      }
-
-      <button pButton type="submit" class="auth-submit" [disabled]="busy()" [attr.aria-busy]="busy()">
-        @if (busy()) {
-          <p-progress-spinner [style]="{ width: '16px', height: '16px' }" strokeWidth="4" aria-hidden="true" />
+          <div class="auth-field">
+            <label for="auth-password">Password</label>
+            <div class="auth-input-wrap">
+              <input id="auth-password" [type]="passwordVisible() ? 'text' : 'password'" name="password" required
+                     [autocomplete]="mode === 'signup' ? 'new-password' : 'current-password'"
+                     [attr.aria-invalid]="error() ? 'true' : null"
+                     [attr.aria-describedby]="error() ? 'auth-error' : null"
+                     [ngModel]="password()" (ngModelChange)="password.set($event)" />
+              <button class="auth-password-toggle" type="button"
+                      [attr.aria-label]="passwordVisible() ? 'Hide password' : 'Show password'"
+                      [attr.aria-pressed]="passwordVisible()"
+                      (click)="togglePasswordVisibility()">
+                @if (passwordVisible()) {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                    <path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A10.8 10.8 0 0 1 12 5c5 0 8.5 4 9.5 7a12 12 0 0 1-3.1 4.8M6.2 6.2C3.8 7.8 2.4 10.2 2.5 12c.2 2.8 4 7 9.5 7 1 0 2-.2 2.8-.5" />
+                  </svg>
+                } @else {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                    <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" />
+                    <circle cx="12" cy="12" r="2.5" />
+                  </svg>
+                }
+              </button>
+            </div>
+          </div>
         }
-        {{ busy() ? 'Working…' : mode === 'signup' ? 'Create account' : mode === 'otp' ? 'Verify email' : 'Sign in' }}
-      </button>
-    </form>
 
-    <div class="auth-foot">
-      @if (mode === 'otp') {
-        <button pButton [text]="true" [disabled]="busy() || resendIn() > 0" (click)="resendOtp()">
-          {{ resendIn() > 0 ? 'Resend in ' + resendIn() + 's' : 'Resend code' }}
+        @if (error(); as message) {
+          <p class="err" id="auth-error" role="alert">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.6" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v5M12 16h.01" />
+            </svg>
+            {{ message }}
+          </p>
+        }
+        @if (notice(); as message) {
+          <p class="auth-notice" role="status">{{ message }}</p>
+        }
+
+        <button pButton type="submit" class="auth-submit" [disabled]="busy()" [attr.aria-busy]="busy()">
+          @if (busy()) {
+            <p-progress-spinner [style]="{ width: '16px', height: '16px' }" strokeWidth="4" aria-hidden="true" />
+          }
+          {{ busy() ? 'Working…' : mode === 'signup' ? 'Create account' : mode === 'otp' ? 'Verify email' : 'Sign in' }}
         </button>
-        <button pButton [text]="true" [disabled]="busy()" (click)="useDifferentEmail()">
-          Use a different email
-        </button>
-      } @else {
-        @if (mode === 'signin') {
-          <a routerLink="/forgot-password">Forgot password?</a>
+      </form>
+
+      <div class="auth-foot">
+        @if (mode === 'otp') {
+          <button pButton [text]="true" [disabled]="busy() || resendIn() > 0" (click)="resendOtp()">
+            {{ resendIn() > 0 ? 'Resend in ' + resendIn() + 's' : 'Resend code' }}
+          </button>
+          <button pButton [text]="true" [disabled]="busy()" (click)="useDifferentEmail()">
+            Use a different email
+          </button>
         } @else {
-          <span></span>
+          @if (mode === 'signin') {
+            <a routerLink="/forgot-password">Forgot password?</a>
+          } @else {
+            <span></span>
+          }
+          <!-- A link, not a button: the other screen has its own address, so this
+               is a navigation and behaves like one (middle-click, open in a new
+               tab, a URL to copy) rather than a state toggle. -->
+          <a pButton [text]="true" [routerLink]="mode === 'signup' ? '/login' : '/signup'"
+             [queryParams]="returnUrlQuery">
+            {{ mode === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
+          </a>
         }
-        <!-- A link, not a button: the other screen has its own address, so this
-             is a navigation and behaves like one (middle-click, open in a new
-             tab, a URL to copy) rather than a state toggle. -->
-        <a pButton [text]="true" [routerLink]="mode === 'signup' ? '/login' : '/signup'"
-           [queryParams]="returnUrlQuery">
-          {{ mode === 'signup' ? 'Have an account? Sign in' : 'Need an account? Sign up' }}
-        </a>
-      }
+      </div>
     </div>
-  </div>
 
-  <p class="disc auth-disc">
-    TradeSathi produces AI-generated chart analysis. It is not investment advice.
-  </p>
-</main>
+    <p class="disc auth-disc">
+      TradeSathi produces AI-generated chart analysis. It is not investment advice.
+    </p>
+  </main>
+}

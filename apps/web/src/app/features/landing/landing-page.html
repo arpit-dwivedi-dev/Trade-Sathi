@@ -28,8 +28,12 @@
 
 
 
-    <a class="ts-nav-signin" routerLink="/login">Sign in</a>
-    <a class="ts-nav-cta" routerLink="/signup">Create free account</a>
+    @if (signedIn()) {
+      <a class="ts-nav-cta" routerLink="/app">Open dashboard</a>
+    } @else {
+      <a class="ts-nav-signin" routerLink="/login">Sign in</a>
+      <a class="ts-nav-cta" routerLink="/signup">Create free account</a>
+    }
     <button type="button" class="ts-icon-btn ts-burger" [class.is-open]="menuOpen()"
             [attr.aria-expanded]="menuOpen()" aria-label="Open menu" (click)="setMenu(!menuOpen())">
       <span class="ts-burger-box">
@@ -45,13 +49,19 @@
   <a href="#how" (click)="setMenu(false)">How it works</a>
   <a href="#pricing" (click)="setMenu(false)">Pricing</a>
   <a href="#faq" (click)="setMenu(false)">FAQ</a>
-  <a routerLink="/login" (click)="setMenu(false)">Sign in</a>
+  @if (!signedIn()) {
+    <a routerLink="/login" (click)="setMenu(false)">Sign in</a>
+  }
   <!-- The corner toggle is hidden at this width (it crowded the nav pill),
        so the theme switch lives in the menu instead. -->
   <button type="button" class="ts-overlay-theme" (click)="toggleTheme()">
     {{ theme() === 'dark' ? 'Light theme' : 'Dark theme' }}
   </button>
-  <a class="ts-overlay-cta" routerLink="/signup" (click)="setMenu(false)">Create free account</a>
+  @if (signedIn()) {
+    <a class="ts-overlay-cta" routerLink="/app" (click)="setMenu(false)">Open dashboard</a>
+  } @else {
+    <a class="ts-overlay-cta" routerLink="/signup" (click)="setMenu(false)">Create free account</a>
+  }
 </div>
 
 <main id="main">
@@ -133,8 +143,8 @@
         </p>
 
         <div class="ts-actions">
-          <a class="ts-btn" routerLink="/signup">
-            Create free account
+          <a class="ts-btn" [routerLink]="signedIn() ? '/app' : '/signup'">
+            {{ signedIn() ? 'Open dashboard' : 'Create free account' }}
             <svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200 64v104a8 8 0 0 1-16 0V83.3L69.7 197.7a8 8 0 0 1-11.4-11.4L172.7 72H88a8 8 0 0 1 0-16h104a8 8 0 0 1 8 8Z" /></svg>
           </a>
           <a class="ts-btn ts-btn-ghost" href="#the-read">See a real read</a>
@@ -528,15 +538,23 @@
     <div class="ts-signup ts-reveal">
       <h2 id="signup-heading">Read one chart before you decide anything.</h2>
       <p class="ts-sub">No subscription, so there is nothing to cancel. A failed analysis is refunded automatically. Prices are in your own currency, and promo codes convert straight into credits.</p>
-      <form class="ts-form" novalidate (submit)="onSubmit($event, email.value)">
+      @if (signedIn()) {
+        <!-- Asking for an email address from someone already signed in with
+             one would be the page not recognising them. -->
         <div class="ts-form-row">
-          <label for="ts-email" class="ts-sr">Email address</label>
-          <input #email id="ts-email" class="ts-input" type="email" inputmode="email" autocomplete="email"
-                 placeholder="you@email.com" aria-describedby="ts-email-msg" (input)="formMessage.set('')" />
-          <button type="submit" class="ts-btn ts-btn-submit">Create free account</button>
+          <a class="ts-btn ts-btn-submit" routerLink="/app">Open dashboard</a>
         </div>
-        <p id="ts-email-msg" class="ts-form-msg ts-form-msg-err" role="status">{{ formMessage() }}</p>
-      </form>
+      } @else {
+        <form class="ts-form" novalidate (submit)="onSubmit($event, email.value)">
+          <div class="ts-form-row">
+            <label for="ts-email" class="ts-sr">Email address</label>
+            <input #email id="ts-email" class="ts-input" type="email" inputmode="email" autocomplete="email"
+                   placeholder="you@email.com" aria-describedby="ts-email-msg" (input)="formMessage.set('')" />
+            <button type="submit" class="ts-btn ts-btn-submit">Create free account</button>
+          </div>
+          <p id="ts-email-msg" class="ts-form-msg ts-form-msg-err" role="status">{{ formMessage() }}</p>
+        </form>
+      }
     </div>
   </section>
 </main>
@@ -561,8 +579,12 @@
       </nav>
       <nav class="ts-foot-nav" aria-label="Account">
         <div class="ts-foot-nav-head">Account</div>
-        <a routerLink="/login">Sign in</a>
-        <a routerLink="/signup">Create account</a>
+        @if (signedIn()) {
+          <a routerLink="/app">Open dashboard</a>
+        } @else {
+          <a routerLink="/login">Sign in</a>
+          <a routerLink="/signup">Create account</a>
+        }
       </nav>
     </div>
     <p class="ts-foot-disc">Trade Sathi produces analysis output, not investment advice. Nothing on this page or in the product is a recommendation to buy or sell any security. Scenarios are probabilistic and may be wrong. Markets carry risk, including the loss of capital. You are responsible for your own decisions.</p>
