@@ -153,4 +153,43 @@
       </p-card>
     }
   }
+
+  <!-- Pre-upload quality warning. Advisory only: "Upload anyway" is always
+       available, because every check behind this is a pixel heuristic and a
+       false positive must never stand between a trader and a good chart. -->
+  @if (state() === 'confirming') {
+    <div class="quality-overlay" (click)="cancelPending()">
+      <div
+        #qualityDialog
+        class="plate quality-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="quality-title"
+        tabindex="-1"
+        (click)="$event.stopPropagation()"
+        (keydown.escape)="cancelPending()"
+      >
+        <div class="state-head">
+          <span class="st st-failed">Check first</span>
+          <h3 class="state-title" id="quality-title">This image may not analyze well</h3>
+        </div>
+
+        <ul class="quality-issues">
+          @for (issue of qualityIssues(); track issue.code) {
+            <li>{{ issue.message }}</li>
+          }
+        </ul>
+
+        <p class="quality-cost">
+          Analyzing it will use <b>1 credit</b> whether or not the result is usable. A sharper,
+          full-size screenshot gives a better read.
+        </p>
+
+        <div class="quality-actions">
+          <button pButton class="quality-cancel" (click)="cancelPending()">Cancel</button>
+          <button pButton (click)="confirmPending()">Upload anyway</button>
+        </div>
+      </div>
+    </div>
+  }
 </section>

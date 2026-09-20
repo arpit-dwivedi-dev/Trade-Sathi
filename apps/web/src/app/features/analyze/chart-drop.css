@@ -29,6 +29,14 @@
   min-height: 260px;
 }
 
+/* The projected hint sits at the bottom of the filled card. The two auto
+   margins split the leftover height, so the icon, copy and buttons stay
+   centred in the space above it. */
+:host(.fill) .drop-icon,
+:host(.fill) .drop-extra {
+  margin-top: auto;
+}
+
 .drop-zone {
   align-items: center;
   cursor: pointer;
@@ -190,14 +198,6 @@
   :host(.fill) .drop-zone {
     flex: 1 0 auto;
     min-height: 0;
-  }
-
-  /* The projected hint sits at the bottom of the card. The two auto margins
-     split the leftover height, so the icon, copy and buttons stay centred in
-     the space above it. */
-  :host(.fill) .drop-icon,
-  :host(.fill) .drop-extra {
-    margin-top: auto;
   }
 
   :host(:not(.fill)) .drop-zone {

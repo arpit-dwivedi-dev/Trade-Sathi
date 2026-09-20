@@ -154,3 +154,79 @@
     flex-wrap: wrap;
   }
 }
+
+/* Pre-upload quality warning ------------------------------------------- */
+
+.quality-overlay {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: var(--s5);
+  position: fixed;
+  z-index: 100;
+}
+
+.quality-dialog {
+  animation: quality-in var(--dur-standard) var(--ease-enter);
+  cursor: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  max-width: 460px;
+  padding: var(--s6);
+  width: 100%;
+}
+
+/* .plate carries a hover treatment for the drop zone it was written for;
+   this is not a target, so it must not light up under the pointer. */
+.quality-dialog:hover {
+  border-color: var(--line);
+}
+
+@keyframes quality-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quality-dialog {
+    animation: none;
+  }
+}
+
+.quality-issues {
+  color: var(--tx-2);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--t-sm);
+  gap: var(--s2);
+  margin: 0;
+  padding-left: var(--s5);
+}
+
+.quality-cost {
+  color: var(--tx-2);
+  font-size: var(--t-sm);
+  margin: 0;
+}
+
+.quality-cost b {
+  color: var(--tx);
+}
+
+.quality-actions {
+  display: flex;
+  gap: var(--s3);
+  justify-content: flex-end;
+}
+
+/* Cancel is the safe path, so it reads as the quieter of the two. */
+.quality-cancel {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--tx-2);
+}

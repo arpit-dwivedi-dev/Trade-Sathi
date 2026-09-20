@@ -1,4 +1,14 @@
-import { Component, OnDestroy, OnInit, inject, output, signal } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  effect,
+  inject,
+  output,
+  signal,
+  viewChild,
+  type ElementRef,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
@@ -7,9 +17,11 @@ import { LottiePlayer } from '../../shared/lottie-player';
 import type { AnalysisPattern, AnalysisRow } from './analysis.types';
 import { AnalyzeService, type PollHandle } from './analyze.service';
 import { ChartDrop, type ChartFileSelection } from './chart-drop';
+import { inspectImageQuality, type ImageQualityIssue } from './image-quality';
 
 type AnalyzeState =
   | 'idle'
+  | 'confirming'
   | 'uploading'
   | 'processing'
   | 'complete'
@@ -61,7 +73,27 @@ export class AnalyzePage implements OnInit, OnDestroy {
    */
   protected readonly balance = signal<number | null>(null);
 
+  /**
+   * The file held back by the pre-upload quality check, with what was wrong
+   * with it. Non-null exactly while state is 'confirming' — the user either
+   * accepts the warning and this is submitted, or cancels and it's dropped
+   * without ever costing a credit.
+   */
+  protected readonly pendingSelection = signal<ChartFileSelection | null>(null);
+  protected readonly qualityIssues = signal<ImageQualityIssue[]>([]);
+
+  private readonly qualityDialog = viewChild<ElementRef<HTMLElement>>('qualityDialog');
+
   private poll: PollHandle | null = null;
+
+  constructor() {
+    // The dialog only exists once the @if opens, and Escape is bound on it, so
+    // it has to take focus or the keyboard path is dead.
+    effect(() => {
+      if (this.state() !== 'confirming') return;
+      this.qualityDialog()?.nativeElement.focus();
+    });
+  }
 
   ngOnInit(): void {
     void this.refreshBalance();
@@ -81,6 +113,47 @@ export class AnalyzePage implements OnInit, OnDestroy {
     // Belt and braces: chart-drop is already given disabled=true off-idle/off-complete.
     if (this.state() !== 'idle' && this.state() !== 'complete') return;
 
+    // Free, local screening before anything is spent. Purely advisory: if it
+    // finds something, the user is shown it and decides. If the inspection
+    // itself fails, it's treated as "nothing found" rather than blocking an
+    // upload over a heuristic that couldn't run.
+    let issues: ImageQualityIssue[] = [];
+    try {
+      issues = (await inspectImageQuality(selection.file)).issues;
+    } catch {
+      issues = [];
+    }
+
+    if (issues.length > 0) {
+      this.qualityIssues.set(issues);
+      this.pendingSelection.set(selection);
+      this.state.set('confirming');
+      return;
+    }
+
+    await this.runAnalysis(selection);
+  }
+
+  /** The user read the warning and chose to spend the credit anyway. */
+  protected confirmPending(): void {
+    const selection = this.pendingSelection();
+    if (!selection || this.state() !== 'confirming') return;
+
+    this.pendingSelection.set(null);
+    this.qualityIssues.set([]);
+    void this.runAnalysis(selection);
+  }
+
+  /** The user backed out. Nothing was uploaded, so no credit was spent. */
+  protected cancelPending(): void {
+    if (this.state() !== 'confirming') return;
+
+    this.pendingSelection.set(null);
+    this.qualityIssues.set([]);
+    this.state.set('idle');
+  }
+
+  private async runAnalysis(selection: ChartFileSelection): Promise<void> {
     this.state.set('uploading');
     this.error.set(null);
     this.row.set(null);
@@ -162,6 +235,8 @@ export class AnalyzePage implements OnInit, OnDestroy {
   protected reset(): void {
     this.poll?.cancel();
     this.poll = null;
+    this.pendingSelection.set(null);
+    this.qualityIssues.set([]);
     this.row.set(null);
     this.patterns.set([]);
     this.analysisId.set(null);
