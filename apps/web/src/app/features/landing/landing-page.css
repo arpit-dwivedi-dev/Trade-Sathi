@@ -389,20 +389,13 @@
 
 /* Pinned to the page's top-right corner, outside the floating nav. */
 .ts-theme-toggle {
-  backdrop-filter: blur(24px) saturate(180%);
-  background: var(--glass-strong);
-  border-color: var(--nav-hair);
-  box-shadow: var(--nav-shadow);
+  border-color: transparent;
   height: 44px;
   position: fixed;
   right: 24px;
   top: 21px;
   width: 44px;
   z-index: 101;
-}
-
-.ts-theme-toggle:hover {
-  background: var(--glass-strong);
 }
 
 .ts-nav-cta {
