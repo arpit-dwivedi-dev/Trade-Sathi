@@ -16,6 +16,7 @@ import type { Instrument, MarketCode, MarketStatus } from '@tradesathi/shared';
 import { AppIcon } from '../../shared/icons/app-icon';
 import type { IconName } from '../../shared/icons/icon-paths';
 import { AccountPage } from '../account/account-page';
+import { AdminPage } from '../admin/admin-page';
 import { AnalyzePage } from '../analyze/analyze-page';
 import { BillingPage } from '../billing/billing-page';
 import { BillingService } from '../billing/billing.service';
@@ -30,6 +31,7 @@ import { NavRail } from '../../shared/nav-rail/nav-rail';
 import { parseTab, TAB_LABELS, type NavTab } from '../../shared/nav-rail/nav-tabs';
 import { SymbolSearch, type SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import type { OpenInstrumentRequest } from './open-instrument';
+import { PresenceService } from '../../core/presence.service';
 import { AuthService } from '../../core/auth.service';
 import { MarketStatusService } from '../../core/market-status.service';
 import { SupabaseClientService } from '../../core/supabase-client';
@@ -76,6 +78,7 @@ const TABBAR_ITEMS: readonly { tab: Tab; label: string; icon: IconName }[] = [
   selector: 'app-app-page',
   imports: [
     AccountPage,
+    AdminPage,
     AnalyzePage,
     BillingPage,
     FundamentalsPage,
@@ -101,6 +104,7 @@ export class AppPage implements OnInit {
   private readonly themeService = inject(ThemeService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly presence = inject(PresenceService);
 
   protected readonly user = this.auth.user;
   protected readonly tab = signal<Tab>('analyze-by-image');
@@ -184,6 +188,10 @@ export class AppPage implements OnInit {
   private readonly symbolSearch = viewChild(SymbolSearch);
 
   ngOnInit(): void {
+    // The shell is the signed-in app, so it owns the heartbeat's lifetime.
+    this.presence.start();
+    this.destroyRef.onDestroy(() => this.presence.stop());
+
     // Seeded before the tab subscription below, and from the same stores the
     // two screens restore themselves from.
     //

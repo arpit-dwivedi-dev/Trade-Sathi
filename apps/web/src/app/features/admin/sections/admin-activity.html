@@ -1,0 +1,106 @@
+@if (loading() && !data()) {
+  <div class="admin-state" role="status">
+    <p-progress-spinner [style]="{ width: '20px', height: '20px' }" strokeWidth="4" aria-hidden="true" />
+    <span class="meta">Loading activity…</span>
+  </div>
+} @else if (error()) {
+  <p-message severity="error" [text]="error()!" />
+} @else if (data(); as d) {
+  <div class="admin-kpis" [attr.aria-busy]="loading()">
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Analyses</span><span class="admin-kpi-icon"><app-icon name="monitoring" /></span></div>
+      <div class="admin-kpi-value tnum">{{ totalAnalyses().toLocaleString() }}</div>
+      <span class="admin-kpi-foot">{{ pct(totalFailed(), totalAnalyses()) }} failed</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Watched symbols</span><span class="admin-kpi-icon"><app-icon name="visibility" /></span></div>
+      <div class="admin-kpi-value tnum">{{ d.watchlist.items.toLocaleString() }}</div>
+      <span class="admin-kpi-foot">+{{ d.watchlist.itemsAdded }} added in period</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Watchlist users</span><span class="admin-kpi-icon" data-tone="up"><app-icon name="person" /></span></div>
+      <div class="admin-kpi-value tnum">{{ d.watchlist.users.toLocaleString() }}</div>
+      <span class="admin-kpi-foot">Have at least one symbol</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Briefings</span><span class="admin-kpi-icon" data-tone="warn"><app-icon name="newspaper" /></span></div>
+      <div class="admin-kpi-value tnum">{{ sum(d.briefings).toLocaleString() }}</div>
+      <span class="admin-kpi-foot">{{ pct(d.briefings['sent'] || 0, sum(d.briefings)) }} sent in full</span>
+    </div>
+  </div>
+
+  <div class="admin-grid admin-grid-wide">
+    <section class="admin-card">
+      <div class="admin-card-hd">
+        <div class="admin-card-hd-copy">
+          <h2 class="lbl-h">Analyses per day</h2>
+          <span class="meta dim">Succeeded vs failed, IST days</span>
+        </div>
+      </div>
+      <div class="admin-card-body">
+        @if (chart().labels.length) {
+          <app-admin-chart [labels]="chart().labels" [series]="chart().series" [height]="260" />
+        } @else {
+          <p class="meta dim admin-empty">No analyses in this period.</p>
+        }
+      </div>
+    </section>
+
+    <section class="admin-card">
+      <div class="admin-card-hd"><h2 class="lbl-h">Analysis types</h2></div>
+      <div class="admin-card-body">
+        <app-admin-donut [slices]="typeSlices()" centerLabel="Analyses" emptyText="No analyses in this period." />
+      </div>
+    </section>
+  </div>
+
+  <div class="admin-grid admin-grid-3">
+    <section class="admin-card">
+      <div class="admin-card-hd"><h2 class="lbl-h">Failure rate by type</h2></div>
+      <div class="admin-table">
+        <p-table [value]="d.bySource" size="small">
+          <ng-template #header><tr><th>Type</th><th>Runs</th><th>Failed</th></tr></ng-template>
+          <ng-template #body let-row>
+            <tr>
+              <td>{{ sourceLabel(row.key) }}</td>
+              <td class="tnum">{{ row.analyses }}</td>
+              <td>
+                <div class="admin-bar">
+                  <span class="meter" [style.color]="row.failed ? 'var(--down)' : 'var(--up)'">
+                    <i [style.width.%]="row.analyses ? (row.failed / row.analyses) * 100 : 0"></i>
+                  </span>
+                  <span class="tnum">{{ pct(row.failed, row.analyses) }}</span>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage><tr><td colspan="3" class="meta dim">No analyses in this period.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </section>
+
+    <section class="admin-card">
+      <div class="admin-card-hd">
+        <div class="admin-card-hd-copy">
+          <h2 class="lbl-h">Analyze Now runs</h2>
+          <span class="meta dim">Watchlist, user-triggered</span>
+        </div>
+      </div>
+      <div class="admin-card-body">
+        <app-admin-donut [slices]="runSlices()" centerLabel="Runs" emptyText="No runs in this period." />
+      </div>
+    </section>
+
+    <section class="admin-card">
+      <div class="admin-card-hd">
+        <div class="admin-card-hd-copy">
+          <h2 class="lbl-h">Daily briefings</h2>
+          <span class="meta dim">Scheduled digest emails</span>
+        </div>
+      </div>
+      <div class="admin-card-body">
+        <app-admin-donut [slices]="briefingSlices()" centerLabel="Briefings" emptyText="No briefings in this period." />
+      </div>
+    </section>
+  </div>
+}

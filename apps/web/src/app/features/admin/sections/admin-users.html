@@ -1,0 +1,173 @@
+<div class="admin-toolbar" role="search" aria-label="Find users">
+  <label class="admin-field admin-field-grow">
+    <span class="lbl">Search</span>
+    <span class="admin-search">
+      <app-icon name="search" />
+      <input pInputText type="search" pSize="small" placeholder="Email address" aria-label="Search users by email"
+             [ngModel]="search()" (ngModelChange)="onSearch($event)" />
+    </span>
+  </label>
+  <div class="admin-toolbar-end">
+    @if (data(); as d) {
+      <span class="admin-count tnum">{{ d.total.toLocaleString() }} {{ search().trim() ? 'matching' : 'users' }}</span>
+    }
+    @if (search()) {
+      <button type="button" class="admin-clear" (click)="onSearch('')">Clear</button>
+    }
+  </div>
+</div>
+
+@if (error()) {
+  <p-message severity="error" [text]="error()!" />
+}
+
+@if (loading() && !data()) {
+  <div class="admin-state" role="status">
+    <p-progress-spinner [style]="{ width: '20px', height: '20px' }" strokeWidth="4" aria-hidden="true" />
+    <span class="meta">Loading users…</span>
+  </div>
+} @else if (data(); as d) {
+  <section class="admin-card">
+  <div class="admin-table admin-table-wide">
+    <p-table [value]="d.rows" size="small" [loading]="loading()">
+      <ng-template #header>
+        <tr>
+          <th>Email</th>
+          <th>Signup</th>
+          <th>Location</th>
+          <th>Region</th>
+          <th>Credits</th>
+          <th>Total spent</th>
+          <th>Analyses</th>
+          <th>Last active</th>
+        </tr>
+      </ng-template>
+      <ng-template #body let-row>
+        <tr class="admin-row-link" tabindex="0" (click)="open(row)" (keydown.enter)="open(row)">
+          <td class="admin-wrap admin-user">{{ row.email }}</td>
+          <td class="tnum">{{ date(row.createdAt) }}</td>
+          <td class="admin-wrap" [title]="'First seen: ' + place(row.firstSeen)">{{ place(row.lastSeen) }}</td>
+          <td>{{ row.region ?? '—' }}</td>
+          <td class="tnum">{{ row.creditBalance }}</td>
+          <td class="tnum">
+            @for (entry of moneyEntries(row.spent); track entry.currency) {
+              <div>{{ entry.label }}</div>
+            } @empty { — }
+          </td>
+          <td class="tnum">{{ row.analyses }}</td>
+          <td class="tnum">{{ row.lastActiveAt ? dateTime(row.lastActiveAt) : 'Never' }}</td>
+        </tr>
+      </ng-template>
+      <ng-template #emptymessage>
+        <tr><td colspan="8" class="meta dim">No users found.</td></tr>
+      </ng-template>
+    </p-table>
+    @if (d.total > pageSize) {
+      <p-paginator [first]="first()" [rows]="pageSize" [totalRecords]="d.total" (onPageChange)="onPage($event)" />
+    }
+  </div>
+  </section>
+}
+
+<p-drawer [visible]="detailOpen()" (visibleChange)="detailOpen.set($event)" position="right"
+          header="User details" styleClass="admin-user-drawer">
+  @if (detailLoading()) {
+    <div class="admin-state" role="status">
+      <p-progress-spinner [style]="{ width: '20px', height: '20px' }" strokeWidth="4" aria-hidden="true" />
+      <span class="meta">Loading user…</span>
+    </div>
+  } @else if (detailError()) {
+    <p-message severity="error" [text]="detailError()!" />
+  } @else if (detail(); as u) {
+    <div class="admin-detail">
+      <div class="admin-detail-stats">
+        <div class="admin-kpi">
+          <span class="lbl">Credit balance</span>
+          <span class="admin-kpi-value tnum">{{ u.user.creditBalance }}</span>
+        </div>
+        <div class="admin-kpi">
+          <span class="lbl">Total spent</span>
+          <span class="admin-kpi-value tnum">
+            @for (entry of moneyEntries(u.user.spent); track entry.currency) {
+              {{ entry.label }}@if (!$last) { · }
+            } @empty { — }
+          </span>
+        </div>
+        <div class="admin-kpi">
+          <span class="lbl">Analyses</span>
+          <span class="admin-kpi-value tnum">{{ u.user.analyses }}</span>
+        </div>
+      </div>
+
+      <section class="admin-card">
+        <div class="admin-card-body admin-facts">
+          <div class="admin-fact"><span class="lbl">Email</span><span>{{ u.user.email }}</span></div>
+          <div class="admin-fact"><span class="lbl">Pricing region</span><span>{{ u.user.region ?? '—' }}</span></div>
+          <div class="admin-fact"><span class="lbl">Signup</span><span class="tnum">{{ dateTime(u.user.createdAt) }}</span></div>
+          <div class="admin-fact">
+            <span class="lbl">Last activity</span>
+            <span class="tnum">{{ u.user.lastActiveAt ? dateTime(u.user.lastActiveAt) : 'Never' }}</span>
+          </div>
+          <div class="admin-fact"><span class="lbl">Last seen from</span><span>{{ place(u.user.lastSeen) }}</span></div>
+          <div class="admin-fact"><span class="lbl">First seen from</span><span>{{ place(u.user.firstSeen) }}</span></div>
+        </div>
+      </section>
+
+      <p-tabs value="payments" scrollable>
+        <p-tablist>
+          <p-tab value="payments">Payments ({{ u.payments.length }})</p-tab>
+          <p-tab value="ledger">Credit ledger ({{ u.ledger.length }})</p-tab>
+          <p-tab value="analyses">Analyses ({{ u.user.analyses }})</p-tab>
+        </p-tablist>
+        <p-tabpanels>
+          <p-tabpanel value="payments">
+            <div class="admin-table"><p-table [value]="u.payments" size="small" [scrollable]="true">
+              <ng-template #header><tr><th>Amount</th><th>Status</th><th>Confirmed via</th><th>Date</th></tr></ng-template>
+              <ng-template #body let-p>
+                <tr>
+                  <td class="tnum">{{ money(p.amountMinor, p.currency) }}</td>
+                  <td><span [class]="stClass(p.status)">{{ humanize(p.status) }}</span></td>
+                  <td class="dim">{{ p.status !== 'captured' ? '—' : p.signatureVerified ? 'Webhook' : 'Razorpay API' }}</td>
+                  <td class="tnum">{{ dateTime(p.createdAt) }}</td>
+                </tr>
+              </ng-template>
+              <ng-template #emptymessage><tr><td colspan="4" class="meta dim">No payments.</td></tr></ng-template>
+            </p-table></div>
+          </p-tabpanel>
+          <p-tabpanel value="ledger">
+            <div class="admin-table"><p-table [value]="u.ledger" size="small" [scrollable]="true">
+              <ng-template #header><tr><th>Change</th><th>Reason</th><th>Balance</th><th>Date</th></tr></ng-template>
+              <ng-template #body let-l>
+                <tr>
+                  <td class="tnum" [class.admin-pos]="l.delta > 0" [class.admin-neg]="l.delta < 0">
+                    {{ l.delta > 0 ? '+' : '' }}{{ l.delta }}
+                  </td>
+                  <td class="admin-wrap">{{ humanize(l.reason) }}@if (l.featureKey) { · {{ humanize(l.featureKey) }} }</td>
+                  <td class="tnum">{{ l.balanceAfter }}</td>
+                  <td class="tnum">{{ dateTime(l.createdAt) }}</td>
+                </tr>
+              </ng-template>
+              <ng-template #emptymessage><tr><td colspan="4" class="meta dim">No credit movements.</td></tr></ng-template>
+            </p-table></div>
+          </p-tabpanel>
+          <p-tabpanel value="analyses">
+            <div class="admin-table"><p-table [value]="u.analyses" size="small" [scrollable]="true">
+              <ng-template #header><tr><th>Type</th><th>Model</th><th>AI cost</th><th>Status</th><th>Date</th></tr></ng-template>
+              <ng-template #body let-a>
+                <tr>
+                  <td>{{ sourceLabel(a.source) }}</td>
+                  <td class="admin-wrap">{{ a.modelId }}</td>
+                  <td class="tnum">{{ usd(a.costUsd, 4) }}</td>
+                  <td><span [class]="stClass(a.status)">{{ humanize(a.status) }}</span></td>
+                  <td class="tnum">{{ dateTime(a.createdAt) }}</td>
+                </tr>
+              </ng-template>
+              <ng-template #emptymessage><tr><td colspan="5" class="meta dim">No analyses.</td></tr></ng-template>
+            </p-table></div>
+          </p-tabpanel>
+        </p-tabpanels>
+      </p-tabs>
+      <p class="meta dim admin-note">Read-only. Lists show the most recent 100 entries.</p>
+    </div>
+  }
+</p-drawer>

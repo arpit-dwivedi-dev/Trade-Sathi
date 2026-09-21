@@ -3,14 +3,16 @@ import type { ProfileUpdatePayload } from "@tradesathi/shared";
 import { asyncRoute } from "../lib/async-route.js";
 import { logger } from "../lib/logger.js";
 import { requireAuth } from "../middleware/auth.js";
+import { isAdmin } from "../middleware/require-admin.js";
 import { getProfileDetails, updateProfileDetails } from "../services/profile.service.js";
 
 export const meRouter = Router();
 
 // Lets the frontend confirm a session is still valid, and echoes back the id
-// the API resolved it to.
+// the API resolved it to. isAdmin only decides whether the web app shows the
+// Admin tab; every /api/admin/* call is authorized again by requireAdmin.
 meRouter.get("/api/me", asyncRoute(requireAuth), (req, res) => {
-  res.json({ profileId: req.profileId, geo: req.geo ?? null });
+  res.json({ profileId: req.profileId, geo: req.geo ?? null, isAdmin: isAdmin(req.profileId) });
 });
 
 meRouter.get(

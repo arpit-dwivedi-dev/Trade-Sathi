@@ -2,6 +2,7 @@ import { Component, computed, inject, input, model, output } from '@angular/core
 import { ButtonModule } from 'primeng/button';
 import { Router, RouterLink } from '@angular/router';
 
+import { AdminAccessService } from '../../core/admin-access.service';
 import { AuthService } from '../../core/auth.service';
 import { BillingService } from '../../features/billing/billing.service';
 import { ProfileService } from '../../features/account/profile.service';
@@ -30,6 +31,10 @@ export class NavRail {
   private readonly billing = inject(BillingService);
   private readonly profiles = inject(ProfileService);
   private readonly themeService = inject(ThemeService);
+  private readonly adminAccess = inject(AdminAccessService);
+
+  /** Shows the Admin row. Display only — the admin API authorizes itself. */
+  protected readonly isAdmin = this.adminAccess.isAdmin;
 
   protected readonly theme = this.themeService.theme;
 
@@ -76,6 +81,8 @@ export class NavRail {
     // ensureCreditBalance is cached on the root service, so this shares
     // whatever the shell already fetched rather than adding a request.
     void this.billing.ensureCreditBalance();
+
+    void this.adminAccess.ensure();
   }
 
   protected toggleTheme(): void {

@@ -183,6 +183,16 @@
       <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading your account…</p>
     }
 
+    <!-- Admins only — adminGuard keeps everyone else off this tab, and the API
+         authorizes every request itself. Created on activation like Billing. -->
+    @defer (when tab() === 'admin') {
+      @if (tab() === 'admin') {
+        <app-admin-page class="tab-pane" />
+      }
+    } @loading (after 150ms; minimum 300ms) {
+      <p class="tab-loading"><p-progress-spinner [style]="{width:'16px',height:'16px'}" strokeWidth="4" aria-hidden="true" /> Loading admin…</p>
+    }
+
     <!-- Phones only (CSS shows it under 768px). The daily destinations get a
          slot each; everything else stays in the drawer, which More opens. -->
     <nav class="tabbar" aria-label="Primary">

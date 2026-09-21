@@ -1,0 +1,102 @@
+@if (error()) {
+  <p-message severity="error" [text]="error()!" />
+}
+
+@if (loading() && !data()) {
+  <div class="admin-state" role="status">
+    <p-progress-spinner [style]="{ width: '20px', height: '20px' }" strokeWidth="4" aria-hidden="true" />
+    <span class="meta">Checking platform health…</span>
+  </div>
+} @else if (data(); as d) {
+  <div class="admin-kpis admin-kpis-3" [attr.aria-busy]="loading()">
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Errors · last 24h</span><span class="admin-kpi-icon" data-tone="down"><app-icon name="close" /></span></div>
+      <div class="admin-kpi-value tnum" [class.admin-neg]="d.errorsLast24h > 0">{{ d.errorsLast24h }}</div>
+      <span class="admin-kpi-foot">{{ d.errors.total }} logged in all</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Failed analyses · 24h</span><span class="admin-kpi-icon" data-tone="down"><app-icon name="monitoring" /></span></div>
+      <div class="admin-kpi-value tnum" [class.admin-neg]="d.failedAnalyses24h > 0">{{ d.failedAnalyses24h }}</div>
+      <span class="admin-kpi-foot">{{ d.failedAnalyses.total }} all time</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Unfinished payments</span><span class="admin-kpi-icon" data-tone="warn"><app-icon name="sell" /></span></div>
+      <div class="admin-kpi-value tnum" [class.admin-neg]="d.stalePayments.length > 0">{{ d.stalePayments.length }}</div>
+      <span class="admin-kpi-foot">Still “created” after 30 min</span>
+    </div>
+  </div>
+
+  <section class="admin-card">
+    <div class="admin-card-hd"><h2 class="lbl-h">Recent application errors</h2></div>
+    <div class="admin-table admin-table-wide">
+      <p-table [value]="d.errors.rows" size="small" [loading]="loading()">
+        <ng-template #header>
+          <tr><th>Date</th><th>Type</th><th>Message</th><th>User</th><th>Detail</th></tr>
+        </ng-template>
+        <ng-template #body let-e>
+          <tr>
+            <td class="tnum">{{ dateTime(e.createdAt) }}</td>
+            <td><span class="st st-failed">{{ humanize(e.category) }}</span></td>
+            <td class="admin-wrap">{{ e.message }}</td>
+            <td class="admin-wrap">{{ e.email ?? '—' }}</td>
+            <td class="admin-mono admin-wrap">{{ detailText(e.detail) }}</td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage><tr><td colspan="5" class="meta dim">No errors logged.</td></tr></ng-template>
+      </p-table>
+      @if (d.errors.total > pageSize) {
+        <p-paginator [first]="first()" [rows]="pageSize" [totalRecords]="d.errors.total" (onPageChange)="onPage($event)" />
+      }
+    </div>
+  </section>
+
+  <section class="admin-card">
+    <div class="admin-card-hd"><h2 class="lbl-h">Recent failed analyses</h2></div>
+    <div class="admin-table admin-table-wide">
+      <p-table [value]="d.failedAnalyses.rows" size="small">
+        <ng-template #header>
+          <tr><th>Date</th><th>Type</th><th>Model</th><th>Error</th><th>User</th></tr>
+        </ng-template>
+        <ng-template #body let-a>
+          <tr>
+            <td class="tnum">{{ dateTime(a.createdAt) }}</td>
+            <td>{{ sourceLabel(a.source) }}</td>
+            <td class="admin-wrap">{{ a.modelId }}</td>
+            <td class="admin-wrap">
+              @if (a.errorCode) { <span class="admin-mono">{{ a.errorCode }}</span> }
+              {{ a.errorMessage ?? '' }}
+            </td>
+            <td class="admin-wrap">{{ a.email }}</td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage><tr><td colspan="5" class="meta dim">No failed analyses.</td></tr></ng-template>
+      </p-table>
+    </div>
+  </section>
+
+  <section class="admin-card">
+    <div class="admin-card-hd"><h2 class="lbl-h">Payment webhooks</h2></div>
+    <p class="admin-note admin-card-body">
+      Webhook events are not persisted (the webhook_events table was retired with credit billing), so
+      failures there only reach the server logs. The persisted signal is payments still “created”
+      30+ minutes after checkout opened: mostly abandoned checkouts, but a growing list with no
+      matching captures points at capture webhooks not landing.
+    </p>
+    <div class="admin-table admin-table-wide">
+      <p-table [value]="d.stalePayments" size="small">
+        <ng-template #header>
+          <tr><th>Opened</th><th>User</th><th>Amount</th><th>Status</th></tr>
+        </ng-template>
+        <ng-template #body let-p>
+          <tr>
+            <td class="tnum">{{ dateTime(p.createdAt) }}</td>
+            <td class="admin-wrap">{{ p.email ?? p.profileId }}</td>
+            <td class="tnum">{{ money(p.amountMinor, p.currency) }}</td>
+            <td><span [class]="stClass(p.status)">Not completed</span></td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage><tr><td colspan="4" class="meta dim">No unfinished payments.</td></tr></ng-template>
+      </p-table>
+    </div>
+  </section>
+}

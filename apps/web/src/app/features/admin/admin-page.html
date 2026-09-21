@@ -1,0 +1,41 @@
+<section class="body content-max admin">
+  <header class="admin-head">
+    <div class="admin-head-copy">
+      <div class="admin-title-row">
+        <h1 class="admin-title">Admin</h1>
+        <span class="admin-badge">Read-only</span>
+      </div>
+      <p class="admin-sub">{{ current().blurb }}</p>
+    </div>
+
+    @if (ranged()) {
+      <p-selectButton class="seg admin-range" aria-label="Date range"
+                      [options]="ranges" optionLabel="label" optionValue="value" [allowEmpty]="false"
+                      [ngModel]="range()" (onChange)="selectRange($event.value)" />
+    }
+  </header>
+
+  <nav class="admin-tabs" role="tablist" aria-label="Admin sections">
+    @for (s of sections; track s.id; let i = $index) {
+      <button type="button" role="tab" class="admin-tab" [attr.data-id]="s.id"
+              [attr.aria-selected]="s.id === section()" [attr.tabindex]="s.id === section() ? 0 : -1"
+              (click)="selectSection(s.id)" (keydown)="onTabKey($event, i)">
+        <app-icon [name]="s.icon" />
+        <span>{{ s.label }}</span>
+      </button>
+    }
+  </nav>
+
+  <!-- One section mounted at a time: a fresh mount per visit is the re-read,
+       the same rule the shell applies to History and Billing. -->
+  <div role="tabpanel" class="admin-panel" [attr.aria-label]="current().label">
+    @switch (section()) {
+      @case ('overview') { <app-admin-overview [range]="range()" /> }
+      @case ('economics') { <app-admin-economics [range]="range()" /> }
+      @case ('payments') { <app-admin-payments [range]="range()" /> }
+      @case ('users') { <app-admin-users /> }
+      @case ('activity') { <app-admin-activity [range]="range()" /> }
+      @case ('health') { <app-admin-health /> }
+    }
+  </div>
+</section>

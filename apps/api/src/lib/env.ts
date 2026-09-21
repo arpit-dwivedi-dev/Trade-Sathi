@@ -145,6 +145,25 @@ function parseAiProviders(): AiProviderConfig[] {
   });
 }
 
+/**
+ * Comma-separated list of ids, trimmed, blanks dropped. Unset or empty yields
+ * an empty set, which is the safe default for ADMIN_USER_IDS: no admins.
+ */
+function optionalPositiveNumberEnv(name: string): number | null {
+  const raw = process.env[name];
+  if (!raw) return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${name} must be a positive number, got "${raw}"`);
+  }
+  return value;
+}
+
+function idSetEnv(name: string): ReadonlySet<string> {
+  const raw = process.env[name] ?? "";
+  return new Set(raw.split(",").map((id) => id.trim()).filter((id) => id.length > 0));
+}
+
 export const env = {
   port: Number(process.env["PORT"] ?? 3000),
   supabaseUrl: requireEnv("SUPABASE_URL"),
@@ -201,6 +220,11 @@ export const env = {
   // the whole access control for that route — treat it like a password.
   internalOpsToken: requireEnv("INTERNAL_OPS_TOKEN"),
 
+  // Supabase Auth user ids (never emails) allowed into /api/admin/*. See
+  // middleware/require-admin.ts. Optional: unset means the admin panel is off
+  // for everyone.
+  adminUserIds: idSetEnv("ADMIN_USER_IDS"),
+
   // Hour of day, in IST, the daily briefing job runs at. Numeric env rather
   // than a hardcoded constant so the run time can be tuned without a deploy.
   // Defaults to 8 (08:00 IST) — no prior "existing configured morning time"
@@ -224,4 +248,7 @@ export const env = {
   // runs its deterministic checks, it just has no external evidence to record
   // against a flagged field and marks it unverifiable.
   searxngBaseUrl: process.env["SEARXNG_BASE_URL"] || null,
+  // Fallback USD→INR rate for the Admin panel's P&L conversion, used only when
+  // the live rate (services/fx.service.ts) cannot be fetched. Optional.
+  adminUsdInrRate: optionalPositiveNumberEnv("ADMIN_USD_INR_RATE"),
 };

@@ -1,0 +1,127 @@
+@if (error()) {
+  <p-message severity="error" [text]="error()!" />
+}
+
+@if (loading() && !data()) {
+  <div class="admin-state" role="status">
+    <p-progress-spinner [style]="{ width: '20px', height: '20px' }" strokeWidth="4" aria-hidden="true" />
+    <span class="meta">Loading payments…</span>
+  </div>
+} @else if (data(); as d) {
+  <div class="admin-kpis" [attr.aria-busy]="loading()">
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Captured revenue</span><span class="admin-kpi-icon" data-tone="up"><app-icon name="balance" /></span></div>
+      <div class="admin-kpi-lines">
+        @for (entry of moneyEntries(d.summary.revenue); track entry.currency) {
+          <span class="admin-kpi-value tnum" [class.admin-kpi-value-sm]="!$first">{{ entry.label }}</span>
+        } @empty {
+          <span class="admin-kpi-value tnum">—</span>
+        }
+      </div>
+      <span class="admin-kpi-foot">{{ d.summary.capturedCount }} captured</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Conversion</span><span class="admin-kpi-icon"><app-icon name="check" /></span></div>
+      <div class="admin-kpi-value tnum">{{ pct(d.summary.capturedCount, d.summary.totalCount) }}</div>
+      <span class="admin-kpi-foot">of {{ d.summary.totalCount }} checkouts opened</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Refunds</span><span class="admin-kpi-icon" data-tone="warn"><app-icon name="refresh" /></span></div>
+      <div class="admin-kpi-lines">
+        @for (entry of moneyEntries(d.summary.refunded); track entry.currency) {
+          <span class="admin-kpi-value tnum" [class.admin-kpi-value-sm]="!$first">{{ entry.label }}</span>
+        } @empty {
+          <span class="admin-kpi-value tnum">—</span>
+        }
+      </div>
+      <span class="admin-kpi-foot">{{ d.summary.refundedCount }} refunded</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Failed</span><span class="admin-kpi-icon" data-tone="down"><app-icon name="close" /></span></div>
+      <div class="admin-kpi-value tnum" [class.admin-neg]="d.summary.failedCount > 0">{{ d.summary.failedCount }}</div>
+      <span class="admin-kpi-foot">{{ d.summary.createdCount }} opened, not completed</span>
+    </div>
+  </div>
+
+  <div class="admin-grid admin-grid-wide">
+    <div class="admin-stack">
+      @for (chart of charts(); track chart.currency) {
+        <section class="admin-card">
+          <div class="admin-card-hd"><h2 class="lbl-h">Daily revenue · {{ chart.currency }}</h2></div>
+          <div class="admin-card-body">
+            <app-admin-chart [labels]="chart.labels" [series]="chart.series" [format]="chart.format" [height]="220" />
+          </div>
+        </section>
+      } @empty {
+        <section class="admin-card">
+          <div class="admin-card-hd"><h2 class="lbl-h">Daily revenue</h2></div>
+          <div class="admin-card-body"><p class="meta dim admin-empty">No captured payments in this period.</p></div>
+        </section>
+      }
+    </div>
+
+    <section class="admin-card">
+      <div class="admin-card-hd"><h2 class="lbl-h">Payment outcomes</h2></div>
+      <div class="admin-card-body">
+        <app-admin-donut [slices]="statusSlices()" centerLabel="Payments" emptyText="No payments in this period." />
+      </div>
+    </section>
+  </div>
+
+  <div class="admin-toolbar" role="search" aria-label="Filter payments">
+    <label class="admin-field">
+      <span class="lbl">Status</span>
+      <p-select [options]="statusOptions" optionLabel="label" optionValue="value" placeholder="All statuses"
+                [showClear]="true" size="small" ariaLabel="Status" appendTo="body"
+                [ngModel]="status()" (ngModelChange)="status.set($event ?? null)" />
+    </label>
+    <label class="admin-field">
+      <span class="lbl">Currency</span>
+      <p-select [options]="currencyOptions" optionLabel="label" optionValue="value" placeholder="All currencies"
+                [showClear]="true" size="small" ariaLabel="Currency" appendTo="body"
+                [ngModel]="currency()" (ngModelChange)="currency.set($event ?? null)" />
+    </label>
+    <div class="admin-toolbar-end">
+      <span class="admin-count tnum">{{ d.page.total.toLocaleString() }} payments</span>
+      @if (status() || currency()) {
+        <button type="button" class="admin-clear" (click)="status.set(null); currency.set(null)">Clear filters</button>
+      }
+    </div>
+  </div>
+
+  <section class="admin-card">
+    <div class="admin-card-hd"><h2 class="lbl-h">Payments</h2></div>
+    <div class="admin-table admin-table-wide">
+      <p-table [value]="d.page.rows" size="small" [loading]="loading()">
+        <ng-template #header>
+          <tr>
+            <th>User</th>
+            <th>Amount</th>
+            <th>Credits</th>
+            <th>Status</th>
+            <th>Confirmed via</th>
+            <th>Date</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-row>
+          <tr>
+            <td class="admin-wrap admin-user">{{ row.email ?? row.profileId }}</td>
+            <td class="tnum">{{ money(row.amountMinor, row.currency) }}</td>
+            <td class="tnum">{{ row.creditsPurchased }}</td>
+            <td><span [class]="stClass(row.status)">{{ statusLabel(row.status) }}</span></td>
+            <!-- signature_verified records how a capture was confirmed, not whether
+                 to trust it: webhook signature, or verify-order asking Razorpay. -->
+            <td class="dim">{{ row.status !== 'captured' ? '—' : row.signatureVerified ? 'Webhook' : 'Razorpay API' }}</td>
+            <td class="tnum">{{ dateTime(row.createdAt) }}</td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+          <tr><td colspan="6" class="meta dim">No payments match these filters.</td></tr>
+        </ng-template>
+      </p-table>
+      @if (d.page.total > pageSize) {
+        <p-paginator [first]="first()" [rows]="pageSize" [totalRecords]="d.page.total" (onPageChange)="onPage($event)" />
+      }
+    </div>
+  </section>
+}

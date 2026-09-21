@@ -2,6 +2,7 @@ import { isPlatformServer } from '@angular/common';
 import { PLATFORM_ID, inject } from '@angular/core';
 import { CanActivateFn, RedirectCommand, Router } from '@angular/router';
 
+import { AdminAccessService } from './admin-access.service';
 import { AuthService } from './auth.service';
 
 /**
@@ -98,4 +99,25 @@ export const pendingSignupGuard: CanActivateFn = async () => {
 
   // Replaces for the same reason as guestGuard above.
   return new RedirectCommand(router.createUrlTree(['/signup']), { replaceUrl: true });
+};
+
+/**
+ * Keeps non-admins off the shell's Admin tab. Runs after authGuard on the
+ * `app/:tab` route and only acts when that tab is `admin`.
+ *
+ * A convenience, not the security boundary: the admin API authorizes every
+ * request itself (requireAdmin in apps/api). Server-side it lets the route
+ * through for the same reason authGuard does — SSR cannot see the session.
+ */
+export const adminGuard: CanActivateFn = async (route) => {
+  if (route.paramMap.get('tab') !== 'admin') return true;
+  if (isPlatformServer(inject(PLATFORM_ID))) return true;
+
+  const access = inject(AdminAccessService);
+  const router = inject(Router);
+
+  await inject(AuthService).whenRestored();
+  if (await access.ensure()) return true;
+
+  return new RedirectCommand(router.createUrlTree(['/app']), { replaceUrl: true });
 };

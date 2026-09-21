@@ -1,0 +1,521 @@
+/* Shared by every Admin section. Cards are hand-rolled on the same surface,
+   hairline and radius as Billing's, rather than p-card, whose 20px body
+   padding doubles up with a card header's own inset. */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+/* ── KPI tiles ──────────────────────────────────────────── */
+.admin-kpis {
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-kpi {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  min-width: 0;
+  padding: var(--s4);
+}
+
+.admin-kpi-top {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+  justify-content: space-between;
+}
+
+/* The glyph chip: the tone says which family a figure belongs to (money,
+   usage, failure), and it is always beside the label that says it in words. */
+.admin-kpi-icon {
+  align-items: center;
+  background: var(--acc-soft);
+  border-radius: var(--r-sm);
+  color: var(--acc);
+  display: inline-flex;
+  flex: none;
+  font-size: 16px;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.admin-kpi-icon[data-tone='up'] {
+  background: color-mix(in srgb, var(--up) 12%, transparent);
+  color: var(--up);
+}
+
+.admin-kpi-icon[data-tone='down'] {
+  background: color-mix(in srgb, var(--down) 12%, transparent);
+  color: var(--down);
+}
+
+.admin-kpi-icon[data-tone='warn'] {
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  color: var(--warn);
+}
+
+.admin-kpi-value {
+  color: var(--tx);
+  font-size: var(--t-2xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.admin-kpi-value-sm {
+  font-size: var(--t-lg);
+}
+
+.admin-kpi-lines {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-kpi-foot {
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
+  line-height: 1.4;
+}
+
+/* ── cards ──────────────────────────────────────────────── */
+.admin-card {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.admin-card-hd {
+  align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+  justify-content: space-between;
+  min-height: 48px;
+  padding: var(--s2) var(--s4);
+}
+
+.admin-card-hd-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-card-hd .meta {
+  font-size: var(--t-2xs);
+}
+
+.admin-card-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4);
+}
+
+/* A card whose body is a table: the table meets the card edge. */
+.admin-card-flush {
+  padding: 0;
+}
+
+/* ── grids ──────────────────────────────────────────────── */
+.admin-grid {
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* 2:1 — a trend beside its breakdown. */
+.admin-grid-wide {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.admin-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.admin-span-all {
+  grid-column: 1 / -1;
+}
+
+/* ── filter toolbar ─────────────────────────────────────── */
+/* One row above the data it filters, each control labelled, with the result
+   count and a way back to "everything" at the end of the row. */
+.admin-toolbar {
+  align-items: flex-end;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+}
+
+.admin-field {
+  display: flex;
+  flex: 0 1 200px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.admin-field-grow {
+  flex: 1 1 280px;
+}
+
+.admin-field .lbl {
+  font-size: var(--t-3xs);
+}
+
+.admin-field ::ng-deep .p-select,
+.admin-field input {
+  width: 100%;
+}
+
+.admin-toolbar-end {
+  align-items: center;
+  display: flex;
+  gap: var(--s3);
+  margin-left: auto;
+  min-height: 32px;
+}
+
+.admin-count {
+  color: var(--tx-3);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+
+.admin-clear {
+  background: none;
+  border: 0;
+  color: var(--acc-tx);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-xs);
+  font-weight: 500;
+  padding: 4px 0;
+}
+
+.admin-clear:hover {
+  text-decoration: underline;
+}
+
+.admin-search {
+  position: relative;
+}
+
+.admin-search app-icon {
+  color: var(--tx-3);
+  font-size: 16px;
+  left: 10px;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.admin-search input {
+  padding-left: 32px;
+}
+
+/* ── tables ─────────────────────────────────────────────── */
+/* p-table scrolls sideways inside its own card on narrow screens rather than
+   pushing the page wider than the viewport. */
+.admin-table ::ng-deep .p-datatable-table-container {
+  overflow-x: auto;
+}
+
+.admin-table-wide ::ng-deep .p-datatable-table {
+  min-width: 760px;
+}
+
+.admin-table ::ng-deep .p-datatable-thead > tr > th {
+  background: var(--surf-2);
+  color: var(--tx-3);
+  font-size: var(--t-3xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-table ::ng-deep .p-datatable-tbody > tr > td {
+  font-size: var(--t-xs);
+}
+
+.admin-table ::ng-deep .p-datatable-tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+
+.admin-table ::ng-deep .p-paginator {
+  background: transparent;
+  border-top: 1px solid var(--line-soft);
+  border-radius: 0;
+}
+
+.admin-row-link {
+  cursor: pointer;
+}
+
+.admin-row-link:hover > td {
+  background: var(--surf-2);
+}
+
+.admin-mono {
+  font-family: var(--fm);
+  font-size: var(--t-2xs);
+}
+
+.admin-wrap {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.admin-user {
+  color: var(--tx);
+  font-weight: 500;
+}
+
+/* ── inline share bar (table cells) ─────────────────────── */
+.admin-bar {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+  min-width: 120px;
+}
+
+.admin-bar .meter {
+  color: var(--acc);
+  flex: 1 1 auto;
+}
+
+.admin-bar span {
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
+  min-width: 32px;
+  text-align: right;
+}
+
+/* ── states ─────────────────────────────────────────────── */
+.admin-state {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+  justify-content: center;
+  padding: var(--s8) var(--s4);
+}
+
+.admin-empty {
+  margin: 0;
+  padding: var(--s6) 0;
+  text-align: center;
+}
+
+.admin-note {
+  color: var(--tx-3);
+  font-size: var(--t-2xs);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.admin-pos {
+  color: var(--up);
+}
+
+.admin-neg {
+  color: var(--down);
+}
+
+/* ── user drawer ────────────────────────────────────────── */
+.admin-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.admin-detail-stats {
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-detail-stats .admin-kpi {
+  padding: var(--s3);
+}
+
+.admin-detail-stats .admin-kpi-value {
+  font-size: var(--t-lg);
+}
+
+.admin-detail .lvl {
+  border-bottom: 1px dashed var(--line-soft);
+  padding: var(--s2) 0;
+}
+
+.admin-detail .lvl:last-child {
+  border-bottom: 0;
+}
+
+/* Unscoped so it reaches wherever PrimeNG mounts the panel, and doubled up
+   with .p-drawer so it outranks the preset's `.p-drawer-right .p-drawer`
+   20rem width — a bare class lost to it, leaving a phone-width panel. */
+::ng-deep .p-drawer.admin-user-drawer {
+  max-width: 100vw;
+  width: min(1040px, 92vw);
+}
+
+/* Profile facts in two columns, label above value, so long values (a
+   city, state and country) wrap under their own label instead of squeezing
+   it into three lines. */
+.admin-facts {
+  display: grid;
+  gap: var(--s4) var(--s6);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-fact > span:last-child {
+  color: var(--tx);
+  font-size: var(--t-sm);
+  overflow-wrap: anywhere;
+}
+
+/* ── responsive ─────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .admin-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-grid-wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-grid,
+  .admin-grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-kpi {
+    padding: var(--s3);
+  }
+
+  .admin-kpi-value {
+    font-size: var(--t-xl);
+  }
+
+  .admin-kpi-icon {
+    height: 24px;
+    width: 24px;
+  }
+
+  .admin-field {
+    flex: 1 1 140px;
+  }
+
+  .admin-toolbar-end {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .admin-detail-stats,
+  .admin-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.admin-kpis-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .admin-kpis-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The P&L card's ₹/$ switch, sitting where the other cards carry a glyph. */
+.admin-kpi-toggle {
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  gap: 2px;
+  height: 28px;
+  padding: 2px;
+}
+
+.admin-kpi-toggle span {
+  align-items: center;
+  border-radius: var(--r-xs);
+  color: var(--tx-3);
+  display: inline-flex;
+  justify-content: center;
+  width: 22px;
+}
+
+.admin-kpi-toggle span.on {
+  background: var(--acc-soft);
+  color: var(--acc-tx);
+}
+
+.admin-kpi-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.admin-online {
+  background: var(--tx-3);
+  border-radius: 50%;
+  display: inline-block;
+  height: 7px;
+  margin-right: 5px;
+  vertical-align: 1px;
+  width: 7px;
+}
+
+.admin-online.on {
+  background: var(--up);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--up) 20%, transparent);
+}

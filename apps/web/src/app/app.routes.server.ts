@@ -20,6 +20,11 @@ export const serverRoutes: ServerRoute[] = [
   // that is exactly the right first paint: the exchange is the browser
   // Supabase client's job (detectSessionInUrl) and runs on hydration, so the
   // static shell is the same spinner the component would have drawn anyway.
+  // A redirect into /app/admin — nothing to prerender for an open-ended param.
+  {
+    path: 'admin/:section',
+    renderMode: RenderMode.Client,
+  },
   {
     path: 'auth/callback',
     renderMode: RenderMode.Prerender,

@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 import { supabaseAuth } from "../lib/supabase.js";
+import { touchLastActive } from "../services/last-active.service.js";
 import { ensurePricingRegion } from "../services/pricing-region.service.js";
 
 declare global {
@@ -80,6 +81,11 @@ export async function requireAuth(
   // means; scoping it to billing routes would leave prices unlocked until a
   // purchase was attempted.
   void ensurePricingRegion(profileId, req);
+
+  // Same fire-and-forget shape: the Admin panel's "active users" needs to see
+  // a signed-in user who is only browsing, not just one who ran something.
+  // resolveGeo runs app-wide before this, so req.geo carries their location.
+  void touchLastActive(profileId, req.geo);
 
   next();
 }

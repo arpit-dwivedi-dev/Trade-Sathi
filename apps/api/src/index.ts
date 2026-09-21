@@ -6,6 +6,7 @@ import { startDailyBriefingScheduler } from "./jobs/daily-briefing.job.js";
 import { startStrandedAnalysisSweeper } from "./jobs/stranded-analyses.job.js";
 import { startStrandedWatchlistRunSweeper } from "./jobs/stranded-watchlist-runs.job.js";
 import { startStrandedDailyBriefingSweeper } from "./jobs/stranded-daily-briefings.job.js";
+import { adminRouter } from "./routes/admin.route.js";
 import { analysesRouter } from "./routes/analyses.route.js";
 import { billingRouter } from "./routes/billing.route.js";
 import { healthRouter } from "./routes/health.route.js";
@@ -51,6 +52,7 @@ app.use(internalRouter);
 app.use(marketRouter);
 app.use(surveyRouter);
 app.use(dailyBriefingRouter);
+app.use(adminRouter);
 
 // An explicit http.Server rather than app.listen(): the live market stream
 // needs the underlying server to hook WebSocket upgrades onto.

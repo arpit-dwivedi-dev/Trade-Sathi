@@ -1,6 +1,6 @@
 import { CanActivateFn, Route, Routes } from '@angular/router';
 
-import { authGuard, guestGuard, pendingSignupGuard } from './core/auth.guard';
+import { adminGuard, authGuard, guestGuard, pendingSignupGuard } from './core/auth.guard';
 import { parseTab } from './shared/nav-rail/nav-tabs';
 import type { AuthMode } from './features/auth/auth-page';
 
@@ -57,7 +57,8 @@ export const routes: Routes = [
   // tab switch. One route per tab would tear them down and rebuild them.
   {
     path: 'app/:tab',
-    canActivate: [authGuard],
+    // adminGuard only acts on /app/admin; every other tab passes straight through.
+    canActivate: [authGuard, adminGuard],
     loadComponent: () => import('./features/app/app-page').then((m) => m.AppPage),
   },
   // Bare /app: the rail's brand link, the sign-in landing, and every URL
@@ -87,6 +88,19 @@ export const routes: Routes = [
   {
     path: 'workspace',
     redirectTo: '/app/symbol-search',
+  },
+  // The Admin panel is a shell tab like any other (so switching to it does not
+  // tear down an in-flight analysis on another tab); its section rides in the
+  // query string. These make /admin and /admin/<section> land there.
+  {
+    path: 'admin',
+    pathMatch: 'full',
+    redirectTo: '/app/admin',
+  },
+  {
+    path: 'admin/:section',
+    redirectTo: ({ params }) =>
+      `/app/admin?section=${encodeURIComponent(String(params['section'] ?? ''))}`,
   },
   // Catch-all. Without it the router matched nothing for an unknown URL — a
   // mistyped path, or a stale bookmark — and left the page blank with only a

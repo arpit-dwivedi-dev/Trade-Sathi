@@ -2,6 +2,9 @@
 // and promo redemption. See billing.ts.
 export * from './billing.js';
 
+// The Admin panel's read-only reporting contract. See admin.ts.
+export * from './admin.js';
+
 // The AI analysis contract: the shape apps/api validates the model's json into
 // and stores, and the shape apps/web renders back. See chart-analysis.ts.
 export * from './chart-analysis.js';

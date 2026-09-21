@@ -1,0 +1,176 @@
+@if (loading() && !data()) {
+  <div class="admin-state" role="status">
+    <p-progress-spinner [style]="{ width: '20px', height: '20px' }" strokeWidth="4" aria-hidden="true" />
+    <span class="meta">Loading overview…</span>
+  </div>
+} @else if (error()) {
+  <p-message severity="error" [text]="error()!" />
+} @else if (data(); as d) {
+  <div class="admin-kpis" [attr.aria-busy]="loading()">
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Total users</span><span class="admin-kpi-icon"><app-icon name="person" /></span></div>
+      <div class="admin-kpi-value tnum">{{ d.users.total.toLocaleString() }}</div>
+      <span class="admin-kpi-foot">+{{ d.users.new.toLocaleString() }} new in period</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Active users</span><span class="admin-kpi-icon" data-tone="up"><app-icon name="bolt" /></span></div>
+      <div class="admin-kpi-value tnum">{{ d.users.active.toLocaleString() }}</div>
+      <span class="admin-kpi-foot">
+        <span class="admin-online" [class.on]="d.users.online > 0"></span>{{ d.users.online }} online now · {{ pct(d.users.active, d.users.total) }} of all users
+      </span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Paying users</span><span class="admin-kpi-icon" data-tone="up"><app-icon name="sell" /></span></div>
+      <div class="admin-kpi-value tnum">{{ d.users.paying.toLocaleString() }}</div>
+      <span class="admin-kpi-foot">{{ pct(d.users.paying, d.users.active) }} of active users</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Revenue</span><span class="admin-kpi-icon" data-tone="up"><app-icon name="balance" /></span></div>
+      <div class="admin-kpi-lines">
+        @for (entry of moneyEntries(d.payments.revenue); track entry.currency) {
+          <span class="admin-kpi-value tnum" [class.admin-kpi-value-sm]="!$first">{{ entry.label }}</span>
+        } @empty {
+          <span class="admin-kpi-value tnum">—</span>
+        }
+      </div>
+      <span class="admin-kpi-foot">{{ d.payments.capturedCount }} captured payments</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Analyses</span><span class="admin-kpi-icon"><app-icon name="monitoring" /></span></div>
+      <div class="admin-kpi-value tnum">{{ d.economics.analyses.toLocaleString() }}</div>
+      <span class="admin-kpi-foot">{{ d.economics.credits.toLocaleString() }} credits consumed (est.)</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Failure rate</span><span class="admin-kpi-icon" data-tone="down"><app-icon name="close" /></span></div>
+      <div class="admin-kpi-value tnum" [class.admin-neg]="d.failedAnalyses > 0">{{ pct(d.failedAnalyses, d.economics.analyses) }}</div>
+      <span class="admin-kpi-foot">{{ d.failedAnalyses.toLocaleString() }} failed analyses</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">AI cost</span><span class="admin-kpi-icon" data-tone="warn"><app-icon name="psychology" /></span></div>
+      <div class="admin-kpi-value tnum">{{ usd(d.economics.aiCostUsd) }}</div>
+      <span class="admin-kpi-foot">{{ usd(d.economics.avgCostUsd, 4) }} per analysis</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top">
+        <span class="lbl">Est. P&amp;L</span>
+        <button type="button" class="admin-kpi-toggle" (click)="currency.toggle()"
+                [attr.aria-label]="'Show P&L in ' + (pnlCurrency() === 'INR' ? 'US dollars' : 'rupees')"
+                [title]="'Show in ' + (pnlCurrency() === 'INR' ? 'USD' : 'INR')">
+          <span [class.on]="pnlCurrency() === 'INR'">₹</span><span [class.on]="pnlCurrency() === 'USD'">$</span>
+        </button>
+      </div>
+      <div class="admin-kpi-value tnum" [class.admin-neg]="(pnl() ?? 0) < 0" [class.admin-pos]="(pnl() ?? 0) > 0">
+        {{ major(pnl(), pnlCurrency()) }}
+      </div>
+      <span class="admin-kpi-foot">{{ fxNote(d.fx) }}</span>
+    </div>
+  </div>
+
+  <div class="admin-grid admin-grid-wide">
+    <section class="admin-card">
+      <div class="admin-card-hd">
+        <div class="admin-card-hd-copy">
+          <h2 class="lbl-h">Analyses per day</h2>
+          <span class="meta dim">Succeeded vs failed, IST days</span>
+        </div>
+      </div>
+      <div class="admin-card-body">
+        @if (analysisChart().labels.length) {
+          <app-admin-chart [labels]="analysisChart().labels" [series]="analysisChart().analyses" [height]="260" />
+        } @else {
+          <p class="meta dim admin-empty">No analyses in this period.</p>
+        }
+      </div>
+    </section>
+
+    <section class="admin-card">
+      <div class="admin-card-hd">
+        <div class="admin-card-hd-copy">
+          <h2 class="lbl-h">Payment outcomes</h2>
+          <span class="meta dim">All checkouts opened in period</span>
+        </div>
+      </div>
+      <div class="admin-card-body">
+        <app-admin-donut [slices]="paymentSlices()" centerLabel="Payments" emptyText="No payments in this period." />
+      </div>
+    </section>
+  </div>
+
+  <div class="admin-grid admin-grid-3">
+    @for (chart of revenueCharts(); track chart.currency) {
+      <section class="admin-card">
+        <div class="admin-card-hd"><h2 class="lbl-h">Revenue · {{ chart.currency }}</h2></div>
+        <div class="admin-card-body">
+          <app-admin-chart type="line" [labels]="chart.labels" [series]="chart.series" [format]="chart.format" [height]="200" />
+        </div>
+      </section>
+    } @empty {
+      <section class="admin-card">
+        <div class="admin-card-hd"><h2 class="lbl-h">Revenue</h2></div>
+        <div class="admin-card-body"><p class="meta dim admin-empty">No captured payments in this period.</p></div>
+      </section>
+    }
+
+    <section class="admin-card">
+      <div class="admin-card-hd"><h2 class="lbl-h">AI cost per day</h2></div>
+      <div class="admin-card-body">
+        @if (analysisChart().labels.length) {
+          <app-admin-chart type="line" [labels]="analysisChart().labels" [series]="analysisChart().cost"
+                           [format]="usdFormat" [height]="200" />
+        } @else {
+          <p class="meta dim admin-empty">No analyses in this period.</p>
+        }
+      </div>
+    </section>
+
+    <section class="admin-card">
+      <div class="admin-card-hd">
+        <div class="admin-card-hd-copy">
+          <h2 class="lbl-h">User funnel</h2>
+          <span class="meta dim">All users, then this period</span>
+        </div>
+      </div>
+      <div class="admin-card-body">
+        <app-admin-chart type="hbar" [labels]="funnel().labels" [series]="funnel().series" [height]="200" />
+      </div>
+    </section>
+  </div>
+
+  <div class="admin-grid">
+    <section class="admin-card">
+      <div class="admin-card-hd">
+        <div class="admin-card-hd-copy">
+          <h2 class="lbl-h">Users by country</h2>
+          <span class="meta dim">Last seen, by IP · all users</span>
+        </div>
+      </div>
+      <div class="admin-card-body">
+        <app-admin-donut [slices]="countrySlices()" centerLabel="Located" emptyText="No locations recorded yet." />
+      </div>
+    </section>
+
+    <section class="admin-card">
+      <div class="admin-card-hd">
+        <div class="admin-card-hd-copy">
+          <h2 class="lbl-h">Top cities</h2>
+          <span class="meta dim">Last seen, by IP · all users</span>
+        </div>
+      </div>
+      <div class="admin-card-body">
+        @if (cityChart().labels.length) {
+          <app-admin-chart type="hbar" [labels]="cityChart().labels" [series]="cityChart().series" [height]="cityChart().height" />
+        } @else {
+          <p class="meta dim admin-empty">No locations recorded yet.</p>
+        }
+      </div>
+    </section>
+  </div>
+
+  <p class="admin-note">
+    Locations come from the IP address: city-level at best, and a VPN or mobile carrier can place a
+    user somewhere else. Active = used the app in the period (signed in and browsing, ran an analysis, used Analyze Now, opened a
+    checkout or added to a watchlist); scheduled daily briefings don't count. Online now = a tab open in the last 3 minutes. Estimated P&amp;L is usage-based, not accounting
+    profit: credits consumed × regional price per credit, minus AI cost (recorded in USD), converted
+    at the rate shown on the card.
+  </p>
+}

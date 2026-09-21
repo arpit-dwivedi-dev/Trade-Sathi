@@ -1,0 +1,189 @@
+@if (error()) {
+  <p-message severity="error" [text]="error()!" />
+}
+
+@if (loading() && !data()) {
+  <div class="admin-state" role="status">
+    <p-progress-spinner [style]="{ width: '20px', height: '20px' }" strokeWidth="4" aria-hidden="true" />
+    <span class="meta">Loading economics…</span>
+  </div>
+} @else if (data(); as d) {
+  <div class="admin-toolbar" role="search" aria-label="Filter analyses">
+    <label class="admin-field">
+      <span class="lbl">Analysis type</span>
+      <p-select [options]="options(d.filters.sources, sourceLabel)" optionLabel="label" optionValue="value"
+                placeholder="All types" [showClear]="true" size="small" appendTo="body"
+                [ngModel]="source()" (ngModelChange)="source.set($event ?? null)" ariaLabel="Analysis type" />
+    </label>
+    <label class="admin-field">
+      <span class="lbl">Model</span>
+      <p-select [options]="options(d.filters.models)" optionLabel="label" optionValue="value"
+                placeholder="All models" [showClear]="true" size="small" appendTo="body"
+                [ngModel]="model()" (ngModelChange)="model.set($event ?? null)" ariaLabel="Model" />
+    </label>
+    <label class="admin-field">
+      <span class="lbl">Status</span>
+      <p-select [options]="options(d.filters.statuses, humanize)" optionLabel="label" optionValue="value"
+                placeholder="All statuses" [showClear]="true" size="small" appendTo="body"
+                [ngModel]="status()" (ngModelChange)="status.set($event ?? null)" ariaLabel="Status" />
+    </label>
+    <div class="admin-toolbar-end">
+      <span class="admin-count tnum">{{ d.page.total.toLocaleString() }} analyses</span>
+      @if (filtered()) {
+        <button type="button" class="admin-clear" (click)="clearFilters()">Clear filters</button>
+      }
+    </div>
+  </div>
+
+  <div class="admin-kpis" [attr.aria-busy]="loading()">
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Est. revenue</span><span class="admin-kpi-icon" data-tone="up"><app-icon name="balance" /></span></div>
+      <div class="admin-kpi-lines">
+        @for (entry of moneyEntries(d.totals.revenue); track entry.currency) {
+          <span class="admin-kpi-value tnum" [class.admin-kpi-value-sm]="!$first">{{ entry.label }}</span>
+        } @empty {
+          <span class="admin-kpi-value tnum">—</span>
+        }
+      </div>
+      <span class="admin-kpi-foot">{{ d.totals.credits.toLocaleString() }} credits consumed</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">AI cost</span><span class="admin-kpi-icon" data-tone="warn"><app-icon name="psychology" /></span></div>
+      <div class="admin-kpi-value tnum">{{ usd(d.totals.aiCostUsd) }}</div>
+      <span class="admin-kpi-foot">{{ usd(d.totals.avgCostUsd, 4) }} per analysis</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top">
+        <span class="lbl">Est. P&amp;L</span>
+        <button type="button" class="admin-kpi-toggle" (click)="currency.toggle()"
+                [attr.aria-label]="'Show P&L in ' + (pnlCurrency() === 'INR' ? 'US dollars' : 'rupees')"
+                [title]="'Show in ' + (pnlCurrency() === 'INR' ? 'USD' : 'INR')">
+          <span [class.on]="pnlCurrency() === 'INR'">₹</span><span [class.on]="pnlCurrency() === 'USD'">$</span>
+        </button>
+      </div>
+      <div class="admin-kpi-value tnum" [class.admin-neg]="(pnl() ?? 0) < 0" [class.admin-pos]="(pnl() ?? 0) > 0">
+        {{ major(pnl(), pnlCurrency()) }}
+      </div>
+      <span class="admin-kpi-foot">{{ fxNote(d.fx) }}</span>
+    </div>
+    <div class="admin-kpi">
+      <div class="admin-kpi-top"><span class="lbl">Avg revenue / analysis</span><span class="admin-kpi-icon"><app-icon name="monitoring" /></span></div>
+      <div class="admin-kpi-lines">
+        @for (entry of moneyEntries(d.totals.avgRevenue); track entry.currency) {
+          <span class="admin-kpi-value tnum" [class.admin-kpi-value-sm]="!$first">{{ entry.label }}</span>
+        } @empty {
+          <span class="admin-kpi-value tnum">—</span>
+        }
+      </div>
+      <span class="admin-kpi-foot">{{ d.totals.analyses.toLocaleString() }} analyses</span>
+    </div>
+  </div>
+
+  <div class="admin-grid">
+    <section class="admin-card">
+      <div class="admin-card-hd"><h2 class="lbl-h">Analyses by type</h2></div>
+      <div class="admin-card-body">
+        <app-admin-donut [slices]="typeSlices()" centerLabel="Analyses" emptyText="No analyses match." />
+      </div>
+    </section>
+    <section class="admin-card">
+      <div class="admin-card-hd">
+        <div class="admin-card-hd-copy">
+          <h2 class="lbl-h">AI cost by model</h2>
+          <span class="meta dim">USD</span>
+        </div>
+      </div>
+      <div class="admin-card-body">
+        @if (d.byModel.length) {
+          <app-admin-chart type="hbar" [labels]="modelChart().labels" [series]="modelChart().series"
+                           [format]="usdFormat" [height]="modelChart().height" />
+        } @else {
+          <p class="meta dim admin-empty">No analyses match.</p>
+        }
+      </div>
+    </section>
+  </div>
+
+  <div class="admin-grid">
+    @for (group of [{ title: 'By analysis type', rows: d.bySource, source: true }, { title: 'By model', rows: d.byModel, source: false }]; track group.title) {
+      <section class="admin-card">
+        <div class="admin-card-hd"><h2 class="lbl-h">{{ group.title }}</h2></div>
+        <div class="admin-table">
+          <p-table [value]="group.rows" size="small">
+            <ng-template #header>
+              <tr><th>{{ group.source ? 'Type' : 'Model' }}</th><th>Analyses</th><th>Est. revenue</th><th>AI cost</th></tr>
+            </ng-template>
+            <ng-template #body let-row>
+              <tr>
+                <td class="admin-wrap">{{ group.source ? sourceLabel(row.key) : row.key }}</td>
+                <td class="tnum">{{ row.analyses.toLocaleString() }}</td>
+                <td class="tnum">
+                  @for (entry of moneyEntries(row.revenue); track entry.currency) {
+                    <div>{{ entry.label }}</div>
+                  } @empty { — }
+                </td>
+                <td class="tnum">{{ usd(row.aiCostUsd) }}</td>
+              </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+              <tr><td colspan="4" class="meta dim">No analyses.</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </section>
+    }
+  </div>
+
+  <section class="admin-card" [attr.aria-busy]="loading()">
+    <div class="admin-card-hd">
+      <div class="admin-card-hd-copy">
+        <h2 class="lbl-h">Analyses</h2>
+        <span class="meta dim">Newest first</span>
+      </div>
+    </div>
+    <div class="admin-table admin-table-wide">
+      <p-table [value]="d.page.rows" size="small" [loading]="loading()">
+        <ng-template #header>
+          <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>Type</th>
+            <th>Model</th>
+            <th>Credits</th>
+            <th>Est. revenue</th>
+            <th>AI cost</th>
+            <th>Est. P&amp;L ({{ pnlCurrency() === 'INR' ? '₹' : '$' }})</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-row>
+          <tr>
+            <td class="admin-mono" [title]="row.id">{{ row.id.slice(0, 8) }}</td>
+            <td class="admin-wrap admin-user">{{ row.email }}</td>
+            <td>{{ sourceLabel(row.source) }}</td>
+            <td class="admin-wrap">{{ row.modelId }}</td>
+            <td class="tnum">{{ row.credits }}</td>
+            <td class="tnum">{{ row.currency ? money(row.revenueMinor, row.currency) : '—' }}</td>
+            <td class="tnum">{{ usd(row.costUsd, 4) }}</td>
+            <td class="tnum" [class.admin-neg]="(rowPnl(row, d.fx.usdInr) ?? 0) < 0">{{ major(rowPnl(row, d.fx.usdInr), pnlCurrency()) }}</td>
+            <td><span [class]="stClass(row.status)">{{ humanize(row.status) }}</span></td>
+            <td class="tnum">{{ dateTime(row.createdAt) }}</td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+          <tr><td colspan="10" class="meta dim">No analyses match these filters.</td></tr>
+        </ng-template>
+      </p-table>
+      @if (d.page.total > pageSize) {
+        <p-paginator [first]="first()" [rows]="pageSize" [totalRecords]="d.page.total" (onPageChange)="onPage($event)" />
+      }
+    </div>
+  </section>
+
+  <p class="admin-note">
+    Estimates: credits are the analysis's ledger movement where one is linked, otherwise the feature's
+    current credit cost (0 for failed, refunded runs); revenue is credits × the account's regional
+    price per credit. Not accounting figures.
+  </p>
+}

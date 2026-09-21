@@ -24,7 +24,8 @@ export type NavTab =
   | 'history'
   | 'activity-logs'
   | 'billing'
-  | 'account-settings';
+  | 'account-settings'
+  | 'admin';
 
 /** Every destination, in the order the modals and the prerenderer enumerate them. */
 export const TABS: readonly NavTab[] = [
@@ -36,6 +37,7 @@ export const TABS: readonly NavTab[] = [
   'activity-logs',
   'billing',
   'account-settings',
+  'admin',
 ];
 
 /**
@@ -53,6 +55,7 @@ export const TAB_LABELS: Readonly<Record<NavTab, string>> = {
   'activity-logs': 'Activity Logs',
   billing: 'Billing',
   'account-settings': 'Account Settings',
+  admin: 'Admin',
 };
 
 /**

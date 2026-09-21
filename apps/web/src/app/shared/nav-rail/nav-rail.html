@@ -96,6 +96,17 @@
     <app-icon aria-hidden="true" name="person" />
     <span class="nav-item-lbl">{{ labels['account-settings'] }}</span>
   </button>
+
+  @if (isAdmin()) {
+    <span class="nav-lbl">Admin</span>
+
+    <button type="button" class="nav-item" [title]="labels['admin']"
+            (click)="select('admin')"
+            [attr.aria-current]="active() === 'admin' ? 'page' : null">
+      <app-icon aria-hidden="true" name="monitoring" />
+      <span class="nav-item-lbl">{{ labels['admin'] }}</span>
+    </button>
+  }
 </div>
 
 <div class="nav-foot">
