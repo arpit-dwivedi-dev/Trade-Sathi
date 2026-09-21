@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import compression from "compression";
 import express from "express";
 import { env } from "./lib/env.js";
 import { logger } from "./lib/logger.js";
@@ -37,6 +38,10 @@ app.set("trust proxy", env.trustProxyHops);
 // express.raw() scoped to its own path; express.json() must never have parsed
 // that path first. Every route below still gets normal JSON parsing.
 app.use(webhooksRouter);
+
+// gzip/brotli JSON responses over 1 KB to cut egress bytes. Placed after the
+// webhook router so the raw-body signature check is untouched.
+app.use(compression({ threshold: 1024 }));
 
 app.use(express.json());
 app.use((req, res, next) => {
