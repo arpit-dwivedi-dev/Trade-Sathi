@@ -14,7 +14,8 @@
     "test": "pnpm -r --if-present test",
     "lint": "eslint .",
     "gen:disposable-domains": "node scripts/generate-disposable-domains-migration.mjs",
-    "import:instruments": "tsx scripts/import-instruments.ts"
+    "import:instruments": "tsx scripts/import-instruments.ts",
+    "deploy:all": "bash scripts/deploy.sh"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.112.4",

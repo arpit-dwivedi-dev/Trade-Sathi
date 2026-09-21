@@ -1,0 +1,14 @@
+.env
+.env.*
+**/.env
+**/.env.*
+node_modules
+**/node_modules
+**/dist
+.angular
+**/.angular
+apps/api
+supabase
+design
+apps/web/e2e
+apps/web/test-results
