@@ -282,6 +282,51 @@
   position: relative;
 }
 
+/* Sits beside the Indicators trigger and copies its look, so the two read
+   as one pair of chart controls. */
+.ws-download-btn {
+  align-items: center;
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--tx-2);
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+  font-family: inherit;
+  font-size: var(--t-xs);
+  font-weight: 500;
+  gap: var(--s2);
+  height: 34px;
+  padding-inline: var(--s3);
+  transition:
+    background var(--dur-subtle) var(--ease-move),
+    border-color var(--dur-subtle) var(--ease-move),
+    color var(--dur-subtle) var(--ease-move);
+}
+
+.ws-download-btn:hover:not(:disabled) {
+  background: var(--surf-3);
+  border-color: var(--line-strong);
+  color: var(--tx);
+}
+
+.ws-download-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.ws-download-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.ws-download-icon {
+  font-size: 18px;
+  height: 18px;
+  width: 18px;
+}
+
 /* Floats over the chart's top edge, centred so it clears the indicator
    legend the chart draws top-left. */
 .ws-session-note {
@@ -669,6 +714,10 @@
 @media (max-width: 640px) {
   .workspace {
     padding: 0;
+  }
+
+  .ws-download-btn {
+    display: none;
   }
 
   .ws-shell,

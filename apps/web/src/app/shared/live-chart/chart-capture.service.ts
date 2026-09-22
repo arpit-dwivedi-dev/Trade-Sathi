@@ -79,7 +79,7 @@ export class ChartCaptureService {
         const chartImage = await loadImage(
           target.chart.getConvertPictureUrl(true, 'png', palette.canvas),
         );
-        return await this.compose(chartImage, meta, palette);
+        return await captionChart(chartImage, meta, palette, CHART_WIDTH);
       } finally {
         disposeCandleChart(target);
       }
@@ -90,53 +90,55 @@ export class ChartCaptureService {
       container.remove();
     }
   }
+}
 
-  /**
-   * Stacks the caption above the chart screenshot. Without it the image
-   * carries no ticker, and the prompt asks the model to read the symbol as
-   * printed rather than infer it — an untitled chart comes back with a null
-   * symbol.
-   */
-  private async compose(
-    screenshot: HTMLImageElement,
-    meta: CaptureMeta,
-    palette: ChartPalette,
-  ): Promise<Blob | null> {
-    // The export renders at the device pixel ratio, so the caption is scaled
-    // to match rather than assuming CSS pixels.
-    const scale = screenshot.naturalWidth / CHART_WIDTH || 1;
-    const header = Math.round(HEADER_HEIGHT * scale);
+/**
+ * Stacks the caption above the chart screenshot. Without it the image
+ * carries no ticker, and the prompt asks the model to read the symbol as
+ * printed rather than infer it — an untitled chart comes back with a null
+ * symbol.
+ */
+export async function captionChart(
+  screenshot: HTMLImageElement,
+  meta: CaptureMeta,
+  palette: ChartPalette,
+  /** The chart's width in CSS pixels, to size the caption against the export's resolution. */
+  cssWidth: number,
+): Promise<Blob | null> {
+  // The export renders at the device pixel ratio, so the caption is scaled
+  // to match rather than assuming CSS pixels.
+  const scale = screenshot.naturalWidth / cssWidth || 1;
+  const header = Math.round(HEADER_HEIGHT * scale);
 
-    const canvas = document.createElement('canvas');
-    canvas.width = screenshot.naturalWidth;
-    canvas.height = screenshot.naturalHeight + header;
+  const canvas = document.createElement('canvas');
+  canvas.width = screenshot.naturalWidth;
+  canvas.height = screenshot.naturalHeight + header;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
 
-    ctx.fillStyle = palette.canvas;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = palette.canvas;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const pad = Math.round(16 * scale);
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = palette.textStrong;
-    ctx.font = `600 ${Math.round(22 * scale)}px ${FONT_UI}`;
-    ctx.textAlign = 'left';
-    ctx.fillText(`${meta.symbol} · ${meta.name} · ${meta.exchange}`, pad, header / 2);
+  const pad = Math.round(16 * scale);
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = palette.textStrong;
+  ctx.font = `600 ${Math.round(22 * scale)}px ${FONT_UI}`;
+  ctx.textAlign = 'left';
+  ctx.fillText(`${meta.symbol} · ${meta.name} · ${meta.exchange}`, pad, header / 2);
 
-    if (meta.timeframeLabel) {
-      ctx.fillStyle = palette.text;
-      ctx.font = `${Math.round(16 * scale)}px ${FONT_UI}`;
-      ctx.textAlign = 'right';
-      ctx.fillText(meta.timeframeLabel, canvas.width - pad, header / 2);
-    }
-
-    ctx.drawImage(screenshot, 0, header);
-
-    return new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((blob) => resolve(blob), 'image/png');
-    });
+  if (meta.timeframeLabel) {
+    ctx.fillStyle = palette.text;
+    ctx.font = `${Math.round(16 * scale)}px ${FONT_UI}`;
+    ctx.textAlign = 'right';
+    ctx.fillText(meta.timeframeLabel, canvas.width - pad, header / 2);
   }
+
+  ctx.drawImage(screenshot, 0, header);
+
+  return new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), 'image/png');
+  });
 }
 
 /**
@@ -152,7 +154,7 @@ export class ChartCaptureService {
  */
 const FRAME_TIMEOUT_MS = 1_000;
 
-function nextFrame(): Promise<void> {
+export function nextFrame(): Promise<void> {
   return new Promise((resolve) => {
     let settled = false;
     const done = (): void => {
@@ -172,7 +174,7 @@ function nextFrame(): Promise<void> {
  * data URL is same-origin and already in memory, so this only ever waits on
  * the decode.
  */
-function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+export function loadImage(dataUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);

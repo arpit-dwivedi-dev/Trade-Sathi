@@ -30,6 +30,13 @@ import {
   type LiveCandle,
 } from '../../../shared/live-chart/chart-render';
 import {
+  captionChart,
+  loadImage,
+  nextFrame,
+  type CaptureMeta,
+} from '../../../shared/live-chart/chart-capture.service';
+import { withPixelRatio } from '../../../shared/live-chart/pixel-ratio';
+import {
   newDrawingId,
   type AnchorPoint,
   type Drawing,
@@ -42,6 +49,8 @@ const REF_LINE_COLOR = 'rgba(148, 163, 184, 0.6)';
 /** RSI's overbought/oversold guides — drawn as locked overlays on its own pane. */
 const RSI_REF_LEVELS = [70, 30];
 const SUB_PANE_HEIGHT = 100;
+/** Pixels per CSS pixel in a downloaded chart — sharp enough to print or zoom into. */
+const EXPORT_PIXEL_RATIO = 3;
 
 function indicatorId(kind: IndicatorKind): string {
   return `ws_ind_${kind}`;
@@ -174,6 +183,63 @@ export class WorkspaceChart implements OnDestroy {
     this.activeIndicatorKinds.clear();
   }
 
+  /**
+   * The chart as the user sees it — same size, zoom, scroll position,
+   * indicators, drawings and analysis levels — as a PNG at
+   * EXPORT_PIXEL_RATIO, captioned with `meta`.
+   *
+   * The on-screen chart can only export at the screen's own density, so a
+   * throwaway copy is built off-screen at the higher one and exported
+   * instead. Returns null if there is no chart yet or the export fails.
+   */
+  async exportImage(meta: CaptureMeta): Promise<Blob | null> {
+    const live = this.target;
+    if (!this.isBrowser || !live) return null;
+
+    const element = this.host().nativeElement;
+    const width = element.clientWidth;
+    const height = element.clientHeight;
+    const palette = this.palette();
+
+    const container = document.createElement('div');
+    // Off-screen rather than hidden: the library measures its container.
+    container.style.cssText = `position:fixed;left:-10000px;top:0;width:${width}px;height:${height}px;`;
+    document.body.appendChild(container);
+
+    try {
+      return await withPixelRatio(EXPORT_PIXEL_RATIO, async () => {
+        const copy = await createCandleChart(container, palette, this.candles(), this.chartStyle());
+        try {
+          applyCandles(copy, this.candles());
+          for (const kind of this.activeIndicatorKinds) createIndicator(copy, kind);
+          drawLevelOverlays(copy, this.overlays(), palette);
+          for (const drawing of this.drawings()) {
+            copy.chart.createOverlay({ name: drawing.kind, points: drawing.points, lock: true });
+          }
+          await nextFrame();
+
+          // A fresh chart opens at the latest candle; match the user's zoom
+          // and then scroll back to whatever candle is at their right edge.
+          copy.chart.setBarSpace(live.chart.getBarSpace().bar);
+          const lastVisible = Math.max(0, Math.round(live.chart.getVisibleRange().realTo) - 1);
+          copy.chart.scrollToDataIndex(lastVisible);
+          await nextFrame();
+          await nextFrame();
+
+          const image = await loadImage(copy.chart.getConvertPictureUrl(true, 'png', palette.canvas));
+          return await captionChart(image, meta, palette, width);
+        } finally {
+          disposeCandleChart(copy);
+        }
+      });
+    } catch (cause) {
+      console.warn('chart export failed', cause);
+      return null;
+    } finally {
+      container.remove();
+    }
+  }
+
   private palette(): ChartPalette {
     return readPalette(this.host().nativeElement);
   }
@@ -215,38 +281,11 @@ export class WorkspaceChart implements OnDestroy {
       if (wants === has) continue;
 
       if (wants) {
-        this.createIndicator(target, kind);
+        createIndicator(target, kind);
         this.activeIndicatorKinds.add(kind);
       } else {
         this.removeIndicator(target, kind);
         this.activeIndicatorKinds.delete(kind);
-      }
-    }
-  }
-
-  private createIndicator(target: CandleChart, kind: IndicatorKind): void {
-    const paneId = indicatorPaneId(kind);
-
-    // No calcParams: the library's defaults are the conventional periods, and
-    // each indicator prints the ones it used in its own on-chart legend.
-    // Always stacked, because the candle pane already holds the volume
-    // indicator and an unstacked create would replace it.
-    target.chart.createIndicator({ id: indicatorId(kind), name: kind, paneId } satisfies IndicatorCreate, true);
-
-    if (indicatorPane(kind) === 'sub') {
-      target.chart.setPaneOptions({ id: paneId, height: SUB_PANE_HEIGHT });
-    }
-
-    if (kind === 'RSI') {
-      for (const level of RSI_REF_LEVELS) {
-        target.chart.createOverlay({
-          id: rsiRefId(level),
-          name: 'horizontalStraightLine',
-          paneId,
-          points: [{ value: level }],
-          lock: true,
-          styles: { line: { color: REF_LINE_COLOR, size: 1, style: 'dashed' } },
-        });
       }
     }
   }
@@ -358,6 +397,33 @@ export class WorkspaceChart implements OnDestroy {
       ? current.map((existing) => (existing.id === drawing.id ? drawing : existing))
       : [...current, drawing];
     this.drawingsChange.emit(next);
+  }
+}
+
+function createIndicator(target: CandleChart, kind: IndicatorKind): void {
+  const paneId = indicatorPaneId(kind);
+
+  // No calcParams: the library's defaults are the conventional periods, and
+  // each indicator prints the ones it used in its own on-chart legend.
+  // Always stacked, because the candle pane already holds the volume
+  // indicator and an unstacked create would replace it.
+  target.chart.createIndicator({ id: indicatorId(kind), name: kind, paneId } satisfies IndicatorCreate, true);
+
+  if (indicatorPane(kind) === 'sub') {
+    target.chart.setPaneOptions({ id: paneId, height: SUB_PANE_HEIGHT });
+  }
+
+  if (kind === 'RSI') {
+    for (const level of RSI_REF_LEVELS) {
+      target.chart.createOverlay({
+        id: rsiRefId(level),
+        name: 'horizontalStraightLine',
+        paneId,
+        points: [{ value: level }],
+        lock: true,
+        styles: { line: { color: REF_LINE_COLOR, size: 1, style: 'dashed' } },
+      });
+    }
   }
 }
 

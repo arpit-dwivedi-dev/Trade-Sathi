@@ -193,6 +193,8 @@ export class WorkspacePage implements OnInit, OnDestroy {
   protected readonly drawingsPanelOpen = signal(true);
 
   private readonly toolPopover = viewChild<Popover>('toolPopover');
+  private readonly chartView = viewChild(WorkspaceChart);
+  protected readonly downloading = signal(false);
   /** Which tool-rail group's flyout is open — read by the one shared popover template. */
   protected readonly openToolGroup = signal<ToolGroup | null>(null);
 
@@ -713,6 +715,34 @@ export class WorkspacePage implements OnInit, OnDestroy {
 
   protected dismissFinishedElsewhere(): void {
     this.finishedElsewhere.set(null);
+  }
+
+  /** Saves the chart on screen — indicators and drawings included — as a high-resolution PNG. */
+  protected async downloadChart(): Promise<void> {
+    const instrument = this.instrument();
+    const chart = this.chartView();
+    if (!instrument || !chart || this.downloading()) return;
+
+    this.downloading.set(true);
+    try {
+      const image = await chart.exportImage({
+        symbol: instrument.symbol,
+        name: instrument.name,
+        exchange: instrument.exchange,
+        timeframeLabel: timeframeLabelFor(this.timeframe()),
+      });
+      if (!image) return;
+
+      const url = URL.createObjectURL(image);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${instrument.symbol}-${this.timeframe()}-${localIsoDate()}.png`;
+      link.click();
+      // Revoked on the next task: the click has started the download by then.
+      setTimeout(() => URL.revokeObjectURL(url));
+    } finally {
+      this.downloading.set(false);
+    }
   }
 
   protected async analyze(): Promise<void> {

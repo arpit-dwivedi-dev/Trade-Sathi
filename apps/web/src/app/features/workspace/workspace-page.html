@@ -45,6 +45,19 @@
 
         <app-indicator-menu class="ws-indicators" [active]="activeIndicators()" [appendTo]="shellElement()" (activeChange)="onIndicatorsChange($event)" />
 
+        <button type="button" class="ws-download-btn"
+                [disabled]="downloading() || candles().length === 0"
+                (click)="downloadChart()"
+                title="Download chart as image" aria-label="Download chart as image">
+          @if (downloading()) {
+            <p-progress-spinner [style]="{ width: '16px', height: '16px' }"
+                                strokeWidth="4" aria-hidden="true" />
+          } @else {
+            <app-icon class="ws-download-icon" aria-hidden="true" name="download" />
+          }
+          <span>Download</span>
+        </button>
+
       <span class="ws-topbar-end">
         <button
           pButton
