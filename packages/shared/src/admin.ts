@@ -148,6 +148,8 @@ export interface AdminUserRow {
   /** Where the account was first and last seen, by IP. Null until resolved. */
   firstSeen: AdminLocation | null;
   lastSeen: AdminLocation | null;
+  /** Left out of every total, trend and list in the panel except Users. */
+  excluded: boolean;
 }
 
 /**

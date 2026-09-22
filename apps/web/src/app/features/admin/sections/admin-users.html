@@ -32,6 +32,7 @@
     <p-table [value]="d.rows" size="small" [loading]="loading()">
       <ng-template #header>
         <tr>
+          <th title="Off leaves this account out of every total, trend and list in the panel">In reports</th>
           <th>Email</th>
           <th>Signup</th>
           <th>Location</th>
@@ -44,22 +45,27 @@
       </ng-template>
       <ng-template #body let-row>
         <tr class="admin-row-link" tabindex="0" (click)="open(row)" (keydown.enter)="open(row)">
-          <td class="admin-wrap admin-user">{{ row.email }}</td>
-          <td class="tnum">{{ date(row.createdAt) }}</td>
-          <td class="admin-wrap" [title]="'First seen: ' + place(row.firstSeen)">{{ place(row.lastSeen) }}</td>
-          <td>{{ row.region ?? '—' }}</td>
-          <td class="tnum">{{ row.creditBalance }}</td>
-          <td class="tnum">
+          <td data-label="In reports" class="admin-cell-aside admin-cell-switch" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
+            <!-- readonly: the switch only mirrors row.excluded, so a failed save cannot leave it flipped. -->
+            <p-toggleswitch readonly [ngModel]="!row.excluded" (click)="toggleIncluded(row)" [disabled]="saving().has(row.id)"
+                            [attr.aria-label]="'Include ' + row.email + ' in reports'" />
+          </td>
+          <td data-label="Email" class="admin-wrap admin-user admin-cell-main">{{ row.email }}</td>
+          <td data-label="Signup" class="tnum">{{ date(row.createdAt) }}</td>
+          <td data-label="Location" class="admin-wrap admin-cell-full" [title]="'First seen: ' + place(row.firstSeen)">{{ place(row.lastSeen) }}</td>
+          <td data-label="Region">{{ row.region ?? '—' }}</td>
+          <td data-label="Credits" class="tnum">{{ row.creditBalance }}</td>
+          <td data-label="Total spent" class="tnum">
             @for (entry of moneyEntries(row.spent); track entry.currency) {
               <div>{{ entry.label }}</div>
             } @empty { — }
           </td>
-          <td class="tnum">{{ row.analyses }}</td>
-          <td class="tnum">{{ row.lastActiveAt ? dateTime(row.lastActiveAt) : 'Never' }}</td>
+          <td data-label="Analyses" class="tnum">{{ row.analyses }}</td>
+          <td data-label="Last active" class="tnum">{{ row.lastActiveAt ? dateTime(row.lastActiveAt) : 'Never' }}</td>
         </tr>
       </ng-template>
       <ng-template #emptymessage>
-        <tr><td colspan="8" class="meta dim">No users found.</td></tr>
+        <tr><td colspan="9" class="meta dim">No users found.</td></tr>
       </ng-template>
     </p-table>
     @if (d.total > pageSize) {
@@ -101,7 +107,7 @@
 
       <section class="admin-card">
         <div class="admin-card-body admin-facts">
-          <div class="admin-fact"><span class="lbl">Email</span><span>{{ u.user.email }}</span></div>
+          <div class="admin-fact admin-fact-full"><span class="lbl">Email</span><span>{{ u.user.email }}</span></div>
           <div class="admin-fact"><span class="lbl">Pricing region</span><span>{{ u.user.region ?? '—' }}</span></div>
           <div class="admin-fact"><span class="lbl">Signup</span><span class="tnum">{{ dateTime(u.user.createdAt) }}</span></div>
           <div class="admin-fact">
@@ -110,6 +116,7 @@
           </div>
           <div class="admin-fact"><span class="lbl">Last seen from</span><span>{{ place(u.user.lastSeen) }}</span></div>
           <div class="admin-fact"><span class="lbl">First seen from</span><span>{{ place(u.user.firstSeen) }}</span></div>
+          <div class="admin-fact"><span class="lbl">In reports</span><span>{{ u.user.excluded ? 'Excluded' : 'Included' }}</span></div>
         </div>
       </section>
 
@@ -125,10 +132,10 @@
               <ng-template #header><tr><th>Amount</th><th>Status</th><th>Confirmed via</th><th>Date</th></tr></ng-template>
               <ng-template #body let-p>
                 <tr>
-                  <td class="tnum">{{ money(p.amountMinor, p.currency) }}</td>
-                  <td><span [class]="stClass(p.status)">{{ humanize(p.status) }}</span></td>
-                  <td class="dim">{{ p.status !== 'captured' ? '—' : p.signatureVerified ? 'Webhook' : 'Razorpay API' }}</td>
-                  <td class="tnum">{{ dateTime(p.createdAt) }}</td>
+                  <td data-label="Amount" class="tnum admin-cell-main">{{ money(p.amountMinor, p.currency) }}</td>
+                  <td data-label="Status" class="admin-cell-aside"><span [class]="stClass(p.status)">{{ humanize(p.status) }}</span></td>
+                  <td data-label="Confirmed via" class="dim">{{ p.status !== 'captured' ? '—' : p.signatureVerified ? 'Webhook' : 'Razorpay API' }}</td>
+                  <td data-label="Date" class="tnum">{{ dateTime(p.createdAt) }}</td>
                 </tr>
               </ng-template>
               <ng-template #emptymessage><tr><td colspan="4" class="meta dim">No payments.</td></tr></ng-template>
@@ -139,12 +146,12 @@
               <ng-template #header><tr><th>Change</th><th>Reason</th><th>Balance</th><th>Date</th></tr></ng-template>
               <ng-template #body let-l>
                 <tr>
-                  <td class="tnum" [class.admin-pos]="l.delta > 0" [class.admin-neg]="l.delta < 0">
+                  <td data-label="Change" class="tnum admin-cell-main" [class.admin-pos]="l.delta > 0" [class.admin-neg]="l.delta < 0">
                     {{ l.delta > 0 ? '+' : '' }}{{ l.delta }}
                   </td>
-                  <td class="admin-wrap">{{ humanize(l.reason) }}@if (l.featureKey) { · {{ humanize(l.featureKey) }} }</td>
-                  <td class="tnum">{{ l.balanceAfter }}</td>
-                  <td class="tnum">{{ dateTime(l.createdAt) }}</td>
+                  <td data-label="Reason" class="admin-wrap admin-cell-full">{{ humanize(l.reason) }}@if (l.featureKey) { · {{ humanize(l.featureKey) }} }</td>
+                  <td data-label="Balance" class="tnum">{{ l.balanceAfter }}</td>
+                  <td data-label="Date" class="tnum">{{ dateTime(l.createdAt) }}</td>
                 </tr>
               </ng-template>
               <ng-template #emptymessage><tr><td colspan="4" class="meta dim">No credit movements.</td></tr></ng-template>
@@ -155,11 +162,11 @@
               <ng-template #header><tr><th>Type</th><th>Model</th><th>AI cost</th><th>Status</th><th>Date</th></tr></ng-template>
               <ng-template #body let-a>
                 <tr>
-                  <td>{{ sourceLabel(a.source) }}</td>
-                  <td class="admin-wrap">{{ a.modelId }}</td>
-                  <td class="tnum">{{ usd(a.costUsd, 4) }}</td>
-                  <td><span [class]="stClass(a.status)">{{ humanize(a.status) }}</span></td>
-                  <td class="tnum">{{ dateTime(a.createdAt) }}</td>
+                  <td data-label="Type" class="admin-cell-main">{{ sourceLabel(a.source) }}</td>
+                  <td data-label="Model" class="admin-wrap">{{ a.modelId }}</td>
+                  <td data-label="AI cost" class="tnum">{{ usd(a.costUsd, 4) }}</td>
+                  <td data-label="Status" class="admin-cell-aside"><span [class]="stClass(a.status)">{{ humanize(a.status) }}</span></td>
+                  <td data-label="Date" class="tnum">{{ dateTime(a.createdAt) }}</td>
                 </tr>
               </ng-template>
               <ng-template #emptymessage><tr><td colspan="5" class="meta dim">No analyses.</td></tr></ng-template>
@@ -167,7 +174,7 @@
           </p-tabpanel>
         </p-tabpanels>
       </p-tabs>
-      <p class="meta dim admin-note">Read-only. Lists show the most recent 100 entries.</p>
+      <p class="meta dim admin-note">Lists show the most recent 100 entries.</p>
     </div>
   }
 </p-drawer>

@@ -62,9 +62,9 @@
           <ng-template #header><tr><th>Type</th><th>Runs</th><th>Failed</th></tr></ng-template>
           <ng-template #body let-row>
             <tr>
-              <td>{{ sourceLabel(row.key) }}</td>
-              <td class="tnum">{{ row.analyses }}</td>
-              <td>
+              <td data-label="Type" class="admin-cell-main">{{ sourceLabel(row.key) }}</td>
+              <td data-label="Runs" class="tnum">{{ row.analyses }}</td>
+              <td data-label="Failed">
                 <div class="admin-bar">
                   <span class="meter" [style.color]="row.failed ? 'var(--down)' : 'var(--up)'">
                     <i [style.width.%]="row.analyses ? (row.failed / row.analyses) * 100 : 0"></i>

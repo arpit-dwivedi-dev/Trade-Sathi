@@ -17,7 +17,7 @@ import { AuthService } from '../../core/auth.service';
 
 type Query = Record<string, string | number | null | undefined>;
 
-/** Talks to apps/api's read-only /api/admin/* endpoints. */
+/** Talks to apps/api's /api/admin/* endpoints. */
 @Injectable({ providedIn: 'root' })
 export class AdminApiService {
   private readonly http = inject(HttpClient);
@@ -43,6 +43,14 @@ export class AdminApiService {
     return this.get(`/api/admin/users/${encodeURIComponent(id)}`, {});
   }
 
+  /** Includes (false) or excludes (true) one account from every panel total. */
+  async setExcluded(id: string, excluded: boolean): Promise<void> {
+    const headers = await this.authHeaders();
+    await firstValueFrom(
+      this.http.put(`/api/admin/users/${encodeURIComponent(id)}/excluded`, { excluded }, { headers }),
+    );
+  }
+
   activity(range: AdminRange): Promise<AdminActivity> {
     return this.get('/api/admin/activity', { range });
   }
@@ -51,9 +59,14 @@ export class AdminApiService {
     return this.get('/api/admin/health', query);
   }
 
-  private async get<T>(url: string, query: Query): Promise<T> {
+  private async authHeaders(): Promise<Record<string, string>> {
     const token = await this.auth.getAccessToken();
     if (!token) throw new Error('You are not signed in.');
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  private async get<T>(url: string, query: Query): Promise<T> {
+    const headers = await this.authHeaders();
 
     let params = new HttpParams();
     for (const [key, value] of Object.entries(query)) {
@@ -62,7 +75,7 @@ export class AdminApiService {
       }
     }
     return firstValueFrom(
-      this.http.get<T>(url, { params, headers: { Authorization: `Bearer ${token}` } }),
+      this.http.get<T>(url, { params, headers }),
     );
   }
 }

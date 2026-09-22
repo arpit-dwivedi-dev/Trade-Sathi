@@ -38,17 +38,6 @@
   font-size: var(--t-xl);
 }
 
-.admin-badge {
-  background: var(--surf-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  color: var(--tx-3);
-  font-size: var(--t-3xs);
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  padding: 3px 8px;
-  text-transform: uppercase;
-}
 
 .admin-sub {
   color: var(--tx-2);
@@ -125,8 +114,26 @@
     padding: var(--s4) var(--s4) var(--s10);
   }
 
+  .admin-head {
+    align-items: stretch;
+  }
+
+  /* The shell's top bar already says "Admin"; the blurb is enough here. */
+  .admin-title-row {
+    display: none;
+  }
+
+  /* Fade the strip's right edge so it reads as scrollable, not cut off. */
+  .admin-tabs {
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+
+  /* The range switch gets its own row and scrolls rather than widening the page. */
   .admin-range {
     height: 30px;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
 
   .admin-tab {

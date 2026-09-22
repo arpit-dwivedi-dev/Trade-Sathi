@@ -115,14 +115,14 @@
             </ng-template>
             <ng-template #body let-row>
               <tr>
-                <td class="admin-wrap">{{ group.source ? sourceLabel(row.key) : row.key }}</td>
-                <td class="tnum">{{ row.analyses.toLocaleString() }}</td>
-                <td class="tnum">
+                <td [attr.data-label]="group.source ? 'Type' : 'Model'" class="admin-wrap admin-cell-main">{{ group.source ? sourceLabel(row.key) : row.key }}</td>
+                <td data-label="Analyses" class="tnum">{{ row.analyses.toLocaleString() }}</td>
+                <td data-label="Est. revenue" class="tnum">
                   @for (entry of moneyEntries(row.revenue); track entry.currency) {
                     <div>{{ entry.label }}</div>
                   } @empty { — }
                 </td>
-                <td class="tnum">{{ usd(row.aiCostUsd) }}</td>
+                <td data-label="AI cost" class="tnum">{{ usd(row.aiCostUsd) }}</td>
               </tr>
             </ng-template>
             <ng-template #emptymessage>
@@ -159,16 +159,16 @@
         </ng-template>
         <ng-template #body let-row>
           <tr>
-            <td class="admin-mono" [title]="row.id">{{ row.id.slice(0, 8) }}</td>
-            <td class="admin-wrap admin-user">{{ row.email }}</td>
-            <td>{{ sourceLabel(row.source) }}</td>
-            <td class="admin-wrap">{{ row.modelId }}</td>
-            <td class="tnum">{{ row.credits }}</td>
-            <td class="tnum">{{ row.currency ? money(row.revenueMinor, row.currency) : '—' }}</td>
-            <td class="tnum">{{ usd(row.costUsd, 4) }}</td>
-            <td class="tnum" [class.admin-neg]="(rowPnl(row, d.fx.usdInr) ?? 0) < 0">{{ major(rowPnl(row, d.fx.usdInr), pnlCurrency()) }}</td>
-            <td><span [class]="stClass(row.status)">{{ humanize(row.status) }}</span></td>
-            <td class="tnum">{{ dateTime(row.createdAt) }}</td>
+            <td data-label="ID" class="admin-mono" [title]="row.id">{{ row.id.slice(0, 8) }}</td>
+            <td data-label="User" class="admin-wrap admin-user admin-cell-main">{{ row.email }}</td>
+            <td data-label="Type">{{ sourceLabel(row.source) }}</td>
+            <td data-label="Model" class="admin-wrap">{{ row.modelId }}</td>
+            <td data-label="Credits" class="tnum">{{ row.credits }}</td>
+            <td data-label="Est. revenue" class="tnum">{{ row.currency ? money(row.revenueMinor, row.currency) : '—' }}</td>
+            <td data-label="AI cost" class="tnum">{{ usd(row.costUsd, 4) }}</td>
+            <td data-label="Est. P&amp;L" class="tnum" [class.admin-neg]="(rowPnl(row, d.fx.usdInr) ?? 0) < 0">{{ major(rowPnl(row, d.fx.usdInr), pnlCurrency()) }}</td>
+            <td data-label="Status" class="admin-cell-aside"><span [class]="stClass(row.status)">{{ humanize(row.status) }}</span></td>
+            <td data-label="Date" class="tnum">{{ dateTime(row.createdAt) }}</td>
           </tr>
         </ng-template>
         <ng-template #emptymessage>

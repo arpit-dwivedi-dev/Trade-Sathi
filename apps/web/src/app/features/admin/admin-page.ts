@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, ElementRef, afterRenderEffect, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -38,7 +38,7 @@ function parseRange(value: string | null): AdminRange {
 }
 
 /**
- * The read-only Admin panel, hosted as the shell's `admin` tab. The section
+ * The Admin panel, hosted as the shell's `admin` tab. The section
  * and date range live in the query string (`/app/admin?section=users&range=7d`)
  * so a reload or a shared link lands on the same view.
  *
@@ -80,6 +80,22 @@ export class AdminPage {
     { value: '30d', label: '30D' },
     { value: 'all', label: 'All' },
   ];
+
+  constructor() {
+    // On a phone the tab strip scrolls sideways; keep the current tab in view
+    // so a deep link to a later section doesn't land on a half-hidden tab.
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    afterRenderEffect(() => {
+      const tab = host.querySelector<HTMLElement>(`.admin-tab[data-id="${this.section()}"]`);
+      const strip = tab?.parentElement;
+      if (!tab || !strip) return;
+      // Scroll only the strip: scrollIntoView would also move the page.
+      const left = tab.offsetLeft - strip.offsetLeft;
+      if (left < strip.scrollLeft || left + tab.offsetWidth > strip.scrollLeft + strip.clientWidth) {
+        strip.scrollLeft = left - (strip.clientWidth - tab.offsetWidth) / 2;
+      }
+    });
+  }
 
   protected selectSection(value: AdminSection): void {
     this.navigate({ section: value });

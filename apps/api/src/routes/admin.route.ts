@@ -12,11 +12,12 @@ import {
   getPayments,
   getUserDetail,
   listUsers,
+  setUserExcluded,
   type PageParams,
 } from "../services/admin.service.js";
 
 /**
- * The read-only Admin panel API. Every path under /api/admin passes
+ * The Admin panel API — reads, plus excluding an account from the numbers. Every path under /api/admin passes
  * requireAuth then requireAdmin before any handler runs — mounted once here so
  * a new endpoint cannot be added without the gate.
  */
@@ -29,7 +30,8 @@ const MAX_LIMIT = 100;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function intParam(value: unknown, fallback: number, min: number, max: number): number {
-  const n = typeof value === "string" ? Number(value) : NaN;
+  // Number("") is 0, so a blank value would otherwise clamp to `min`.
+  const n = typeof value === "string" && value.trim() !== "" ? Number(value) : NaN;
   return Number.isInteger(n) ? Math.min(Math.max(n, min), max) : fallback;
 }
 
@@ -114,6 +116,33 @@ adminRouter.get(
     } catch (cause) {
       logger.error("admin user detail failed", { cause: String(cause) });
       res.status(500).json({ error: "Failed to load user" });
+    }
+  }),
+);
+
+// Include or exclude one account from every total the panel reports.
+adminRouter.put(
+  "/api/admin/users/:id/excluded",
+  asyncRoute(async (req: Request, res: Response) => {
+    const id = req.params["id"] ?? "";
+    const excluded: unknown = (req.body as { excluded?: unknown } | undefined)?.excluded;
+    if (!UUID_RE.test(id)) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    if (typeof excluded !== "boolean") {
+      res.status(400).json({ error: "excluded must be true or false" });
+      return;
+    }
+    try {
+      if (!(await setUserExcluded(id, excluded))) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+      res.json({ excluded });
+    } catch (cause) {
+      logger.error("admin set excluded failed", { cause: String(cause) });
+      res.status(500).json({ error: "Failed to update user" });
     }
   }),
 );

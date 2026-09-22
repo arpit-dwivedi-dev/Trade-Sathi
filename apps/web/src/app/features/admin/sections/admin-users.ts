@@ -7,6 +7,7 @@ import { PaginatorModule, type PaginatorState } from 'primeng/paginator';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TableModule } from 'primeng/table';
 import { TabsModule } from 'primeng/tabs';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import type { AdminPage, AdminUserDetail, AdminUserRow } from '@tradesathi/shared';
 
 import { AppIcon } from '../../../shared/icons/app-icon';
@@ -38,6 +39,7 @@ const SEARCH_DEBOUNCE_MS = 300;
     ProgressSpinnerModule,
     TableModule,
     TabsModule,
+    ToggleSwitchModule,
   ],
   templateUrl: './admin-users.html',
   styleUrl: '../admin-section.css',
@@ -57,6 +59,9 @@ export class AdminUsersSection {
   protected readonly detailLoading = signal(false);
   protected readonly detailError = signal<string | null>(null);
   protected readonly detail = signal<AdminUserDetail | null>(null);
+
+  /** Ids with an include/exclude change in flight. */
+  protected readonly saving = signal<ReadonlySet<string>>(new Set());
 
   protected readonly date = date;
   protected readonly dateTime = dateTime;
@@ -106,6 +111,28 @@ export class AdminUsersSection {
       if (seq === this.detailSeq) this.detailError.set(adminErrorMessage(cause));
     } finally {
       if (seq === this.detailSeq) this.detailLoading.set(false);
+    }
+  }
+
+  /** Flips whether this account counts toward the panel's numbers. */
+  protected async toggleIncluded(user: AdminUserRow): Promise<void> {
+    if (this.saving().has(user.id)) return;
+    const excluded = !user.excluded;
+    this.saving.update((s) => new Set(s).add(user.id));
+    this.error.set(null);
+    try {
+      await this.api.setExcluded(user.id, excluded);
+      this.data.update((d) =>
+        d ? { ...d, rows: d.rows.map((r) => (r.id === user.id ? { ...r, excluded } : r)) } : d,
+      );
+    } catch (cause) {
+      this.error.set(adminErrorMessage(cause));
+    } finally {
+      this.saving.update((s) => {
+        const next = new Set(s);
+        next.delete(user.id);
+        return next;
+      });
     }
   }
 

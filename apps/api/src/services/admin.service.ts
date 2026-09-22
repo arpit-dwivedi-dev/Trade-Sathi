@@ -29,7 +29,7 @@ import {
 } from "./admin-metrics.js";
 
 /**
- * Read-only reporting for the Admin panel. Every read here goes through the
+ * Reporting for the Admin panel (plus the one write, setUserExcluded). Every read here goes through the
  * service-role client, so it must only ever be reached from behind
  * requireAdmin (routes/admin.route.ts).
  */
@@ -92,6 +92,7 @@ interface UserDbRow {
   last_seen_country: string | null;
   last_seen_region: string | null;
   last_seen_city: string | null;
+  excluded: boolean;
   total_count: number;
 }
 
@@ -174,7 +175,33 @@ function toUserRow(row: UserDbRow): AdminUserRow {
     lastActiveAt: row.last_active_at,
     firstSeen: location(row.first_seen_country, row.first_seen_region, row.first_seen_city),
     lastSeen: location(row.last_seen_country, row.last_seen_region, row.last_seen_city),
+    excluded: row.excluded,
   };
+}
+
+/** Accounts the panel leaves out of its numbers (admin_excluded_profiles). */
+async function excludedIds(): Promise<string[]> {
+  const { data, error } = await supabaseAdmin.from("admin_excluded_profiles").select("profile_id");
+  if (error) throw new Error(`excluded profiles failed: ${error.message}`);
+  return ((data ?? []) as { profile_id: string }[]).map((r) => r.profile_id);
+}
+
+/** PostgREST `in` list for excludedIds; only called with a non-empty list. */
+function inList(ids: string[]): string {
+  return `(${ids.join(",")})`;
+}
+
+/** False when no such account exists. */
+export async function setUserExcluded(profileId: string, excluded: boolean): Promise<boolean> {
+  const { error } = excluded
+    ? await supabaseAdmin
+        .from("admin_excluded_profiles")
+        .upsert({ profile_id: profileId }, { onConflict: "profile_id", ignoreDuplicates: true })
+    : await supabaseAdmin.from("admin_excluded_profiles").delete().eq("profile_id", profileId);
+  // 23503: foreign_key_violation — the id is not a profile.
+  if (error?.code === "23503") return false;
+  if (error) throw new Error(`set excluded failed: ${error.message}`);
+  return true;
 }
 
 function page<T>(rows: T[], total: number, params: PageParams): AdminPage<T> {
@@ -312,6 +339,8 @@ export async function getPayments(query: PaymentsQuery): Promise<AdminPayments> 
   if (since) list = list.gte("created_at", since.toISOString());
   if (query.status) list = list.eq("status", query.status);
   if (query.currency) list = list.eq("currency", query.currency);
+  const excluded = await excludedIds();
+  if (excluded.length > 0) list = list.not("profile_id", "in", inList(excluded));
 
   const [groups, listed] = await Promise.all([paymentGroups(since), list]);
   if (listed.error) throw new Error(`payments list failed: ${listed.error.message}`);
@@ -360,7 +389,7 @@ export async function getUserDetail(profileId: string): Promise<AdminUserDetail 
   if (!profile) return null;
 
   const recent = { limit: DETAIL_LIMIT, offset: 0 };
-  const [payments, ledger, analyses, lastActiveAt, spent] = await Promise.all([
+  const [payments, ledger, analyses, lastActiveAt, spent, excluded] = await Promise.all([
     supabaseAdmin
       .from("payments")
       .select(PAYMENT_COLUMNS)
@@ -379,13 +408,21 @@ export async function getUserDetail(profileId: string): Promise<AdminUserDetail 
     // Lifetime spend from SQL, not from the payments list above: that list is
     // capped at DETAIL_LIMIT and would undercount past it.
     callRpc<Record<string, number> | null>("admin_user_spent", { p_profile_id: profileId }),
+    callRpc<boolean>("admin_is_excluded", { p_profile_id: profileId }),
   ]);
   if (payments.error) throw new Error(`user payments failed: ${payments.error.message}`);
   if (ledger.error) throw new Error(`user ledger failed: ${ledger.error.message}`);
 
   const paymentRows = ((payments.data ?? []) as PaymentDbRow[]).map(toPaymentRow);
-  const row = profile as Omit<UserDbRow, "spent" | "analyses" | "total_count" | "last_active_at">;
-  const user = toUserRow({ ...row, spent: spent ?? {}, analyses: analyses.total, last_active_at: lastActiveAt, total_count: 0 });
+  const row = profile as Omit<UserDbRow, "spent" | "analyses" | "total_count" | "last_active_at" | "excluded">;
+  const user = toUserRow({
+    ...row,
+    spent: spent ?? {},
+    analyses: analyses.total,
+    last_active_at: lastActiveAt,
+    excluded: excluded === true,
+    total_count: 0,
+  });
 
   return {
     user,
@@ -454,30 +491,44 @@ export async function getHealth(params: PageParams): Promise<AdminHealth> {
   const now = Date.now();
   const dayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
   const staleBefore = new Date(now - STALE_PAYMENT_MS).toISOString();
+  const excluded = await excludedIds();
+  // Error logs can have no account; `not in` alone would drop those too.
+  const withoutErrorsOfExcluded = <Q extends { or: (filter: string) => Q }>(q: Q): Q =>
+    excluded.length > 0 ? q.or(`profile_id.is.null,profile_id.not.in.${inList(excluded)}`) : q;
+  const withoutExcluded = <Q extends { not: (column: string, op: string, value: string) => Q }>(q: Q): Q =>
+    excluded.length > 0 ? q.not("profile_id", "in", inList(excluded)) : q;
 
   const [errors, errors24h, failedPage, failed24h, stale] = await Promise.all([
-    supabaseAdmin
-      .from("app_error_logs")
-      .select("id, profile_id, category, message, detail, created_at, profiles(email)", {
-        count: "exact",
-      })
+    withoutErrorsOfExcluded(
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id, profile_id, category, message, detail, created_at, profiles(email)", {
+          count: "exact",
+        }),
+    )
       .order("created_at", { ascending: false })
       .range(params.offset, params.offset + params.limit - 1),
-    supabaseAdmin
-      .from("app_error_logs")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", dayAgo),
+    withoutErrorsOfExcluded(
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", dayAgo),
+    ),
     analysisPage({ status: "failed" }, { limit: 20, offset: 0 }),
-    supabaseAdmin
-      .from("analyses")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "failed")
-      .gte("created_at", dayAgo),
-    supabaseAdmin
-      .from("payments")
-      .select(PAYMENT_COLUMNS)
-      .eq("status", "created")
-      .lt("created_at", staleBefore)
+    withoutExcluded(
+      supabaseAdmin
+        .from("analyses")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "failed")
+        .gte("created_at", dayAgo),
+    ),
+    withoutExcluded(
+      supabaseAdmin
+        .from("payments")
+        .select(PAYMENT_COLUMNS)
+        .eq("status", "created")
+        .lt("created_at", staleBefore),
+    )
       .order("created_at", { ascending: false })
       .limit(20),
   ]);

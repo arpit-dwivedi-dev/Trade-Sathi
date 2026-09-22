@@ -402,6 +402,10 @@
   min-width: 0;
 }
 
+.admin-fact-full {
+  grid-column: 1 / -1;
+}
+
 .admin-fact > span:last-child {
   color: var(--tx);
   font-size: var(--t-sm);
@@ -454,9 +458,14 @@
     justify-content: space-between;
   }
 
-  .admin-detail-stats,
+  .admin-detail-stats {
+    gap: var(--s2);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .admin-facts {
-    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s3);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -464,9 +473,15 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-@media (max-width: 900px) {
+/* Three short counts stay side by side on a phone; stacked, each took a
+   full-width card for one number. */
+@media (max-width: 640px) {
   .admin-kpis-3 {
-    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s2);
+  }
+
+  .admin-kpis-3 .admin-kpi-icon {
+    display: none;
   }
 }
 
@@ -518,4 +533,128 @@
 .admin-online.on {
   background: var(--up);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--up) 20%, transparent);
+}
+
+/* ── phone tables ───────────────────────────────────────── */
+/* A table on a phone becomes a list of compact cards rather than a 760px strip
+   to scroll sideways. Each row is a two-column grid of label-over-value cells:
+     .admin-cell-main  — the row's heading (email, type…): full width, no label;
+     .admin-cell-aside — a status pill or switch pinned top-right, no label;
+     .admin-cell-full  — a long value (message, location…) given the full width.
+   Every other cell takes one column, so eight fields cost four lines. */
+@media (max-width: 640px) {
+  .admin-table ::ng-deep .p-datatable-table {
+    min-width: 0 !important;
+  }
+
+  .admin-table ::ng-deep .p-datatable-thead {
+    display: none;
+  }
+
+  .admin-table ::ng-deep .p-datatable-table,
+  .admin-table ::ng-deep .p-datatable-tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-table ::ng-deep .p-datatable-tbody > tr {
+    border-bottom: 1px solid var(--line);
+    display: grid;
+    gap: var(--s2) var(--s4);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: var(--s3) var(--s4);
+    position: relative;
+  }
+
+  .admin-table ::ng-deep .p-datatable-tbody > tr:last-child {
+    border-bottom: 0;
+  }
+
+  .admin-table ::ng-deep .p-datatable-tbody > tr > td[data-label] {
+    align-items: flex-start;
+    border: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    padding: 0;
+    white-space: normal;
+  }
+
+  .admin-table ::ng-deep .p-datatable-tbody > tr > td[data-label]::before {
+    color: var(--tx-3);
+    content: attr(data-label);
+    font-size: var(--t-3xs);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .admin-table ::ng-deep .p-datatable-tbody > tr > td.admin-cell-main {
+    color: var(--tx);
+    font-weight: 600;
+    grid-column: 1 / -1;
+    order: -1;
+    overflow-wrap: anywhere;
+  }
+
+  /* Full-width values go last, so the short ones pack two to a line. */
+  .admin-table ::ng-deep .p-datatable-tbody > tr > td.admin-cell-full {
+    grid-column: 1 / -1;
+    order: 1;
+  }
+
+  .admin-table ::ng-deep .p-datatable-tbody > tr > td.admin-cell-main::before,
+  .admin-table ::ng-deep .p-datatable-tbody > tr > td.admin-cell-aside::before {
+    display: none;
+  }
+
+  .admin-table ::ng-deep .p-datatable-tbody > tr > td.admin-cell-aside {
+    align-items: flex-end;
+    position: absolute;
+    right: var(--s4);
+    top: var(--s3);
+  }
+
+  /* Room for the pinned aside, so a long heading wraps before running under it. */
+  .admin-table ::ng-deep .p-datatable-tbody > tr:has(> td.admin-cell-aside) > td.admin-cell-main {
+    padding-right: 112px;
+  }
+
+  .admin-table ::ng-deep .p-datatable-tbody > tr:has(> td.admin-cell-aside.admin-cell-switch) > td.admin-cell-main {
+    padding-right: 56px;
+  }
+
+  /* Diagnostic JSON is a reference, not a read: two lines, full text on tap. */
+  .admin-table ::ng-deep .p-datatable-tbody > tr > td.admin-clamp {
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    overflow: hidden;
+  }
+
+  .admin-table ::ng-deep .p-datatable-tbody > tr > td.admin-clamp.open {
+    -webkit-line-clamp: unset;
+  }
+
+  /* The empty-state row has no label: it reads as a plain line. */
+  .admin-table ::ng-deep .p-datatable-tbody > tr > td:not([data-label]) {
+    border: 0;
+    display: block;
+    grid-column: 1 / -1;
+    padding: 0;
+  }
+
+  /* Drawer tables sit on the drawer's own padding, not inside a card. */
+  .admin-detail .admin-table ::ng-deep .p-datatable-tbody > tr {
+    padding-inline: 0;
+  }
+
+  .admin-detail .admin-table ::ng-deep .p-datatable-tbody > tr > td.admin-cell-aside {
+    right: 0;
+  }
+
+  ::ng-deep .p-drawer.admin-user-drawer {
+    width: 100vw;
+  }
 }

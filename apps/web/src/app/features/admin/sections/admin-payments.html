@@ -105,14 +105,14 @@
         </ng-template>
         <ng-template #body let-row>
           <tr>
-            <td class="admin-wrap admin-user">{{ row.email ?? row.profileId }}</td>
-            <td class="tnum">{{ money(row.amountMinor, row.currency) }}</td>
-            <td class="tnum">{{ row.creditsPurchased }}</td>
-            <td><span [class]="stClass(row.status)">{{ statusLabel(row.status) }}</span></td>
+            <td data-label="User" class="admin-wrap admin-user admin-cell-main">{{ row.email ?? row.profileId }}</td>
+            <td data-label="Amount" class="tnum">{{ money(row.amountMinor, row.currency) }}</td>
+            <td data-label="Credits" class="tnum">{{ row.creditsPurchased }}</td>
+            <td data-label="Status" class="admin-cell-aside"><span [class]="stClass(row.status)">{{ statusLabel(row.status) }}</span></td>
             <!-- signature_verified records how a capture was confirmed, not whether
                  to trust it: webhook signature, or verify-order asking Razorpay. -->
-            <td class="dim">{{ row.status !== 'captured' ? '—' : row.signatureVerified ? 'Webhook' : 'Razorpay API' }}</td>
-            <td class="tnum">{{ dateTime(row.createdAt) }}</td>
+            <td data-label="Confirmed via" class="dim">{{ row.status !== 'captured' ? '—' : row.signatureVerified ? 'Webhook' : 'Razorpay API' }}</td>
+            <td data-label="Date" class="tnum">{{ dateTime(row.createdAt) }}</td>
           </tr>
         </ng-template>
         <ng-template #emptymessage>
