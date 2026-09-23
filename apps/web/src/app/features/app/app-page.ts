@@ -1,7 +1,9 @@
+import { DOCUMENT } from '@angular/common';
 import {
   Component,
   DestroyRef,
   OnInit,
+  computed,
   effect,
   inject,
   signal,
@@ -13,6 +15,10 @@ import { ButtonModule } from 'primeng/button';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import type { Instrument, MarketCode, MarketStatus } from '@tradesathi/shared';
+import {
+  AnalysisReadyDialog,
+  type ReadyAnalysis,
+} from '../../shared/analysis-ready-dialog/analysis-ready-dialog';
 import { AppIcon } from '../../shared/icons/app-icon';
 import type { IconName } from '../../shared/icons/icon-paths';
 import { AccountPage } from '../account/account-page';
@@ -79,6 +85,7 @@ const TABBAR_ITEMS: readonly { tab: Tab; label: string; icon: IconName }[] = [
   imports: [
     AccountPage,
     AdminPage,
+    AnalysisReadyDialog,
     AnalyzePage,
     BillingPage,
     FundamentalsPage,
@@ -105,6 +112,7 @@ export class AppPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly presence = inject(PresenceService);
+  private readonly document = inject(DOCUMENT);
 
   protected readonly user = this.auth.user;
   protected readonly tab = signal<Tab>(parseTab(null));
@@ -139,6 +147,15 @@ export class AppPage implements OnInit {
   /** Phone-only: whether the folded search row under the header is showing. */
   protected readonly searchOpen = signal(false);
   protected readonly tabbarItems = TABBAR_ITEMS.filter((item) => isTabVisible(item.tab));
+
+  /**
+   * Finished analyses waiting to be announced, oldest first. The dialog shows
+   * the first. A queue rather than one slot because the chart and fundamentals
+   * tabs can each have a run going, and one finishing while the other's
+   * dialog is still up must not replace it unseen.
+   */
+  private readonly readyQueue = signal<readonly ReadyAnalysis[]>([]);
+  protected readonly announced = computed(() => this.readyQueue()[0] ?? null);
   /**
    * The instrument the workspace chart is showing, as chosen in the top bar's
    * one shared search. Kept rather than reset on every tab switch so coming
@@ -456,6 +473,34 @@ export class AppPage implements OnInit {
 
   protected onCreditsAdded(): void {
     this.analyzePage()?.onCreditsAdded();
+  }
+
+  /**
+   * A chart or fundamentals run finished: queue it for the "ready" dialog,
+   * whichever tab is showing. The same run is never queued twice.
+   */
+  protected onAnalysisReady(ready: ReadyAnalysis): void {
+    // The chart workspace can be in browser fullscreen, which shows only its
+    // own element, so a dialog up here would stay invisible until the user
+    // left fullscreen by themselves. The run is done, so fullscreen yields.
+    if (this.document.fullscreenElement) void this.document.exitFullscreen();
+    this.readyQueue.update((queue) =>
+      queue.some((queued) => queued.id === ready.id) ? queue : [...queue, ready],
+    );
+  }
+
+  /**
+   * Opens the announced report. Anything else still queued is dropped: this
+   * leaves the shell, and every run is listed in History anyway.
+   */
+  protected viewReady(ready: ReadyAnalysis): void {
+    this.readyQueue.set([]);
+    void this.router.navigate(['/analysis', ready.id]);
+  }
+
+  /** Later: on to the next queued run, if any. The report stays one click away. */
+  protected dismissReady(): void {
+    this.readyQueue.update((queue) => queue.slice(1));
   }
 
   protected toggleTheme(): void {

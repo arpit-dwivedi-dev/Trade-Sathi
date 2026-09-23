@@ -1,0 +1,82 @@
+/* Same overlay and plate as Analyze by Image's pre-upload quality warning
+   (analyze-page.css), so the app has one look for a modal. */
+
+.ard-overlay {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: var(--s5);
+  position: fixed;
+  /* Above the shell's own layers (topbar, rail, phone tab bar top out at 60). */
+  z-index: 100;
+}
+
+.ard-dialog {
+  animation: ard-in var(--dur-standard) var(--ease-enter);
+  cursor: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  max-width: 420px;
+  padding: var(--s6);
+  width: 100%;
+}
+
+/* .plate carries a hover treatment for the drop zone it was written for;
+   this is not a target, so it must not light up under the pointer. */
+.ard-dialog:hover {
+  border-color: var(--line);
+}
+
+@keyframes ard-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ard-dialog {
+    animation: none;
+  }
+}
+
+.ard-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.ard-title {
+  font-size: var(--t-lg);
+  letter-spacing: -0.017em;
+  margin: 0;
+}
+
+.ard-copy {
+  color: var(--tx-2);
+  font-size: var(--t-sm);
+  line-height: var(--lh-body);
+  margin: 0;
+}
+
+.ard-copy b {
+  color: var(--tx);
+  font-weight: 600;
+}
+
+.ard-actions {
+  display: flex;
+  gap: var(--s3);
+  justify-content: flex-end;
+}
+
+/* Later is the quiet path; View is the one the dialog is for. */
+.ard-later {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--tx-2);
+}

@@ -1,0 +1,26 @@
+<div class="ard-overlay" (click)="dismissed.emit()">
+  <div
+    class="plate ard-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="ard-title"
+    aria-describedby="ard-desc"
+    (click)="$event.stopPropagation()"
+    (keydown.escape)="dismissed.emit()"
+  >
+    <div class="ard-head">
+      <span class="st st-complete">Done</span>
+      <h3 class="ard-title" id="ard-title">Your analysis is ready</h3>
+    </div>
+
+    <p class="ard-copy" id="ard-desc">
+      The {{ ready().kind === 'fundamentals' ? 'fundamentals analysis' : 'chart analysis' }} for
+      <b translate="no">{{ ready().symbol }}</b> has finished. It is also saved in History.
+    </p>
+
+    <div class="ard-actions">
+      <button pButton type="button" class="ard-later" (click)="dismissed.emit()">Later</button>
+      <button #viewButton pButton type="button" (click)="view.emit()">View</button>
+    </div>
+  </div>
+</div>

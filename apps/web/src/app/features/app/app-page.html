@@ -100,6 +100,7 @@
           [selection]="workspaceSelection()"
           (plansRequested)="openPlans()"
           (chartRestored)="onWorkspaceChartRestored($event)"
+          (analysisReady)="onAnalysisReady($event)"
         />
       </div>
     } @loading (after 150ms; minimum 300ms) {
@@ -115,6 +116,7 @@
           class="tab-pane"
           [selection]="fundamentalsSelection()"
           (companyRestored)="onFundamentalsCompanyRestored($event)"
+          (analysisReady)="onAnalysisReady($event)"
         />
       </div>
     } @loading (after 150ms; minimum 300ms) {
@@ -211,6 +213,16 @@
         <span>More</span>
       </button>
     </nav>
+
+    <!-- Outside every tab pane: a pane is hidden while its tab is not active,
+         and a run finishing after the user moved on must still be announced. -->
+    @if (announced(); as ready) {
+      <app-analysis-ready-dialog
+        [ready]="ready"
+        (view)="viewReady(ready)"
+        (dismissed)="dismissReady()"
+      />
+    }
     </div>
   } @else {
     <!-- Rendered during SSR and before client-side session restoration completes. -->

@@ -15,6 +15,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { ChipModule } from 'primeng/chip';
 import { Popover } from 'primeng/popover';
@@ -32,11 +33,11 @@ import {
 } from '../../core/pending-analysis-store';
 import { AppIcon } from '../../shared/icons/app-icon';
 import type { IconName } from '../../shared/icons/icon-paths';
-import type { ChartOverlays, ChartStyle, LiveCandle, OverlayBand } from '../../shared/live-chart/live-chart';
+import type { ReadyAnalysis } from '../../shared/analysis-ready-dialog/analysis-ready-dialog';
+import type { ChartStyle, LiveCandle } from '../../shared/live-chart/live-chart';
 import { ChartCaptureService } from '../../shared/live-chart/chart-capture.service';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
-import { AnalysisResult } from '../analyze/analysis-result';
-import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
+import { FAILURE_COPY, GENERIC_FAILURE } from '../analyze/analysis-result';
 import { AnalyzeService, type PollHandle } from '../analyze/analyze.service';
 import { BetaCredits } from '../billing/beta-credits';
 import { PURCHASES_ENABLED } from '../billing/free-beta';
@@ -132,7 +133,6 @@ interface AnalysisTarget {
 @Component({
   selector: 'app-workspace-page',
   imports: [
-    AnalysisResult,
     AppIcon,
     BetaCredits,
     ButtonModule,
@@ -142,6 +142,7 @@ interface AnalysisTarget {
     IndicatorMenu,
     Popover,
     ProgressSpinnerModule,
+    RouterLink,
     SelectButtonModule,
     WorkspaceChart,
   ],
@@ -161,6 +162,13 @@ export class WorkspacePage implements OnInit, OnDestroy {
 
   /** Raised when the user needs to buy more analyses — the shell opens plans. */
   readonly plansRequested = output<void>();
+
+  /**
+   * Raised when a run finishes, for the shell's "ready" dialog. Also raised
+   * for a run that finished while the page was closed and was picked back up
+   * on reload, which is the first chance there is to tell the user.
+   */
+  readonly analysisReady = output<ReadyAnalysis>();
 
   /**
    * Off for the free beta (see PURCHASES_ENABLED): the out-of-credits note
@@ -273,95 +281,21 @@ export class WorkspacePage implements OnInit, OnDestroy {
 
   protected readonly analyzeState = signal<AnalyzeState>('idle');
   protected readonly analyzeError = signal<string | null>(null);
-  protected readonly row = signal<AnalysisRow | null>(null);
-  protected readonly patterns = signal<AnalysisPattern[]>([]);
 
   /**
-   * A finished analysis for an instrument the user has since navigated away
-   * from. Surfaced as a note rather than dropped silently: the credit was
-   * spent and the result is real, it just does not belong on this chart.
-   */
-  protected readonly finishedElsewhere = signal<AnalysisTarget | null>(null);
-
-  /**
-   * Analysis levels, fed to the chart as price lines.
+   * The last finished run's report, linked from a note under the chart.
    *
-   * Drawn only while the chart on screen is the one they were read from. A
-   * support level from a one-minute chart means nothing painted over a
-   * one-day chart, so switching either the symbol or the timeframe takes the
-   * lines down without discarding the analysis itself.
+   * A result is never drawn on this screen: the report opens on its own page,
+   * reached from the shell's "ready" dialog (see analysisReady). This note is
+   * the way back to it once that dialog has been dismissed. It survives symbol
+   * and timeframe switches, since a report does not depend on the chart on
+   * screen, and gives way to the next run or to Dismiss.
    */
-  protected readonly overlays = computed<ChartOverlays | null>(() => {
-    /** A legacy single price, as the degenerate band the chart now draws. */
-    const point = (price: number, label: string): OverlayBand => ({
-      low: price,
-      high: price,
-      label,
-    });
-
-    const row = this.row();
-    const instrument = this.instrument();
-    if (!row || row.status !== 'complete' || !instrument) return null;
-    if (row.instrument_id !== instrument.id) return null;
-    if (row.analysis_lookback_days !== lookbackDaysFor(this.timeframe())) return null;
-    const result = row.analysis_result;
-    if (!result) {
-      // Analyzed before the structured-read prompts: all this row has are
-      // single prices, so each is drawn as a zero-width band.
-      return {
-        support: (row.support_levels ?? []).map((price) => point(price, 'S')),
-        resistance: (row.resistance_levels ?? []).map((price) => point(price, 'R')),
-        trigger: row.call_entry !== null ? [point(row.call_entry, 'Entry')] : [],
-        targets: row.call_target !== null ? [row.call_target] : [],
-        invalidations: row.call_invalidation !== null ? [row.call_invalidation] : [],
-      };
-    }
-
-    // Zones, drawn as zones. Painting a band's midpoint as one line would
-    // claim a precision the read explicitly refuses to.
-    const zones = result.structure.levels;
-    return {
-      support: zones
-        .filter((zone) => zone.kind === 'support')
-        .map((zone) => ({ low: zone.low, high: zone.high, label: 'S' })),
-      resistance: zones
-        .filter((zone) => zone.kind === 'resistance')
-        .map((zone) => ({ low: zone.low, high: zone.high, label: 'R' })),
-      trigger: result.setup.scenarios.map((scenario) => ({
-        low: scenario.trigger_low,
-        high: scenario.trigger_high,
-        label: scenario.direction === 'long' ? 'Long above' : 'Short below',
-      })),
-      targets: result.setup.scenarios
-        .map((scenario) => scenario.target)
-        .filter((target): target is number => target !== null),
-      invalidations: result.setup.scenarios.map((scenario) => scenario.invalidation),
-    };
-  });
+  protected readonly readyRun = signal<{ id: string; symbol: string } | null>(null);
 
   protected readonly busy = computed(
     () => this.analyzeState() === 'starting' || this.analyzeState() === 'processing',
   );
-
-  /** True while the result on screen was read from the chart on screen. */
-  protected readonly resultApplies = computed(() => {
-    const row = this.row();
-    const instrument = this.instrument();
-    return row !== null && instrument !== null && row.instrument_id === instrument.id;
-  });
-
-  /**
-   * The result is for this instrument but a different timeframe — worth
-   * saying, since its levels are not drawn on the chart in that case.
-   */
-  protected readonly resultWindowDiffers = computed(() => {
-    const row = this.row();
-    return (
-      this.resultApplies() &&
-      row?.status === 'complete' &&
-      row.analysis_lookback_days !== lookbackDaysFor(this.timeframe())
-    );
-  });
 
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private stopStream: (() => void) | null = null;
@@ -461,7 +395,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
     this.instrument.set(instrument);
     saveLastChart(this.isBrowser, { instrument, timeframe: this.timeframe() });
     this.chartError.set(null);
-    this.clearResult();
+    this.clearStatus();
     void this.reload();
   }
 
@@ -475,10 +409,9 @@ export class WorkspacePage implements OnInit, OnDestroy {
     this.timeframe.set(value);
     const instrument = this.instrument();
     if (instrument) saveLastChart(this.isBrowser, { instrument, timeframe: value });
-    // A different timeframe is a different chart, so the previous analysis's
-    // levels stop applying — overlays() drops them on its own. The result
-    // itself, and any run still in flight, are deliberately left alone.
-    this.clearResult();
+    // A different timeframe is a different chart. Any run still in flight, and
+    // the link to the last finished report, are deliberately left alone.
+    this.clearStatus();
     void this.reload();
   }
 
@@ -705,25 +638,22 @@ export class WorkspacePage implements OnInit, OnDestroy {
   // ---- AI analysis ----
 
   /**
-   * Clears the displayed result, leaving any in-flight run alone.
+   * Clears a stale status line, leaving any in-flight run alone.
    *
    * Deliberately not a cancel. A run is charged the moment it starts, so
    * changing the timeframe or the symbol while one is in flight used to throw
    * away an analysis the user had already paid for — it completed server-side
-   * and they never saw it. Now only what is on screen is cleared; the run
-   * itself keeps going and reports back through analyze() below.
+   * and they never saw it. Now only the status is cleared; the run itself
+   * keeps going and still announces itself when it finishes (see watchRun).
    */
-  private clearResult(): void {
+  private clearStatus(): void {
     this.analyzeError.set(null);
-    this.row.set(null);
-    this.patterns.set([]);
-    this.finishedElsewhere.set(null);
     // A run still in flight keeps the view busy; only an idle view goes idle.
     if (!this.busy()) this.analyzeState.set('idle');
   }
 
-  protected dismissFinishedElsewhere(): void {
-    this.finishedElsewhere.set(null);
+  protected dismissReady(): void {
+    this.readyRun.set(null);
   }
 
   /** Saves the chart on screen — indicators and drawings included — as a high-resolution PNG. */
@@ -766,7 +696,9 @@ export class WorkspacePage implements OnInit, OnDestroy {
       lookbackDays: lookbackDaysFor(this.timeframe()),
     };
 
-    this.clearResult();
+    this.clearStatus();
+    // The new run's report replaces the old one's link when it finishes.
+    this.readyRun.set(null);
     this.analyzeState.set('starting');
 
     // The image is rendered here, from the candles already on screen, and
@@ -812,11 +744,14 @@ export class WorkspacePage implements OnInit, OnDestroy {
   }
 
   /**
-   * Waits for one run to settle and puts the outcome on screen.
+   * Waits for one run to settle, then announces it: a finished run through the
+   * shell's "ready" dialog (the report opens on its own page, never here), a
+   * failed one as a status line naming its symbol.
    *
    * Shared by a run started here and one resumed after a reload: both are just
    * an analyses row id plus the chart it belongs to, and neither cares which
-   * page load started it.
+   * page load started it. The symbol on screen by then does not matter either:
+   * the run is announced under the symbol it was started for.
    */
   private async watchRun(analysisId: string, target: AnalysisTarget): Promise<void> {
     this.analyzeState.set('processing');
@@ -838,16 +773,21 @@ export class WorkspacePage implements OnInit, OnDestroy {
       clearPendingAnalysis(this.isBrowser, 'workspace');
     }
 
-    if (outcome.outcome === 'complete' || outcome.outcome === 'failed') {
-      this.row.set(outcome.row);
-      this.patterns.set(outcome.outcome === 'complete' ? outcome.patterns : []);
-      this.analyzeState.set(outcome.outcome === 'complete' ? 'complete' : 'failed');
-      // The user moved to a different symbol while this ran. The result is
-      // real and already in their history, so point at it rather than
-      // rendering it over a chart it was not read from.
-      if (this.instrument()?.id !== target.instrumentId) {
-        this.finishedElsewhere.set(target);
-      }
+    if (outcome.outcome === 'complete') {
+      this.analyzeState.set('complete');
+      const ready = { id: outcome.row.id, symbol: target.symbol };
+      this.readyRun.set(ready);
+      this.analysisReady.emit({ ...ready, kind: 'chart' });
+      return;
+    }
+
+    if (outcome.outcome === 'failed') {
+      this.analyzeState.set('failed');
+      // Named, because the user may be looking at another symbol by now.
+      const code = outcome.row.error_code;
+      this.analyzeError.set(
+        `${target.symbol}: ${(code && FAILURE_COPY[code]) || GENERIC_FAILURE}`,
+      );
       return;
     }
 
@@ -885,7 +825,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
     this.openInstrument(chart.instrument);
     this.chartRestored.emit(chart.instrument);
 
-    // After openInstrument, whose clearResult() would otherwise put this back
+    // After openInstrument, whose clearStatus() would otherwise put this back
     // to idle, and still before the first paint. A remembered run is known to
     // be going; without one it is not known yet, and 'restoring' keeps the
     // Analyse button disabled — without claiming an analysis is running — until

@@ -178,7 +178,6 @@
           }
           <app-workspace-chart
             [candles]="candles()"
-            [overlays]="overlays()"
             [activeIndicators]="activeIndicators()"
             [tool]="tool()"
             [drawings]="drawings()"
@@ -317,28 +316,15 @@
     <p class="err ws-error">{{ analyzeError() }}</p>
   }
 
-  <!-- Finished while the user was looking at a different symbol. Not
-       dropped silently: it cost a credit and it is a real result. -->
-  @if (finishedElsewhere(); as done) {
-    <div class="note ws-note" style="--tone: var(--up)">
-      <span>
-        Your <b>{{ done.symbol }}</b> analysis finished. Open the History tab to read it.
+  <!-- The way back to the last finished report once the shell's "ready"
+       dialog is dismissed. The report itself opens on its own page. -->
+  @if (readyRun(); as ready) {
+    <div class="note ws-note" style="--tone: var(--up)" role="status">
+      <span>Your <b translate="no">{{ ready.symbol }}</b> analysis is ready.</span>
+      <span class="ws-note-actions">
+        <a pButton size="small" [routerLink]="['/analysis', ready.id]">View report</a>
+        <button pButton size="small" [text]="true" (click)="dismissReady()">Dismiss</button>
       </span>
-      <button pButton [text]="true" (click)="dismissFinishedElsewhere()">
-        Dismiss
-      </button>
     </div>
-  }
-
-  @if (resultApplies() && row(); as analysis) {
-    <!-- The levels are only drawn on the chart while the timeframe matches, so
-         say why they are missing rather than leaving it unexplained. -->
-    @if (resultWindowDiffers()) {
-      <p class="disc ws-window-note">
-        This analysis was read from a different timeframe, so its levels aren't drawn on the chart
-        you're looking at now.
-      </p>
-    }
-    <app-analysis-result [row]="analysis" [patterns]="patterns()" />
   }
 </section>

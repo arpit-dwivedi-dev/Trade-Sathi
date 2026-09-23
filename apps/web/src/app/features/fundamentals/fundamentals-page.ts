@@ -29,6 +29,7 @@ import {
   savePendingAnalysis,
 } from '../../core/pending-analysis-store';
 import { ThemeService } from '../../core/theme.service';
+import type { ReadyAnalysis } from '../../shared/analysis-ready-dialog/analysis-ready-dialog';
 import { AppIcon } from '../../shared/icons/app-icon';
 import { LottiePlayer } from '../../shared/lottie-player';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
@@ -217,6 +218,12 @@ export class FundamentalsPage implements OnInit, OnDestroy {
    */
   readonly companyRestored = output<LastCompany['instrument']>();
 
+  /**
+   * Raised when an AI run finishes, for the shell's "ready" dialog, whichever
+   * company is on screen by then. The report opens on its own page.
+   */
+  readonly analysisReady = output<ReadyAnalysis>();
+
   protected readonly annualMetrics = ANNUAL_METRICS;
   // p-selectButton's [options] wants a mutable array, so this is a shallow
   // copy of the readonly module-level constant above.
@@ -256,7 +263,17 @@ export class FundamentalsPage implements OnInit, OnDestroy {
    * only fills in once a poll tick returns a row and shouldn't gate the link.
    */
   protected readonly aiAnalysisId = signal<string | null>(null);
-  private aiPoll: FundamentalsPollHandle | null = null;
+
+  /**
+   * Every AI run being watched, by analyses row id, including runs for a
+   * company the user has since left. A run is charged when it starts, so it
+   * is still announced when it finishes, and opening its company again puts
+   * it back on the panel. Cancelled only when this screen is destroyed.
+   */
+  private readonly aiRuns = new Map<
+    string,
+    { instrumentId: string; poll: FundamentalsPollHandle }
+  >();
 
   constructor() {
     // Reads whatever the shell hands down, including the same symbol picked
@@ -313,6 +330,13 @@ export class FundamentalsPage implements OnInit, OnDestroy {
     // read for the company just left the screen must not linger under one
     // that has nothing to do with it.
     this.resetAi();
+    // Unless it is this company's own run, still going from an earlier visit.
+    for (const [analysisId, run] of this.aiRuns) {
+      if (run.instrumentId !== instrumentId) continue;
+      this.aiAnalysisId.set(analysisId);
+      this.aiState.set('queued');
+      break;
+    }
 
     const result = await this.fundamentals.fetchFundamentals(instrumentId);
     // A later load — even for this same instrument id — owns the screen now.
@@ -330,9 +354,11 @@ export class FundamentalsPage implements OnInit, OnDestroy {
     this.aiError.set(null);
   }
 
+  /**
+   * Clears the AI panel. A run in flight is detached from it, not cancelled:
+   * see aiRuns.
+   */
   private resetAi(): void {
-    this.aiPoll?.cancel();
-    this.aiPoll = null;
     this.aiState.set('idle');
     this.aiRow.set(null);
     this.aiError.set(null);
@@ -340,15 +366,15 @@ export class FundamentalsPage implements OnInit, OnDestroy {
   }
 
   protected async analyzeWithAi(): Promise<void> {
-    const instrumentId = this.data()?.instrument.id;
-    if (!instrumentId || this.aiState() === 'queued') return;
+    const instrument = this.data()?.instrument;
+    if (!instrument || this.aiState() === 'queued') return;
 
     this.aiState.set('queued');
     this.aiError.set(null);
     this.aiRow.set(null);
     this.aiAnalysisId.set(null);
 
-    const submitted = await this.fundamentals.analyzeWithAi(instrumentId);
+    const submitted = await this.fundamentals.analyzeWithAi(instrument.id);
     if (!submitted.ok) {
       this.aiError.set(submitted.message);
       this.aiState.set(
@@ -364,36 +390,50 @@ export class FundamentalsPage implements OnInit, OnDestroy {
       startedAt: Date.now(),
     });
 
-    this.watchRun(submitted.id);
+    this.watchRun(submitted.id, instrument);
   }
 
   /**
-   * Watches one run to its outcome and puts it on screen.
+   * Watches one run to its outcome: a finished run is announced through the
+   * shell's "ready" dialog, and the panel shows the outcome if the run still
+   * owns it (the user may have opened another company since).
    *
    * Shared by a run started here and one resumed after a reload: both are just
    * an analyses row id, and neither cares which page load started it.
    */
-  private watchRun(analysisId: string): void {
+  private watchRun(analysisId: string, instrument: { id: string; symbol: string }): void {
     this.aiState.set('queued');
     this.aiAnalysisId.set(analysisId);
 
-    const handle = this.fundamentals.pollFundamentalsAnalysis(analysisId, (row) =>
-      this.aiRow.set(row),
-    );
-    this.aiPoll = handle;
+    const ownsPanel = (): boolean => this.aiAnalysisId() === analysisId;
+    const poll = this.fundamentals.pollFundamentalsAnalysis(analysisId, (row) => {
+      if (ownsPanel()) this.aiRow.set(row);
+    });
+    this.aiRuns.set(analysisId, { instrumentId: instrument.id, poll });
 
-    void handle.result.then((outcome) => {
-      // A new company (or a cancel) took the panel while this was in flight.
-      if (this.aiPoll !== handle) return;
-      this.aiPoll = null;
+    // A cancelled poll never settles, so none of this runs once the screen is
+    // destroyed (see ngOnDestroy).
+    void poll.result.then((outcome) => {
+      this.aiRuns.delete(analysisId);
 
       // Only a settled run stops being remembered. 'timed_out' means the
       // backend may still be working on it and 'poll_error' means this browser
       // could not read the row — neither says the run is over, so both stay
-      // resumable.
-      if (outcome.outcome === 'complete' || outcome.outcome === 'failed') {
+      // resumable. And only this run's own record: a later run may have
+      // replaced it while this one was going.
+      if (
+        (outcome.outcome === 'complete' || outcome.outcome === 'failed') &&
+        loadPendingAnalysis(this.isBrowser, 'fundamentals')?.id === analysisId
+      ) {
         clearPendingAnalysis(this.isBrowser, 'fundamentals');
       }
+
+      if (outcome.outcome === 'complete') {
+        this.analysisReady.emit({ id: analysisId, symbol: instrument.symbol, kind: 'fundamentals' });
+      }
+
+      // Another company, or a newer run, has the panel now.
+      if (!ownsPanel()) return;
 
       switch (outcome.outcome) {
         case 'complete':
@@ -456,10 +496,10 @@ export class FundamentalsPage implements OnInit, OnDestroy {
       // being restored; that pick owns the panel now.
       if (this.selection()) return;
       if (pending) {
-        this.watchRun(pending.id);
+        this.watchRun(pending.id, last.instrument);
         return;
       }
-      return this.adoptUnfinishedRun(last.instrument.id);
+      return this.adoptUnfinishedRun(last.instrument);
     });
   }
 
@@ -472,11 +512,11 @@ export class FundamentalsPage implements OnInit, OnDestroy {
    * with no local record. The database is the authority on what is still
    * running, so it is asked directly, narrowed to this screen's own runs.
    */
-  private async adoptUnfinishedRun(instrumentId: string): Promise<void> {
-    const row = await this.analyses.findUnfinishedAnalysis(instrumentId, 'fundamentals');
+  private async adoptUnfinishedRun(instrument: { id: string; symbol: string }): Promise<void> {
+    const row = await this.analyses.findUnfinishedAnalysis(instrument.id, 'fundamentals');
     // The user may have started a run of their own, or moved on to another
     // company, while this was read.
-    if (this.aiState() !== 'restoring' || this.openInstrumentId !== instrumentId) return;
+    if (this.aiState() !== 'restoring' || this.openInstrumentId !== instrument.id) return;
 
     if (!row) {
       // Nothing running: release the button restoreCompany held disabled.
@@ -488,14 +528,15 @@ export class FundamentalsPage implements OnInit, OnDestroy {
       id: row.id,
       startedAt: Date.parse(row.created_at) || Date.now(),
     });
-    this.watchRun(row.id);
+    this.watchRun(row.id, instrument);
   }
 
   ngOnDestroy(): void {
-    // Without this the row watch keeps firing after the user navigates away,
-    // and would try to update a destroyed component's state.
-    this.aiPoll?.cancel();
-    this.aiPoll = null;
+    // Without this the row watches keep firing after the user navigates away,
+    // and would try to update a destroyed component's state. A run still going
+    // stays remembered, and a later visit picks it back up.
+    for (const run of this.aiRuns.values()) run.poll.cancel();
+    this.aiRuns.clear();
   }
 
   // ── formatting ────────────────────────────────────────────
