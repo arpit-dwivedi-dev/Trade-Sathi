@@ -13,6 +13,7 @@ import { Select } from 'primeng/select';
 import type { ItiUtils } from 'intl-tel-input';
 import allCountries from 'intl-tel-input/data';
 
+import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth.service';
 import { ProfileService } from './profile.service';
 
@@ -292,6 +293,12 @@ export class AccountPage implements OnInit {
     return geo.city ? `${geo.city}, ${country}` : country;
   });
 
+  /**
+   * The survey is hidden in production builds for now, and not fetched there
+   * either. Development builds (`ng serve`, environment.development.ts) keep
+   * it, so it can still be worked on locally.
+   */
+  protected readonly showSurvey = !environment.production;
   protected readonly surveyStatus = signal<SurveyStatus | null>(null);
   protected readonly surveyLoading = signal(true);
   protected readonly surveyAnswers = signal<SurveyAnswers>({});
@@ -304,7 +311,7 @@ export class AccountPage implements OnInit {
 
   ngOnInit(): void {
     void this.loadProfile();
-    void this.loadSurvey();
+    if (this.showSurvey) void this.loadSurvey();
     void this.loadSessionGeo();
     void this.loadPhoneUtils();
   }

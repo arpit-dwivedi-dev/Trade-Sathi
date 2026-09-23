@@ -157,7 +157,7 @@
       </div>
     </p-card>
 
-    @if (!surveyLoading() && surveyStatus()?.survey; as survey) {
+    @if (showSurvey && !surveyLoading() && surveyStatus()?.survey; as survey) {
       <p-card class="acct-card">
         <div class="hd">
           <span class="lbl-h">{{ survey.title }}</span>
@@ -215,7 +215,7 @@
           </button>
         </div>
       </p-card>
-    } @else if (!surveyLoading() && surveyJustCompleted()) {
+    } @else if (showSurvey && !surveyLoading() && surveyJustCompleted()) {
       <p-card class="acct-card">
         <div class="hd">
           <span class="lbl-h">Surveys</span>
