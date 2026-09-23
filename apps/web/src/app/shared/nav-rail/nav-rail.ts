@@ -2,13 +2,15 @@ import { Component, computed, inject, input, model, output } from '@angular/core
 import { ButtonModule } from 'primeng/button';
 import { Router, RouterLink } from '@angular/router';
 
+import { environment } from '../../../environments/environment';
 import { AdminAccessService } from '../../core/admin-access.service';
 import { AuthService } from '../../core/auth.service';
 import { BillingService } from '../../features/billing/billing.service';
+import { PURCHASES_ENABLED } from '../../features/billing/free-beta';
 import { ProfileService } from '../../features/account/profile.service';
 import { ThemeService } from '../../core/theme.service';
 import { AppIcon } from '../icons/app-icon';
-import { TAB_LABELS, type NavTab } from './nav-tabs';
+import { TAB_LABELS, isTabVisible, type NavTab } from './nav-tabs';
 
 /**
  * The signed-in nav rail. Every destination is a tab of the app shell, reached
@@ -47,6 +49,19 @@ export class NavRail {
    * the shell prints in the top bar. Written out in both places it drifted.
    */
   protected readonly labels = TAB_LABELS;
+
+  /** Left out of production builds for the free beta — see HIDDEN_TABS. */
+  protected readonly imageVisible = isTabVisible('analyze-by-image');
+
+  /** The Buy Credits button, off while purchases are — see PURCHASES_ENABLED. */
+  protected readonly purchasesEnabled = PURCHASES_ENABLED;
+
+  /**
+   * Whether to show the "Coming soon" rows for screens that do not exist yet
+   * (Dashboard, News & Events). Development builds only: a row a user cannot
+   * open tells them nothing, so production leaves them out.
+   */
+  protected readonly showComingSoon = !environment.production;
 
   /**
    * Desktop-only icons-only state. A model rather than internal state because

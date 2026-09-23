@@ -30,7 +30,11 @@
       <p class="note daily-briefing-cost-note" role="status">
         <span class="daily-briefing-cost-copy">
           {{ cost }} — scheduled runs and Analyze Now both spend from your credit balance.
-          <a routerLink="/app/billing">Buy credits</a> any time.
+          @if (purchasesEnabled) {
+            <a routerLink="/app/billing">Buy credits</a> any time.
+          } @else {
+            Free-beta credits are on the <a routerLink="/app/billing">Billing</a> screen.
+          }
         </span>
         <button pButton [text]="true" class="daily-briefing-cost-dismiss" (click)="dismissCostNote()">
           Got it

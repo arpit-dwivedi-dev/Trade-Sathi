@@ -34,7 +34,9 @@ import { LottiePlayer } from '../../shared/lottie-player';
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import type { AnalysisRow } from '../analyze/analysis.types';
 import { AnalyzeService } from '../analyze/analyze.service';
+import { BetaCredits } from '../billing/beta-credits';
 import { BillingService } from '../billing/billing.service';
+import { PURCHASES_ENABLED } from '../billing/free-beta';
 import { FundamentalsAnalysisResultComponent } from './fundamentals-analysis-result';
 import { FundamentalsService, type FundamentalsPollHandle } from './fundamentals.service';
 import { loadLastCompany, saveLastCompany, type LastCompany } from './last-company-store';
@@ -168,6 +170,7 @@ const FALLBACK_PALETTE: ChartPalette = {
     FormsModule,
     FundamentalsAnalysisResultComponent,
     AppIcon,
+    BetaCredits,
     ButtonModule,
     CardModule,
     ChartModule,
@@ -245,6 +248,8 @@ export class FundamentalsPage implements OnInit, OnDestroy {
   protected readonly aiState = signal<AiState>('idle');
   protected readonly aiRow = signal<AnalysisRow | null>(null);
   protected readonly aiError = signal<string | null>(null);
+  /** Off for the free beta (see PURCHASES_ENABLED): out of credits offers the beta code. */
+  protected readonly purchasesEnabled = PURCHASES_ENABLED;
   /**
    * The id of the AI run being polled, known as soon as it's submitted. The
    * "view report" link is driven by this rather than `aiRow`, since `aiRow`
@@ -316,6 +321,13 @@ export class FundamentalsPage implements OnInit, OnDestroy {
     this.loading.set(false);
     if (result.ok) this.data.set(result.fundamentals);
     else this.error.set(result.message);
+  }
+
+  /** The beta code was redeemed from the out-of-credits card, so the AI run can be asked for again. */
+  protected onBetaRedeemed(): void {
+    if (this.aiState() !== 'insufficient_credits') return;
+    this.aiState.set('idle');
+    this.aiError.set(null);
   }
 
   private resetAi(): void {

@@ -19,14 +19,11 @@
     <div class="ts-nav-links">
       <a class="ts-nav-link" href="#the-read" [class.is-active]="activeSection() === 'the-read'">The read</a>
       <a class="ts-nav-link" href="#how" [class.is-active]="activeSection() === 'how'">How it works</a>
-      <a class="ts-nav-link" href="#pricing" [class.is-active]="activeSection() === 'pricing'">Pricing</a>
+      <a class="ts-nav-link" href="#beta" [class.is-active]="activeSection() === 'beta'">Free beta</a>
       <a class="ts-nav-link" href="#faq" [class.is-active]="activeSection() === 'faq'">FAQ</a>
     </div>
 
     <div class="ts-nav-spacer"></div>
-
-
-
 
     @if (signedIn()) {
       <a class="ts-nav-cta" routerLink="/app">Open dashboard</a>
@@ -47,7 +44,7 @@
 <div class="ts-overlay" [class.is-open]="menuOpen()">
   <a href="#the-read" (click)="setMenu(false)">The read</a>
   <a href="#how" (click)="setMenu(false)">How it works</a>
-  <a href="#pricing" (click)="setMenu(false)">Pricing</a>
+  <a href="#beta" (click)="setMenu(false)">Free beta</a>
   <a href="#faq" (click)="setMenu(false)">FAQ</a>
   @if (!signedIn()) {
     <a routerLink="/login" (click)="setMenu(false)">Sign in</a>
@@ -133,13 +130,14 @@
 
     <div class="ts-hero-inner">
       <div class="ts-hero-copy">
-        <p class="ts-eyebrow">A second read before you commit</p>
+        <p class="ts-eyebrow">Free beta · {{ betaCredits }} credits with code {{ betaCode }}</p>
 
-        <h1 id="hero-heading" class="ts-h1">Know the level to act on, and the level that proves you wrong.</h1>
+        <h1 id="hero-heading" class="ts-h1">Read the structure of any chart in thirty seconds.</h1>
 
         <p class="ts-lede">
-          Upload a chart screenshot. Trade Sathi returns a structured read: trend state, the zones
-          that matter, and scenarios with a trigger, an invalidation and a target.
+          Open a symbol on the live chart. Trade Sathi reads it and returns the trend state, the
+          support and resistance zones that matter, the volatility regime, and the condition that
+          would change the read.
         </p>
 
         <div class="ts-actions">
@@ -147,25 +145,14 @@
             {{ signedIn() ? 'Open dashboard' : 'Create free account' }}
             <svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200 64v104a8 8 0 0 1-16 0V83.3L69.7 197.7a8 8 0 0 1-11.4-11.4L172.7 72H88a8 8 0 0 1 0-16h104a8 8 0 0 1 8 8Z" /></svg>
           </a>
-          <a class="ts-btn ts-btn-ghost" href="#the-read">See a real read</a>
+          <a class="ts-btn ts-btn-ghost" href="#the-read">See an example</a>
         </div>
 
         <p class="ts-hero-note">
-          Any chart type, m1 to w1. Equities, F&amp;O, indices, crypto, FX and commodities. If a chart
-          cannot be read, it says so.
+          Stocks and indices on NSE and BSE, and US stocks on NASDAQ and NYSE, from 1 minute to 1 day
+          candles. No broker login needed.
         </p>
       </div>
-    </div>
-  </section>
-
-  <!-- ── tagline ──────────────────────────────────────── -->
-  <section class="ts-section ts-section-flat" aria-labelledby="tagline-heading">
-    <div class="ts-tagline">
-      <h2 id="tagline-heading">
-        @for (word of tagline; track $index) {
-          <span class="ts-word">{{ word }}</span>{{ ' ' }}
-        }
-      </h2>
     </div>
   </section>
 
@@ -174,23 +161,23 @@
     <div class="ts-inner">
       <div class="ts-head ts-reveal">
         <div class="ts-kicker-row">
-          <span class="ts-kicker">The read, taken apart</span>
+          <span class="ts-kicker">The read</span>
         </div>
-        <h2 id="read-heading" class="ts-h2">One read, field by field, and what you do with each one.</h2>
+        <h2 id="read-heading" class="ts-h2">What a read contains, field by field.</h2>
         <p class="ts-sub">
-          One output for RELIANCE on the 1 hour chart, read at 14:32 IST. Every number comes with
-          the condition that retires it.
+          Illustrative output for a 1 hour chart. Every field says what it measured and how clear
+          the picture is.
         </p>
       </div>
 
       <div class="ts-read ts-reveal ts-reveal-1">
         <div class="ts-read-hd">
-          <span class="ts-read-sym">RELIANCE</span>
-          <span class="ts-read-meta">NSE · 1H · candlestick</span>
+          <span class="ts-read-sym">Example chart</span>
+          <span class="ts-read-meta">1H · candlestick</span>
           <span class="ts-live-spacer"></span>
           <span class="ts-read-credit">
             <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="m208 144-40.6-13.5a16 16 0 0 1-10.1-10.1L144 79.7a8.5 8.5 0 0 0-16 0l-13.5 40.7a16 16 0 0 1-10.1 10.1L64 144a8.5 8.5 0 0 0 0 16l40.6 13.5a16 16 0 0 1 10.1 10.1L128 224a8.5 8.5 0 0 0 16 0l13.5-40.6a16 16 0 0 1 10.1-10.1L208 160a8.5 8.5 0 0 0 0-16Z" /></svg>
-            1 credit · 14:32 IST
+            1 credit
           </span>
         </div>
 
@@ -201,15 +188,15 @@
               <span class="ts-val ts-val-ai">Transition</span>
               <span class="ts-val-sub">clarity 3 of 5</span>
             </div>
-            <p class="ts-note">The old trend has stopped and the next one has not started. Clarity 3 means size down, not sit out.</p>
+            <p class="ts-note">The old trend has stopped and a new one has not formed yet, so the structure reads as mixed.</p>
           </div>
           <div class="ts-read-cell">
             <div class="ts-lbl">Volatility regime</div>
             <div class="ts-val-row">
               <span class="ts-val">Expanding</span>
-              <span class="ts-val-sub">ATR(14) ₹18.20 · 1.23% of price</span>
+              <span class="ts-val-sub">ATR(14) 1.23% of price</span>
             </div>
-            <p class="ts-note">Ranges are widening, so yesterday's stop distance is now too tight.</p>
+            <p class="ts-note">Candle ranges are wider than they were over the recent past.</p>
           </div>
         </div>
 
@@ -219,95 +206,20 @@
               <span class="ts-swatch ts-swatch-down"></span>
               <span class="ts-lbl">Resistance zone</span>
             </div>
-            <div class="ts-zone-band">₹1,504.00 – 1,512.60</div>
+            <div class="ts-zone-band">1,504.00 – 1,512.60</div>
             <div class="ts-zone-meta">4 touches · 1.8 ATR above price</div>
-            <p class="ts-note">A band, not a line, because price reacted across it four times. 1.8 ATR away is about two normal candles.</p>
+            <p class="ts-note">A band, not a line, because price reacted across it four times.</p>
           </div>
           <div class="ts-read-cell">
             <div class="ts-zone-head">
               <span class="ts-swatch ts-swatch-up"></span>
               <span class="ts-lbl">Support zone</span>
             </div>
-            <div class="ts-zone-band">₹1,441.20 – 1,449.80</div>
+            <div class="ts-zone-band">1,441.20 – 1,449.80</div>
             <div class="ts-zone-meta">3 touches · 1.6 ATR below price</div>
-            <p class="ts-note">Three touches is a working zone, not a proven floor.</p>
+            <p class="ts-note">Three touches make a working zone, not a proven floor.</p>
           </div>
         </div>
-
-        <div class="ts-read-pair">
-          <div class="ts-read-cell">
-            <div class="ts-scn-head">
-              <span class="ts-lbl">Scenario A</span>
-              <span class="ts-pill ts-pill-long">Long</span>
-            </div>
-            <dl class="ts-dl">
-              <dt>Trigger band</dt><dd>₹1,512.60 – 1,516.20 acceptance</dd>
-              <dt>Target</dt><dd>₹1,558.00</dd>
-              <dt>Invalidation</dt><dd>₹1,487.30</dd>
-              <dt>Target before invalidation</dt><dd class="ts-prob" data-count="47.2">47.2%</dd>
-            </dl>
-            <p class="ts-scn-note">Below an even split, and shown anyway. It is the chance the target is hit before the invalidation.</p>
-          </div>
-          <div class="ts-read-cell">
-            <div class="ts-scn-head">
-              <span class="ts-lbl">Scenario B</span>
-              <span class="ts-pill ts-pill-short">Short</span>
-            </div>
-            <dl class="ts-dl">
-              <dt>Trigger band</dt><dd>₹1,500.40 – 1,504.00 rejection</dd>
-              <dt>Target</dt><dd>₹1,449.80</dd>
-              <dt>Invalidation</dt><dd>₹1,516.90</dd>
-              <dt>Target before invalidation</dt><dd class="ts-prob" data-count="38.6">38.6%</dd>
-            </dl>
-            <p class="ts-scn-note">A transition has two live paths, so both are stated. You pick the one you want.</p>
-          </div>
-        </div>
-
-        <div class="ts-fals">
-          <div class="ts-fals-head">
-            <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128 24a104 104 0 1 0 104 104A104.1 104.1 0 0 0 128 24Zm0 192a88 88 0 1 1 88-88 88.1 88.1 0 0 1-88 88Zm-8-80V80a8 8 0 0 1 16 0v56a8 8 0 0 1-16 0Zm20 36a12 12 0 1 1-12-12 12 12 0 0 1 12 12Z" /></svg>
-            <span class="ts-fals-kicker">Falsifier</span>
-          </div>
-          <p class="ts-lead">A 1H close above ₹1,512.60 on volume below the 20 period average. That reads as the zone being tested rather than accepted, and scenario A stops applying.</p>
-          <p class="ts-note">Read this field first. It is the line that tells you when to stop believing the rest.</p>
-        </div>
-
-        <div class="ts-base">
-          <div class="ts-lbl">Base rate from analogous setups</div>
-          <p class="ts-lead">29 of 61 comparable transitions on this symbol and timeframe since 2019 reached the upper target before the invalidation level.</p>
-          <p class="ts-note">The count is shown so you can see how thin the sample is. It is a hint, not a backtest.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── trust ────────────────────────────────────────── -->
-  <section id="trust" class="ts-section" aria-labelledby="trust-heading">
-    <div class="ts-inner">
-      <div class="ts-head ts-reveal">
-        <div class="ts-kicker-row">
-          <span class="ts-kicker">Why it is worth trusting</span>
-        </div>
-        <h2 id="trust-heading" class="ts-h2">There is no accuracy score here, and that is deliberate.</h2>
-        <p class="ts-sub">One headline number tells you nothing about the chart in front of you. Three things do the work instead.</p>
-      </div>
-
-      <div class="ts-cards">
-        <article class="ts-card ts-reveal">
-          <svg width="24" height="24" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128 24a104 104 0 1 0 104 104A104.1 104.1 0 0 0 128 24Zm45.7 85.7-56 56a8 8 0 0 1-11.4 0l-24-24a8 8 0 0 1 11.4-11.4L112 148.7l50.3-50.4a8 8 0 0 1 11.4 11.4Z" /></svg>
-          <h3>It commits to a falsifier</h3>
-          <p>Every read names the condition that would break it, written before the outcome is known. You can check it against the chart yourself.</p>
-        </article>
-        <article class="ts-card ts-reveal ts-reveal-1">
-          <svg width="24" height="24" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224 200h-8V40a8 8 0 0 0-8-8h-56a8 8 0 0 0-8 8v40H96a8 8 0 0 0-8 8v40H48a8 8 0 0 0-8 8v64h-8a8 8 0 0 0 0 16h192a8 8 0 0 0 0-16Zm-64-152h40v152h-40Zm-56 48h40v104h-40Zm-48 48h32v56H56Z" /></svg>
-          <h3>It shows the base rate and the count</h3>
-          <p>How often similar setups resolved, out of how many. A thin sample looks thin instead of looking confident.</p>
-        </article>
-        <article class="ts-card ts-reveal ts-reveal-2">
-          <svg width="24" height="24" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128 24a104 104 0 1 0 104 104A104.1 104.1 0 0 0 128 24Zm0 192a88 88 0 1 1 88-88 88.1 88.1 0 0 1-88 88Zm40-88a8 8 0 0 1-8 8H96a8 8 0 0 1 0-16h64a8 8 0 0 1 8 8Z" /></svg>
-          <h3>It declines charts it cannot read</h3>
-          <p>A cropped screenshot or too few candles returns a refusal, not a guess. The credit comes back automatically.</p>
-        </article>
       </div>
     </div>
   </section>
@@ -324,33 +236,32 @@
 
       <ol class="ts-steps">
         <li class="ts-step ts-reveal">
-          <svg class="ts-step-art" viewBox="0 0 120 96" role="img" aria-label="A chart screenshot being uploaded">
+          <svg class="ts-step-art" viewBox="0 0 120 96" role="img" aria-label="A symbol being searched for and opened on a chart">
             <rect x="8" y="12" width="104" height="60" rx="8" fill="none" stroke="var(--hair)" stroke-width="2" />
             <path d="M20 58l16-14 12 10 14-18 14 12" fill="none" stroke="var(--ink-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             <circle cx="88" cy="72" r="16" fill="var(--page-raised)" />
-            <circle cx="88" cy="72" r="15" fill="none" stroke="#2962FF" stroke-width="2" />
-            <path d="M88 80V64m0 0-6 6m6-6 6 6" fill="none" stroke="#2962FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="86" cy="70" r="7" fill="none" stroke="#2962FF" stroke-width="2" />
+            <path d="M91 75l6 6" fill="none" stroke="#2962FF" stroke-width="2" stroke-linecap="round" />
           </svg>
           <div class="ts-step-n">Step 1</div>
-          <h3>Upload the chart</h3>
-          <p>A screenshot from any platform, or open the symbol in Workspace. No broker login needed.</p>
+          <h3>Open a symbol</h3>
+          <p>Search any NSE, BSE, NASDAQ or NYSE symbol and open it on the live chart.</p>
         </li>
         <li class="ts-step ts-reveal ts-reveal-1">
-          <svg class="ts-step-art" viewBox="0 0 120 96" role="img" aria-label="Support and resistance zones drawn on a chart with a scenario path">
+          <svg class="ts-step-art" viewBox="0 0 120 96" role="img" aria-label="Support and resistance zones drawn on a chart">
             <rect x="8" y="12" width="104" height="60" rx="8" fill="none" stroke="var(--hair)" stroke-width="2" />
             <rect x="9" y="22" width="102" height="10" fill="#F23645" opacity="0.12" />
             <rect x="9" y="54" width="102" height="10" fill="#089981" opacity="0.12" />
             <path d="M20 58l16-14 12 10 14-18 14 12" fill="none" stroke="var(--ink-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M76 48l12-10 12-12" fill="none" stroke="#9D2BFF" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 4" />
             <rect x="8" y="80" width="62" height="12" rx="4" fill="#9D2BFF" opacity="0.14" />
             <rect x="76" y="80" width="36" height="12" rx="4" fill="var(--hair)" />
           </svg>
           <div class="ts-step-n">Step 2</div>
           <h3>Get the read</h3>
-          <p>Trend state, the zones, one or two scenarios, the falsifier and the base rate. One credit, about thirty seconds.</p>
+          <p>Trend state, the zones, volatility and the condition that would change the read. About thirty seconds, one credit.</p>
         </li>
         <li class="ts-step ts-reveal ts-reveal-2">
-          <svg class="ts-step-art" viewBox="0 0 120 96" role="img" aria-label="Levels saved with a daily monitoring schedule">
+          <svg class="ts-step-art" viewBox="0 0 120 96" role="img" aria-label="A saved read with a daily schedule">
             <rect x="8" y="12" width="104" height="60" rx="8" fill="none" stroke="var(--hair)" stroke-width="2" />
             <path d="M20 30h48M20 42h64M20 54h36" stroke="var(--ink-faint)" stroke-width="2" stroke-linecap="round" />
             <circle cx="94" cy="54" r="12" fill="none" stroke="#00D4A0" stroke-width="2" />
@@ -359,74 +270,10 @@
             <rect x="60" y="80" width="52" height="12" rx="4" fill="var(--hair)" />
           </svg>
           <div class="ts-step-n">Step 3</div>
-          <h3>Act on your own terms</h3>
-          <p>Keep the levels, export the read as a PDF, or hand the symbol to Daily Briefing for a re-read every morning.</p>
+          <h3>Keep it</h3>
+          <p>Save it in History, export it as a PDF, or add the symbol to Daily Briefing for a fresh read each morning.</p>
         </li>
       </ol>
-    </div>
-  </section>
-
-  <!-- ── scope ────────────────────────────────────────── -->
-  <section class="ts-section" aria-labelledby="scope-heading">
-    <div class="ts-inner">
-      <div class="ts-head ts-reveal">
-        <div class="ts-kicker-row">
-          <span class="ts-kicker">Scope</span>
-        </div>
-        <h2 id="scope-heading" class="ts-h2">What you get, and what you do not.</h2>
-      </div>
-
-      <div class="ts-scope">
-        <div class="ts-scope-card ts-reveal">
-          <h3>You get</h3>
-          <ul class="ts-scope-list">
-            @for (item of [
-              'The level to act at and the level that proves you wrong',
-              'Zones with touch counts, not single lines',
-              'A written falsifier and a base rate with its sample size',
-              'The read as a PDF, kept in History'
-            ]; track item) {
-              <li>
-                <svg width="20" height="20" viewBox="0 0 256 256" fill="#089981" aria-hidden="true"><path d="M128 24a104 104 0 1 0 104 104A104.1 104.1 0 0 0 128 24Zm45.7 85.7-56 56a8 8 0 0 1-11.4 0l-24-24a8 8 0 0 1 11.4-11.4L112 148.7l50.3-50.4a8 8 0 0 1 11.4 11.4Z" /></svg>
-                {{ item }}
-              </li>
-            }
-          </ul>
-        </div>
-
-        <div class="ts-scope-card ts-reveal ts-reveal-1">
-          <h3>You do not get</h3>
-          <ul class="ts-scope-list">
-            @for (item of [
-              'Buy and sell calls, or a tip service',
-              'An accuracy score or a win rate',
-              'Order placement, or any broker connection',
-              'Position sizing, which only you can set'
-            ]; track item) {
-              <li>
-                <svg width="20" height="20" viewBox="0 0 256 256" fill="#F23645" aria-hidden="true"><path d="M128 24a104 104 0 1 0 104 104A104.1 104.1 0 0 0 128 24Zm0 192a88 88 0 1 1 88-88 88.1 88.1 0 0 1-88 88Zm40-88a8 8 0 0 1-8 8H96a8 8 0 0 1 0-16h64a8 8 0 0 1 8 8Z" /></svg>
-                {{ item }}
-              </li>
-            }
-          </ul>
-        </div>
-
-        <div class="ts-refusal ts-reveal ts-reveal-2">
-          <div class="ts-refusal-hd">
-            <span class="ts-refusal-name">Unnamed chart</span>
-            <span class="ts-live-spacer"></span>
-            <span class="ts-refusal-refund">1 credit refunded</span>
-          </div>
-          <div class="ts-refusal-body">
-            <div class="ts-refusal-kicker">
-              <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128 24a104 104 0 1 0 104 104A104.1 104.1 0 0 0 128 24Zm0 192a88 88 0 1 1 88-88 88.1 88.1 0 0 1-88 88Zm-8-80V80a8 8 0 0 1 16 0v56a8 8 0 0 1-16 0Zm20 36a12 12 0 1 1-12-12 12 12 0 0 1 12 12Z" /></svg>
-              Cannot read this chart
-            </div>
-            <p class="ts-refusal-lead">The price axis is cropped and only 11 candles are visible. Zones cannot be placed without a readable scale.</p>
-            <p class="ts-refusal-sub">Retry with the full axis in frame. This is the refusal case, shown as it actually appears.</p>
-          </div>
-        </div>
-      </div>
     </div>
   </section>
 
@@ -435,73 +282,39 @@
     <div class="ts-inner ts-reveal">
       <h2 id="else-heading" class="ts-else-title">Also included, once you are inside</h2>
       <dl class="ts-else">
-        <div><dt>Fundamentals analysis</dt><dd>A read on the company rather than the chart.</dd></div>
-        <div><dt>Daily Briefing</dt><dd>Track symbols, re-read every day by a scheduled job, results emailed.</dd></div>
-        <div><dt>Workspace</dt><dd>Live chart with indicators and drawing tools, so you can read a symbol without leaving.</dd></div>
-        <div><dt>History</dt><dd>Every past analysis, reopenable and exportable as PDF.</dd></div>
+        <div><dt>Fundamentals</dt><dd>A read of the company's reported numbers, not just its chart.</dd></div>
+        <div><dt>Daily Briefing</dt><dd>Track symbols and get a fresh read by email each morning.</dd></div>
+        <div><dt>Live chart</dt><dd>Indicators and drawing tools, so you can study a symbol without leaving.</dd></div>
+        <div><dt>History</dt><dd>Every past read, reopenable and exportable as a PDF.</dd></div>
       </dl>
     </div>
   </section>
 
-  <!-- ── pricing ──────────────────────────────────────── -->
-  <section id="pricing" class="ts-section" aria-labelledby="pricing-heading">
+  <!-- ── free beta ────────────────────────────────────── -->
+  <section id="beta" class="ts-section" aria-labelledby="beta-heading">
     <div class="ts-inner">
       <div class="ts-head ts-reveal">
         <div class="ts-kicker-row">
-          <span class="ts-kicker">Pricing</span>
+          <span class="ts-kicker">Free beta</span>
         </div>
-        <h2 id="pricing-heading" class="ts-h2">Credits only. There is no subscription and no monthly fee.</h2>
-        <p class="ts-sub">Buy credits when you need them. They sit in your balance until you spend them.</p>
+        <h2 id="beta-heading" class="ts-h2">Free while Trade Sathi is in beta.</h2>
+        <p class="ts-sub">
+          Create an account, then redeem the code below on the Billing screen. No card and no
+          payment details.
+        </p>
       </div>
 
-      @let cr = credits();
-      <div class="ts-price-grid">
-        <article class="ts-price-card ts-reveal">
-          <div class="ts-price-head">
-            <h3>{{ cr ? (cr.region === 'GLOBAL' ? 'Global' : 'India') : 'Your region' }}</h3>
-            @if (cr) {
-              <span class="ts-badge">Detected for you</span>
-            }
-          </div>
-          @if (cr) {
-            <div>
-              <div class="ts-rate">{{ cr.rate }}</div>
-              <div class="ts-rate-sub">per credit · minimum {{ cr.minimum }} credits</div>
-            </div>
-          } @else {
-            <div class="ts-stack" aria-hidden="true">
-              <div class="ts-skel ts-skel-rate"></div>
-              <div class="ts-skel ts-skel-sub"></div>
-            </div>
-          }
-          <div class="ts-stack ts-stack-12">
-            <div class="ts-lbl">Top-ups</div>
-            @if (cr) {
-              <ul class="ts-topups">
-                @for (t of cr.topups; track t.price) {
-                  <li class="ts-topup">
-                    <span class="ts-topup-amt">{{ t.price }}</span>
-                    <span class="ts-topup-cr">{{ t.credits }} credits</span>
-                  </li>
-                }
-              </ul>
-            } @else {
-              <div class="ts-stack" aria-hidden="true">
-                @for (i of [1, 2, 3, 4]; track i) {
-                  <div class="ts-skel ts-skel-row"></div>
-                }
-              </div>
-            }
-          </div>
-        </article>
-
+      <div class="ts-beta-code ts-reveal ts-reveal-1">
+        <span class="ts-lbl">Beta code</span>
+        <span class="ts-beta-code-value">{{ betaCode }}</span>
+        <span class="ts-beta-code-sub">{{ betaCredits }} free credits, once per account</span>
       </div>
 
       <div class="ts-terms ts-reveal">
-        <div><h3>Nothing to cancel</h3><p>No subscription exists, so there is no renewal date and no cancellation to remember.</p></div>
-        <div><h3>Failed analysis refunded</h3><p>If a read cannot be produced, the credit returns to your balance automatically.</p></div>
-        <div><h3>Priced in your own currency</h3><p>Region is detected on load, so you pay in rupees or dollars without a conversion surprise.</p></div>
-        <div><h3>Promo codes become credits</h3><p>Any code you hold is redeemable straight into your balance.</p></div>
+        <div><h3>One credit per read</h3><p>A chart or fundamentals read uses one credit. A Daily Briefing run uses credits for each symbol it reads.</p></div>
+        <div><h3>Failed reads refunded</h3><p>If a read cannot be produced, the credit returns to your balance automatically.</p></div>
+        <div><h3>Nothing to cancel</h3><p>Purchases are switched off during the beta, so there is nothing to renew and nothing to cancel.</p></div>
+        <div><h3>Tell us what is missing</h3><p>Beta feedback goes straight to us through the <a routerLink="/contact">Contact</a> page.</p></div>
       </div>
     </div>
   </section>
@@ -513,7 +326,7 @@
         <div class="ts-kicker-row">
           <span class="ts-kicker">FAQ</span>
         </div>
-        <h2 id="faq-heading" class="ts-h2">Six questions, answered plainly.</h2>
+        <h2 id="faq-heading" class="ts-h2">Five questions, answered plainly.</h2>
       </div>
 
       <div class="ts-faq ts-reveal">
@@ -537,7 +350,7 @@
   <section id="signup" class="ts-section ts-section-raised ts-section-signup" aria-labelledby="signup-heading">
     <div class="ts-signup ts-reveal">
       <h2 id="signup-heading">Read one chart before you decide anything.</h2>
-      <p class="ts-sub">No subscription, so there is nothing to cancel. A failed analysis is refunded automatically. Prices are in your own currency, and promo codes convert straight into credits.</p>
+      <p class="ts-sub">Free during the beta: create an account and redeem code {{ betaCode }} for {{ betaCredits }} credits. No card, nothing to cancel, and a failed read is refunded automatically.</p>
       @if (signedIn()) {
         <!-- Asking for an email address from someone already signed in with
              one would be the page not recognising them. -->
@@ -574,8 +387,14 @@
         <div class="ts-foot-nav-head">Product</div>
         <a href="#the-read">The read</a>
         <a href="#how">How it works</a>
-        <a href="#pricing">Pricing</a>
+        <a href="#beta">Free beta</a>
         <a href="#faq">FAQ</a>
+      </nav>
+      <nav class="ts-foot-nav" aria-label="Support">
+        <div class="ts-foot-nav-head">Support</div>
+        <a routerLink="/contact">Contact</a>
+        <a routerLink="/terms">Terms of Use</a>
+        <a routerLink="/privacy">Privacy Policy</a>
       </nav>
       <nav class="ts-foot-nav" aria-label="Account">
         <div class="ts-foot-nav-head">Account</div>
@@ -587,7 +406,7 @@
         }
       </nav>
     </div>
-    <p class="ts-foot-disc">Trade Sathi produces analysis output, not investment advice. Nothing on this page or in the product is a recommendation to buy or sell any security. Scenarios are probabilistic and may be wrong. Markets carry risk, including the loss of capital. You are responsible for your own decisions.</p>
+    <p class="ts-foot-disc">Trade Sathi is not registered with SEBI as an investment adviser or research analyst. It produces automated analysis output, not investment advice, and nothing on this page or in the product is a recommendation to buy or sell any security. Reads are probabilistic and may be wrong. Markets carry risk, including the loss of capital. You are responsible for your own decisions.</p>
     <div class="ts-foot-copy">© 2026 Trade Sathi</div>
   </div>
 </footer>

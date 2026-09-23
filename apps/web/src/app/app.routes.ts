@@ -24,6 +24,20 @@ export const routes: Routes = [
     pathMatch: 'full',
     loadComponent: () => import('./features/landing/landing-page').then((m) => m.LandingPage),
   },
+  // The public policy pages, linked from the landing page's footer. No guard:
+  // they are read before sign-up as often as after.
+  {
+    path: 'terms',
+    loadComponent: () => import('./features/legal/terms-page').then((m) => m.TermsPage),
+  },
+  {
+    path: 'privacy',
+    loadComponent: () => import('./features/legal/privacy-page').then((m) => m.PrivacyPage),
+  },
+  {
+    path: 'contact',
+    loadComponent: () => import('./features/legal/contact-page').then((m) => m.ContactPage),
+  },
   authStep('login', 'signin'),
   authStep('signup', 'signup'),
   // The step after signup, at its own address rather than a mode of /signup:

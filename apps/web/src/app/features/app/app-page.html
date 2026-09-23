@@ -80,9 +80,11 @@
          be torn down just because the user glanced at their history. History,
          by contrast, is created on each activation, which is exactly the
          refetch that picks up analyses finished on the other tab. -->
-    <div class="tab-pane" [hidden]="tab() !== 'analyze-by-image'">
-      <app-analyze-page class="tab-pane" (plansRequested)="openPlans()" />
-    </div>
+    @if (imageVisible) {
+      <div class="tab-pane" [hidden]="tab() !== 'analyze-by-image'">
+        <app-analyze-page class="tab-pane" (plansRequested)="openPlans()" />
+      </div>
+    }
 
     <!-- Deferred, then kept mounted while hidden. The defer only decides when
          the chart bundle is fetched — the first time this tab is opened rather

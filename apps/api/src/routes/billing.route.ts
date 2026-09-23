@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import type { PromoRedeemOutcome } from "@tradesathi/shared";
 import { asyncRoute } from "../lib/async-route.js";
+import { env } from "../lib/env.js";
 import { logger } from "../lib/logger.js";
 import { requireAuth } from "../middleware/auth.js";
 import { createCreditOrder, reconcileCreditOrder } from "../services/credits.service.js";
@@ -20,6 +21,16 @@ billingRouter.post(
   "/api/billing/purchase-credits",
   asyncRoute(requireAuth),
   asyncRoute(async (req: Request, res: Response) => {
+    // Checked before anything else so no Razorpay order is ever created while
+    // purchases are paused — see env.billingEnabled.
+    if (!env.billingEnabled) {
+      res.status(503).json({
+        error: "Purchases are paused during the free beta",
+        reason: "billing_disabled",
+      });
+      return;
+    }
+
     // `?? {}` because a request sent with no body at all leaves req.body
     // undefined, which must be a 400 and not a destructuring TypeError.
     const { quantity, promoCode } = (req.body ?? {}) as {

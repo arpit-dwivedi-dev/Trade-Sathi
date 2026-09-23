@@ -28,7 +28,7 @@ import { LogsPage } from '../logs/logs-page';
 import { DailyBriefing } from '../daily-briefing/daily-briefing';
 import { WorkspacePage } from '../workspace/workspace-page';
 import { NavRail } from '../../shared/nav-rail/nav-rail';
-import { parseTab, TAB_LABELS, type NavTab } from '../../shared/nav-rail/nav-tabs';
+import { isTabVisible, parseTab, TAB_LABELS, type NavTab } from '../../shared/nav-rail/nav-tabs';
 import { SymbolSearch, type SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import type { OpenInstrumentRequest } from './open-instrument';
 import { PresenceService } from '../../core/presence.service';
@@ -107,7 +107,14 @@ export class AppPage implements OnInit {
   private readonly presence = inject(PresenceService);
 
   protected readonly user = this.auth.user;
-  protected readonly tab = signal<Tab>('analyze-by-image');
+  protected readonly tab = signal<Tab>(parseTab(null));
+  /**
+   * Whether Analyze by Image is mounted at all. Hidden for the free beta in
+   * production builds (see HIDDEN_TABS), and then not mounted either: the page
+   * restores in-flight uploads and reads the balance on init, none of which
+   * has a screen to land on while the tab is hidden.
+   */
+  protected readonly imageVisible = isTabVisible('analyze-by-image');
   protected readonly theme = this.themeService.theme;
   /**
    * The badge shows only the market currently selected in the top bar's
@@ -131,7 +138,7 @@ export class AppPage implements OnInit {
   protected readonly navCollapsed = signal(false);
   /** Phone-only: whether the folded search row under the header is showing. */
   protected readonly searchOpen = signal(false);
-  protected readonly tabbarItems = TABBAR_ITEMS;
+  protected readonly tabbarItems = TABBAR_ITEMS.filter((item) => isTabVisible(item.tab));
   /**
    * The instrument the workspace chart is showing, as chosen in the top bar's
    * one shared search. Kept rather than reset on every tab switch so coming
@@ -365,7 +372,7 @@ export class AppPage implements OnInit {
   /** Routes a symbol picked in the top bar to whichever chart tab is open. */
   /** Whether the current tab lives in the drawer rather than in a tab bar slot. */
   protected isDrawerTab(): boolean {
-    return !TABBAR_ITEMS.some((item) => item.tab === this.tab());
+    return !this.tabbarItems.some((item) => item.tab === this.tab());
   }
 
   protected toggleSearch(): void {

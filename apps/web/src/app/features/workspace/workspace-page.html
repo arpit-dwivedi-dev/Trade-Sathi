@@ -302,10 +302,17 @@
   </div>
 
   @if (analyzeState() === 'insufficient_credits') {
-    <div class="note ws-note" style="--tone: var(--warn)">
-      <span>{{ analyzeError() }}</span>
-      <button pButton [outlined]="true" (click)="openPlans()">Buy credits</button>
-    </div>
+    @if (purchasesEnabled) {
+      <div class="note ws-note" style="--tone: var(--warn)">
+        <span>{{ analyzeError() }}</span>
+        <button pButton [outlined]="true" (click)="openPlans()">Buy credits</button>
+      </div>
+    } @else {
+      <div class="note ws-note ws-note-beta" style="--tone: var(--warn)">
+        <span>{{ analyzeError() }}</span>
+        <app-beta-credits (redeemed)="onBetaRedeemed()" />
+      </div>
+    }
   } @else if (analyzeState() === 'failed' && analyzeError()) {
     <p class="err ws-error">{{ analyzeError() }}</p>
   }

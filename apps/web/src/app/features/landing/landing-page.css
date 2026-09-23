@@ -775,10 +775,6 @@
   position: relative;
 }
 
-.ts-section-flat {
-  border-top: 0;
-}
-
 .ts-section-raised {
   background: var(--page-raised);
 }
@@ -840,32 +836,6 @@
   font-size: 18px;
   line-height: 1.6;
   text-wrap: pretty;
-}
-
-/* ── the pull-quote tagline ─────────────────────────────── */
-.ts-tagline {
-  margin: 0 auto;
-  max-width: 680px;
-  padding: 48px 0;
-}
-
-.ts-tagline h2 {
-  font-size: clamp(36px, 5vw, 60px);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  text-wrap: balance;
-}
-
-/* Each word lifts to full strength as the line enters — the class is added
-   per word by the observer, in reading order. */
-.ts-word {
-  opacity: 0.3;
-  transition: opacity var(--dur) var(--ease);
-}
-
-.ts-word.is-in {
-  opacity: 1;
 }
 
 .ts-up {
@@ -1009,136 +979,6 @@
   margin-top: 8px;
 }
 
-.ts-scn-head {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.ts-pill {
-  align-items: center;
-  border-radius: 6px;
-  display: inline-flex;
-  font-size: 12px;
-  font-weight: 700;
-  gap: 4px;
-  padding: 2px 8px;
-}
-
-.ts-pill-long {
-  background: rgba(8, 153, 129, 0.12);
-  color: var(--up);
-}
-
-.ts-pill-short {
-  background: rgba(242, 54, 69, 0.12);
-  color: var(--down);
-}
-
-.ts-dl {
-  display: grid;
-  font-size: 14px;
-  gap: 12px 24px;
-  grid-template-columns: auto 1fr;
-  margin: 16px 0 0;
-}
-
-.ts-dl dt {
-  color: var(--ink-faint);
-}
-
-.ts-dl dd {
-  color: var(--ink);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  margin: 0;
-}
-
-.ts-dl dd.ts-prob {
-  color: var(--ai);
-  font-weight: 700;
-}
-
-.ts-scn-note {
-  color: var(--ink-soft);
-  font-size: 14px;
-  line-height: 1.6;
-  margin-top: 20px;
-  text-wrap: pretty;
-}
-
-.ts-fals {
-  background: rgba(157, 43, 255, 0.05);
-  border-bottom: 1px solid var(--hair);
-  padding: 24px;
-}
-
-.ts-fals-head {
-  align-items: center;
-  display: flex;
-  gap: 8px;
-}
-
-.ts-fals-head svg {
-  color: var(--ai);
-}
-
-.ts-fals-kicker {
-  color: var(--ai);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.ts-lead {
-  color: var(--ink);
-  font-size: 18px;
-  font-weight: 500;
-  line-height: 1.55;
-  margin-top: 12px;
-  max-width: 680px;
-  text-wrap: pretty;
-}
-
-.ts-base {
-  padding: 24px;
-}
-
-.ts-cards {
-  display: grid;
-  gap: 24px;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-}
-
-.ts-card {
-  background: var(--page-raised);
-  border: 1px solid var(--hair);
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 24px;
-}
-
-.ts-card svg {
-  color: var(--mint);
-}
-
-.ts-card h3 {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-}
-
-.ts-card p {
-  color: var(--ink-soft);
-  font-size: 16px;
-  line-height: 1.6;
-  text-wrap: pretty;
-}
-
 /* ════════════════════════════════════════════════════════
    How it works
    ════════════════════════════════════════════════════════ */
@@ -1191,116 +1031,6 @@
 }
 
 /* ════════════════════════════════════════════════════════
-   Scope
-   ════════════════════════════════════════════════════════ */
-
-.ts-scope {
-  display: grid;
-  gap: 24px;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-}
-
-.ts-scope-card {
-  background: var(--page-raised);
-  border: 1px solid var(--hair);
-  border-radius: 16px;
-  padding: 32px;
-}
-
-.ts-scope-card h3 {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-}
-
-.ts-scope-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  list-style: none;
-  margin: 16px 0 0;
-  padding: 0;
-}
-
-.ts-scope-list li {
-  color: var(--ink-soft);
-  display: flex;
-  font-size: 16px;
-  gap: 12px;
-  line-height: 1.55;
-}
-
-.ts-scope-list svg {
-  flex: 0 0 auto;
-  margin-top: 2px;
-}
-
-/* The refusal card is a live app surface, not a marketing panel — it uses
-   the --app-* ramp so it reads as a screenshot of the product. */
-.ts-refusal {
-  background: var(--app-canvas);
-  border: 1px solid var(--app-hair);
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.ts-refusal-hd {
-  align-items: center;
-  background: var(--app-panel);
-  border-bottom: 1px solid var(--app-hair);
-  display: flex;
-  gap: 12px;
-  padding: 12px 16px;
-}
-
-.ts-refusal-name {
-  color: var(--app-ink);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.ts-refusal-refund {
-  color: var(--up);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.ts-refusal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 24px;
-}
-
-.ts-refusal-kicker {
-  align-items: center;
-  color: var(--down);
-  display: flex;
-  font-size: 12px;
-  font-weight: 600;
-  gap: 8px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.ts-refusal-lead {
-  color: var(--app-ink);
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.55;
-  text-wrap: pretty;
-}
-
-.ts-refusal-sub {
-  color: var(--app-ink-soft);
-  font-size: 14px;
-  line-height: 1.6;
-  text-wrap: pretty;
-}
-
-/* ════════════════════════════════════════════════════════
    Also included
    ════════════════════════════════════════════════════════ */
 
@@ -1324,125 +1054,35 @@
   text-wrap: pretty;
 }
 
-#pricing .ts-head {
-  align-items: center;
-  margin: 0 auto;
-  text-align: center;
-}
+/* ════════════════════════════════════════════════════════
+   Free beta
+   ════════════════════════════════════════════════════════ */
 
-.ts-price-grid {
-  display: grid;
-  margin: 0 auto;
-  max-width: 560px;
-  width: 100%;
-  gap: 24px;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-}
-
-.ts-price-card {
+/* The code itself, set large so it can be read off the page and typed. */
+.ts-beta-code {
+  align-items: flex-start;
   background: var(--page-raised);
-  border: 1px solid var(--hair);
+  border: 1px dashed var(--mint);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 32px;
-}
-
-.ts-price-head {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
   gap: 8px;
+  padding: 24px 32px;
+  width: fit-content;
 }
 
-.ts-price-head h3 {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-}
-
-.ts-badge {
-  background: rgba(41, 98, 255, 0.1);
-  border-radius: 6px;
-  color: var(--brand);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 2px 8px;
-}
-
-.ts-rate {
-  font-size: 36px;
-  font-weight: 700;
+.ts-beta-code-value {
+  color: var(--ink);
+  font-size: 40px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.025em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
 }
 
-.ts-rate-sub {
-  color: var(--ink-soft);
-  font-size: 16px;
-  font-variant-numeric: tabular-nums;
-  margin-top: 4px;
-}
-
-.ts-topups {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.ts-topup {
-  align-items: center;
-  border: 1px solid var(--hair);
-  border-radius: 10px;
-  display: flex;
-  font-variant-numeric: tabular-nums;
-  gap: 16px;
-  justify-content: space-between;
-  padding: 12px 16px;
-}
-
-.ts-topup-amt {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.ts-topup-cr {
+.ts-beta-code-sub {
   color: var(--ink-soft);
   font-size: 14px;
-}
-
-.ts-skel {
-  background: var(--hair);
-  border-radius: 8px;
-}
-
-.ts-skel-rate {
-  height: 36px;
-  width: 180px;
-}
-
-.ts-skel-sub {
-  height: 16px;
-  width: 120px;
-}
-
-.ts-skel-row {
-  border-radius: 10px;
-  height: 44px;
-}
-
-.ts-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ts-stack-12 {
-  gap: 12px;
 }
 
 .ts-terms {
@@ -1466,6 +1106,11 @@
   line-height: 1.6;
   margin-top: 8px;
   text-wrap: pretty;
+}
+
+.ts-terms a {
+  color: var(--brand);
+  font-weight: 600;
 }
 
 /* ════════════════════════════════════════════════════════
@@ -1866,34 +1511,6 @@
     padding-bottom: 80px;
     padding-top: 80px;
   }
-
-  .ts-tagline {
-    padding: 0;
-  }
-
-  .ts-tagline h2 {
-    font-size: 30px;
-  }
-
-  /* Label above value: the two-column grid squeezed trigger bands like
-     "₹1,512.60 – 1,516.20 acceptance" into three lines. */
-  .ts-dl {
-    gap: 4px;
-    grid-template-columns: 1fr;
-  }
-
-  .ts-dl dd {
-    margin-bottom: 8px;
-  }
-
-  #pricing .ts-head {
-    align-items: flex-start;
-    text-align: left;
-  }
-
-  .ts-price-card {
-    padding: 24px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1903,7 +1520,6 @@
   }
 
   .ts-reveal,
-  .ts-word,
   .ts-faq-a-wrap {
     transition: none !important;
   }

@@ -193,6 +193,21 @@ export const env = {
   // verify inbound webhook signatures.
   razorpayWebhookSecret: requireEnv("RAZORPAY_WEBHOOK_SECRET"),
 
+  // Whether new credit purchases may be started (POST
+  // /api/billing/purchase-credits).
+  //
+  // DEFAULTS OFF since September 2026: the product runs as a free beta, with
+  // credits granted through promo codes, until a payment gateway approves
+  // Trade Sathi's own website. The Razorpay account these keys belong to is
+  // approved for a different business, so it must not take Trade Sathi
+  // payments. Set "true" only once a gateway has approved this site — or in
+  // a local apps/api/.env holding Razorpay test keys, where it pairs with the
+  // web development build's purchase flow (see PURCHASES_ENABLED in
+  // apps/web/src/app/features/billing/free-beta.ts). Webhooks and order
+  // reconciliation stay live either way, so an order created before the
+  // switch still settles.
+  billingEnabled: optionalBoolEnv("BILLING_ENABLED", false),
+
   // Whether CF-IPCountry may be believed when picking an account's pricing
   // region (see services/pricing-region.service.ts).
   //

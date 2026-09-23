@@ -1,0 +1,30 @@
+<header class="lg-bar">
+  <a class="lg-logo" routerLink="/" aria-label="Trade Sathi home">
+    <span class="lg-logo-mark" aria-hidden="true"></span>
+    <span class="lg-logo-word">Trade <span>Sathi</span></span>
+  </a>
+  <a class="lg-back" routerLink="/">Back to home</a>
+</header>
+
+<main class="lg-main">
+  <article class="lg-doc">
+    <h1 class="lg-title">{{ heading() }}</h1>
+    @if (updated(); as date) {
+      <p class="lg-updated">Last updated {{ date }}</p>
+    }
+    <ng-content />
+  </article>
+</main>
+
+<footer class="lg-foot">
+  <nav class="lg-foot-links" aria-label="Legal">
+    <a routerLink="/terms">Terms of Use</a>
+    <a routerLink="/privacy">Privacy Policy</a>
+    <a routerLink="/contact">Contact</a>
+  </nav>
+  <p class="lg-foot-disc">
+    Trade Sathi is not registered with SEBI as an investment adviser or research analyst. Its
+    output is automated analysis, not investment advice.
+  </p>
+  <p class="lg-foot-copy">© 2026 Trade Sathi</p>
+</footer>

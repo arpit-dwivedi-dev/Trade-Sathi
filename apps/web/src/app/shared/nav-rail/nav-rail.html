@@ -23,19 +23,26 @@
 <div class="nav-body">
   <span class="nav-lbl">Analyze</span>
 
-  <button type="button" class="nav-item nav-item-disabled" title="Dashboard — coming soon" disabled
-          aria-disabled="true">
-    <app-icon aria-hidden="true" name="dashboard" />
-    <span class="nav-item-lbl">Dashboard</span>
-    <span class="nav-soon">Coming soon</span>
-  </button>
+  <!-- Placeholder rows for screens not built yet: development builds only, so
+       users never see a row that does nothing. See showComingSoon. -->
+  @if (showComingSoon) {
+    <button type="button" class="nav-item nav-item-disabled" title="Dashboard — coming soon" disabled
+            aria-disabled="true">
+      <app-icon aria-hidden="true" name="dashboard" />
+      <span class="nav-item-lbl">Dashboard</span>
+      <span class="nav-soon">Coming soon</span>
+    </button>
+  }
 
-  <button type="button" class="nav-item" [title]="labels['analyze-by-image']"
-          (click)="select('analyze-by-image')"
-          [attr.aria-current]="active() === 'analyze-by-image' ? 'page' : null">
-    <app-icon aria-hidden="true" name="image_search" />
-    <span class="nav-item-lbl"><span class="title-wide">{{ labels['analyze-by-image'] }}</span><span class="title-phone">Image Analysis</span></span>
-  </button>
+  <!-- Hidden for the free beta in production builds — see HIDDEN_TABS. -->
+  @if (imageVisible) {
+    <button type="button" class="nav-item" [title]="labels['analyze-by-image']"
+            (click)="select('analyze-by-image')"
+            [attr.aria-current]="active() === 'analyze-by-image' ? 'page' : null">
+      <app-icon aria-hidden="true" name="image_search" />
+      <span class="nav-item-lbl"><span class="title-wide">{{ labels['analyze-by-image'] }}</span><span class="title-phone">Image Analysis</span></span>
+    </button>
+  }
 
   <button type="button" class="nav-item" [title]="labels['symbol-search']"
           (click)="select('symbol-search')"
@@ -67,12 +74,14 @@
     <span class="nav-item-lbl">{{ labels['fundamentals'] }}</span>
   </button>
 
-  <button type="button" class="nav-item nav-item-disabled" title="News & Events — coming soon" disabled
-          aria-disabled="true">
-    <app-icon aria-hidden="true" name="newspaper" />
-    <span class="nav-item-lbl">News & Events</span>
-    <span class="nav-soon">Coming soon</span>
-  </button>
+  @if (showComingSoon) {
+    <button type="button" class="nav-item nav-item-disabled" title="News & Events — coming soon" disabled
+            aria-disabled="true">
+      <app-icon aria-hidden="true" name="newspaper" />
+      <span class="nav-item-lbl">News & Events</span>
+      <span class="nav-soon">Coming soon</span>
+    </button>
+  }
 
   <span class="nav-lbl">Account</span>
 
@@ -113,9 +122,12 @@
   <!-- No balance on the label: the figure is the Billing screen's subject, not
        this button's. Printed here it read as part of the action ("buy 35"), and
        it changed under the user's eyes after every analysis. -->
-  <button pButton size="small" class="nav-cta" (click)="select('billing')">
-    Buy Credits
-  </button>
+  <!-- Nothing to buy during the free beta — see PURCHASES_ENABLED. -->
+  @if (purchasesEnabled) {
+    <button pButton size="small" class="nav-cta" (click)="select('billing')">
+      Buy Credits
+    </button>
+  }
 
   <!-- Identity, not a control: the initial gives the rail an anchor when the
        name is too long to show in full. -->

@@ -1,3 +1,5 @@
+import { environment } from '../../../environments/environment';
+
 /**
  * The app shell's destinations — every screen the nav rail links to, and the
  * one name each of them goes by.
@@ -83,8 +85,32 @@ export const TAB_ALIASES: Readonly<Record<string, NavTab>> = {
   account: 'account-settings',
 };
 
+/**
+ * Destinations hidden for the free beta: left out of the rail and the phone
+ * tab bar, and a URL naming one (a bookmark, an old in-app link) lands on
+ * Symbol Search instead. Their screens are untouched, only unreachable, so
+ * taking a tab out of this set is the whole of bringing it back.
+ *
+ * Analyze by Image is paused for the beta. (Billing stays visible: its screen
+ * says payments are coming soon — see PURCHASES_ENABLED in
+ * features/billing/free-beta.ts.)
+ *
+ * Production builds only. A development build (`ng serve`, which swaps in
+ * environment.development.ts) hides nothing, so every tab can still be
+ * exercised locally.
+ */
+export const HIDDEN_TABS: ReadonlySet<NavTab> = new Set<NavTab>(
+  environment.production ? ['analyze-by-image'] : [],
+);
+
+export function isTabVisible(tab: NavTab): boolean {
+  return !HIDDEN_TABS.has(tab);
+}
+
 /** The destination a URL names, or the default when it names nothing that exists. */
 export function parseTab(value: string | null): NavTab {
-  if (TABS.includes(value as NavTab)) return value as NavTab;
-  return (value !== null ? TAB_ALIASES[value] : undefined) ?? 'analyze-by-image';
+  const tab = TABS.includes(value as NavTab)
+    ? (value as NavTab)
+    : ((value !== null ? TAB_ALIASES[value] : undefined) ?? 'analyze-by-image');
+  return isTabVisible(tab) ? tab : 'symbol-search';
 }

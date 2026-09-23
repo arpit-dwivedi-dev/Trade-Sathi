@@ -5,18 +5,27 @@
   <header class="bill-head">
     <div class="bill-head-copy">
       <h1 class="bill-title">Billing</h1>
-      <p class="bill-sub">
-        One balance, spent by every paid feature. Buy more credits any time, or redeem a code.
-      </p>
+      @if (purchasesEnabled) {
+        <p class="bill-sub">
+          One balance, spent by every paid feature. Buy more credits any time, or redeem a code.
+        </p>
+      } @else {
+        <p class="bill-sub">
+          One balance, spent by every feature. Free during the beta: redeem the beta code below.
+        </p>
+      }
     </div>
 
     <!-- Read-only, and deliberately not a control: pricing_region is locked the
          first time an authenticated request resolves it and is never
          re-derived, so an interactive India/Global switch here would offer a
          choice the backend cannot honour. It is a statement of which price
-         band this account is billed in — shown, not set. -->
-    @if (regionLabel(); as region) {
-      <span class="bill-region" [attr.title]="REGION_NOTE">{{ region }}</span>
+         band this account is billed in — shown, not set. Left out during the
+         free beta, when there is no price to be billed in. -->
+    @if (purchasesEnabled) {
+      @if (regionLabel(); as region) {
+        <span class="bill-region" [attr.title]="REGION_NOTE">{{ region }}</span>
+      }
     }
   </header>
 
@@ -27,15 +36,36 @@
        weight, and neither card has to stretch to fill a row its own content
        does not fill. -->
   <div class="bill-grid">
-    <section class="bill-card">
-      <div class="bill-card-hd">
-        <h2 class="lbl-h">Buy credits</h2>
-      </div>
-      <div class="bill-card-body">
-        <p class="bill-msg">Any quantity at your region's rate, paid with Razorpay.</p>
-        <app-buy-credits-button (creditsAdded)="onCreditsAdded()" />
-      </div>
-    </section>
+    @if (purchasesEnabled) {
+      <section class="bill-card">
+        <div class="bill-card-hd">
+          <h2 class="lbl-h">Buy credits</h2>
+        </div>
+        <div class="bill-card-body">
+          <p class="bill-msg">Any quantity at your region's rate, paid with Razorpay.</p>
+          <app-buy-credits-button (creditsAdded)="onCreditsAdded()" />
+        </div>
+      </section>
+    } @else {
+      <!-- The free beta's stand-in for the purchase card: says why there is
+           nothing to buy, and where the credits come from instead. -->
+      <section class="bill-card">
+        <div class="bill-card-hd">
+          <h2 class="lbl-h">Buy credits</h2>
+          <span class="st st-processing">Coming soon</span>
+        </div>
+        <div class="bill-card-body">
+          <p class="bill-msg">
+            <b>Trade Sathi is in free beta.</b> Paid credit packs are coming soon. Until then, the
+            beta code under Redeem a code adds {{ betaCredits }} free credits to your balance.
+          </p>
+          <p class="bill-msg">
+            Missing something, or found a bug? Tell us on the
+            <a class="bill-link" routerLink="/contact">Contact</a> page.
+          </p>
+        </div>
+      </section>
+    }
 
     <!-- The context column: what the balance is, and the other way to add to
          it. Both are short, so they belong in a stack rather than across the
@@ -81,11 +111,15 @@
           <h2 class="lbl-h">Redeem a code</h2>
         </div>
         <div class="bill-card-body">
-          <p class="bill-msg">
-            A code that grants credits lands in your balance straight away. Discount codes belong
-            in the Buy credits box.
-          </p>
-          <app-promo-redeem-box (redeemed)="onCreditsAdded()" />
+          @if (purchasesEnabled) {
+            <p class="bill-msg">
+              A code that grants credits lands in your balance straight away. Discount codes belong
+              in the Buy credits box.
+            </p>
+            <app-promo-redeem-box (redeemed)="onCreditsAdded()" />
+          } @else {
+            <app-beta-credits (redeemed)="onCreditsAdded()" />
+          }
         </div>
       </section>
     </div>

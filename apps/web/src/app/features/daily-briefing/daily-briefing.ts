@@ -33,6 +33,7 @@ import { ChartCaptureService } from '../../shared/live-chart/chart-capture.servi
 import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import type { OpenInstrumentRequest } from '../app/open-instrument';
 import { BillingService } from '../billing/billing.service';
+import { PURCHASES_ENABLED } from '../billing/free-beta';
 import { LiveService } from '../../core/live.service';
 import { currentProcessingSlots, utcDateFor } from './daily-briefing-processing';
 
@@ -152,6 +153,9 @@ export class DailyBriefing implements OnInit, OnDestroy {
     if (!cost) return null;
     return `Costs ${cost.credits} credit${cost.credits === 1 ? '' : 's'} per run`;
   });
+
+  /** Off for the free beta (see PURCHASES_ENABLED): the cost note points at the beta code instead. */
+  protected readonly purchasesEnabled = PURCHASES_ENABLED;
 
   /**
    * The cost notice is shown until the user acknowledges it once, then stays

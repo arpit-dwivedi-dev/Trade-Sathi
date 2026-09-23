@@ -1,5 +1,4 @@
 import { DOCUMENT } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
@@ -12,14 +11,10 @@ import {
   signal,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
-
-import type { PricingOverview } from '@tradesathi/shared';
 
 import { AuthService } from '../../core/auth.service';
-import { SupabaseClientService } from '../../core/supabase-client';
 import { ThemeService } from '../../core/theme.service';
-import { formatPriceMinor } from '../billing/billing.service';
+import { BETA_PROMO_CODE, BETA_PROMO_CREDITS } from '../billing/free-beta';
 
 interface FaqEntry {
   question: string;
@@ -31,37 +26,28 @@ const FAQS: readonly FaqEntry[] = [
   {
     question: 'What do I actually get back?',
     answer:
-      'A structured read of the chart you uploaded: the trend state with a clarity rating, support and resistance zones with touch counts and distance in ATR units, the volatility regime, one or two scenarios each with a trigger band, an invalidation level, a target and the probability the target is touched first, a falsifier, and a base rate from analogous historical setups.',
+      'A structured read of the chart: the trend state with a clarity rating, support and resistance zones with touch counts and their distance in ATR units, the volatility regime, conditional scenarios with the condition that would rule each one out, and a base rate from comparable past setups where there is enough history.',
   },
   {
-    question: 'Does it tell me when it cannot read a chart?',
-    answer:
-      'Yes. If the screenshot is cropped, the axis is unreadable or there are too few candles to form a view, the output says so instead of inventing levels, and the credit is refunded automatically.',
+    question: 'Is it free?',
+    answer: `Yes, during the beta. Create an account, then redeem code ${BETA_PROMO_CODE} on the Billing screen for ${BETA_PROMO_CREDITS} free credits. Purchases are switched off, so you will not be asked for any payment details.`,
   },
   {
     question: 'Is this investment advice?',
     answer:
-      'No. Trade Sathi produces analysis output. It is not a registered investment adviser, it does not know your position size or risk tolerance, and it never tells you to buy or sell. Every decision and every consequence stays yours.',
+      'No. Trade Sathi is not registered with SEBI as an investment adviser or research analyst, and it produces automated analysis output, not advice. It does not know your position size or risk tolerance, it does not give buy or sell calls, and it is not a tip service. Every decision and every consequence stays yours.',
   },
   {
-    question: 'Why credits instead of a subscription?',
+    question: 'Which markets and timeframes work?',
     answer:
-      'Because reading charts is not a daily habit for most traders. A subscription would charge you in the weeks you do not trade. Credits sit in your balance until you use them, and there is nothing to cancel.',
-  },
-  {
-    question: 'Which charts and timeframes work?',
-    answer:
-      'Candlestick, OHLC bar, line, Heikin Ashi and Renko charts, on timeframes from m1 to w1, across equities, indices, futures, options, crypto, FX and commodities. Screenshots from any charting platform are fine.',
+      'Stocks and indices on NSE and BSE, and US stocks on NASDAQ and NYSE, on candles from 1 minute to 1 day. Search the symbol and open it on the live chart; no broker login is needed.',
   },
   {
     question: 'What happens if an analysis fails?',
     answer:
-      'The credit is returned to your balance without you asking, and the failure is recorded in History with the reason. You can retry with a wider screenshot or a different timeframe at no extra cost.',
+      'The credit is returned to your balance without you asking, and the failure is recorded in History with the reason. You can retry, or try a different timeframe, at no extra cost.',
   },
 ];
-
-const TAGLINE =
-  'Every read states its own clarity, and the one condition that would break it.'.split(' ');
 
 /* ── live hero chart ───────────────────────────────────────────────────── */
 
@@ -105,12 +91,12 @@ function seedSeries(): number[] {
 }
 
 /**
- * Public marketing page — the only route reachable without a session.
+ * Public marketing page, the main route reachable without a session (the
+ * policy pages under features/legal are the others).
  *
- * Pricing is the one live-data section: GET /api/pricing gives the caller's
- * real region rate, top-ups and feature costs. Browser-only, since a relative
- * /api URL has nothing to resolve against during SSR — the server render shows
- * the skeleton and hydration fills it in.
+ * Fully static during the free beta. The pricing section, the one that read
+ * live data (GET /api/pricing), was replaced by the beta-code section while
+ * purchases are switched off.
  */
 @Component({
   selector: 'app-landing-page',
@@ -120,8 +106,6 @@ function seedSeries(): number[] {
 })
 export class LandingPage implements OnInit {
   private readonly themeService = inject(ThemeService);
-  private readonly http = inject(HttpClient);
-  private readonly supabase = inject(SupabaseClientService);
   private readonly auth = inject(AuthService);
 
   /**
@@ -134,7 +118,7 @@ export class LandingPage implements OnInit {
    * account" for a way back into the app. Deliberately not a redirect: this
    * page is prerendered and paints at once, so a redirect after restoration
    * would show every signed-in user a flash of the pitch first, and would take
-   * away the pricing and FAQ they came back to read.
+   * away the FAQ they came back to read.
    */
   protected readonly signedIn = computed(() => this.auth.sessionKnown() && !!this.auth.session());
   private readonly document = inject(DOCUMENT);
@@ -145,8 +129,8 @@ export class LandingPage implements OnInit {
 
   protected readonly theme = this.themeService.theme;
   protected readonly faqs = FAQS;
-  protected readonly tagline = TAGLINE;
-  protected readonly pricing = signal<PricingOverview | null>(null);
+  protected readonly betaCode = BETA_PROMO_CODE;
+  protected readonly betaCredits = BETA_PROMO_CREDITS;
   protected readonly menuOpen = signal(false);
   protected readonly navLifted = signal(false);
   protected readonly activeSection = signal<string | null>(null);
@@ -159,22 +143,6 @@ export class LandingPage implements OnInit {
   private readonly open = this.series()[LIVE.n - 2];
 
   protected readonly live = computed(() => this.geometry(this.series(), this.tick()));
-
-  protected readonly credits = computed(() => {
-    const p = this.pricing();
-    if (!p) return null;
-    const { currency, pricePerCreditMinor, minPurchaseCredits, quickAmountsMinor, region } =
-      p.pricing;
-    return {
-      region,
-      rate: formatPriceMinor(pricePerCreditMinor, currency),
-      minimum: minPurchaseCredits,
-      topups: quickAmountsMinor.map((amount) => ({
-        price: formatPriceMinor(amount, currency),
-        credits: Math.floor(amount / pricePerCreditMinor),
-      })),
-    };
-  });
 
   private schemaScript: HTMLScriptElement | null = null;
 
@@ -202,11 +170,6 @@ export class LandingPage implements OnInit {
     this.renderer.setProperty(script, 'text', JSON.stringify(schema));
     this.renderer.appendChild(this.document.head, script);
     this.schemaScript = script;
-
-    if (!this.supabase.isBrowser) return;
-    firstValueFrom(this.http.get<PricingOverview>('/api/pricing'))
-      .then((overview) => this.pricing.set(overview))
-      .catch(() => undefined);
   }
 
   protected toggleTheme(): void {
@@ -349,21 +312,6 @@ export class LandingPage implements OnInit {
     root.querySelectorAll('.ts-reveal').forEach((n) => reveal.observe(n));
     observers.push(reveal);
 
-    const words = Array.from(root.querySelectorAll<HTMLElement>('.ts-word'));
-    words.forEach((w, i) => (w.style.transitionDelay = `${i * 45}ms`));
-    const wordObs = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((e) => {
-          if (!e.isIntersecting) return;
-          fired = true;
-          e.target.classList.add('is-in');
-          wordObs.unobserve(e.target);
-        }),
-      { threshold: 1, rootMargin: '0px 0px -45% 0px' },
-    );
-    words.forEach((w) => wordObs.observe(w));
-    observers.push(wordObs);
-
     const sentinel = root.querySelector('.ts-sentinel');
     if (sentinel) {
       const navObs = new IntersectionObserver((entries) => {
@@ -382,32 +330,11 @@ export class LandingPage implements OnInit {
         }),
       { threshold: 0.35, rootMargin: '-96px 0px -40% 0px' },
     );
-    ['the-read', 'how', 'pricing', 'faq'].forEach((id) => {
+    ['the-read', 'how', 'beta', 'faq'].forEach((id) => {
       const s = root.querySelector('#' + id);
       if (s) linkObs.observe(s);
     });
     observers.push(linkObs);
-
-    // Probabilities count up so they read as computed, not printed.
-    const countObs = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((e) => {
-          if (!e.isIntersecting) return;
-          const n = e.target as HTMLElement;
-          const target = parseFloat(n.dataset['count'] ?? '0');
-          const t0 = performance.now();
-          const frame = (now: number) => {
-            const p = Math.min(1, (now - t0) / 900);
-            n.textContent = (target * (1 - Math.pow(1 - p, 3))).toFixed(1) + '%';
-            if (p < 1) requestAnimationFrame(frame);
-          };
-          if (!reduced) requestAnimationFrame(frame);
-          countObs.unobserve(n);
-        }),
-      { threshold: 1 },
-    );
-    root.querySelectorAll('[data-count]').forEach((n) => countObs.observe(n));
-    observers.push(countObs);
 
     const onResize = () => {
       if (win.innerWidth >= 860 && this.menuOpen()) this.setMenu(false);

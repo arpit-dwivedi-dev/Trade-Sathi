@@ -1,0 +1,151 @@
+/* The policy pages' frame. Same palette and face as the marketing page
+   (landing-page.css), trimmed to what a page of text needs, and keyed off the
+   same <html data-theme> so the one toggle drives both. */
+
+:host {
+  --page: #f5f7fa;
+  --page-raised: #ffffff;
+  --ink: #0b1220;
+  --ink-soft: #454c60;
+  --ink-faint: #6b7385;
+  --hair: #e0e3eb;
+  --brand: #2962ff;
+  --mint: #00d4a0;
+
+  background: var(--page);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+:host-context(html[data-theme='dark']) {
+  --page: #0b1220;
+  --page-raised: #131722;
+  --ink: #f5f7fa;
+  --ink-soft: #9aa7bd;
+  --ink-faint: #7c879b;
+  --hair: #2b3139;
+}
+
+a {
+  text-decoration: none;
+}
+
+p {
+  margin: 0;
+}
+
+.lg-bar {
+  align-items: center;
+  border-bottom: 1px solid var(--hair);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 760px;
+  padding: 20px 16px;
+  width: 100%;
+}
+
+.lg-logo {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lg-logo-mark {
+  background: url('/brand/svg/logo-mark.svg') center / contain no-repeat;
+  display: block;
+  flex: 0 0 auto;
+  height: 28px;
+  width: 23px;
+}
+
+:host-context(html[data-theme='dark']) .lg-logo-mark {
+  background-image: url('/brand/svg/logo-mark-dark-bg.svg');
+}
+
+.lg-logo-word {
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.lg-logo-word span {
+  color: var(--mint);
+}
+
+.lg-back {
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lg-back:hover {
+  color: var(--ink);
+}
+
+.lg-main {
+  flex: 1 0 auto;
+  padding: 40px 16px 64px;
+}
+
+.lg-doc {
+  margin: 0 auto;
+  max-width: 720px;
+}
+
+.lg-title {
+  font-family: inherit;
+  font-size: clamp(30px, 6vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.lg-updated {
+  color: var(--ink-faint);
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.lg-foot {
+  border-top: 1px solid var(--hair);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 auto;
+  max-width: 760px;
+  padding: 24px 16px 40px;
+  width: 100%;
+}
+
+.lg-foot-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.lg-foot-links a {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.lg-foot-links a:hover {
+  color: var(--mint);
+}
+
+.lg-foot-disc,
+.lg-foot-copy {
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.7;
+}

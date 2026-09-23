@@ -38,6 +38,8 @@ import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import { AnalysisResult } from '../analyze/analysis-result';
 import type { AnalysisPattern, AnalysisRow } from '../analyze/analysis.types';
 import { AnalyzeService, type PollHandle } from '../analyze/analyze.service';
+import { BetaCredits } from '../billing/beta-credits';
+import { PURCHASES_ENABLED } from '../billing/free-beta';
 import { WorkspaceChart } from './chart/workspace-chart';
 import { loadDrawings, saveDrawings } from './drawing/drawing-store';
 import {
@@ -132,6 +134,7 @@ interface AnalysisTarget {
   imports: [
     AnalysisResult,
     AppIcon,
+    BetaCredits,
     ButtonModule,
     ChipModule,
     DecimalPipe,
@@ -158,6 +161,12 @@ export class WorkspacePage implements OnInit, OnDestroy {
 
   /** Raised when the user needs to buy more analyses — the shell opens plans. */
   readonly plansRequested = output<void>();
+
+  /**
+   * Off for the free beta (see PURCHASES_ENABLED): the out-of-credits note
+   * offers the beta code instead of a Buy button with nothing to sell.
+   */
+  protected readonly purchasesEnabled = PURCHASES_ENABLED;
 
   /**
    * Raised when this screen opened a chart on its own, from storage, after a
@@ -935,6 +944,13 @@ export class WorkspacePage implements OnInit, OnDestroy {
 
   protected openPlans(): void {
     this.plansRequested.emit();
+  }
+
+  /** The beta code was redeemed from the out-of-credits note, so Analyze is worth pressing again. */
+  protected onBetaRedeemed(): void {
+    if (this.analyzeState() !== 'insufficient_credits') return;
+    this.analyzeState.set('idle');
+    this.analyzeError.set(null);
   }
 }
 

@@ -199,6 +199,18 @@
   max-width: 58ch;
 }
 
+.bill-msg b {
+  color: var(--tx);
+  font-weight: 600;
+}
+
+/* Same treatment as Account Settings' link to this screen (.acct-link). */
+.bill-link {
+  color: var(--acc-tx);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .bill-disc {
   border-top: 1px solid var(--line-soft);
   margin-top: auto;

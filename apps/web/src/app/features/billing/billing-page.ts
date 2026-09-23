@@ -1,10 +1,13 @@
 import { Component, OnInit, computed, inject, output, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import type { FeatureCreditCost } from '@tradesathi/shared';
 
+import { BetaCredits } from './beta-credits';
 import { BillingService } from './billing.service';
 import { BuyCreditsButton } from './buy-credits-button';
+import { BETA_PROMO_CREDITS, PURCHASES_ENABLED } from './free-beta';
 import { PromoRedeemBox } from './promo-redeem-box';
 
 /** Human labels for a feature_key — the closed set in FEATURE_CREDIT_KEYS. */
@@ -22,15 +25,22 @@ const FEATURE_LABELS: Readonly<Record<string, string>> = {
  * to be two different answers to "I need more analyses", but there is only one
  * kind of purchase left, so there is nothing left to compare across tabs. The
  * account page keeps no billing surface at all; it is identity only.
+ *
+ * During the free beta (PURCHASES_ENABLED off) the purchase card says paid
+ * credits are coming soon and the redeem card carries the beta code. The
+ * purchase flow stays in the template, only not rendered.
  */
 @Component({
   selector: 'app-billing-page',
-  imports: [BuyCreditsButton, PromoRedeemBox, ProgressSpinnerModule],
+  imports: [BetaCredits, BuyCreditsButton, PromoRedeemBox, ProgressSpinnerModule, RouterLink],
   styleUrl: './billing-page.css',
   templateUrl: './billing-page.html',
 })
 export class BillingPage implements OnInit {
   private readonly billing = inject(BillingService);
+
+  protected readonly purchasesEnabled = PURCHASES_ENABLED;
+  protected readonly betaCredits = BETA_PROMO_CREDITS;
 
   protected readonly loading = signal(true);
 

@@ -1,7 +1,8 @@
-import { Component, inject, output, signal } from '@angular/core';
+import { Component, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 
 import { BillingService } from './billing.service';
+import { PURCHASES_ENABLED } from './free-beta';
 
 /**
  * The promo-code redeem control: an input, a Redeem button, and the
@@ -30,7 +31,10 @@ export class PromoRedeemBox {
   /** Emitted only on 'applied' — the caller refreshes whatever balance it shows. */
   readonly redeemed = output<void>();
 
-  protected readonly code = signal('');
+  /** Pre-fills the box, so a code the page already names is one click away. */
+  readonly suggestedCode = input('');
+
+  protected readonly code = linkedSignal(() => this.suggestedCode());
   protected readonly busy = signal(false);
   protected readonly message = signal<{ text: string; tone: 'ok' | 'err' } | null>(null);
 
@@ -70,7 +74,9 @@ export class PromoRedeemBox {
                   ? 'That code has reached its redemption limit.'
                   : result.outcome === 'not_eligible_region'
                     ? "That code isn't available in your region."
-                    : "That code isn't valid. Discount codes go in the Buy credits box.",
+                    : PURCHASES_ENABLED
+                      ? "That code isn't valid. Discount codes go in the Buy credits box."
+                      : "That code isn't valid.",
           tone: 'err',
         });
       }

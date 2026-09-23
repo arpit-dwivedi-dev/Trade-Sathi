@@ -1,0 +1,5 @@
+<p class="beta-credits-copy">
+  Trade Sathi is free during the beta. Redeem code <b class="tnum">{{ code }}</b> for
+  {{ credits }} free credits, once per account.
+</p>
+<app-promo-redeem-box [suggestedCode]="code" (redeemed)="redeemed.emit()" />
