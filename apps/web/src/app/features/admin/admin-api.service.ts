@@ -8,6 +8,9 @@ import type {
   AdminOverview,
   AdminPage,
   AdminPayments,
+  AdminPromoCodeCreate,
+  AdminPromoCodeCreated,
+  AdminPromoCodeRow,
   AdminRange,
   AdminUserDetail,
   AdminUserRow,
@@ -57,6 +60,25 @@ export class AdminApiService {
 
   health(query: Query): Promise<AdminHealth> {
     return this.get('/api/admin/health', query);
+  }
+
+  promoCodes(query: Query): Promise<AdminPage<AdminPromoCodeRow>> {
+    return this.get('/api/admin/promo-codes', query);
+  }
+
+  async createPromoCode(body: AdminPromoCodeCreate): Promise<AdminPromoCodeCreated> {
+    const headers = await this.authHeaders();
+    return firstValueFrom(
+      this.http.post<AdminPromoCodeCreated>('/api/admin/promo-codes', body, { headers }),
+    );
+  }
+
+  /** Switches a code on (true) or off (false). */
+  async setPromoCodeActive(id: string, active: boolean): Promise<void> {
+    const headers = await this.authHeaders();
+    await firstValueFrom(
+      this.http.put(`/api/admin/promo-codes/${encodeURIComponent(id)}/active`, { active }, { headers }),
+    );
   }
 
   private async authHeaders(): Promise<Record<string, string>> {

@@ -1,0 +1,51 @@
+/* The create form's fields wrap onto as many rows as the width needs. */
+.promo-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+/* A number field holds a few digits, so it takes less room than a text one. */
+.promo-num {
+  flex: 0 1 140px;
+  min-width: 120px;
+}
+
+.promo-audience {
+  align-self: flex-start;
+}
+
+.promo-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+/* The confirmation after a create: the new code, large enough to read out. */
+.promo-created {
+  background: color-mix(in srgb, var(--up) 7%, var(--surf));
+  border: 1px solid color-mix(in srgb, var(--up) 24%, var(--line));
+  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--s3) var(--s4);
+}
+
+.promo-created-top {
+  align-items: center;
+  display: flex;
+  gap: var(--s3);
+}
+
+.promo-created-code {
+  color: var(--tx);
+  font-size: var(--t-lg);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.promo-copy {
+  margin-left: var(--s2);
+}

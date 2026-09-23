@@ -13,15 +13,24 @@ import { AdminEconomicsSection } from './sections/admin-economics';
 import { AdminHealthSection } from './sections/admin-health';
 import { AdminOverviewSection } from './sections/admin-overview';
 import { AdminPaymentsSection } from './sections/admin-payments';
+import { AdminPromoCodesSection } from './sections/admin-promo-codes';
 import { AdminUsersSection } from './sections/admin-users';
 
-export type AdminSection = 'overview' | 'economics' | 'payments' | 'users' | 'activity' | 'health';
+export type AdminSection =
+  | 'overview'
+  | 'economics'
+  | 'payments'
+  | 'users'
+  | 'promo-codes'
+  | 'activity'
+  | 'health';
 
 const SECTIONS: readonly { id: AdminSection; label: string; icon: IconName; blurb: string }[] = [
   { id: 'overview', label: 'Overview', icon: 'dashboard', blurb: 'Users, revenue and usage at a glance.' },
   { id: 'economics', label: 'Economics', icon: 'balance', blurb: 'Estimated revenue against AI cost, per analysis.' },
   { id: 'payments', label: 'Payments', icon: 'sell', blurb: 'Every checkout and what became of it.' },
   { id: 'users', label: 'Users', icon: 'person', blurb: 'Accounts, balances and spend. Select a row for detail.' },
+  { id: 'promo-codes', label: 'Promo codes', icon: 'percent', blurb: 'Credit codes for everyone or for one person. Create them, switch them off.' },
   { id: 'activity', label: 'Activity', icon: 'monitoring', blurb: 'What people use the product for.' },
   { id: 'health', label: 'Health', icon: 'speed', blurb: 'Errors and stuck work, right now.' },
 ];
@@ -56,6 +65,7 @@ function parseRange(value: string | null): AdminRange {
     AdminHealthSection,
     AdminOverviewSection,
     AdminPaymentsSection,
+    AdminPromoCodesSection,
     AdminUsersSection,
   ],
   templateUrl: './admin-page.html',

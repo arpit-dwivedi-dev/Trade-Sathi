@@ -1,0 +1,152 @@
+<section class="admin-card">
+  <div class="admin-card-hd">
+    <div class="admin-card-hd-copy">
+      <span class="lbl-h">Create a code</span>
+      <span class="meta dim">Credits go straight into the balance of whoever redeems it.</span>
+    </div>
+  </div>
+
+  <form class="admin-card-body" (ngSubmit)="create()">
+    <p-selectButton class="seg promo-audience" name="audience" aria-label="Who can redeem it"
+                    [options]="audiences" optionLabel="label" optionValue="value" [allowEmpty]="false"
+                    [ngModel]="audience()" (onChange)="audience.set($event.value)" />
+
+    <div class="promo-fields">
+      @if (audience() === 'one') {
+        <label class="admin-field admin-field-grow">
+          <span class="lbl">Email</span>
+          <input pInputText pSize="small" type="email" name="email" autocomplete="off"
+                 placeholder="name@example.com"
+                 [ngModel]="email()" (ngModelChange)="email.set($event)" />
+        </label>
+      }
+      <label class="admin-field">
+        <span class="lbl">Code</span>
+        <input pInputText pSize="small" type="text" name="code" autocomplete="off" spellcheck="false"
+               class="admin-mono" placeholder="Blank to generate"
+               [ngModel]="code()" (ngModelChange)="code.set($event)" />
+      </label>
+      <label class="admin-field promo-num">
+        <span class="lbl">Credits per use</span>
+        <input pInputText pSize="small" type="number" name="credits" min="1" max="1000" step="1"
+               [ngModel]="credits()" (ngModelChange)="credits.set($event)" />
+      </label>
+      @if (audience() === 'everyone') {
+        <label class="admin-field promo-num">
+          <span class="lbl">Total uses</span>
+          <input pInputText pSize="small" type="number" name="maxRedemptions" min="1" step="1"
+                 placeholder="No limit"
+                 [ngModel]="maxRedemptions()" (ngModelChange)="maxRedemptions.set($event)" />
+        </label>
+      }
+      <label class="admin-field promo-num">
+        <span class="lbl">Uses per account</span>
+        <input pInputText pSize="small" type="number" name="perUserLimit" min="1" max="100" step="1"
+               [ngModel]="perUserLimit()" (ngModelChange)="perUserLimit.set($event)" />
+      </label>
+      <label class="admin-field">
+        <span class="lbl">Expires</span>
+        <input pInputText pSize="small" type="date" name="expires" [min]="today"
+               [ngModel]="expires()" (ngModelChange)="expires.set($event)" />
+      </label>
+    </div>
+
+    <div class="promo-actions">
+      <button pButton size="small" type="submit" [disabled]="creating()">
+        {{ creating() ? 'Creating…' : 'Create code' }}
+      </button>
+      <span class="meta dim">
+        {{ audience() === 'one'
+          ? 'Only this email address can redeem it, even before they sign up.'
+          : 'Anyone who has the code can redeem it.' }}
+      </span>
+    </div>
+
+    @if (createError()) {
+      <p-message severity="error" [text]="createError()!" />
+    }
+
+    @if (created(); as c) {
+      <div class="promo-created" role="status">
+        <div class="promo-created-top">
+          <span class="promo-created-code admin-mono">{{ c.row.code }}</span>
+          <button type="button" class="admin-clear" (click)="copy(c.row.code)">
+            {{ copied() === c.row.code ? 'Copied' : 'Copy' }}
+          </button>
+        </div>
+        <span class="meta">{{ summary(c.row) }}</span>
+        @if (c.accountExists === false) {
+          <span class="meta dim">
+            No account uses this email yet. The code will work once they sign up with it.
+          </span>
+        }
+      </div>
+    }
+  </form>
+</section>
+
+@if (error()) {
+  <p-message severity="error" [text]="error()!" />
+}
+
+@if (loading() && !data()) {
+  <div class="admin-state" role="status">
+    <p-progress-spinner [style]="{ width: '20px', height: '20px' }" strokeWidth="4" aria-hidden="true" />
+    <span class="meta">Loading codes…</span>
+  </div>
+} @else if (data(); as d) {
+  <section class="admin-card">
+    <div class="admin-card-hd">
+      <span class="lbl-h">All codes</span>
+      <span class="admin-count tnum">{{ d.total.toLocaleString() }} {{ d.total === 1 ? 'code' : 'codes' }}</span>
+    </div>
+    <div class="admin-table admin-table-wide">
+      <p-table [value]="d.rows" size="small" [loading]="loading()">
+        <ng-template #header>
+          <tr>
+            <th title="Off stops the code working at once">On</th>
+            <th>Code</th>
+            <th>Credits</th>
+            <th>For</th>
+            <th>Used</th>
+            <th>Per account</th>
+            <th>Expires</th>
+            <th>Status</th>
+            <th>Created</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-row>
+          <tr>
+            <td data-label="On" class="admin-cell-aside admin-cell-switch">
+              <!-- readonly: the switch only mirrors row.isActive, so a failed save cannot leave it flipped. -->
+              <p-toggleswitch readonly [ngModel]="row.isActive" (click)="toggleActive(row)"
+                              [disabled]="saving().has(row.id)"
+                              [attr.aria-label]="(row.isActive ? 'Switch off ' : 'Switch on ') + row.code" />
+            </td>
+            <td data-label="Code" class="admin-cell-main">
+              <span class="admin-mono">{{ row.code }}</span>
+              <button type="button" class="admin-clear promo-copy" (click)="copy(row.code)">
+                {{ copied() === row.code ? 'Copied' : 'Copy' }}
+              </button>
+            </td>
+            <td data-label="Credits" class="tnum">
+              {{ row.freeCredits ?? '—' }}@if (row.hasDiscount) { <span class="dim"> + discount</span> }
+            </td>
+            <td data-label="For" class="admin-wrap">{{ row.restrictedEmail ?? 'Everyone' }}</td>
+            <td data-label="Used" class="tnum">{{ row.redemptionCount }} / {{ row.maxRedemptions ?? '∞' }}</td>
+            <td data-label="Per account" class="tnum">{{ row.perUserLimit }}</td>
+            <td data-label="Expires" class="tnum">{{ row.expiresAt ? date(row.expiresAt) : 'Never' }}</td>
+            <td data-label="Status"><span [class]="statusClass(row)">{{ status(row) }}</span></td>
+            <td data-label="Created" class="tnum">{{ date(row.createdAt) }}</td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+          <tr><td colspan="9" class="meta dim">No promo codes yet.</td></tr>
+        </ng-template>
+      </p-table>
+      @if (d.total > pageSize) {
+        <p-paginator [first]="first()" [rows]="pageSize" [totalRecords]="d.total" (onPageChange)="onPage($event)" />
+      }
+    </div>
+  </section>
+}

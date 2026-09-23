@@ -1,5 +1,6 @@
 // The Admin panel contract: what apps/api's /api/admin/* endpoints return and
-// apps/web's Admin tab renders. Read-only reporting shapes only.
+// apps/web's Admin tab renders. Reporting shapes, plus the Promo codes
+// section's list and create payloads.
 //
 // Money is integer minor units everywhere, and always keyed by currency: a
 // `MoneyByCurrency` is never summed across its keys. AI cost is USD (the unit
@@ -226,4 +227,54 @@ export interface AdminHealth {
    * is the persisted signal that a capture webhook may not have landed.
    */
   stalePayments: AdminPaymentRow[];
+}
+
+/**
+ * One promo code, as the Admin panel's Promo codes section lists it. That
+ * section manages the free-credit side only; a code carrying a discount (made
+ * through the internal ops route) is flagged with hasDiscount rather than
+ * passed off as a plain credit code.
+ */
+export interface AdminPromoCodeRow {
+  id: string;
+  code: string;
+  /** Credits one redemption grants; null for a discount-only code. */
+  freeCredits: number | null;
+  hasDiscount: boolean;
+  /** The one email address allowed to redeem it, or null when anyone may. */
+  restrictedEmail: string | null;
+  /** Total redemptions allowed across every account; null means no cap. */
+  maxRedemptions: number | null;
+  redemptionCount: number;
+  perUserLimit: number;
+  expiresAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+/** The body of POST /api/admin/promo-codes. */
+export interface AdminPromoCodeCreate {
+  /** Absent or blank: the server generates one. */
+  code?: string | null;
+  /** Credits one redemption grants. */
+  credits: number;
+  /** Set to make a code only this address can redeem. */
+  email?: string | null;
+  /** Cap on redemptions across every account; absent or null for no cap. */
+  maxRedemptions?: number | null;
+  /** How many times one account may redeem it. Defaults to 1. */
+  perUserLimit?: number;
+  /** ISO timestamp; absent or null for no expiry. */
+  expiresAt?: string | null;
+}
+
+/** What POST /api/admin/promo-codes answers with. */
+export interface AdminPromoCodeCreated {
+  row: AdminPromoCodeRow;
+  /**
+   * For a code made for one email: whether an account with that address
+   * exists yet. The code works either way, once they sign up. Null for a code
+   * open to everyone.
+   */
+  accountExists: boolean | null;
 }
