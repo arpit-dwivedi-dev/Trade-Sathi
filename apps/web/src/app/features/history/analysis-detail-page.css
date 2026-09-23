@@ -185,14 +185,32 @@
     --detail-gutter: var(--s4);
   }
 
-  .analysis-detail-header-inner,
-  .analysis-detail-title {
-    align-items: flex-start;
-    flex-direction: column;
+  /* One bar, not two stacked rows: back at the left where it was, the brand
+     beside it, the theme toggle at the far end. Dissolving the actions group
+     lets the back button be ordered ahead of the brand. */
+  .analysis-detail-header-inner {
+    gap: var(--s2);
+    justify-content: flex-start;
   }
 
   .analysis-detail-header-actions {
-    align-self: stretch;
-    justify-content: space-between;
+    display: contents;
+  }
+
+  .analysis-detail-back {
+    order: -1;
+  }
+
+  .analysis-detail-theme-toggle {
+    margin-left: auto;
+  }
+
+  .analysis-detail-content {
+    padding-top: var(--s5);
+  }
+
+  .analysis-detail-title {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

@@ -428,7 +428,41 @@
   }
 }
 
+/* ── standalone report, one column ──────────────────────
+   Once the route report is a single column it leads with the answer: the
+   setup, then the summary that explains it, then the readings and evidence
+   behind both. The setup sits inside .result-main while the summary sits
+   outside .result-body, so no ordering inside either box could lift one above
+   the other. The boxes are dissolved instead, which makes every block an item
+   of .result to order directly. 900px is where src/styles/components.css
+   drops the report's two-column matrix. The embedded report keeps its order. */
+@media (max-width: 900px) {
+  .result-standalone:not(.result-legacy-standalone) .result-body,
+  .result-standalone:not(.result-legacy-standalone) .result-main,
+  .result-standalone:not(.result-legacy-standalone) .result-aside {
+    display: contents;
+  }
+
+  .result-standalone:not(.result-legacy-standalone) .result-tiles,
+  .result-standalone:not(.result-legacy-standalone) .result-block,
+  .result-standalone:not(.result-legacy-standalone) .result-disc {
+    order: 3;
+  }
+
+  .result-standalone:not(.result-legacy-standalone) .result-setup-block {
+    order: 1;
+  }
+
+  .result-standalone:not(.result-legacy-standalone) .result-summary-card {
+    order: 2;
+  }
+}
+
 @media (max-width: 720px) {
+  .result-standalone {
+    gap: var(--s4);
+  }
+
   .result-sym {
     font-size: var(--t-2xl);
   }

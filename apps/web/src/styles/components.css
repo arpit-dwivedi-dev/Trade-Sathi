@@ -2361,19 +2361,16 @@ button.topbar-search-toggle {
     grid-template-columns: 1fr;
   }
 
-  /* :not(.result-legacy-standalone) matches the specificity of the
-     unconditional "display: contents" rule above (which the matrix layout
-     needs at wide viewports) so this reset actually wins here instead of
-     losing to it and leaving both columns collapsed onto stale grid-areas
-     that no longer exist once grid-template-areas is cleared above. */
-  .result-standalone:not(.result-legacy-standalone) .result-main,
-  .result-standalone:not(.result-legacy-standalone) .result-aside,
+  /* Legacy reports only. The structured report dissolves these boxes at this
+     width so it can put its setup first (see analysis-result.css). Giving it
+     this two-column aside as well put its zones and glance blocks in the same
+     cell: they still carry the matrix's grid-area names, and no area in this
+     grid has those names. */
   .result-standalone .result-main,
   .result-standalone .result-aside {
     display: flex;
   }
 
-  .result-standalone:not(.result-legacy-standalone) .result-aside,
   .result-standalone .result-aside {
     display: grid;
     gap: var(--s6);
@@ -2386,14 +2383,29 @@ button.topbar-search-toggle {
 }
 
 @media (max-width: 720px) {
-  /* .result.result-standalone (not .result-standalone) for the same reason as
-     the base rule above: the encapsulated component rule would otherwise win. */
-  .result.result-standalone .result-head-end {
+  /* The download button stays at the end of the symbol row instead of taking
+     a line of its own. For that the header must not wrap: the identity block
+     takes the width the button leaves and wraps its chips inside itself.
+     .result.result-standalone for the same reason as the base rule above: both
+     reports' encapsulated header rules would otherwise win. */
+  .result.result-standalone .result-head {
     align-items: flex-start;
     flex-direction: row;
-    justify-content: flex-start;
-    min-width: 0;
-    width: 100%;
+    flex-wrap: nowrap;
+    gap: var(--s3);
+  }
+
+  .result.result-standalone .result-ident {
+    flex: 1 1 auto;
+  }
+
+  .result.result-standalone .result-head-end {
+    flex: none;
+    width: auto;
+  }
+
+  .result.result-standalone .result-title-row {
+    gap: var(--s2);
   }
 
   .result-standalone .result-head-end .st,
@@ -2401,13 +2413,20 @@ button.topbar-search-toggle {
     align-self: flex-start;
   }
 
-  .result-standalone .result-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
+  /* Two by two, sized to their text: the desktop floor of 108px left each
+     tile mostly empty here. The value sits right under its label, so a tile
+     with a hint and one without still line up across the row. */
   .result-standalone .result-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .result-standalone .result-tiles .tile {
+    min-height: 0;
+    padding: var(--s3) var(--s4);
+  }
+
+  .result-standalone .result-tiles .tile b {
+    margin-top: 0;
   }
 
   .result-standalone .result-body,
@@ -2432,25 +2451,6 @@ button.topbar-search-toggle {
 
   .result-standalone .result-cells {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 480px) {
-  .result-standalone .result-tiles {
-    grid-template-columns: 1fr;
-  }
-
-  .result-standalone .result-cells {
-    grid-template-columns: 1fr;
-  }
-
-  .result-standalone .result-cells .cell {
-    border-left: 0;
-    border-top: 1px solid var(--slab-line);
-  }
-
-  .result-standalone .result-cells .cell:first-child {
-    border-top: 0;
   }
 }
 
