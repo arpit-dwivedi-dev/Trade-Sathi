@@ -14,6 +14,7 @@ import { AdminHealthSection } from './sections/admin-health';
 import { AdminOverviewSection } from './sections/admin-overview';
 import { AdminPaymentsSection } from './sections/admin-payments';
 import { AdminPromoCodesSection } from './sections/admin-promo-codes';
+import { AdminUpiSection } from './sections/admin-upi';
 import { AdminUsersSection } from './sections/admin-users';
 
 export type AdminSection =
@@ -22,6 +23,7 @@ export type AdminSection =
   | 'payments'
   | 'users'
   | 'promo-codes'
+  | 'upi'
   | 'activity'
   | 'health';
 
@@ -31,6 +33,7 @@ const SECTIONS: readonly { id: AdminSection; label: string; icon: IconName; blur
   { id: 'payments', label: 'Payments', icon: 'sell', blurb: 'Every checkout and what became of it.' },
   { id: 'users', label: 'Users', icon: 'person', blurb: 'Accounts, balances and spend. Select a row for detail.' },
   { id: 'promo-codes', label: 'Promo codes', icon: 'percent', blurb: 'Credit codes for everyone or for one person. Create them, switch them off.' },
+  { id: 'upi', label: 'UPI payments', icon: 'credit_card', blurb: 'Bank SMS that did not settle an order on their own, and UPI orders still unpaid.' },
   { id: 'activity', label: 'Activity', icon: 'monitoring', blurb: 'What people use the product for.' },
   { id: 'health', label: 'Health', icon: 'speed', blurb: 'Errors and stuck work, right now.' },
 ];
@@ -66,6 +69,7 @@ function parseRange(value: string | null): AdminRange {
     AdminOverviewSection,
     AdminPaymentsSection,
     AdminPromoCodesSection,
+    AdminUpiSection,
     AdminUsersSection,
   ],
   templateUrl: './admin-page.html',

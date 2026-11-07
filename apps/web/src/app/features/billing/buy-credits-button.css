@@ -334,3 +334,79 @@
     animation: none;
   }
 }
+
+/* ── the UPI QR ────────────────────────────────────────────── */
+.upi {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  text-align: center;
+  width: 100%;
+}
+
+.upi-amount {
+  align-items: baseline;
+  display: flex;
+  gap: var(--s2);
+  justify-content: center;
+}
+
+.upi-amount-val {
+  color: var(--tx);
+  font-family: var(--fh);
+  font-size: var(--t-2xl);
+  font-weight: 650;
+}
+
+/* White in both themes: a QR needs a light quiet zone to scan reliably. */
+.upi-qr-frame {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  line-height: 0;
+  padding: var(--s2);
+}
+
+.upi-qr {
+  display: block;
+  height: auto;
+  max-width: 100%;
+  width: 220px;
+}
+
+.upi-scan,
+.upi-payee,
+.upi-why {
+  margin: 0;
+}
+
+.upi-vpa {
+  font-family: var(--fm);
+  overflow-wrap: anywhere;
+}
+
+/* Only where the QR cannot be scanned from this screen: a touch device. */
+.upi-app {
+  display: none;
+  justify-content: center;
+  width: 100%;
+}
+
+@media (pointer: coarse) {
+  .upi-app {
+    display: inline-flex;
+  }
+}
+
+.upi .billing-msg {
+  text-align: left;
+  width: 100%;
+}
+
+.upi-foot {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}

@@ -84,6 +84,54 @@ export type FeatureCreditKey = (typeof FEATURE_CREDIT_KEYS)[number];
 export interface PricingOverview {
   pricing: CreditPricing;
   featureCosts: FeatureCreditCost[];
+  /**
+   * Whether this caller can buy credits right now. Decided by the API
+   * (UPI_PAYMENTS_ENABLED, and UPI moving rupees only, so the 'IN' region),
+   * so switching purchases on is a server setting, not a web rebuild.
+   */
+  purchasesEnabled: boolean;
+}
+
+/**
+ * A UPI QR order's state, as the buyer sees it.
+ *
+ * 'expired' is not final: a bank SMS for a payment made before the QR timed
+ * out can still arrive until settleDeadline, and settles the order then.
+ */
+export type UpiOrderStatus = 'pending' | 'paid' | 'expired';
+
+/** How to pay a pending UPI order: the link, the QR for it, and the payee. */
+export interface UpiPaymentInstructions {
+  /** upi://pay?… — scanned from the QR, or opened directly on a phone. */
+  upiUri: string;
+  /** PNG data URL of the QR for upiUri. Always dark-on-light. */
+  qrDataUrl: string;
+  payeeName: string;
+  payeeVpa: string;
+}
+
+/**
+ * POST /api/billing/upi/orders (201) and GET /api/billing/upi/orders/:id.
+ * Money is integer paise.
+ */
+export interface UpiOrder {
+  /** payments.id — what the status endpoint is asked about. */
+  orderId: string;
+  /** Our own reference, carried as the UPI note. */
+  reference: string;
+  status: UpiOrderStatus;
+  /**
+   * The exact amount to pay, in paise. Up to 99 paise below the price, so that
+   * no two open orders share an amount — the bank SMS is matched on it.
+   */
+  amountMinor: number;
+  currency: 'INR';
+  creditsRequested: number;
+  expiresAt: string;
+  /** Until when a late bank SMS can still settle this order. */
+  settleDeadline: string;
+  /** Present while status is 'pending' and the caller asked for it; null otherwise. */
+  payment: UpiPaymentInstructions | null;
 }
 
 /**

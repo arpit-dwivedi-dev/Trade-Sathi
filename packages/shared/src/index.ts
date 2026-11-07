@@ -2,7 +2,8 @@
 // and promo redemption. See billing.ts.
 export * from './billing.js';
 
-// The Admin panel's contract: reporting shapes and promo-code management. See admin.ts.
+// The Admin panel's contract: reporting shapes, promo-code management and
+// UPI payment review. See admin.ts.
 export * from './admin.js';
 
 // The AI analysis contract: the shape apps/api validates the model's json into

@@ -1,0 +1,66 @@
+.upi-queue,
+.upi-orders,
+.upi-recent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.upi-sms,
+.upi-order {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  min-width: 0;
+  padding: var(--s3);
+}
+
+.upi-sms-hd,
+.upi-order-main,
+.upi-recent-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+}
+
+/* The bank's own words, wrapped rather than scrolled: rules are written from it. */
+.upi-sms-body {
+  background: var(--surf-2);
+  border-radius: var(--r-sm);
+  color: var(--tx);
+  font-size: var(--t-2xs);
+  line-height: 1.55;
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: var(--s2) var(--s3);
+  white-space: pre-wrap;
+}
+
+.upi-sms-actions {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+}
+
+.upi-sms-buttons {
+  display: flex;
+  gap: var(--s2);
+}
+
+.upi-select {
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+}
+
+.upi-order-who {
+  overflow-wrap: anywhere;
+}
+
+.upi-mark {
+  align-self: flex-start;
+}

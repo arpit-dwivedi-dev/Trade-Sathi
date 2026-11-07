@@ -92,8 +92,8 @@ export const TAB_ALIASES: Readonly<Record<string, NavTab>> = {
  * taking a tab out of this set is the whole of bringing it back.
  *
  * Analyze by Image is paused for the beta. (Billing stays visible: its screen
- * says payments are coming soon — see PURCHASES_ENABLED in
- * features/billing/free-beta.ts.)
+ * says payments are coming soon while purchases are off — see
+ * BillingService.purchasesEnabled.)
  *
  * Production builds only. A development build (`ng serve`, which swaps in
  * environment.development.ts) hides nothing, so every tab can still be

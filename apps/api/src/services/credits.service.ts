@@ -110,7 +110,7 @@ export type CreateCreditOrderRejection =
  * name the real number instead of restating a constant that lives somewhere
  * else and can drift out of step with the row it came from.
  */
-type BeginCreditPurchaseRejection =
+export type BeginCreditPurchaseRejection =
   | { ok: false; reason: "region_unavailable" }
   | { ok: false; reason: "below_minimum_purchase"; minCredits: number }
   | { ok: false; reason: "above_maximum_purchase"; maxCredits: number }
@@ -128,7 +128,7 @@ type BeginCreditPurchaseOutcome =
     }
   | BeginCreditPurchaseRejection;
 
-function rejectionMessage(rejection: BeginCreditPurchaseRejection): string {
+export function rejectionMessage(rejection: BeginCreditPurchaseRejection): string {
   switch (rejection.reason) {
     case "below_minimum_purchase":
       return `A purchase must be at least ${rejection.minCredits} credits`;

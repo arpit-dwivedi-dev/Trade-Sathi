@@ -8,6 +8,7 @@ import type {
   PricingOverview,
   PricingRegion,
   PromoRedeemOutcome,
+  UpiOrder,
 } from '@tradesathi/shared';
 
 import { AuthService } from '../../core/auth.service';
@@ -62,6 +63,21 @@ export type BuyCreditsResult =
   | { ok: false; reason: 'below_minimum_purchase' | 'invalid_promo_code' | 'error'; message: string };
 
 export type CreditPollOutcome = 'captured' | 'timed_out' | 'poll_error';
+
+export type CreateUpiOrderResult =
+  | { ok: true; order: UpiOrder }
+  | { ok: false; reason: 'invalid_promo_code' | 'rejected' | 'error'; message: string };
+
+export type FetchUpiOrderResult =
+  | { ok: true; order: UpiOrder }
+  | { ok: false; reason: 'not_found' | 'error' };
+
+/**
+ * Where an open UPI order is remembered across a reload — separate from the
+ * Razorpay key above because its lifetime is the order's own settleDeadline,
+ * not the Razorpay claim window.
+ */
+const PENDING_UPI_ORDER_STORAGE_KEY = 'tradesathi.pending-upi-order';
 
 /**
  * The answer to "is this order paid?", as far as the backend could establish.
@@ -191,6 +207,15 @@ export class BillingService {
   readonly pricingRegion = computed<PricingRegion | null>(
     () => this.pricingState()?.pricing.region ?? null,
   );
+
+  /**
+   * Whether this account can buy credits right now, as the API decides it
+   * (UPI_PAYMENTS_ENABLED, and UPI being India-only). False until pricing has
+   * loaded, so nothing offers a purchase the server would refuse. The shell
+   * (app-page) loads pricing on start, so every screen reading this gets a
+   * real answer without asking for pricing itself.
+   */
+  readonly purchasesEnabled = computed(() => this.pricingState()?.purchasesEnabled === true);
 
   /**
    * Loads the credit balance once and caches it. Repeat callers get the cached
@@ -409,6 +434,110 @@ export class BillingService {
    * has nothing different to do about any of them: the purchase stays
    * unconfirmed, and the user is told so plainly.
    */
+  /**
+   * POST /api/billing/upi/orders: opens a UPI QR order. The QR, the exact
+   * amount to pay and the payee come back in the order; nothing here or on the
+   * page can mark it paid — only a bank SMS reaching the API can.
+   */
+  async createUpiOrder(quantity: number, promoCode?: string): Promise<CreateUpiOrderResult> {
+    const token = await this.auth.getAccessToken();
+    if (!token) {
+      return { ok: false, reason: 'error', message: 'You are not signed in.' };
+    }
+
+    try {
+      const order = await firstValueFrom(
+        this.http.post<UpiOrder>(
+          '/api/billing/upi/orders',
+          promoCode ? { quantity, promoCode } : { quantity },
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      );
+      return { ok: true, order };
+    } catch (cause) {
+      const status = cause instanceof HttpErrorResponse ? cause.status : 0;
+      const body: unknown = cause instanceof HttpErrorResponse ? cause.error : undefined;
+      const message =
+        body !== null && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
+          ? body.error
+          : null;
+      // 400s and 503s carry a sentence written for the buyer (a bound, a bad
+      // code, purchases paused, too busy); anything else is ours to word.
+      if ((status === 400 || status === 503) && message) {
+        const reason =
+          body !== null && typeof body === 'object' && 'reason' in body && body.reason === 'invalid_promo_code'
+            ? 'invalid_promo_code'
+            : 'rejected';
+        return { ok: false, reason, message };
+      }
+      console.warn('upi order request failed', cause);
+      return { ok: false, reason: 'error', message: "Couldn't start the payment. Please try again." };
+    }
+  }
+
+  /** GET /api/billing/upi/orders/:id — withQr for a resume, without for the poll. */
+  async fetchUpiOrder(orderId: string, withQr = false): Promise<FetchUpiOrderResult> {
+    const token = await this.auth.getAccessToken();
+    if (!token) return { ok: false, reason: 'error' };
+
+    try {
+      const order = await firstValueFrom(
+        this.http.get<UpiOrder>(`/api/billing/upi/orders/${encodeURIComponent(orderId)}`, {
+          params: withQr ? { qr: '1' } : {},
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      );
+      return { ok: true, order };
+    } catch (cause) {
+      if (cause instanceof HttpErrorResponse && cause.status === 404) {
+        return { ok: false, reason: 'not_found' };
+      }
+      return { ok: false, reason: 'error' };
+    }
+  }
+
+  rememberPendingUpiOrder(order: UpiOrder): void {
+    if (!this.isBrowser) return;
+    try {
+      localStorage.setItem(
+        PENDING_UPI_ORDER_STORAGE_KEY,
+        JSON.stringify({ orderId: order.orderId, until: Date.parse(order.settleDeadline) }),
+      );
+    } catch {
+      // Storage refused (private mode, quota): the order still settles, the
+      // page just cannot pick it back up after a reload.
+    }
+  }
+
+  forgetPendingUpiOrder(): void {
+    if (!this.isBrowser) return;
+    try {
+      localStorage.removeItem(PENDING_UPI_ORDER_STORAGE_KEY);
+    } catch {
+      // Nothing to do; an unreadable entry is ignored on read anyway.
+    }
+  }
+
+  /** The remembered order id, while a bank SMS could still settle it. */
+  readPendingUpiOrder(): string | null {
+    if (!this.isBrowser) return null;
+    try {
+      const raw = localStorage.getItem(PENDING_UPI_ORDER_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed: unknown = JSON.parse(raw);
+      if (parsed === null || typeof parsed !== 'object') return null;
+      const { orderId, until } = parsed as { orderId?: unknown; until?: unknown };
+      if (typeof orderId !== 'string' || typeof until !== 'number') return null;
+      if (Date.now() >= until) {
+        this.forgetPendingUpiOrder();
+        return null;
+      }
+      return orderId;
+    } catch {
+      return null;
+    }
+  }
+
   async reconcileCreditOrder(orderId: string): Promise<ReconcileOutcome> {
     const token = await this.auth.getAccessToken();
     if (!token) return 'unknown';

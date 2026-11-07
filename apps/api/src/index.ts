@@ -18,6 +18,7 @@ import { attachMarketStream } from "./routes/market-stream.route.js";
 import { marketRouter } from "./routes/market.route.js";
 import { meRouter } from "./routes/me.route.js";
 import { pricingRouter } from "./routes/pricing.route.js";
+import { smsWebhookRouter } from "./routes/sms-webhook.route.js";
 import { surveyRouter } from "./routes/survey.route.js";
 import { dailyBriefingRouter } from "./routes/daily-briefing.route.js";
 import { webhooksRouter } from "./routes/webhooks.route.js";
@@ -48,6 +49,9 @@ app.use((req, res, next) => {
   resolveGeo(req, res, next).catch(next);
 });
 app.use(healthRouter);
+// Bearer-token auth rather than a body signature, so unlike the Razorpay
+// webhook it needs no raw body and sits behind the normal JSON parser.
+app.use(smsWebhookRouter);
 app.use(meRouter);
 app.use(pricingRouter);
 app.use(analysesRouter);

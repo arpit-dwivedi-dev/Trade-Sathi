@@ -5,7 +5,7 @@
   <header class="bill-head">
     <div class="bill-head-copy">
       <h1 class="bill-title">Billing</h1>
-      @if (purchasesEnabled) {
+      @if (purchasesEnabled()) {
         <p class="bill-sub">
           One balance, spent by every paid feature. Buy more credits any time, or redeem a code.
         </p>
@@ -22,7 +22,7 @@
          choice the backend cannot honour. It is a statement of which price
          band this account is billed in — shown, not set. Left out during the
          free beta, when there is no price to be billed in. -->
-    @if (purchasesEnabled) {
+    @if (purchasesEnabled()) {
       @if (regionLabel(); as region) {
         <span class="bill-region" [attr.title]="REGION_NOTE">{{ region }}</span>
       }
@@ -36,13 +36,13 @@
        weight, and neither card has to stretch to fill a row its own content
        does not fill. -->
   <div class="bill-grid">
-    @if (purchasesEnabled) {
+    @if (purchasesEnabled()) {
       <section class="bill-card">
         <div class="bill-card-hd">
           <h2 class="lbl-h">Buy credits</h2>
         </div>
         <div class="bill-card-body">
-          <p class="bill-msg">Any quantity at your region's rate, paid with Razorpay.</p>
+          <p class="bill-msg">Any quantity at your region's rate. Pay by scanning a UPI QR with any UPI app.</p>
           <app-buy-credits-button (creditsAdded)="onCreditsAdded()" />
         </div>
       </section>
@@ -111,7 +111,7 @@
           <h2 class="lbl-h">Redeem a code</h2>
         </div>
         <div class="bill-card-body">
-          @if (purchasesEnabled) {
+          @if (purchasesEnabled()) {
             <p class="bill-msg">
               A code that grants credits lands in your balance straight away. Discount codes belong
               in the Buy credits box.

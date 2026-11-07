@@ -125,6 +125,8 @@ export interface AdminPaymentRow {
   amountMinor: number;
   currency: string;
   status: string;
+  /** 'razorpay' or 'upi_direct' (QR to the owner's VPA, confirmed by bank SMS). */
+  provider: string;
   signatureVerified: boolean;
   creditsPurchased: number;
   createdAt: string;
@@ -277,4 +279,69 @@ export interface AdminPromoCodeCreated {
    * open to everyone.
    */
   accountExists: boolean | null;
+}
+
+/* ── UPI payments review (GET /api/admin/upi) ── */
+
+/** How a forwarded bank SMS was read. Mirrors upi_sms_messages.parse_status. */
+export type AdminUpiParseStatus = 'credit' | 'not_credit' | 'unparsed' | 'rejected';
+
+/** Mirrors upi_sms_messages.match_status. */
+export type AdminUpiMatchStatus =
+  | 'pending'
+  | 'matched'
+  | 'unmatched'
+  | 'ambiguous'
+  | 'not_applicable'
+  | 'ignored';
+
+/** One forwarded bank SMS. Admin-only: the body is the raw message. */
+export interface AdminUpiSmsRow {
+  id: string;
+  sender: string;
+  body: string;
+  receivedAt: string;
+  ruleName: string | null;
+  parseStatus: AdminUpiParseStatus;
+  parseNote: string | null;
+  amountMinor: number | null;
+  utr: string | null;
+  accountHint: string | null;
+  payerHint: string | null;
+  matchStatus: AdminUpiMatchStatus;
+  paymentId: string | null;
+  matchedBy: 'auto' | 'auto_payer_hint' | 'admin' | null;
+  reviewNote: string | null;
+  /**
+   * Open or recently expired orders this SMS could belong to: same amount, or
+   * a buyer whose phone or name matches the payer shown in the SMS. Ids from
+   * AdminUpiReview.orders, best first. Suggestions only; nothing is settled
+   * until an admin links one.
+   */
+  suggestedOrderIds: string[];
+}
+
+/** One unpaid UPI order, with who placed it. */
+export interface AdminUpiOrderRow {
+  id: string;
+  reference: string;
+  /** 'created' while the QR is live, 'expired' after. */
+  status: string;
+  amountMinor: number;
+  creditsPurchased: number;
+  createdAt: string;
+  expiresAt: string | null;
+  profileId: string;
+  email: string | null;
+  fullName: string | null;
+  phoneNumber: string | null;
+}
+
+export interface AdminUpiReview {
+  /** SMS needing a decision: unmatched, ambiguous, unparsed, rejected. Newest first. */
+  queue: AdminUpiSmsRow[];
+  /** The latest SMS that were settled or dismissed, for context. */
+  recent: AdminUpiSmsRow[];
+  /** UPI orders from the last three days that have not been paid. */
+  orders: AdminUpiOrderRow[];
 }

@@ -301,7 +301,7 @@
   </div>
 
   @if (analyzeState() === 'insufficient_credits') {
-    @if (purchasesEnabled) {
+    @if (purchasesEnabled()) {
       <div class="note ws-note" style="--tone: var(--warn)">
         <span>{{ analyzeError() }}</span>
         <button pButton [outlined]="true" (click)="openPlans()">Buy credits</button>

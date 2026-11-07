@@ -7,8 +7,100 @@ import { requireAuth } from "../middleware/auth.js";
 import { createCreditOrder, reconcileCreditOrder } from "../services/credits.service.js";
 import { ensurePricingRegion } from "../services/pricing-region.service.js";
 import { redeemPromoCodeCredits } from "../services/promo.service.js";
+import { createUpiOrder, getUpiOrder } from "../services/upi-payments.service.js";
 
 export const billingRouter = Router();
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * POST /api/billing/upi/orders — body { quantity: number, promoCode?: string }.
+ *
+ * Opens a UPI QR order: same pricing, bounds and promo rules as
+ * purchase-credits, paid by scanning a QR to the owner's VPA instead of
+ * through Razorpay. Answers 201 with the QR and the exact amount to pay. The
+ * order is settled by a bank SMS (routes/sms-webhook.route.ts), never by
+ * anything this client sends.
+ */
+billingRouter.post(
+  "/api/billing/upi/orders",
+  asyncRoute(requireAuth),
+  asyncRoute(async (req: Request, res: Response) => {
+    const { quantity, promoCode } = (req.body ?? {}) as { quantity?: unknown; promoCode?: unknown };
+
+    if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity <= 0) {
+      res.status(400).json({ error: "quantity must be a positive integer" });
+      return;
+    }
+    if (promoCode !== undefined && promoCode !== null) {
+      if (typeof promoCode !== "string" || promoCode.trim().length > 64) {
+        res.status(400).json({ error: "promoCode must be a string of at most 64 characters" });
+        return;
+      }
+    }
+
+    try {
+      // Non-null: requireAuth only calls next() after setting profileId.
+      const region = await ensurePricingRegion(req.profileId!, req);
+      const result = await createUpiOrder(
+        req.profileId!,
+        region,
+        quantity,
+        typeof promoCode === "string" ? promoCode : null,
+      );
+
+      if (result.ok) {
+        res.status(201).json(result.order);
+        return;
+      }
+
+      switch (result.reason) {
+        case "disabled":
+          res.status(503).json({ error: result.message, reason: "billing_disabled" });
+          return;
+        case "busy":
+          res.status(503).json({ error: result.message, reason: result.reason });
+          return;
+        default:
+          res.status(400).json({ error: result.message, reason: result.reason });
+          return;
+      }
+    } catch (cause) {
+      logger.error("failed to create upi order", { profileId: req.profileId, cause: String(cause) });
+      res.status(500).json({ error: "Failed to start the payment" });
+    }
+  }),
+);
+
+/**
+ * GET /api/billing/upi/orders/:id[?qr=1] — the caller's own UPI order.
+ *
+ * Polled by the payment screen until status is 'paid' (or 'expired' and past
+ * its settleDeadline). ?qr=1 includes the QR again, for a buyer resuming after
+ * a reload; the poll leaves it off.
+ */
+billingRouter.get(
+  "/api/billing/upi/orders/:id",
+  asyncRoute(requireAuth),
+  asyncRoute(async (req: Request, res: Response) => {
+    const id = req.params["id"] ?? "";
+    if (!UUID_RE.test(id)) {
+      res.status(404).json({ error: "No such order" });
+      return;
+    }
+    try {
+      const order = await getUpiOrder(req.profileId!, id, req.query["qr"] === "1");
+      if (!order) {
+        res.status(404).json({ error: "No such order" });
+        return;
+      }
+      res.json(order);
+    } catch (cause) {
+      logger.error("failed to read upi order", { profileId: req.profileId, cause: String(cause) });
+      res.status(500).json({ error: "Failed to read the order" });
+    }
+  }),
+);
 
 /**
  * POST /api/billing/purchase-credits — body { quantity: number, promoCode?: string }.

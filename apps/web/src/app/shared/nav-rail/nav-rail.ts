@@ -6,7 +6,6 @@ import { environment } from '../../../environments/environment';
 import { AdminAccessService } from '../../core/admin-access.service';
 import { AuthService } from '../../core/auth.service';
 import { BillingService } from '../../features/billing/billing.service';
-import { PURCHASES_ENABLED } from '../../features/billing/free-beta';
 import { ProfileService } from '../../features/account/profile.service';
 import { ThemeService } from '../../core/theme.service';
 import { AppIcon } from '../icons/app-icon';
@@ -53,8 +52,8 @@ export class NavRail {
   /** Left out of production builds for the free beta — see HIDDEN_TABS. */
   protected readonly imageVisible = isTabVisible('analyze-by-image');
 
-  /** The Buy Credits button, off while purchases are — see PURCHASES_ENABLED. */
-  protected readonly purchasesEnabled = PURCHASES_ENABLED;
+  /** The Buy Credits button, off while purchases are — see BillingService.purchasesEnabled. */
+  protected readonly purchasesEnabled = this.billing.purchasesEnabled;
 
   /**
    * Whether to show the "Coming soon" rows for screens that do not exist yet

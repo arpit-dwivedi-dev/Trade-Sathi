@@ -30,7 +30,7 @@
       <p class="note daily-briefing-cost-note" role="status">
         <span class="daily-briefing-cost-copy">
           {{ cost }} — scheduled runs and Analyze Now both spend from your credit balance.
-          @if (purchasesEnabled) {
+          @if (purchasesEnabled()) {
             <a routerLink="/app/billing">Buy credits</a> any time.
           } @else {
             Free-beta credits are on the <a routerLink="/app/billing">Billing</a> screen.

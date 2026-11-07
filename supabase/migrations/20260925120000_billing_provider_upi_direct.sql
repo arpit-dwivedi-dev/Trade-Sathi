@@ -1,0 +1,13 @@
+-- TradeSathi — a second payment provider: direct UPI to the owner's own VPA.
+--
+-- Its own migration file, separate from the schema that uses it
+-- (20260925120100_upi_sms_payments.sql), because Postgres refuses to use an
+-- enum value in the same transaction that added it: the partial index there
+-- filters on provider = 'upi_direct', and an index predicate is evaluated when
+-- the index is built, not later.
+--
+-- 'upi_direct' means: the buyer scanned a QR and paid the owner's VPA with
+-- any UPI app, and the payment was confirmed from a forwarded bank SMS (or by
+-- an admin). There is no gateway, no signature and no provider-side order —
+-- provider_order_id holds our own reference and provider_payment_id the UTR.
+alter type billing_provider add value if not exists 'upi_direct';

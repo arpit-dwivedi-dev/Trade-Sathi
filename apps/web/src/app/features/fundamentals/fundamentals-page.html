@@ -134,7 +134,7 @@
       @case ('insufficient_credits') {
         <p-card class="fund-card fund-ai-status">
           <p class="err">{{ aiError() }}</p>
-          @if (!purchasesEnabled) {
+          @if (!purchasesEnabled()) {
             <app-beta-credits (redeemed)="onBetaRedeemed()" />
           }
         </p-card>

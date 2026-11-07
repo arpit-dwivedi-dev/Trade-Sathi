@@ -68,6 +68,7 @@ interface PaymentDbRow {
   amount_minor: number;
   currency: string;
   status: string;
+  provider: string;
   signature_verified: boolean;
   credits_purchased: number;
   created_at: string;
@@ -107,7 +108,7 @@ interface ErrorDbRow {
 }
 
 const PAYMENT_COLUMNS =
-  "id, profile_id, amount_minor, currency, status, signature_verified, credits_purchased, created_at, captured_at, profiles(email)";
+  "id, profile_id, amount_minor, currency, status, provider, signature_verified, credits_purchased, created_at, captured_at, profiles(email)";
 
 function embeddedEmail(embed: PaymentDbRow["profiles"]): string | null {
   if (!embed) return null;
@@ -148,6 +149,7 @@ function toPaymentRow(row: PaymentDbRow): AdminPaymentRow {
     amountMinor: row.amount_minor,
     currency: row.currency,
     status: row.status,
+    provider: row.provider,
     signatureVerified: row.signature_verified,
     creditsPurchased: row.credits_purchased,
     createdAt: row.created_at,

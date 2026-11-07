@@ -7,7 +7,7 @@ import type { FeatureCreditCost } from '@tradesathi/shared';
 import { BetaCredits } from './beta-credits';
 import { BillingService } from './billing.service';
 import { BuyCreditsButton } from './buy-credits-button';
-import { BETA_PROMO_CREDITS, PURCHASES_ENABLED } from './free-beta';
+import { BETA_PROMO_CREDITS } from './free-beta';
 import { PromoRedeemBox } from './promo-redeem-box';
 
 /** Human labels for a feature_key — the closed set in FEATURE_CREDIT_KEYS. */
@@ -26,7 +26,7 @@ const FEATURE_LABELS: Readonly<Record<string, string>> = {
  * kind of purchase left, so there is nothing left to compare across tabs. The
  * account page keeps no billing surface at all; it is identity only.
  *
- * During the free beta (PURCHASES_ENABLED off) the purchase card says paid
+ * While purchases are off (BillingService.purchasesEnabled) the purchase card says paid
  * credits are coming soon and the redeem card carries the beta code. The
  * purchase flow stays in the template, only not rendered.
  */
@@ -39,7 +39,7 @@ const FEATURE_LABELS: Readonly<Record<string, string>> = {
 export class BillingPage implements OnInit {
   private readonly billing = inject(BillingService);
 
-  protected readonly purchasesEnabled = PURCHASES_ENABLED;
+  protected readonly purchasesEnabled = this.billing.purchasesEnabled;
   protected readonly betaCredits = BETA_PROMO_CREDITS;
 
   protected readonly loading = signal(true);

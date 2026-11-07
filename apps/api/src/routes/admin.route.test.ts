@@ -52,6 +52,19 @@ const promo = vi.hoisted(() => ({
 }));
 vi.mock("../services/admin-promo.service.js", () => promo);
 
+const SMS_ID = "44444444-4444-4444-8444-444444444444";
+const ORDER_ID = "55555555-5555-4555-8555-555555555555";
+
+const upi = vi.hoisted(() => ({
+  getUpiReview: vi.fn(() => Promise.resolve({ queue: [], recent: [], orders: [] })),
+  adminMatchSms: vi.fn((_sms: string, paymentId: string) =>
+    Promise.resolve(paymentId === "55555555-5555-4555-8555-555555555555" ? "matched" : "amount_mismatch"),
+  ),
+  adminIgnoreSms: vi.fn(() => Promise.resolve(true)),
+  adminMarkUpiPaid: vi.fn(() => Promise.resolve("applied")),
+}));
+vi.mock("../services/admin-upi.service.js", () => upi);
+
 const { adminRouter } = await import("./admin.route.js");
 
 let server: Server;
@@ -91,6 +104,7 @@ const ENDPOINTS = [
   "/api/admin/activity",
   "/api/admin/health",
   "/api/admin/promo-codes",
+  "/api/admin/upi",
 ];
 
 describe("admin API", () => {
@@ -200,5 +214,55 @@ describe("admin promo codes", () => {
     expect((await send("PUT", `/api/admin/promo-codes/${USER}/active`, { active: true }, ADMIN)).status).toBe(404);
     expect((await send("PUT", "/api/admin/promo-codes/nope/active", { active: true }, ADMIN)).status).toBe(404);
     expect((await send("PUT", `/api/admin/promo-codes/${CODE_ID}/active`, { active: "yes" }, ADMIN)).status).toBe(400);
+  });
+});
+
+describe("admin UPI review", () => {
+  const match = `/api/admin/upi/sms/${SMS_ID}/match`;
+  const ignore = `/api/admin/upi/sms/${SMS_ID}/ignore`;
+  const markPaid = `/api/admin/upi/orders/${ORDER_ID}/mark-paid`;
+
+  it("keeps every write behind the admin gate", async () => {
+    for (const path of [match, ignore, markPaid]) {
+      expect((await send("POST", path, {}, USER)).status).toBe(404);
+      expect((await send("POST", path, {})).status).toBe(401);
+    }
+    expect(upi.adminMatchSms).not.toHaveBeenCalled();
+    expect(upi.adminMarkUpiPaid).not.toHaveBeenCalled();
+  });
+
+  it("links an SMS to an order as the calling admin", async () => {
+    const res = await send("POST", match, { paymentId: ORDER_ID, note: " checked " }, ADMIN);
+    expect(res.status).toBe(200);
+    expect(upi.adminMatchSms).toHaveBeenLastCalledWith(SMS_ID, ORDER_ID, ADMIN, "checked");
+  });
+
+  it("answers a refused link with the reason, not a 500", async () => {
+    const res = await send("POST", match, { paymentId: USER }, ADMIN);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ outcome: "amount_mismatch" });
+  });
+
+  it("rejects malformed ids before reaching the service", async () => {
+    const calls = upi.adminMatchSms.mock.calls.length;
+    expect((await send("POST", "/api/admin/upi/sms/nope/match", { paymentId: ORDER_ID }, ADMIN)).status).toBe(404);
+    expect((await send("POST", match, { paymentId: "nope" }, ADMIN)).status).toBe(400);
+    expect(upi.adminMatchSms.mock.calls.length).toBe(calls);
+  });
+
+  it("dismisses an SMS", async () => {
+    const res = await send("POST", ignore, { note: "personal transfer" }, ADMIN);
+    expect(res.status).toBe(200);
+    expect(upi.adminIgnoreSms).toHaveBeenLastCalledWith(SMS_ID, ADMIN, "personal transfer");
+  });
+
+  it("marks an order paid only with a well-formed UTR and a note", async () => {
+    expect((await send("POST", markPaid, { utr: "12", note: "statement" }, ADMIN)).status).toBe(400);
+    expect((await send("POST", markPaid, { utr: "412345678901" }, ADMIN)).status).toBe(400);
+    expect(upi.adminMarkUpiPaid).not.toHaveBeenCalled();
+
+    const res = await send("POST", markPaid, { utr: " 4123 4567 8901 ", note: "HDFC statement" }, ADMIN);
+    expect(res.status).toBe(200);
+    expect(upi.adminMarkUpiPaid).toHaveBeenLastCalledWith(ORDER_ID, "412345678901", ADMIN, "HDFC statement");
   });
 });

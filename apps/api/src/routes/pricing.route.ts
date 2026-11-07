@@ -5,6 +5,7 @@ import { logger } from "../lib/logger.js";
 import { verifyAccessToken } from "../middleware/auth.js";
 import { getCreditPricing, getFeatureCreditCosts } from "../services/credits.service.js";
 import { ensurePricingRegion, regionFromRequest } from "../services/pricing-region.service.js";
+import { upiPurchasesAvailable } from "../services/upi-payments.service.js";
 
 export const pricingRouter = Router();
 
@@ -38,7 +39,11 @@ pricingRouter.get(
         getFeatureCreditCosts(),
       ]);
 
-      const body: PricingOverview = { pricing, featureCosts };
+      const body: PricingOverview = {
+        pricing,
+        featureCosts,
+        purchasesEnabled: upiPurchasesAvailable(region),
+      };
       res.json(body);
     } catch (cause) {
       logger.error("failed to serve pricing", { cause: String(cause) });

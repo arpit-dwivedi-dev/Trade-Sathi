@@ -11,6 +11,14 @@ import {
   type PromoCodeInput,
 } from "../services/admin-promo.service.js";
 import {
+  adminIgnoreSms,
+  adminMarkUpiPaid,
+  adminMatchSms,
+  getUpiReview,
+  type AdminMarkPaidOutcome,
+  type AdminMatchOutcome,
+} from "../services/admin-upi.service.js";
+import {
   getActivity,
   getEconomics,
   getHealth,
@@ -23,8 +31,8 @@ import {
 } from "../services/admin.service.js";
 
 /**
- * The Admin panel API — reads, plus two kinds of write: excluding an account
- * from the numbers, and managing promo codes. Every path under /api/admin passes
+ * The Admin panel API — reads, plus three kinds of write: excluding an account
+ * from the numbers, managing promo codes, and settling UPI payments by hand. Every path under /api/admin passes
  * requireAuth then requireAdmin before any handler runs — mounted once here so
  * a new endpoint cannot be added without the gate.
  */
@@ -297,6 +305,129 @@ adminRouter.put(
     } catch (cause) {
       logger.error("admin set promo code active failed", { cause: String(cause) });
       res.status(500).json({ error: "Failed to update promo code" });
+    }
+  }),
+);
+
+/* ── UPI payments: the manual-verification queue ── */
+
+/** An optional review note, trimmed; null when absent or blank. */
+function noteParam(value: unknown): string | null {
+  return textParam(value, 500);
+}
+
+adminRouter.get(
+  "/api/admin/upi",
+  adminRead("upi review", () => getUpiReview()),
+);
+
+const MATCH_STATUS: Record<Exclude<AdminMatchOutcome, "matched">, { status: number; error: string }> = {
+  sms_not_found: { status: 404, error: "SMS not found" },
+  sms_not_credit: { status: 409, error: "That SMS has no amount and UTR to settle with" },
+  sms_already_matched: { status: 409, error: "That SMS has already been settled or dismissed" },
+  payment_not_found: { status: 404, error: "UPI order not found" },
+  payment_already_paid: { status: 409, error: "That order is already paid" },
+  amount_mismatch: { status: 409, error: "The SMS amount is not the order amount" },
+};
+
+// Settle an order from an SMS: for an unmatched or ambiguous SMS, or one
+// rejected by the account check. The amount must still equal the order's.
+adminRouter.post(
+  "/api/admin/upi/sms/:id/match",
+  asyncRoute(async (req: Request, res: Response) => {
+    const smsId = req.params["id"] ?? "";
+    const body = (req.body ?? {}) as { paymentId?: unknown; note?: unknown };
+    if (!UUID_RE.test(smsId)) {
+      res.status(404).json({ error: "SMS not found" });
+      return;
+    }
+    if (typeof body.paymentId !== "string" || !UUID_RE.test(body.paymentId)) {
+      res.status(400).json({ error: "paymentId must be an order id" });
+      return;
+    }
+    try {
+      // Non-null: requireAuth set it before requireAdmin let this through.
+      const outcome = await adminMatchSms(smsId, body.paymentId, req.profileId!, noteParam(body.note));
+      if (outcome === "matched") {
+        res.json({ outcome });
+        return;
+      }
+      const { status, error } = MATCH_STATUS[outcome];
+      res.status(status).json({ error, outcome });
+    } catch (cause) {
+      logger.error("admin upi match failed", { cause: String(cause) });
+      res.status(500).json({ error: "Failed to settle the order" });
+    }
+  }),
+);
+
+// Dismiss an SMS: a refund, a personal transfer, an alert that is not a payment.
+adminRouter.post(
+  "/api/admin/upi/sms/:id/ignore",
+  asyncRoute(async (req: Request, res: Response) => {
+    const smsId = req.params["id"] ?? "";
+    if (!UUID_RE.test(smsId)) {
+      res.status(404).json({ error: "SMS not found" });
+      return;
+    }
+    try {
+      const ignored = await adminIgnoreSms(
+        smsId,
+        req.profileId!,
+        noteParam((req.body as { note?: unknown } | undefined)?.note),
+      );
+      if (!ignored) {
+        res.status(409).json({ error: "That SMS is gone or has already settled an order" });
+        return;
+      }
+      res.json({ ignored });
+    } catch (cause) {
+      logger.error("admin upi ignore failed", { cause: String(cause) });
+      res.status(500).json({ error: "Failed to dismiss the SMS" });
+    }
+  }),
+);
+
+const MARK_PAID_STATUS: Record<Exclude<AdminMarkPaidOutcome, "applied">, { status: number; error: string }> = {
+  payment_not_found: { status: 404, error: "UPI order not found" },
+  payment_already_paid: { status: 409, error: "That order is already paid" },
+  utr_already_used: { status: 409, error: "That UTR has already settled an order" },
+  utr_has_sms: { status: 409, error: "An SMS carries that UTR. Link the SMS instead, which checks its amount." },
+};
+
+// Mark an order paid with no SMS, from a UTR checked in the bank statement.
+// A note is required: this is the one path with no message from the bank
+// behind it, so the audit log has to say why.
+adminRouter.post(
+  "/api/admin/upi/orders/:id/mark-paid",
+  asyncRoute(async (req: Request, res: Response) => {
+    const paymentId = req.params["id"] ?? "";
+    const body = (req.body ?? {}) as { utr?: unknown; note?: unknown };
+    if (!UUID_RE.test(paymentId)) {
+      res.status(404).json({ error: "UPI order not found" });
+      return;
+    }
+    const utr = typeof body.utr === "string" ? body.utr.replace(/\s/g, "").toUpperCase() : "";
+    if (!/^[A-Z0-9]{6,35}$/.test(utr)) {
+      res.status(400).json({ error: "utr must be the 12-digit UPI reference from the bank statement" });
+      return;
+    }
+    const note = noteParam(body.note);
+    if (note === null) {
+      res.status(400).json({ error: "Say where you checked the payment (a note is required)" });
+      return;
+    }
+    try {
+      const outcome = await adminMarkUpiPaid(paymentId, utr, req.profileId!, note);
+      if (outcome === "applied") {
+        res.json({ outcome });
+        return;
+      }
+      const { status, error } = MARK_PAID_STATUS[outcome];
+      res.status(status).json({ error, outcome });
+    } catch (cause) {
+      logger.error("admin upi mark paid failed", { cause: String(cause) });
+      res.status(500).json({ error: "Failed to mark the order paid" });
     }
   }),
 );

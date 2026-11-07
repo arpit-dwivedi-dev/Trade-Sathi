@@ -122,8 +122,8 @@
   <!-- No balance on the label: the figure is the Billing screen's subject, not
        this button's. Printed here it read as part of the action ("buy 35"), and
        it changed under the user's eyes after every analysis. -->
-  <!-- Nothing to buy during the free beta — see PURCHASES_ENABLED. -->
-  @if (purchasesEnabled) {
+  <!-- Nothing to buy while purchases are off — see BillingService.purchasesEnabled. -->
+  @if (purchasesEnabled()) {
     <button pButton size="small" class="nav-cta" (click)="select('billing')">
       Buy Credits
     </button>

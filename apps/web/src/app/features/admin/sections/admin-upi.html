@@ -1,0 +1,161 @@
+@if (error()) {
+  <p-message severity="error" [text]="error()!" />
+}
+
+@if (loading() && !data()) {
+  <div class="admin-state" role="status">
+    <p-progress-spinner [style]="{ width: '20px', height: '20px' }" strokeWidth="4" aria-hidden="true" />
+    <span class="meta">Loading UPI payments…</span>
+  </div>
+} @else if (data(); as d) {
+  <section class="admin-card">
+    <div class="admin-card-hd">
+      <div class="admin-card-hd-copy">
+        <span class="lbl-h">Needs a decision</span>
+        <span class="meta dim">Bank SMS that did not settle an order on their own. Newest first.</span>
+      </div>
+      <span class="admin-count tnum">{{ d.queue.length }}</span>
+    </div>
+
+    <div class="admin-card-body upi-queue">
+      @for (sms of d.queue; track sms.id) {
+        <article class="upi-sms">
+          <header class="upi-sms-hd">
+            <span [class]="smsStatus(sms).cls">{{ smsStatus(sms).label }}</span>
+            <span class="meta tnum">{{ dateTime(sms.receivedAt) }}</span>
+            <span class="meta admin-mono">{{ sms.sender }}</span>
+            @if (sms.amountMinor !== null) {
+              <b class="tnum">{{ money(sms.amountMinor, 'INR') }}</b>
+            }
+            @if (sms.utr) {
+              <span class="meta admin-mono">UTR {{ sms.utr }}</span>
+            }
+          </header>
+
+          <!-- The raw message: what a new parse rule is written from. -->
+          <p class="upi-sms-body admin-mono">{{ sms.body }}</p>
+
+          @if (sms.parseNote || sms.reviewNote || sms.payerHint || sms.ruleName) {
+            <p class="admin-note">
+              @if (sms.parseNote) { {{ sms.parseNote }}. }
+              @if (sms.reviewNote) { {{ sms.reviewNote }}. }
+              @if (sms.payerHint) { Payer: <span class="admin-mono">{{ sms.payerHint }}</span>. }
+              @if (sms.ruleName) { Rule: {{ sms.ruleName }}. }
+            </p>
+          }
+          @if (sms.parseStatus === 'unparsed') {
+            <p class="admin-note">
+              If this is a payment alert, add a parse rule for it (docs/upi-sms-payments.md), then settle the order below with Mark paid.
+            </p>
+          }
+
+          <div class="upi-sms-actions">
+            @if (canSettle(sms)) {
+              <label class="admin-field admin-field-grow">
+                <span class="lbl">Order</span>
+                <select class="input upi-select" [value]="chosen(sms)"
+                        (change)="setChoice(sms.id, $any($event.target).value)">
+                  <option value="">Choose an order…</option>
+                  @for (opt of optionsFor(sms); track opt.order.id) {
+                    <option [value]="opt.order.id" [selected]="opt.order.id === chosen(sms)">
+                      {{ opt.suggested ? '★ ' : '' }}{{ orderLabel(opt.order) }}
+                    </option>
+                  }
+                </select>
+              </label>
+            }
+            <label class="admin-field admin-field-grow">
+              <span class="lbl">Note</span>
+              <input class="input" type="text" maxlength="500" placeholder="Optional"
+                     [value]="notes()[sms.id] ?? ''" (input)="setNote(sms.id, $any($event.target).value)" />
+            </label>
+            <div class="upi-sms-buttons">
+              @if (canSettle(sms)) {
+                <button pButton size="small" type="button" [disabled]="!chosen(sms) || saving().has(sms.id)"
+                        (click)="settle(sms)">Settle order</button>
+              }
+              <button pButton size="small" type="button" [outlined]="true" severity="secondary"
+                      [disabled]="saving().has(sms.id)" (click)="dismiss(sms)">Dismiss</button>
+            </div>
+          </div>
+        </article>
+      } @empty {
+        <p class="admin-empty meta dim">Nothing waiting. Every forwarded payment SMS has settled its order.</p>
+      }
+    </div>
+  </section>
+
+  <section class="admin-card">
+    <div class="admin-card-hd">
+      <div class="admin-card-hd-copy">
+        <span class="lbl-h">Unpaid UPI orders</span>
+        <span class="meta dim">The last three days. ★ in the list above marks the ones an SMS most likely belongs to.</span>
+      </div>
+      <span class="admin-count tnum">{{ d.orders.length }}</span>
+    </div>
+    <div class="admin-card-body upi-orders">
+      @for (order of d.orders; track order.id) {
+        <div class="upi-order">
+          <div class="upi-order-main">
+            <span class="admin-mono">{{ order.reference }}</span>
+            <b class="tnum">{{ money(order.amountMinor, 'INR') }}</b>
+            <span class="meta">{{ order.creditsPurchased }} credits</span>
+            <span [class]="order.status === 'created' ? 'st st-processing' : 'st st-queued'">
+              {{ order.status === 'created' ? 'QR live' : 'Expired' }}
+            </span>
+          </div>
+          <div class="meta upi-order-who">
+            {{ order.fullName || '—' }} · {{ order.email || '—' }} · {{ order.phoneNumber || 'no phone' }}
+            · <span class="tnum">{{ dateTime(order.createdAt) }}</span>
+          </div>
+
+          @if (markingId() === order.id) {
+            <div class="upi-sms-actions">
+              <label class="admin-field">
+                <span class="lbl">UTR</span>
+                <input class="input admin-mono" type="text" inputmode="numeric" maxlength="40" placeholder="12-digit UPI reference"
+                       [value]="markUtr()" (input)="markUtr.set($any($event.target).value)" />
+              </label>
+              <label class="admin-field admin-field-grow">
+                <span class="lbl">Where you checked it</span>
+                <input class="input" type="text" maxlength="500" placeholder="e.g. bank statement, 7 Nov"
+                       [value]="markNote()" (input)="markNote.set($any($event.target).value)" />
+              </label>
+              <div class="upi-sms-buttons">
+                <button pButton size="small" type="button" [disabled]="saving().has(order.id)"
+                        (click)="markPaid(order)">Mark paid</button>
+                <button pButton size="small" type="button" [outlined]="true" severity="secondary"
+                        (click)="markingId.set(null)">Cancel</button>
+              </div>
+            </div>
+          } @else {
+            <button type="button" class="admin-clear upi-mark" (click)="openMarkPaid(order)">
+              Mark paid without an SMS…
+            </button>
+          }
+        </div>
+      } @empty {
+        <p class="admin-empty meta dim">No unpaid UPI orders in the last three days.</p>
+      }
+    </div>
+  </section>
+
+  @if (d.recent.length) {
+    <section class="admin-card">
+      <div class="admin-card-hd">
+        <span class="lbl-h">Recently settled or dismissed</span>
+      </div>
+      <div class="admin-card-body upi-recent">
+        @for (sms of d.recent; track sms.id) {
+          <div class="upi-recent-row meta">
+            <span [class]="smsStatus(sms).cls">{{ smsStatus(sms).label }}</span>
+            <span class="tnum">{{ dateTime(sms.receivedAt) }}</span>
+            @if (sms.amountMinor !== null) { <b class="tnum">{{ money(sms.amountMinor, 'INR') }}</b> }
+            @if (sms.utr) { <span class="admin-mono">UTR {{ sms.utr }}</span> }
+            @if (sms.reviewNote) { <span class="dim">{{ sms.reviewNote }}</span> }
+          </div>
+        }
+      </div>
+    </section>
+  }
+}

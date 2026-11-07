@@ -134,7 +134,7 @@
                 <tr>
                   <td data-label="Amount" class="tnum admin-cell-main">{{ money(p.amountMinor, p.currency) }}</td>
                   <td data-label="Status" class="admin-cell-aside"><span [class]="stClass(p.status)">{{ humanize(p.status) }}</span></td>
-                  <td data-label="Confirmed via" class="dim">{{ p.status !== 'captured' ? '—' : p.signatureVerified ? 'Webhook' : 'Razorpay API' }}</td>
+                  <td data-label="Confirmed via" class="dim">{{ p.status !== 'captured' ? '—' : p.provider === 'upi_direct' ? 'UPI · bank SMS' : p.signatureVerified ? 'Webhook' : 'Razorpay API' }}</td>
                   <td data-label="Date" class="tnum">{{ dateTime(p.createdAt) }}</td>
                 </tr>
               </ng-template>

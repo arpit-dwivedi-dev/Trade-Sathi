@@ -10,23 +10,31 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { DomSanitizer, type SafeUrl } from '@angular/platform-browser';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import type { UpiOrder, UpiPaymentInstructions } from '@tradesathi/shared';
 
-import { AuthService } from '../../core/auth.service';
-import { BillingService, formatPriceMinor, type CreditPollHandle } from './billing.service';
+import { BillingService, formatPriceMinor } from './billing.service';
 
-/**
- * How long to wait on the webhook before asking the backend to check the order
- * with Razorpay directly.
- *
- * The webhook is the fast path and normally lands within seconds, so this only
- * fires when it has not. Short enough that a local dev session — where the
- * webhook has no route to the server at all — does not sit through the full
- * poll timeout before confirming, long enough that a merely slow delivery is
- * usually still resolved by the cheaper path.
- */
-const RECONCILE_AFTER_MS = 12_000;
+/** How often the order is asked about while its QR is live, and after. */
+const POLL_LIVE_MS = 3000;
+const POLL_LATE_MS = 5000;
+
+/** Exact rupees and paise: the paise are what identify the order, so never rounded away. */
+export function formatExactRupees(amountMinor: number): string {
+  return `₹${(amountMinor / 100).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+/** Whole minutes and seconds left, "m:ss"; "0:00" once past. */
+export function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
 
 /** The region's purchase bounds, straight from the pricing config. */
 interface PurchaseRules {
@@ -62,40 +70,34 @@ function snapToRules(value: number, rules: PurchaseRules): number {
 type BuyCreditsState =
   | 'idle'
   | 'ordering'
-  | 'loading_checkout'
-  | 'checkout_open'
-  | 'confirming'
+  // The QR is live and the order is being polled.
+  | 'awaiting'
+  // The QR has expired, but a bank SMS for a payment made in time can still
+  // arrive until the order's settleDeadline, so polling carries on.
+  | 'late'
   | 'success'
-  // Listed for completeness, never entered: a dismissed Checkout returns the
-  // component straight to 'idle', because nothing actually went wrong.
-  | 'dismissed'
-  | 'confirming_slow'
-  | 'poll_error'
+  // Past the deadline with no payment seen.
+  | 'unpaid'
   | 'error';
 
 /**
- * Drives the order → Checkout → confirm-by-polling flow for a chosen quantity
- * of credits, at the account's region rate, with an optional promo code.
+ * Drives the order → UPI QR → confirm-by-polling flow for a chosen quantity of
+ * credits, at the account's region rate, with an optional discount code.
  *
- * Credits are never inferred from Razorpay's client-side handler callback.
- * 'success' is only reached once the payments row — written server-side with
- * the service role — reads 'captured', which is also the only thing that
- * moves credit_balance.
- *
- * That row is written by the webhook, and failing over to a direct query
- * against Razorpay when it does not arrive is what ends the wait: see
- * reconcile(). The client's own callback still proves nothing, so it only ever
- * triggers the check, never the conclusion.
+ * The buyer only scans and pays. 'success' is reached only when the API says
+ * the order is paid, which happens only when a bank SMS forwarded from the
+ * owner's phone (or an admin) settles it server-side. Nothing in this
+ * component can mark an order paid.
  */
 @Component({
   selector: 'app-buy-credits-button',
-  imports: [ButtonModule, ProgressSpinnerModule],
+  imports: [ButtonModule, ProgressSpinnerModule, RouterLink],
   styleUrl: './buy-credits-button.css',
   templateUrl: './buy-credits-button.html',
 })
 export class BuyCreditsButton implements OnDestroy {
   private readonly billing = inject(BillingService);
-  private readonly auth = inject(AuthService);
+  private readonly sanitizer = inject(DomSanitizer);
 
   /** Only needed to hand afterNextRender an injection context from a click handler. */
   private readonly injector = inject(Injector);
@@ -236,25 +238,49 @@ export class BuyCreditsButton implements OnDestroy {
   protected readonly state = signal<BuyCreditsState>('idle');
   protected readonly error = signal<string | null>(null);
 
-  /** True while money is being taken or confirmed. */
-  readonly busy = computed(() => {
-    const state = this.state();
-    return (
-      state === 'ordering' ||
-      state === 'loading_checkout' ||
-      state === 'checkout_open' ||
-      state === 'confirming'
-    );
+  /** The order being paid, as the API last described it. */
+  protected readonly order = signal<UpiOrder | null>(null);
+
+  /** The QR and payee, kept from creation or resume: the poll does not carry them. */
+  protected readonly payment = signal<UpiPaymentInstructions | null>(null);
+
+  /** Ticks every second while an order is open, for the countdown. */
+  private readonly now = signal(Date.now());
+
+  protected readonly amountLabel = computed(() => {
+    const order = this.order();
+    return order ? formatExactRupees(order.amountMinor) : '';
   });
 
-  private poll: CreditPollHandle | null = null;
+  protected readonly countdown = computed(() => {
+    const order = this.order();
+    return order ? formatCountdown(Date.parse(order.expiresAt) - this.now()) : '';
+  });
+
+  protected readonly deadlineLabel = computed(() => {
+    const order = this.order();
+    if (!order) return '';
+    return new Date(order.settleDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  });
 
   /**
-   * The single delayed "has the webhook arrived yet?" check. Held so it can be
-   * cleared when the purchase settles by any other route — a timer firing
-   * against a purchase that is already resolved would ask again for nothing.
+   * The upi:// link, trusted for an href. Angular's URL sanitizer only knows
+   * web schemes and would prefix this one "unsafe:"; it is trusted only after
+   * checking it is the payment-link shape the API builds.
    */
-  private reconcileTimer: ReturnType<typeof setTimeout> | null = null;
+  protected readonly upiHref = computed<SafeUrl | null>(() => {
+    const uri = this.payment()?.upiUri;
+    return uri && uri.startsWith('upi://pay?') ? this.sanitizer.bypassSecurityTrustUrl(uri) : null;
+  });
+
+  /** True while an order is open. */
+  readonly busy = computed(() => {
+    const state = this.state();
+    return state === 'ordering' || state === 'awaiting' || state === 'late';
+  });
+
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  private clockTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     // Defaults the quantity to the region minimum once pricing resolves, but
@@ -267,32 +293,30 @@ export class BuyCreditsButton implements OnDestroy {
           this.quantity.set(overview.pricing.minPurchaseCredits);
         }
       });
-      // Deferred to after the first render rather than done in ngOnInit. The
-      // fact being read — a remembered order — lives in localStorage, so the
-      // server cannot know it, and deciding it during the first render would
-      // have the client's markup disagree with the server's. Hydration treats
-      // that as an error, and the repo's existing browser-only initialisation
-      // (chart-drop's camera) defers the same way.
-      this.resumePendingPurchase();
+      // After the first render rather than in ngOnInit: the remembered order
+      // lives in localStorage, which the server cannot see, so deciding it
+      // during the first render would make hydration disagree with SSR.
+      void this.resumePendingOrder();
     });
   }
 
   /**
-   * Picks up a purchase that was still being confirmed when the page went away.
-   *
-   * Resumed rather than re-offered because the user has already been to
-   * Checkout: their money may already be gone.
+   * Picks up an order that was open when the page went away. Resumed rather
+   * than re-offered: the buyer may already have paid it.
    */
-  private resumePendingPurchase(): void {
-    const pending = this.billing.readPendingCreditOrder();
-    if (pending === null) return;
+  private async resumePendingOrder(): Promise<void> {
+    const orderId = this.billing.readPendingUpiOrder();
+    if (orderId === null) return;
 
-    this.state.set('confirming');
-    // Checked straight away rather than on the usual delay — a reload means
-    // real time has passed since Checkout, so there is no reason to sit through
-    // the grace period that exists to give a webhook still in flight.
-    void this.reconcile(pending);
-    this.startPolling(pending);
+    const result = await this.billing.fetchUpiOrder(orderId, true);
+    // The user may have started something else while this was in flight.
+    if (this.state() !== 'idle') return;
+    if (!result.ok) {
+      if (result.reason === 'not_found') this.billing.forgetPendingUpiOrder();
+      return;
+    }
+    this.payment.set(result.order.payment);
+    this.apply(result.order);
   }
 
   /**
@@ -378,189 +402,131 @@ export class BuyCreditsButton implements OnDestroy {
   }
 
   protected async onBuyClick(): Promise<void> {
-    // Same disabled-during-flight rule as elsewhere: a click in any other
-    // state is ignored outright rather than starting a second order.
+    // A click in any other state is ignored outright rather than starting a
+    // second order.
     if (this.state() !== 'idle') return;
 
-    // The canonical quantity, never the raw field: whatever the user left
-    // typed, what gets ordered is what the label and the total have been
-    // showing, and what the backend will accept.
+    // The canonical quantity, never the raw field: what gets ordered is what
+    // the label and the total have been showing, and what the backend accepts.
     const quantity = this.orderQuantity();
     if (quantity === null) return;
-
-    // Settles the field onto what is about to be ordered, so the order and
-    // the screen agree while the checkout window is open.
     this.commit(quantity);
 
     this.error.set(null);
     this.state.set('ordering');
 
     const code = this.promoCode().trim();
-    const order = await this.billing.purchaseCredits(quantity, code.length > 0 ? code : undefined);
-    if (!order.ok) {
-      this.error.set(order.message);
+    const result = await this.billing.createUpiOrder(quantity, code.length > 0 ? code : undefined);
+    if (!result.ok) {
+      this.error.set(result.message);
       this.state.set('error');
       return;
     }
 
-    this.state.set('loading_checkout');
-    try {
-      await this.billing.loadCheckoutScript();
-    } catch (cause) {
-      console.warn('Razorpay Checkout script failed to load', cause);
-      this.error.set(
-        "Couldn't load the payment window. Check your connection or an ad blocker, then try again.",
-      );
-      this.state.set('error');
-      return;
-    }
-
-    this.state.set('checkout_open');
-    let checkout;
-    try {
-      checkout = await this.billing.openCreditCheckout(
-        order.orderId,
-        order.keyId,
-        order.amountMinor,
-        order.currency,
-        `${order.creditsRequested} credits`,
-        this.auth.user()?.email ?? null,
-      );
-    } catch (cause) {
-      console.warn('Razorpay Checkout could not be opened', cause);
-      this.error.set("Couldn't open the payment window. Please try again.");
-      this.state.set('error');
-      return;
-    }
-
-    if (checkout.outcome === 'dismissed') {
-      // The user simply changed their mind. Returning cleanly to idle — not to
-      // an error state — is the point: nothing went wrong. The Razorpay Order
-      // and its 'created' payments row are left behind deliberately; they are
-      // inert until a webhook captures them.
-      this.state.set('idle');
-      return;
-    }
-
-    this.state.set('confirming');
-    // Remembered here rather than once the poll succeeds: the reload this
-    // exists for can happen at any moment from now on, including during the
-    // seconds the webhook is still in flight.
-    this.billing.rememberPendingCreditOrder(order.orderId);
-    this.startPolling(order.orderId);
+    this.payment.set(result.order.payment);
+    // Remembered straight away: a reload can happen at any moment from here,
+    // including after the buyer has paid.
+    this.billing.rememberPendingUpiOrder(result.order);
+    this.apply(result.order);
   }
 
-  private startPolling(orderId: string): void {
-    const handle = this.billing.pollCreditPurchase(orderId);
-    this.poll = handle;
+  /** Moves the screen to whatever the order's status says. */
+  private apply(order: UpiOrder): void {
+    this.order.set(order);
 
-    // The fast path is the webhook, which writes the payments row the poll
-    // reads. This is the fallback for it never arriving — which, against a
-    // local dev server, it never does: Razorpay has no route to one. Without
-    // this the only possible outcome there would be the full-timeout wait.
-    this.reconcileTimer = setTimeout(() => {
-      this.reconcileTimer = null;
-      void this.reconcile(orderId);
-    }, RECONCILE_AFTER_MS);
-
-    void handle.result.then((outcome) => {
-      this.poll = null;
-
-      switch (outcome) {
-        case 'captured':
-          this.settleAsPurchased();
-          break;
-        case 'timed_out':
-          // Last chance to establish it ourselves before telling the user we
-          // could not. 'timed_out' is not a failed payment — it is only the
-          // end of our patience for the webhook.
-          void this.reconcile(orderId, true);
-          break;
-        case 'poll_error':
-          // The marker survives: the user is about to be told to refresh, and
-          // refreshing into a resumed check is exactly what should happen to a
-          // purchase that may well have gone through.
-          this.error.set("Couldn't confirm your purchase — please refresh.");
-          this.state.set('poll_error');
-          break;
-      }
-    });
-  }
-
-  /**
-   * Asks the backend to ask Razorpay whether this order is paid.
-   *
-   * `isFinal` marks the call made after the poll has already given up, where a
-   * "not paid yet" answer has to be shown to the user rather than quietly
-   * waited on.
-   */
-  private async reconcile(orderId: string, isFinal = false): Promise<void> {
-    // Nothing to ask about if the purchase settled while this was queued: the
-    // poll may have succeeded, or the user may have started over.
-    if (this.state() !== 'confirming') return;
-
-    const outcome = await this.billing.reconcileCreditOrder(orderId);
-
-    // Re-checked after the await: the poll runs on its own timer and could have
-    // settled the purchase while this request was in flight.
-    if (this.state() !== 'confirming') return;
-
-    if (outcome === 'captured') {
+    if (order.status === 'paid') {
       this.settleAsPurchased();
       return;
     }
+    if (order.status === 'pending' && this.payment() !== null) {
+      this.watch('awaiting');
+      return;
+    }
+    if (Date.now() < Date.parse(order.settleDeadline)) {
+      this.watch('late');
+      return;
+    }
 
-    if (isFinal) {
-      this.state.set('confirming_slow');
+    this.stopTimers();
+    this.billing.forgetPendingUpiOrder();
+    this.state.set('unpaid');
+  }
+
+  private watch(state: 'awaiting' | 'late'): void {
+    this.state.set(state);
+    this.now.set(Date.now());
+    this.clockTimer ??= setInterval(() => this.now.set(Date.now()), 1000);
+    this.schedulePoll();
+  }
+
+  private schedulePoll(): void {
+    if (this.pollTimer !== null) return;
+    const delay = this.state() === 'late' ? POLL_LATE_MS : POLL_LIVE_MS;
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      void this.pollOnce();
+    }, delay);
+  }
+
+  private async pollOnce(): Promise<void> {
+    const order = this.order();
+    if (!order || !this.isWatching()) return;
+
+    const result = await this.billing.fetchUpiOrder(order.orderId);
+
+    // Re-checked after the await: the user may have gone back, or started a
+    // new order, while this was in flight.
+    if (!this.isWatching() || this.order()?.orderId !== order.orderId) return;
+
+    if (result.ok) {
+      this.apply(result.order);
+    } else {
+      // A failed check proves nothing about the payment; ask again.
+      this.schedulePoll();
     }
   }
 
-  private settleAsPurchased(): void {
-    // Guarded rather than assumed unique: the poll and the reconciliation can
-    // both discover the same capture, and only one of them should be the one
-    // that reports it.
-    if (this.state() !== 'confirming') return;
+  private isWatching(): boolean {
+    const state = this.state();
+    return state === 'awaiting' || state === 'late';
+  }
 
-    this.cancelInFlight();
-    this.billing.forgetPendingCreditOrder();
+  private settleAsPurchased(): void {
+    this.stopTimers();
+    this.billing.forgetPendingUpiOrder();
     this.state.set('success');
     void this.billing.refreshCreditBalance();
     this.creditsAdded.emit();
   }
 
   /**
-   * A second look, offered after the first one gave up. Safe to repeat: the
-   * backend answers from the payments row without touching the provider when
-   * the purchase has already been applied, and the grant itself is idempotent.
+   * Back to the form. The order is not cancelled on the server: if the buyer
+   * did pay it, the bank SMS still settles it and the credits still arrive.
+   * This page just stops watching.
    */
-  protected onCheckAgain(): void {
-    const orderId = this.billing.readPendingCreditOrder();
-    if (orderId === null) {
-      // The remembered order is what carries the id across states, and it has
-      // aged out or been cleared. There is genuinely nothing left to check.
-      this.state.set('idle');
-      return;
-    }
-
-    this.state.set('confirming');
-    void this.reconcile(orderId);
-    this.startPolling(orderId);
+  protected onStartOver(): void {
+    this.stopTimers();
+    this.billing.forgetPendingUpiOrder();
+    this.order.set(null);
+    this.payment.set(null);
+    this.error.set(null);
+    this.state.set('idle');
   }
 
-  private cancelInFlight(): void {
-    this.poll?.cancel();
-    this.poll = null;
-
-    if (this.reconcileTimer !== null) {
-      clearTimeout(this.reconcileTimer);
-      this.reconcileTimer = null;
+  private stopTimers(): void {
+    if (this.pollTimer !== null) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
+    if (this.clockTimer !== null) {
+      clearInterval(this.clockTimer);
+      this.clockTimer = null;
     }
   }
 
   ngOnDestroy(): void {
-    // Without this the setInterval keeps firing after the user navigates away,
-    // and would try to update a destroyed component's state. The delayed
-    // reconciliation is cleared for the same reason.
-    this.cancelInFlight();
+    // Timers would otherwise keep firing against a destroyed component. The
+    // order itself is unaffected, and is picked back up on the next visit.
+    this.stopTimers();
   }
 }

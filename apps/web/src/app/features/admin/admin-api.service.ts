@@ -12,6 +12,7 @@ import type {
   AdminPromoCodeCreated,
   AdminPromoCodeRow,
   AdminRange,
+  AdminUpiReview,
   AdminUserDetail,
   AdminUserRow,
 } from '@tradesathi/shared';
@@ -78,6 +79,33 @@ export class AdminApiService {
     const headers = await this.authHeaders();
     await firstValueFrom(
       this.http.put(`/api/admin/promo-codes/${encodeURIComponent(id)}/active`, { active }, { headers }),
+    );
+  }
+
+  upiReview(): Promise<AdminUpiReview> {
+    return this.get('/api/admin/upi', {});
+  }
+
+  /** Settles an order from a bank SMS. The API refuses it unless the amounts agree. */
+  async matchUpiSms(smsId: string, paymentId: string, note: string | null): Promise<void> {
+    const headers = await this.authHeaders();
+    await firstValueFrom(
+      this.http.post(`/api/admin/upi/sms/${encodeURIComponent(smsId)}/match`, { paymentId, note }, { headers }),
+    );
+  }
+
+  async ignoreUpiSms(smsId: string, note: string | null): Promise<void> {
+    const headers = await this.authHeaders();
+    await firstValueFrom(
+      this.http.post(`/api/admin/upi/sms/${encodeURIComponent(smsId)}/ignore`, { note }, { headers }),
+    );
+  }
+
+  /** Settles an order with no SMS, from a UTR checked in the bank statement. */
+  async markUpiOrderPaid(orderId: string, utr: string, note: string): Promise<void> {
+    const headers = await this.authHeaders();
+    await firstValueFrom(
+      this.http.post(`/api/admin/upi/orders/${encodeURIComponent(orderId)}/mark-paid`, { utr, note }, { headers }),
     );
   }
 

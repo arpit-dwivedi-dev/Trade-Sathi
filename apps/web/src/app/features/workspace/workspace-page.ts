@@ -40,7 +40,7 @@ import type { SymbolSelection } from '../../shared/symbol-search/symbol-search';
 import { FAILURE_COPY, GENERIC_FAILURE } from '../analyze/analysis-result';
 import { AnalyzeService, type PollHandle } from '../analyze/analyze.service';
 import { BetaCredits } from '../billing/beta-credits';
-import { PURCHASES_ENABLED } from '../billing/free-beta';
+import { BillingService } from '../billing/billing.service';
 import { WorkspaceChart } from './chart/workspace-chart';
 import { loadDrawings, saveDrawings } from './drawing/drawing-store';
 import {
@@ -157,6 +157,7 @@ export class WorkspacePage implements OnInit, OnDestroy {
   private readonly analyses = inject(AnalyzeService);
   private readonly chartCapture = inject(ChartCaptureService);
   private readonly auth = inject(AuthService);
+  private readonly billing = inject(BillingService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
@@ -171,10 +172,10 @@ export class WorkspacePage implements OnInit, OnDestroy {
   readonly analysisReady = output<ReadyAnalysis>();
 
   /**
-   * Off for the free beta (see PURCHASES_ENABLED): the out-of-credits note
+   * Off while purchases are (see BillingService.purchasesEnabled): the out-of-credits note
    * offers the beta code instead of a Buy button with nothing to sell.
    */
-  protected readonly purchasesEnabled = PURCHASES_ENABLED;
+  protected readonly purchasesEnabled = this.billing.purchasesEnabled;
 
   /**
    * Raised when this screen opened a chart on its own, from storage, after a

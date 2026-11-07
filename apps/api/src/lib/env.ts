@@ -164,6 +164,55 @@ function idSetEnv(name: string): ReadonlySet<string> {
   return new Set(raw.split(",").map((id) => id.trim()).filter((id) => id.length > 0));
 }
 
+/**
+ * The UPI QR payment settings, validated together because they only make sense
+ * together: purchases switched on with no VPA to pay, or with no way for the
+ * bank SMS to reach the webhook, would take money that nothing can confirm.
+ *
+ * The webhook works whenever SMS_WEBHOOK_TOKEN is set, even with purchases
+ * off — so real bank SMS can be captured, and parse rules written from them,
+ * before the first QR is ever shown.
+ */
+function parseUpiConfig() {
+  const enabled = optionalBoolEnv("UPI_PAYMENTS_ENABLED", false);
+  const payeeVpa = process.env["UPI_PAYEE_VPA"]?.trim() || null;
+  const webhookToken = process.env["SMS_WEBHOOK_TOKEN"]?.trim() || null;
+  const accountLast4 = process.env["UPI_ACCOUNT_LAST4"]?.trim() || null;
+
+  // A VPA is handle@psp. The handle is written into a upi:// link unencoded
+  // (several UPI apps refuse an encoded "@"), so the charset is held tight.
+  if (payeeVpa !== null && !/^[A-Za-z0-9._-]{2,256}@[A-Za-z][A-Za-z0-9]{1,63}$/.test(payeeVpa)) {
+    throw new Error("UPI_PAYEE_VPA must look like name@bank");
+  }
+  // Long enough that guessing it is not a plan. It is the webhook's whole
+  // access control, since the forwarder app cannot sign a request.
+  if (webhookToken !== null && webhookToken.length < 32) {
+    throw new Error("SMS_WEBHOOK_TOKEN must be at least 32 characters");
+  }
+  if (accountLast4 !== null && !/^\d{4}$/.test(accountLast4)) {
+    throw new Error("UPI_ACCOUNT_LAST4 must be exactly four digits");
+  }
+  if (enabled && (payeeVpa === null || webhookToken === null)) {
+    throw new Error("UPI_PAYMENTS_ENABLED needs UPI_PAYEE_VPA and SMS_WEBHOOK_TOKEN");
+  }
+
+  return {
+    enabled,
+    payeeVpa,
+    payeeName: process.env["UPI_PAYEE_NAME"]?.trim() || "TradeSathi",
+    webhookToken,
+    // Bank sender ids whose SMS are stored at all, e.g. "HDFCBK". Anything else
+    // the forwarder sends (OTPs, personal texts) is dropped unread.
+    smsSenders: [...idSetEnv("UPI_SMS_SENDERS")],
+    // Raw JSON; compiled and validated by services/upi-sms-parser.ts when the
+    // payments service loads, which is at startup.
+    smsRulesJson: process.env["UPI_SMS_RULES"]?.trim() || null,
+    accountLast4,
+    orderTtlMinutes: optionalIntEnvInRange("UPI_ORDER_TTL_MINUTES", 15, 5, 60),
+    smsGraceMinutes: optionalIntEnvInRange("UPI_SMS_GRACE_MINUTES", 20, 0, 240),
+  };
+}
+
 export const env = {
   port: Number(process.env["PORT"] ?? 3000),
   supabaseUrl: requireEnv("SUPABASE_URL"),
@@ -266,4 +315,9 @@ export const env = {
   // Fallback USD→INR rate for the Admin panel's P&L conversion, used only when
   // the live rate (services/fx.service.ts) cannot be fetched. Optional.
   adminUsdInrRate: optionalPositiveNumberEnv("ADMIN_USD_INR_RATE"),
+
+  // Credit purchases by UPI QR to the owner's own VPA, confirmed from bank SMS
+  // forwarded by the "SMS to URL Forwarder" Android app. See parseUpiConfig
+  // above and docs/upi-sms-payments.md.
+  upi: parseUpiConfig(),
 };
